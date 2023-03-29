@@ -56,7 +56,7 @@ Real Time Translation is a tool that translates audio from one language to Engli
 
 ### Best Performance
 - CPU with 16 cores running at 4.0 GHz or higher
-- *GPU with 16 GB of VRAM or higher
+- *GPU with 12 GB of VRAM or higher
 - 16 GB of RAM or higher
 - 10 GB of free disk space
 * GPU is not required, but can improve performance.
