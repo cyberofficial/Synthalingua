@@ -118,9 +118,16 @@ def main():
                         help="Set default microphone to use.", type=str)
     parser.add_argument("--auto_language_lock", action='store_true',
                         help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
+    parser.add_argument("--retry", action='store_true',
+                        help="Retries the transcription if it fails. May increase output time.")
     parser.add_argument("--about", action='store_true',
                         help="About the project.")
     args = parser.parse_args()
+
+    # if no arguments are given, print help
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
 
     if args.about:
         print(f"\033[4m{Fore.GREEN}About the project:{Style.RESET_ALL}\033[0m")
@@ -274,7 +281,7 @@ def main():
         if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
             print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. If you experience issues, try using the CPU instead.")
 
-    print("Awaiting audio stream...")
+
 
     english_counter = 0
     language_counters = {}
@@ -283,14 +290,17 @@ def main():
     # send a message to discord saying that the program has started, if translation is enabled then say that it is enabled
     if args.discord_webhook:
         if args.translate:
-            send_to_discord_webhook(webhook_url, "Transcription started. Translation enabled.")
+            send_to_discord_webhook(webhook_url, f"Transcription started. Translation enabled.\nUsing the {args.ram} ram model.")
         else:
-            send_to_discord_webhook(webhook_url, "Transcription started. Translation disabled.")
+            send_to_discord_webhook(webhook_url, f"Transcription started. Translation disabled.\nUsing the {args.ram} ram model.")
+        sleep(0.25)
 
     if args.auto_language_lock:
         print("Auto language lock enabled. Will auto lock after 5 consecutive detections of the same language.")
         if args.discord_webhook:
             send_to_discord_webhook(webhook_url, "Auto language lock enabled. Will auto lock after 5 consecutive detections of the same language.")
+
+    print("Awaiting audio stream...")
 
     while True:
         try:
@@ -360,6 +370,20 @@ def main():
                 else:
                     result = audio_model.transcribe(temp_file)
                 print(f"Detected Speech: {result['text']}")
+                # if result is empty then try again
+                if result['text'] == "":
+                    if args.retry:
+                        print("Transcription failed, trying again...")
+                        send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
+                        if device == "cuda":
+                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available())
+                        else:
+                            result = audio_model.transcribe(temp_file)
+                        print(f"Detected Speech: {result['text']}")
+                    else:
+                        print("Transcription failed, skipping...")
+                if args.discord_webhook:
+                    send_to_discord_webhook(webhook_url, f"Detected Speech: {result['text']}")
                 text = result['text'].strip()
                 
                 if args.translate:
@@ -370,30 +394,29 @@ def main():
                         else:
                             translated_result = audio_model.transcribe(temp_file, task="translate")
                         translated_text = translated_result['text'].strip()
+                        # if result is empty then try again
+                        if translated_text == "":
+                            if args.retry:
+                                print("Translation failed, trying again...")
+                                send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
+                                if device == "cuda":
+                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate")
+                                else:
+                                    translated_result = audio_model.transcribe(temp_file, task="translate")
+                            translated_text = translated_result['text'].strip()
+                        if args.discord_webhook:
+                            if translated_text == "":
+                                send_to_discord_webhook(webhook_url, f"Translation failed")
+                            else:
+                                send_to_discord_webhook(webhook_url, f"Translated Speech: {translated_text}")
+
                     else:
-                        translated_text = None
+                        translated_text = ""
+                        if args.discord_webhook:
+                            send_to_discord_webhook(webhook_url, "Translation failed")
                 
                 if args.discord_webhook:
-                    # before we send the message, to sanitize the text, if there is an @ signs need to add a \ after it
-                    # if there is a # sign then we need to add a \ after it, same with the * sign
-                    text = text.replace("@", "@\u200b")
-                    text = text.replace("#", "#\u200b")
-                    text = text.replace("*", "*\u200b")
-                    message = f"Detected Speech ({detected_language}): {text}\n\n"
-                    try:
-                        if detected_language != 'en':
-                            message += f"Translated Speech: {translated_text}\n"
-                        else:
-                            translated_text = None
-                    except:
-                        message += "Translation failed\n"
-                        pass
-                    try:
-                        # if the language is locked then dont show the confidence (if the language is args is set then it is locked)
-                        message += f"Accuracy: {confidence:.2f}%\n"
-                    except:
-                        pass
-                    message += "----------------"
+                    message = "----------------"
                     send_to_discord_webhook(webhook_url, message)
                     
 
