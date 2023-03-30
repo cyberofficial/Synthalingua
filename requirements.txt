@@ -1,0 +1,11 @@
+wheel
+setuptools-rust
+gitpython
+git+https://github.com/openai/whisper.git
+numpy
+tqdm
+more-itertools
+ffmpeg-python==0.2.0
+pyaudio
+SpeechRecognition
+prettytable
