@@ -493,6 +493,7 @@ def main():
                     error_report_file = open('error_report.txt', 'w')
                 error_report_file.write(str(e))
                 error_report_file.close()
+                pass
 
         except KeyboardInterrupt:
             print("Exiting...")
