@@ -90,7 +90,7 @@ This script uses argparse to accept command line arguments. The following option
 * `--cuda_device`: Select the CUDA device to use for the model. Default is 0.
 * `--discord_webhook`: Set the Discord webhook to send the transcription to.
 * `--list_microphones`: List available microphones and exit.
-* `--set_microphone`: Set the default microphone to use.
+* `--set_microphone`: Set the default microphone to use. You can set the name or it's ID number from the list.
 * `--auto_language_lock`: Automatically lock the language based on the detected language after 5 detections. This flag enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language.
 * `--retry`: Retries translations and transcription if they failed.
 * `--about`: Shows about the app.
@@ -108,14 +108,16 @@ This command will list all audio devices and their index. You can then use the i
 
 Example lets say i have these devices:
 ```
-Microphone with name "Microsoft Sound Mapper - Input" found
-Microphone with name "VoiceMeeter VAIO3 Output (VB-Au" found
-Microphone with name "Headset (B01)" found
-Microphone with name "Microphone (Realtek USB2.0 Audi" found
-Microphone with name "Microphone (NVIDIA Broadcast)" found
+Microphone with name "Microsoft Sound Mapper - Input" found, the device index is 1
+Microphone with name "VoiceMeeter VAIO3 Output (VB-Au" found, the device index is 2
+Microphone with name "Headset (B01)" found, the device index is 3
+Microphone with name "Microphone (Realtek USB2.0 Audi" found, the device index is 4
+Microphone with name "Microphone (NVIDIA Broadcast)" found, the device index is 5
 ```
 
 I would put `python transcribe_audio.py --set_microphone "Microphone (Realtek USB2.0 Audi"` to set the device to listen to.
+-or-
+I would put `python transcribe_audio.py --set_microphone 4` to set the device to listen to.
 
 ## Troubleshooting
 * Python is not recognized as an internal or external command, operable program or batch file.
