@@ -11,6 +11,19 @@ import shutil
 import numpy as np
 import requests
 import json
+try:
+    import pytz
+except:
+    # install pytz if it's not installed
+    os.system("pip install pytz")
+    try:
+        import pytz
+    except:
+        print("Failed to install pytz. Please install it manually.")
+        print("Use the command: pip install pytz")
+        exit()
+
+
 
 from datetime import datetime, timedelta
 from queue import Queue
@@ -19,6 +32,18 @@ from time import sleep
 from sys import platform
 from colorama import Fore, Back, Style, init
 from tqdm import tqdm
+from datetime import datetime
+try:
+    from dateutil.tz import tzlocal
+except:
+    # install dateutil if it's not installed
+    os.system("pip install python-dateutil")
+    try:
+        from dateutil.tz import tzlocal
+    except:
+        print("Failed to install python-dateutil. Please install it manually.")
+        print("Use the command: pip install python-dateutil")
+        exit()
 init()
 
 try:
@@ -33,6 +58,28 @@ def main():
     version = "1.0.0"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Translation"
+    repo_owner = "cyberofficial"
+    repo_name = "Real-Time-Translation"
+
+    def get_last_updated(repo_owner, repo_name):
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+        response = requests.get(url)
+        repo_data = response.json()
+
+        if response.status_code == 200:
+            last_updated = repo_data["updated_at"]
+            last_updated_dt = datetime.fromisoformat(last_updated.strip("Z"))
+
+            # Convert to the user's local timezone
+            utc_timezone = pytz.timezone("UTC")
+            local_timezone = tzlocal()
+            last_updated_local = last_updated_dt.replace(tzinfo=utc_timezone).astimezone(local_timezone)
+
+            print(f"The repository {repo_owner}/{repo_name} was last updated on {last_updated_local}.")
+        else:
+            print(f"An error occurred. Status code: {response.status_code}")
+
+    print(f"Laster updated: {get_last_updated(repo_owner, repo_name)}")
 
     def fine_tune_model_dl():
         # download the fine-tuned model
