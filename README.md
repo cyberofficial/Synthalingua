@@ -61,7 +61,6 @@ Real Time Translation is a tool that translates audio from one language to Engli
 - 10 GB of free disk space
 * GPU is not required, but can improve performance.
 
-
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
 ## Installation
@@ -143,3 +142,5 @@ Command line arguments used. `--ram 12gb --record_timeout 5 --language id --ener
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
+- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
+- The fune tuned model will automatically be downloaded from OneDrive via Direct Pubnlic link. In the event if failure
