@@ -92,6 +92,7 @@ This script uses argparse to accept command line arguments. The following option
 * `--list_microphones`: List available microphones and exit.
 * `--set_microphone`: Set the default microphone to use.
 * `--auto_language_lock`: Automatically lock the language based on the detected language after 5 detections. This flag enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language.
+* `--retry`: Retries transations and transcription if they failed.
 
 ## Examples
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
