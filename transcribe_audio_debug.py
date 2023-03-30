@@ -446,7 +446,7 @@ def main():
         print(f"Using {model} model.")
         if args.non_english:
             print("Using the multi-lingual model.")
-    except
+    except:
         print("Error Code 28: Error while printing model info.")
 
     try:
