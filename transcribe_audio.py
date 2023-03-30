@@ -200,24 +200,34 @@ def main():
     if args.list_microphones:
         print("Available microphone devices are: ")
         for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            print(f"Microphone with name \"{name}\" found")
+            print(f"Microphone with name \"{name}\" found, the device index is {index}")
             # exit program
         sys.exit(0)
 
 
     if args.set_microphone:
         mic_name = args.set_microphone
-        # if the user enters a microphone name that is not in the list, then exit the program
-        if mic_name not in sr.Microphone.list_microphone_names():
-            print("Microphone not found. Please choose a valid microphone.")
-            # exit program
-            sys.exit(0)
-        # set the source to the desired microphone
-        for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            if mic_name in name:
-                source = sr.Microphone(sample_rate=16000, device_index=index)
-                print(f"Microphone set to: {name}")
-                break
+
+        # if the microphone arg is set to a number, then set the source to the microphone with that index number if it exists
+        if mic_name.isdigit():
+            if int(mic_name) in range(len(sr.Microphone.list_microphone_names())):
+                source = sr.Microphone(sample_rate=16000, device_index=int(mic_name))
+                print(f"Microphone set to: {sr.Microphone.list_microphone_names()[int(mic_name)]}")
+            else:
+                print("Microphone not found. Please choose a valid microphone.")
+                # exit program
+                sys.exit(0)
+        else:
+            # if the microphone arg is set to a string, then set the source to the microphone with that name if it exists
+            for index, name in enumerate(sr.Microphone.list_microphone_names()):
+                if mic_name == name:
+                    source = sr.Microphone(sample_rate=16000, device_index=index)
+                    print(f"Microphone set to: {name}")
+                    break
+            else:
+                print("Microphone not found. Please choose a valid microphone.")
+                # exit program
+                sys.exit(0)
     else:
         source = sr.Microphone(sample_rate=16000)
         print(f"Microphone set to system default.")
@@ -472,6 +482,17 @@ def main():
                 # Keeping sleep disabled for now will add a flag to enable it later to prevent spamming the API
                 # Just here as a reminder
                 # sleep(0.25)
+        except Exception as e:
+            # print error to file as error_report.txt, if it's a keyboard interrupt then don't print it.
+            # also if the file already exist, then append to end of file
+            if not isinstance(e, KeyboardInterrupt):
+                print(e)
+                if os.path.isfile('error_report.txt'):
+                    error_report_file = open('error_report.txt', 'a')
+                else:
+                    error_report_file = open('error_report.txt', 'w')
+                error_report_file.write(str(e))
+                error_report_file.close()
 
         except KeyboardInterrupt:
             print("Exiting...")
