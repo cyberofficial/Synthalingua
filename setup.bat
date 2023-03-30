@@ -13,6 +13,8 @@ Echo Updating pip
 python.exe -m pip install --upgrade pip
 
 Echo Installing Requirements...
+pip install wheel
+pip install setuptools-rust
 pip install -r requirements.txt
 
 :cuda-patch
