@@ -32,6 +32,9 @@ Synthalingua is a tool that translates audio from one language to English in alm
 - [ ] GUI.
 - [x] Linux support.
 - [ ] Improve performance.
+    - [x] Compressed Model Format for lower ram users
+    - [ ] Better large model loading speed
+        - [ ] Split model up into multiple chunks based on usage
 - [ ] Increase model swapping accuracy.
 
 # System Requirements
