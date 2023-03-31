@@ -161,3 +161,6 @@ Command line arguments used. `--ram 12gb --record_timeout 5 --language id --ener
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
+
+# Contributors 
+#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
