@@ -27,6 +27,7 @@ Synthalingua is a tool that translates audio from one language to English in alm
 - [ ] Add support API access.
 - [ ] Custom localhost web server.
 - [ ] Add reverse translation.
+     - [ ] Localize script to other languages. (Will take place after reverse translations.)
 - [ ] Custom dictionary support.
 - [ ] GUI.
 - [x] Linux support.
