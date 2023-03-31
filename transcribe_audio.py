@@ -67,9 +67,9 @@ def main():
 
     version = "1.0.0"
     ScriptCreator = "cyberofficial"
-    GitHubRepo = "https://github.com/cyberofficial/Real-Time-Translation"
+    GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
-    repo_name = "Real-Time-Translation"
+    repo_name = "Synthalingua"
 
     def get_last_updated(repo_owner, repo_name):
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
