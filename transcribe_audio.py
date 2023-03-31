@@ -106,6 +106,21 @@ def main():
                         pbar.update(1024)
         print("Fine-tuned model downloaded.")
 
+    def fine_tune_model_dl_compressed():
+        # download the fine-tuned model
+        print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
+        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455918&authkey=AGS9Zh8NuEo6qn4"
+        # show progress bar as the file is being downloaded
+        r = requests.get(url, stream=True)
+        total_length = int(r.headers.get('content-length'))
+        with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
+            with open("models/fine_tuned_model_compressed.pt", "wb") as f:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+                        pbar.update(1024)
+        print("Fine-tuned model (compressed) downloaded.")
+
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
         data_queue.put(data)
@@ -141,6 +156,40 @@ def main():
         except:
             print("Failed to send message to Discord webhook.")
             pass
+
+    def is_input_device(device_index):
+        pa = pyaudio.PyAudio()
+        device_info = pa.get_device_info_by_index(device_index)
+        return device_info['maxInputChannels'] > 0
+
+    def get_microphone_source(args):
+        pa = pyaudio.PyAudio()
+        available_mics = sr.Microphone.list_microphone_names()
+
+        def is_input_device(device_index):
+            device_info = pa.get_device_info_by_index(device_index)
+            return device_info['maxInputChannels'] > 0
+
+        if args.set_microphone:
+            mic_name = args.set_microphone
+
+            if mic_name.isdigit():
+                mic_index = int(mic_name)
+                if mic_index in range(len(available_mics)) and is_input_device(mic_index):
+                    return sr.Microphone(sample_rate=16000, device_index=mic_index), available_mics[mic_index]
+                else:
+                    print("Invalid audio source. Please choose a valid microphone.")
+                    sys.exit(0)
+            else:
+                for index, name in enumerate(available_mics):
+                    if mic_name == name and is_input_device(index):
+                        return sr.Microphone(sample_rate=16000, device_index=index), name
+
+        for index in range(pa.get_device_count()):
+            if is_input_device(index):
+                return sr.Microphone(sample_rate=16000, device_index=index), "system default"
+
+        raise ValueError("No valid input devices found.")
 
     parser = argparse.ArgumentParser()
 #    parser.add_argument("--model", default="medium", help="Model to use",
@@ -253,11 +302,6 @@ def main():
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
-    def is_input_device(device_index):
-        pa = pyaudio.PyAudio()
-        device_info = pa.get_device_info_by_index(device_index)
-        return device_info['maxInputChannels'] > 0
-
     # list all microphones that are available then set the source to desired microphone
     if args.list_microphones:
         print("Available microphone devices are: ")
@@ -266,36 +310,6 @@ def main():
                 print(f"Microphone with name \"{name}\" found, the device index is {index}")
         # exit program
         sys.exit(0)
-
-
-    def get_microphone_source(args):
-        pa = pyaudio.PyAudio()
-        available_mics = sr.Microphone.list_microphone_names()
-
-        def is_input_device(device_index):
-            device_info = pa.get_device_info_by_index(device_index)
-            return device_info['maxInputChannels'] > 0
-
-        if args.set_microphone:
-            mic_name = args.set_microphone
-
-            if mic_name.isdigit():
-                mic_index = int(mic_name)
-                if mic_index in range(len(available_mics)) and is_input_device(mic_index):
-                    return sr.Microphone(sample_rate=16000, device_index=mic_index), available_mics[mic_index]
-                else:
-                    print("Invalid audio source. Please choose a valid microphone.")
-                    sys.exit(0)
-            else:
-                for index, name in enumerate(available_mics):
-                    if mic_name == name and is_input_device(index):
-                        return sr.Microphone(sample_rate=16000, device_index=index), name
-
-        for index in range(pa.get_device_count()):
-            if is_input_device(index):
-                return sr.Microphone(sample_rate=16000, device_index=index), "system default"
-
-        raise ValueError("No valid input devices found.")
 
     try:
         source, mic_name = get_microphone_source(args)
@@ -310,8 +324,6 @@ def main():
         except AssertionError as e:
             print(e)
 
-
-
     # if the language is set to english, then add .en to the model name
     if args.language == "en" or args.language == "English":
         model += ".en"
@@ -323,19 +335,73 @@ def main():
     if not os.path.exists("models"):
         print("Creating models folder...")
         os.makedirs("models")
-    if not os.path.exists("models/fine_tuned_model.pt"):
-        print("Fine-tuned model not found. Downloading fine-tuned model... [Via OneDrive (Public)]")
-        fine_tune_model_dl()
+    # check if ram size is set to 1gb, 2gb, or 4gb if so download compressed model else download fine-tuned model
+    if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
+        if not os.path.exists("models/fine_tuned_model_compressed.pt"):
+            print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format. This will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
+            print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
+            fine_tune_model_dl_compressed()
+            # load the fine-tuned model into memory
+            try:
+                whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                print("Fine-tuned model loaded into memory.")
+                # attempt to lower the max split size to 128 MB if the device is CUDA
+                if device.type == "cuda":
+                    max_split_size_mb = 128
+                    # set garbage collection to run every 10 seconds
+                    gc.set_threshold(100, 10, 10)
+                    gc.set_threshold(0.6)
+            except Exception as e:
+                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+                red_text = Fore.RED + Back.BLACK
+                print(f"{red_text}Error: {e}")
+                pass
+        else:
+            # load the fine-tuned model into memory
+            try:
+                whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                print("Fine-tuned model loaded into memory.")
+                # attempt to lower the max split size to 128 MB if the device is CUDA
+                if device.type == "cuda":
+                    max_split_size_mb = 128
+                    # set garbage collection to run every 10 seconds
+                    gc.set_threshold(100, 10, 10)
+                    gc.set_threshold(0.6)
+            except Exception as e:
+                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+                red_text = Fore.RED + Back.BLACK
+                print(f"{red_text}Error: {e}")
+                pass
     else:
-        # load the fine-tuned model into memory
-        try:
-            whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
-            print("Fine-tuned model loaded into memory.")
-        except Exception as e:
-            print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
-            red_text = Fore.RED + Back.BLACK
-            print(f"{red_text}Error: {e}")
-            pass
+        if not os.path.exists("models/fine_tuned_model.pt"):
+            print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
+            fine_tune_model_dl()
+            # load the fine-tuned model into memory
+            try:
+                whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                print("Fine-tuned model loaded into memory.")
+                # attempt to lower the max split size to 128 MB if the device is CUDA
+                if device.type == "cuda":
+                    max_split_size_mb = 128
+                    # set garbage collection to run every 10 seconds
+                    gc.set_threshold(100, 10, 10)
+                    gc.set_threshold(0.6)
+            except Exception as e:
+                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+                red_text = Fore.RED + Back.BLACK
+                print(f"{red_text}Error: {e}")
+                pass
+        else:
+            # load the fine-tuned model into memory
+            try:
+                whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                print("Fine-tuned model loaded into memory.")
+            except Exception as e:
+                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+                red_text = Fore.RED + Back.BLACK
+                print(f"{red_text}Error: {e}")
+                pass
+
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
 
@@ -348,9 +414,6 @@ def main():
     temp_dir = "temp"
     temp_file = NamedTemporaryFile(dir=temp_dir, delete=True, suffix=".ts", prefix="rec_").name
     transcription = ['']
-
-
-
         
     if args.discord_webhook:
         webhook_url = args.discord_webhook
@@ -367,8 +430,6 @@ def main():
     if device.type == "cuda":
         if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
             print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. If you experience issues, try using the CPU instead.")
-
-
 
     english_counter = 0
     language_counters = {}
