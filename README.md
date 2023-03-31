@@ -37,6 +37,9 @@ Synthalingua is a tool that translates audio from one language to English in alm
         - [ ] Split model up into multiple chunks based on usage
 - [ ] Increase model swapping accuracy.
 
+# Contributors 
+#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
+
 # System Requirements
 ## Nvidia GPU is required*, Support for AMD GPUs is coming soon. Windows is required. Linux support is coming soon.
 #### *GPU is not fully required, but can improve performance. AMD GPUs are not supported yet, but will be supported soon.
@@ -162,5 +165,4 @@ Command line arguments used. `--ram 12gb --record_timeout 5 --language id --ener
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
 
-# Contributors 
-#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
+
