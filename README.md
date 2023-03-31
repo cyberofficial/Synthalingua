@@ -27,11 +27,18 @@ Synthalingua is a tool that translates audio from one language to English in alm
 - [ ] Add support API access.
 - [ ] Custom localhost web server.
 - [ ] Add reverse translation.
+     - [ ] Localize script to other languages. (Will take place after reverse translations.)
 - [ ] Custom dictionary support.
 - [ ] GUI.
 - [x] Linux support.
 - [ ] Improve performance.
+    - [x] Compressed Model Format for lower ram users
+    - [ ] Better large model loading speed
+        - [ ] Split model up into multiple chunks based on usage
 - [ ] Increase model swapping accuracy.
+
+# Contributors 
+#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
 
 # System Requirements
 ## Nvidia GPU is required*, Support for AMD GPUs is coming soon. Windows is required. Linux support is coming soon.
@@ -157,3 +164,5 @@ Command line arguments used. `--ram 12gb --record_timeout 5 --language id --ener
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
+
+
