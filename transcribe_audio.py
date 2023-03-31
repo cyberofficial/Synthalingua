@@ -11,6 +11,29 @@ import shutil
 import numpy as np
 import requests
 import json
+try:
+    import pytz
+except:
+    # install pytz if it's not installed
+    os.system("pip install pytz")
+    try:
+        import pytz
+    except:
+        print("Failed to install pytz. Please install it manually.")
+        print("Use the command: pip install pytz")
+        exit()
+try:
+    import pyaudio
+except:
+    # install pyaudio if it's not installed
+    os.system("pip install pyaudio")
+    try:
+        import pyaudio
+    except:
+        print("Failed to install pyaudio. Please install it manually.")
+        print("Use the command: pip install pyaudio")
+        exit()
+
 
 from datetime import datetime, timedelta
 from queue import Queue
@@ -19,6 +42,18 @@ from time import sleep
 from sys import platform
 from colorama import Fore, Back, Style, init
 from tqdm import tqdm
+from datetime import datetime
+try:
+    from dateutil.tz import tzlocal
+except:
+    # install dateutil if it's not installed
+    os.system("pip install python-dateutil")
+    try:
+        from dateutil.tz import tzlocal
+    except:
+        print("Failed to install python-dateutil. Please install it manually.")
+        print("Use the command: pip install python-dateutil")
+        exit()
 init()
 
 try:
@@ -33,6 +68,28 @@ def main():
     version = "1.0.0"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Translation"
+    repo_owner = "cyberofficial"
+    repo_name = "Real-Time-Translation"
+
+    def get_last_updated(repo_owner, repo_name):
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+        response = requests.get(url)
+        repo_data = response.json()
+
+        if response.status_code == 200:
+            last_updated = repo_data["updated_at"]
+            last_updated_dt = datetime.fromisoformat(last_updated.strip("Z"))
+
+            # Convert to the user's local timezone
+            utc_timezone = pytz.timezone("UTC")
+            local_timezone = tzlocal()
+            last_updated_local = last_updated_dt.replace(tzinfo=utc_timezone).astimezone(local_timezone)
+
+            print(f"The repository {repo_owner}/{repo_name} was last updated on {last_updated_local}.")
+        else:
+            print(f"An error occurred. Status code: {response.status_code}")
+
+    print(f"Last updated: {get_last_updated(repo_owner, repo_name)}")
 
     def fine_tune_model_dl():
         # download the fine-tuned model
@@ -196,42 +253,64 @@ def main():
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
+    def is_input_device(device_index):
+        pa = pyaudio.PyAudio()
+        device_info = pa.get_device_info_by_index(device_index)
+        return device_info['maxInputChannels'] > 0
+
     # list all microphones that are available then set the source to desired microphone
     if args.list_microphones:
         print("Available microphone devices are: ")
         for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            print(f"Microphone with name \"{name}\" found, the device index is {index}")
-            # exit program
+            if is_input_device(index):
+                print(f"Microphone with name \"{name}\" found, the device index is {index}")
+        # exit program
         sys.exit(0)
 
 
-    if args.set_microphone:
-        mic_name = args.set_microphone
+    def get_microphone_source(args):
+        pa = pyaudio.PyAudio()
+        available_mics = sr.Microphone.list_microphone_names()
 
-        # if the microphone arg is set to a number, then set the source to the microphone with that index number if it exists
-        if mic_name.isdigit():
-            if int(mic_name) in range(len(sr.Microphone.list_microphone_names())):
-                source = sr.Microphone(sample_rate=16000, device_index=int(mic_name))
-                print(f"Microphone set to: {sr.Microphone.list_microphone_names()[int(mic_name)]}")
+        def is_input_device(device_index):
+            device_info = pa.get_device_info_by_index(device_index)
+            return device_info['maxInputChannels'] > 0
+
+        if args.set_microphone:
+            mic_name = args.set_microphone
+
+            if mic_name.isdigit():
+                mic_index = int(mic_name)
+                if mic_index in range(len(available_mics)) and is_input_device(mic_index):
+                    return sr.Microphone(sample_rate=16000, device_index=mic_index), available_mics[mic_index]
+                else:
+                    print("Invalid audio source. Please choose a valid microphone.")
+                    sys.exit(0)
             else:
-                print("Microphone not found. Please choose a valid microphone.")
-                # exit program
-                sys.exit(0)
-        else:
-            # if the microphone arg is set to a string, then set the source to the microphone with that name if it exists
-            for index, name in enumerate(sr.Microphone.list_microphone_names()):
-                if mic_name == name:
-                    source = sr.Microphone(sample_rate=16000, device_index=index)
-                    print(f"Microphone set to: {name}")
-                    break
-            else:
-                print("Microphone not found. Please choose a valid microphone.")
-                # exit program
-                sys.exit(0)
-    else:
-        source = sr.Microphone(sample_rate=16000)
-        print(f"Microphone set to system default.")
-        
+                for index, name in enumerate(available_mics):
+                    if mic_name == name and is_input_device(index):
+                        return sr.Microphone(sample_rate=16000, device_index=index), name
+
+        for index in range(pa.get_device_count()):
+            if is_input_device(index):
+                return sr.Microphone(sample_rate=16000, device_index=index), "system default"
+
+        raise ValueError("No valid input devices found.")
+
+    try:
+        source, mic_name = get_microphone_source(args)
+    except ValueError as e:
+        print(e)
+        sys.exit(0)
+
+    with source as s:
+        try:
+            recorder.adjust_for_ambient_noise(s)
+            print(f"Microphone set to: {mic_name}")
+        except AssertionError as e:
+            print(e)
+
+
 
     # if the language is set to english, then add .en to the model name
     if args.language == "en" or args.language == "English":
@@ -270,9 +349,7 @@ def main():
     temp_file = NamedTemporaryFile(dir=temp_dir, delete=True, suffix=".ts", prefix="rec_").name
     transcription = ['']
 
-    
-    with source:
-        recorder.adjust_for_ambient_noise(source)
+
 
         
     if args.discord_webhook:
@@ -493,7 +570,7 @@ def main():
                     error_report_file = open('error_report.txt', 'w')
                 error_report_file.write(str(e))
                 error_report_file.close()
-                pass
+            pass
 
         except KeyboardInterrupt:
             print("Exiting...")
