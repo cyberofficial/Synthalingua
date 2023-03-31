@@ -4,3 +4,7 @@ livetranslation.bat
 temp
 desktop.ini
 models
+build.bat
+build
+dist
+.vscode/settings.json
