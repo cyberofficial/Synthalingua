@@ -1,5 +1,3 @@
-wheel
-setuptools-rust
 gitpython
 git+https://github.com/openai/whisper.git
 colorama
@@ -10,3 +8,8 @@ ffmpeg-python==0.2.0
 pyaudio
 SpeechRecognition
 prettytable
+torch
+requests
+pytz
+python-dateutil
+numba
