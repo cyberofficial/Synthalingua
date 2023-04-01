@@ -81,11 +81,13 @@ The tool will work on any system that meets the minimum requirements. The tool w
      * Using default settings is fine.
 3. Download and install FFMPEG
      * Instructions: https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222
-4. Run setup script
+4. Download and install CUDA
+     * https://developer.nvidia.com/cuda-downloads
+5. Run setup script
      * **On Windows**: `setup.bat`
      * **On Linux**: `setup.bash`
      * If you get an error saying "Setup.bat is not recognized as an internal or external command, operable program or batch file.", houston we have a problem. This will require you to fix your operating system.
-5. Run the newly created batch file/bash script. You can edit that file to change the settings.
+6. Run the newly created batch file/bash script. You can edit that file to change the settings.
      * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have python installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
 
 ## Usage 
