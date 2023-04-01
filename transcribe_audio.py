@@ -43,6 +43,7 @@ from sys import platform
 from colorama import Fore, Back, Style, init
 from tqdm import tqdm
 from datetime import datetime
+from numba import cuda
 try:
     from dateutil.tz import tzlocal
 except:
@@ -335,10 +336,51 @@ def main():
     if not os.path.exists("models"):
         print("Creating models folder...")
         os.makedirs("models")
+
+    # final check before loading or downloading the model, check to see if cuda was chosen. If the user chosen cuda and the ram flag was more than the device, set the ram flag to be 1 step lower than the cuda vram
+    # "1gb", "2gb", "4gb", "6gb", "12gb" are t he valid ram flags
+    # if the user has chosen a ram flag that is lower than the cuda vram, then set the ram flag to be 1 step lower than the cuda vram    if device.type == "cuda":
+    if device.type == "cuda":
+        cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
+        
+        #################
+        #hard set vram test
+        #cuda_vram = 4096
+        #print(f"VRAM available: {cuda_vram:.2f} MB")
+        #################
+        
+        overhead_buffer = 200
+
+        def print_warning(ram_flag, needed_vram, detected_vram):
+            print(f"WARNING: CUDA was chosen but the VRAM available is less than {ram_flag}. You have {detected_vram:.2f} MB available, and {needed_vram - detected_vram:.2f} MB additional overhead is needed. Setting ram flag to avoid out of memory errors. New Flag: {args.ram}")
+
+        if args.ram == "12gb" and cuda_vram < 12000 + overhead_buffer:
+            args.ram = "6gb"
+            print_warning("12 GB", 12288 + overhead_buffer, cuda_vram)
+        elif args.ram == "6gb" and cuda_vram < 6144 + overhead_buffer:
+            args.ram = "4gb"
+            print_warning("6 GB", 6144 + overhead_buffer, cuda_vram)
+        elif args.ram == "4gb" and cuda_vram < 4096 + overhead_buffer:
+            args.ram = "2gb"
+            print_warning("4 GB", 4096 + overhead_buffer, cuda_vram)
+        elif args.ram == "2gb" and cuda_vram < 2048 + overhead_buffer:
+            args.ram = "1gb"
+            print_warning("2 GB", 2048 + overhead_buffer, cuda_vram)
+        elif args.ram == "1gb" and cuda_vram < 1024 + overhead_buffer:
+            args.ram = "1gb"
+            print_warning("1 GB", 1024 + overhead_buffer, cuda_vram)
+            device = torch.device("cpu")
+            print("WARNING: CUDA was chosen but the VRAM available is less than 1 GB. Falling back to CPU.")
+
+
+
+
+
+    
     # check if ram size is set to 1gb, 2gb, or 4gb if so download compressed model else download fine-tuned model
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         if not os.path.exists("models/fine_tuned_model_compressed.pt"):
-            print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format. This will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
+            print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
             print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl_compressed()
             # load the fine-tuned model into memory
@@ -348,13 +390,10 @@ def main():
                 # attempt to lower the max split size to 128 MB if the device is CUDA
                 if device.type == "cuda":
                     max_split_size_mb = 128
-                    # set garbage collection to run every 10 seconds
-                    gc.set_threshold(100, 10, 10)
-                    gc.set_threshold(0.6)
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}{reset_text}")
+                print(f"{red_text}Error: {e}{style.RESET_ALL}")
                 pass
         else:
             # load the fine-tuned model into memory
@@ -364,13 +403,10 @@ def main():
                 # attempt to lower the max split size to 128 MB if the device is CUDA
                 if device.type == "cuda":
                     max_split_size_mb = 128
-                    # set garbage collection to run every 10 seconds
-                    gc.set_threshold(100, 10, 10)
-                    gc.set_threshold(0.6)
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}")
+                print(f"{red_text}Error: {e}{style.RESET_ALL}")
                 pass
     else:
         if not os.path.exists("models/fine_tuned_model.pt"):
@@ -383,13 +419,10 @@ def main():
                 # attempt to lower the max split size to 128 MB if the device is CUDA
                 if device.type == "cuda":
                     max_split_size_mb = 128
-                    # set garbage collection to run every 10 seconds
-                    gc.set_threshold(100, 10, 10)
-                    gc.set_threshold(0.6)
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}")
+                print(f"{red_text}Error: {e}{style.RESET_ALL}")
                 pass
         else:
             # load the fine-tuned model into memory
@@ -399,8 +432,9 @@ def main():
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}")
+                print(f"{red_text}Error: {e}{style.RESET_ALL}")
                 pass
+
 
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
