@@ -12,16 +12,9 @@ Echo Installing Whisper
 Echo Updating pip
 python.exe -m pip install --upgrade pip
 
-Echo Install PreReqs
+Echo Installing Requirements...
 pip install wheel
 pip install setuptools-rust
-pip install git
-
-
-Echo Downloading Whisper
-pip install git+https://github.com/openai/whisper.git 
-
-Echo Installing Requirements...
 pip install -r requirements.txt
 
 :cuda-patch
