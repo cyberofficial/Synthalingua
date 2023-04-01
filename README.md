@@ -1,5 +1,8 @@
-## Real-Time-Translation
-Real Time Translation is a tool that translates audio from one language to English. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
+## Synthalingua 
+### [Download](https://github.com/cyberofficial/Synthalingua/releases/)
+Synthalingua is a tool that translates audio from one language to English in almsost real time. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
+
+[![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
 #### Readme will update as time goes. This is a work in progress.
 
@@ -24,11 +27,18 @@ Real Time Translation is a tool that translates audio from one language to Engli
 - [ ] Add support API access.
 - [ ] Custom localhost web server.
 - [ ] Add reverse translation.
+     - [ ] Localize script to other languages. (Will take place after reverse translations.)
 - [ ] Custom dictionary support.
 - [ ] GUI.
-- [ ] Linux support.
+- [x] Linux support.
 - [ ] Improve performance.
+    - [x] Compressed Model Format for lower ram users
+    - [ ] Better large model loading speed
+        - [ ] Split model up into multiple chunks based on usage
 - [ ] Increase model swapping accuracy.
+
+# Contributors 
+#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
 
 # System Requirements
 ## Nvidia GPU is required*, Support for AMD GPUs is coming soon. Windows is required. Linux support is coming soon.
@@ -69,9 +79,13 @@ The tool will work on any system that meets the minimum requirements. The tool w
      * You can choose any python version that is 3.10.9 up to the latest version. The tool will work on any python version that is 3.11 or higher. Must be 3.10.9+ not 3.11.x.
 2. Download and install [Git](https://git-scm.com/downloads).
      * Using default settings is fine.
-3. Run Setup.bat
+3. Download and install FFMPEG
+     * Instructions: https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222
+4. Run setup script
+     * **On Windows**: `setup.bat`
+     * **On Linux**: `setup.bash`
      * If you get an error saying "Setup.bat is not recognized as an internal or external command, operable program or batch file.", houston we have a problem. This will require you to fix your operating system.
-4. Run the newly created batch file. You can edit that file to change the settings.
+5. Run the newly created batch file/bash script. You can edit that file to change the settings.
      * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have python installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
 
 ## Usage 
@@ -99,14 +113,14 @@ This script uses argparse to accept command line arguments. The following option
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 `python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
-When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There is no betweens.
+When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`
 This command will list all audio devices and their index. You can then use the index to set the default audio device. For example, if you want to use the second audio device, you can run the following command:
 `python transcribe_audio.py --set_microphone "Realtek Audio (2- High Definiti"` to set the device to listen to. *Please note the quotes around the device name. This is required to prevent errors. Some names may be cut off, copy exactly what is in the quotes of the listed devices.
 
-Example lets say i have these devices:
+Example lets say I have these devices:
 ```
 Microphone with name "Microsoft Sound Mapper - Input" found, the device index is 1
 Microphone with name "VoiceMeeter VAIO3 Output (VB-Au" found, the device index is 2
@@ -131,6 +145,8 @@ I would put `python transcribe_audio.py --set_microphone 4` to set the device to
     * Re-run the setup.bat file.
         * If issues persist, make sure you have python installed and added to your PATH.
             * If you have python installed and added to your PATH, create a new issue on the repo and I will try to help you fix the issue.
+* [WinError 2] The system cannot find the file specified
+    Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
@@ -148,3 +164,5 @@ Command line arguments used. `--ram 12gb --record_timeout 5 --language id --ener
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
+
+
