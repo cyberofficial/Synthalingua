@@ -81,7 +81,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
      * Using default settings is fine.
 3. Download and install FFMPEG
      * Instructions: https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222
-4. Download and install CUDA
+4. Download and install CUDA [Optional, but needs to be installed if using GPU]
      * https://developer.nvidia.com/cuda-downloads
 5. Run setup script
      * **On Windows**: `setup.bat`
