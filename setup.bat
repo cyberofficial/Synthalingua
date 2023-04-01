@@ -22,13 +22,7 @@ Echo Downloading Whisper
 pip install git+https://github.com/openai/whisper.git 
 
 Echo Installing Requirements...
-pip install numpy
-pip install tqdm
-pip install more-itertools
-pip install ffmpeg-python==0.2.0
-pip install pyaudio
-pip install SpeechRecognition
-pip install prettytable
+pip install -r requirements.txt
 
 :cuda-patch
 Echo Fixing CUDA Since Whisper installs non gpu version.
