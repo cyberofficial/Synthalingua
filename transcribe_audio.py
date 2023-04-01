@@ -354,7 +354,7 @@ def main():
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}")
+                print(f"{red_text}Error: {e}{reset_text}")
                 pass
         else:
             # load the fine-tuned model into memory
