@@ -95,6 +95,9 @@ The tool will work on any system that meets the minimum requirements. The tool w
 This script uses argparse to accept command line arguments. The following options are available:
 
 * `--ram`: Change the amount of RAM to use. Default is 4gb. Choices are "1gb", "2gb", "4gb", "6gb", "12gb"
+    * Things to note, when choosing ram option with your gpu vram. You need to make sure you have enough over head for the ram.
+        * So for example if you have a 4GB GPU you may need to choose 2gb not 4gb, the ram size basically tells you how much space you need in the gpu vram.
+        If your gpu is 4gb you may not have enough vram for your operating system, since most of the time it'll be using about 512mb of vram. which leaves you with 3.5gb of vram. This logic applies to **1GB**, **2GB**, **4GB** & **6GB**. The 12GB option loads a model that uses about 11.4GB in vram size, which also have enough overhead.
 * `--non_english`: Use non-English models for transcription. This flag enables the use of non-English models.
 * `--energy_threshold`: Set the energy level for microphone to detect. Default is 100, you can choose from 1 to 1000, anything higher will be harder to trigger the audio detection.
 * `--record_timeout`: Set the time in seconds for real-time recording. Default is 2 seconds.
@@ -103,6 +106,7 @@ This script uses argparse to accept command line arguments. The following option
 * `--language`: Select the language to translate from. Available choices are a list of languages in ISO 639-1 format, as well as their English names.
 * `--auto_model_swap`: Automatically swap the model based on the detected language. This flag enables automatic model swapping.
 * `--device`: Select the device to use for the model. Default is "cuda" if available. Available options are "cpu" and "cuda".
+    * When setting to CPU you can choose any ram size as long as you have enough ram. The CPU option is optimized for multi threading, so if you have like 16 cores, 32 threads, you can see good results.
 * `--cuda_device`: Select the CUDA device to use for the model. Default is 0.
 * `--discord_webhook`: Set the Discord webhook to send the transcription to.
 * `--list_microphones`: List available microphones and exit.
