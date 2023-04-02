@@ -112,6 +112,7 @@ This script uses argparse to accept command line arguments. The following option
 * `--list_microphones`: List available microphones and exit.
 * `--set_microphone`: Set the default microphone to use. You can set the name or it's ID number from the list.
 * `--auto_language_lock`: Automatically lock the language based on the detected language after 5 detections. This flag enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language.
+* `--use_finetune`: Use finetuned model. This will increase accuracy, but will also increase latency, addtional vram/ram usage is required.
 * `--retry`: Retries translations and transcription if they failed.
 * `--about`: Shows about the app.
 
