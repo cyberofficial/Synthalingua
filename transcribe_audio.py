@@ -351,8 +351,7 @@ def main():
     # if the user has chosen a ram flag that is lower than the cuda vram, then set the ram flag to be 1 step lower than the cuda vram    if device.type == "cuda":
     def print_warning(old_ram_flag, new_ram_flag, needed_vram, detected_vram):
         print(f"WARNING: CUDA was chosen, but the VRAM available is less than {old_ram_flag}. You have {detected_vram:.2f} MB available, and {needed_vram - detected_vram:.2f} MB additional overhead is needed. Setting ram flag to avoid out of memory errors. New Flag: {new_ram_flag}")
-        operating_system = platform.system()
-        print(f"Remember that {operating_system} will use VRAM for other processes, so you may need to lower the ram flag even more to avoid out of memory errors.")
+        print(f"Remember that the system will use VRAM for other processes, so you may need to lower the ram flag even more to avoid out of memory errors.")
 
     if device.type == "cuda":
         cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
