@@ -44,6 +44,7 @@ from colorama import Fore, Back, Style, init
 from tqdm import tqdm
 from datetime import datetime
 from numba import cuda
+from prettytable import PrettyTable
 try:
     from dateutil.tz import tzlocal
 except:
@@ -309,9 +310,14 @@ def main():
     # list all microphones that are available then set the source to desired microphone
     if args.list_microphones:
         print("Available microphone devices are: ")
+        mic_table = PrettyTable()
+        mic_table.field_names = ["Index", "Microphone Name"]
+
         for index, name in enumerate(sr.Microphone.list_microphone_names()):
             if is_input_device(index):
-                print(f"Microphone with name \"{name}\" found, the device index is {index}")
+                mic_table.add_row([index, name])
+
+        print(mic_table)
         # exit program
         sys.exit(0)
 
