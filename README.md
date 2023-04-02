@@ -157,6 +157,8 @@ I would put `python transcribe_audio.py --set_microphone 4` to set the device to
             * If you have python installed and added to your PATH, create a new issue on the repo and I will try to help you fix the issue.
 * [WinError 2] The system cannot find the file specified
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
+* Translator can't pickup stream sound
+    * Check out this disccsion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
