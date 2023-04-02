@@ -193,6 +193,36 @@ def main():
 
         raise ValueError("No valid input devices found.")
 
+    def set_model_by_ram(ram, language):
+        # Set ram to lowercase
+        ram = ram.lower()
+
+        if ram == "1gb":
+            model = "tiny"
+        elif ram == "2gb":
+            model = "base"
+        elif ram == "4gb":
+            model = "small"
+        elif ram == "6gb":
+            model = "medium"
+        elif ram == "12gb":
+            model = "large"
+            if language == "en":
+                red_text = Fore.RED + Back.BLACK
+                green_text = Fore.GREEN + Back.BLACK
+                yellow_text = Fore.YELLOW + Back.BLACK
+                reset_text = Style.RESET_ALL
+                print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model?")
+                if input("y/n: ").lower() == "y":
+                    model = "medium"
+                else:
+                    model = "large"
+        else:
+            raise ValueError("Invalid RAM setting provided")
+
+        return model
+        
+
     parser = argparse.ArgumentParser()
 #    parser.add_argument("--model", default="medium", help="Model to use",
 #                        choices=["tiny", "base", "small", "medium", "large"])
@@ -228,6 +258,8 @@ def main():
                         help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
     parser.add_argument("--retry", action='store_true',
                         help="Retries the transcription if it fails. May increase output time.")
+    parser.add_argument("--use_finetune", action='store_true',
+                        help="Use finetuned model.")
     parser.add_argument("--about", action='store_true',
                         help="About the project.")
     args = parser.parse_args()
@@ -245,29 +277,8 @@ def main():
         print("@DaniruKun from https://watsonindustries.live")
         exit()
 
-    # set args.ram to lowercase
-    args.ram = args.ram.lower()
+    model = set_model_by_ram(args.ram, args.language)
 
-    if args.ram == "1gb":
-        model = "tiny"
-    elif args.ram == "2gb":
-        model = "base"
-    elif args.ram == "4gb":
-        model = "small"
-    elif args.ram == "6gb":
-        model = "medium"
-    elif args.ram == "12gb":
-        model = "large"
-        if args.language == "en":
-            red_text = Fore.RED + Back.BLACK
-            green_text = Fore.GREEN + Back.BLACK
-            yellow_text = Fore.YELLOW + Back.BLACK
-            reset_text = Style.RESET_ALL
-            print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want swap to {green_text}6gb{reset_text} model?")          
-            if input("y/n: ").lower() == "y":
-                model = "medium"
-            else:
-                model = "large"
 
     phrase_time = None
     last_sample = bytes()
@@ -379,7 +390,9 @@ def main():
             print("WARNING: No suitable RAM setting was found. Falling back to CPU.")
         elif old_ram_flag != args.ram:
             print_warning(old_ram_flag, args.ram, required_vram + overhead_buffer, cuda_vram)
-    
+
+    print("Now using ram flag: " + args.ram)
+
     # check if ram size is set to 1gb, 2gb, or 4gb if so download compressed model else download fine-tuned model
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         red_text = Style.BRIGHT + Fore.RED
@@ -390,11 +403,12 @@ def main():
             fine_tune_model_dl_compressed()
             # load the fine-tuned model into memory
             try:
-                whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
-                print("Fine-tuned model loaded into memory.")
-                # attempt to lower the max split size to 128 MB if the device is CUDA
-                if device.type == "cuda":
-                    max_split_size_mb = 128
+                if args.use_finetune == True:
+                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    print("Fine-tuned model loaded into memory.")
+                    # attempt to lower the max split size to 128 MB if the device is CUDA
+                    if device.type == "cuda":
+                        max_split_size_mb = 128
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
@@ -403,11 +417,12 @@ def main():
         else:
             # load the fine-tuned model into memory
             try:
-                whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
-                print("Fine-tuned model loaded into memory.")
-                # attempt to lower the max split size to 128 MB if the device is CUDA
-                if device.type == "cuda":
-                    max_split_size_mb = 128
+                if args.use_finetune == True:
+                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    print("Fine-tuned model loaded into memory.")
+                    # attempt to lower the max split size to 128 MB if the device is CUDA
+                    if device.type == "cuda":
+                        max_split_size_mb = 128
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
@@ -419,11 +434,12 @@ def main():
             fine_tune_model_dl()
             # load the fine-tuned model into memory
             try:
-                whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
-                print("Fine-tuned model loaded into memory.")
-                # attempt to lower the max split size to 128 MB if the device is CUDA
-                if device.type == "cuda":
-                    max_split_size_mb = 128
+                if args.use_finetune == True:
+                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    print("Fine-tuned model loaded into memory.")
+                    # attempt to lower the max split size to 128 MB if the device is CUDA
+                    if device.type == "cuda":
+                        max_split_size_mb = 128
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
@@ -432,15 +448,17 @@ def main():
         else:
             # load the fine-tuned model into memory
             try:
-                whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
-                print("Fine-tuned model loaded into memory.")
+                if args.use_finetune == True:
+                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    print("Fine-tuned model loaded into memory.")
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
                 red_text = Fore.RED + Back.BLACK
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
 
-
+    model = set_model_by_ram(args.ram, args.language)
+    print(f"Loading model {model}...")
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
 
