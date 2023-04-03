@@ -67,7 +67,7 @@ except:
 
 def main():
 
-    version = "1.0.0"
+    version = "1.0.99"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
@@ -232,7 +232,7 @@ def main():
                         help="Don't use the english model.")
     parser.add_argument("--energy_threshold", default=100,
                         help="Energy level for mic to detect.", type=int)
-    parser.add_argument("--record_timeout", default=2,
+    parser.add_argument("--record_timeout", default=1,
                         help="How real time the recording is in seconds.", type=float)
     parser.add_argument("--phrase_timeout", default=1,
                         help="How much empty space between recordings before we "
@@ -314,10 +314,29 @@ def main():
 
     # if cuda was chosen then set device number to use
     if device.type == "cuda":
-        torch.cuda.set_device(args.cuda_device)
+        # Check if multiple CUDA devices are available
+        cuda_device_count = torch.cuda.device_count()
+        if cuda_device_count > 1 and args.cuda_device == 0:  # Change this line
+            while True:
+                print("Multiple CUDA devices detected. Please choose a device:")
+                for i in range(cuda_device_count):
+                    print(f"{i}: {torch.cuda.get_device_name(i)}, VRAM: {torch.cuda.get_device_properties(i).total_memory / 1024 / 1024} MB")
+                try:
+                    selected_device = int(input("Enter the device number: "))
+                    if 0 <= selected_device < cuda_device_count:
+                        break
+                    else:
+                        print("Invalid device number. Please try again.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid device number.")
+        else:
+            selected_device = args.cuda_device
+
+        torch.cuda.set_device(selected_device)
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
+ 
     # list all microphones that are available then set the source to desired microphone
     if args.list_microphones:
         print("Available microphone devices are: ")
