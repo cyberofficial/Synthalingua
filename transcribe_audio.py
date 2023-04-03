@@ -228,6 +228,8 @@ def main():
 #                        choices=["tiny", "base", "small", "medium", "large"])
     parser.add_argument("--ram", default="4gb", help="Model to use",
                         choices=["1gb", "2gb", "4gb", "6gb", "12gb"])
+    parser.add_argument("--ramforce", action='store_true',
+                        help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
     parser.add_argument("--non_english", action='store_true',
                         help="Don't use the english model.")
     parser.add_argument("--energy_threshold", default=100,
@@ -279,6 +281,11 @@ def main():
 
     model = set_model_by_ram(args.ram, args.language)
 
+    hardmodel = None
+
+    if args.ramforce:
+        #sett hardmodel to arg ram
+        hardmodel = args.ram
 
     phrase_time = None
     last_sample = bytes()
@@ -475,6 +482,12 @@ def main():
                 red_text = Fore.RED + Back.BLACK
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
+
+    # check if hardmodel is set if it is set args.ram to it
+    if args.ramforce:
+        print("Hardmodel parameter detected. Setting ram flag to hardmodel parameter.")
+        args.ram = hardmodel
+
 
     model = set_model_by_ram(args.ram, args.language)
     print(f"Loading model {model}...")
