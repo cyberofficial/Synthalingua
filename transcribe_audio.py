@@ -14,7 +14,7 @@ import json
 try:
     import pytz
 except:
-    # install pytz if it's not installed
+    print("Installing missing dependencies...")
     os.system("pip install pytz")
     try:
         import pytz
@@ -25,13 +25,24 @@ except:
 try:
     import pyaudio
 except:
-    # install pyaudio if it's not installed
+    print("Installing missing dependencies...")
     os.system("pip install pyaudio")
     try:
         import pyaudio
     except:
         print("Failed to install pyaudio. Please install it manually.")
         print("Use the command: pip install pyaudio")
+        exit()
+try:
+    import humanize
+except:
+    print("Installing missing dependencies...")
+    os.system("pip install humanize")
+    try:
+        import humanize
+    except:
+        print("Failed to install humanize. Please install it manually.")
+        print("Use the command: pip install humanize")
         exit()
 
 
@@ -48,13 +59,24 @@ from prettytable import PrettyTable
 try:
     from dateutil.tz import tzlocal
 except:
-    # install dateutil if it's not installed
+    print("Installing missing dependencies...")
     os.system("pip install python-dateutil")
     try:
         from dateutil.tz import tzlocal
     except:
         print("Failed to install python-dateutil. Please install it manually.")
         print("Use the command: pip install python-dateutil")
+        exit()
+try:
+    from tzlocal import get_localzone
+except:
+    print("Installing missing dependencies...")
+    os.system("pip install tzlocal")
+    try:
+        from tzlocal import get_localzone
+    except:
+        print("Failed to install tzlocal. Please install it manually.")
+        print("Use the command: pip install tzlocal")
         exit()
 init()
 
@@ -67,11 +89,12 @@ except:
 
 def main():
 
-    version = "1.0.0"
+    version = "1.0.99"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
     repo_name = "Synthalingua"
+    timestamp_file = "last_checked_timestamp.txt"
 
     def get_last_updated(repo_owner, repo_name):
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
@@ -82,22 +105,64 @@ def main():
             last_updated = repo_data["updated_at"]
             last_updated_dt = datetime.fromisoformat(last_updated.strip("Z"))
 
-            # Convert to the user's local timezone
             utc_timezone = pytz.timezone("UTC")
-            local_timezone = tzlocal()
+            local_timezone = get_localzone()
             last_updated_local = last_updated_dt.replace(tzinfo=utc_timezone).astimezone(local_timezone)
 
-            print(f"The repository {repo_owner}/{repo_name} was last updated on {last_updated_local}.")
+            return last_updated_local
         else:
             print(f"An error occurred. Status code: {response.status_code}")
+            return None
 
-    print(f"Last updated: {get_last_updated(repo_owner, repo_name)}")
+    def time_difference_in_words(updated_time):
+        now = datetime.now(updated_time.tzinfo)
+        time_difference = now - updated_time
+        days, remainder = divmod(time_difference.seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        time_parts = []
+        if days > 0:
+            time_parts.append(f"{days} days")
+        if hours > 0:
+            time_parts.append(f"{hours} hours")
+        if minutes > 0:
+            time_parts.append(f"{minutes} minutes")
+
+        return ", ".join(time_parts)
+
+    def save_last_checked_timestamp(timestamp):
+        with open(timestamp_file, "w") as file:
+            file.write(str(timestamp))
+
+    def load_last_checked_timestamp():
+        if os.path.exists(timestamp_file):
+            with open(timestamp_file, "r") as file:
+                timestamp_str = file.read()
+                return datetime.fromisoformat(timestamp_str.strip("Z"))
+        else:
+            return None
+
+    def check_for_updates():
+        last_updated_time = get_last_updated(repo_owner, repo_name)
+
+        if last_updated_time is not None:
+            last_checked_timestamp = load_last_checked_timestamp()
+
+            if last_checked_timestamp is None or last_updated_time > last_checked_timestamp:
+                time_difference = time_difference_in_words(last_updated_time)
+                print(f"The repository {repo_owner}/{repo_name} was last updated {time_difference} ago.")
+                print("Consider updating to the latest version.")
+                printf("Update available at: " + GitHubRepo)
+                save_last_checked_timestamp(last_updated_time)
+            else:
+                print("You are already using the latest version.")
+
+    check_for_updates()
 
     def fine_tune_model_dl():
-        # download the fine-tuned model
         print("Downloading fine-tuned model... [Via OneDrive (Public)]")
         url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455917&authkey=AH9uvngPhJlVOg4"
-        # show progress bar as the file is being downloaded
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
@@ -109,10 +174,8 @@ def main():
         print("Fine-tuned model downloaded.")
 
     def fine_tune_model_dl_compressed():
-        # download the fine-tuned model
         print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
         url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455918&authkey=AGS9Zh8NuEo6qn4"
-        # show progress bar as the file is being downloaded
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
@@ -144,7 +207,6 @@ def main():
             "Content-Type": "application/json"
         }
         try:
-            # if text is longer than 2000 characters, then split it into multiple messages
             if len(text) > 1800:
                 for i in range(0, len(text), 1800):
                     data["content"] = text[i:i+1800]
@@ -194,7 +256,6 @@ def main():
         raise ValueError("No valid input devices found.")
 
     def set_model_by_ram(ram, language):
-        # Set ram to lowercase
         ram = ram.lower()
 
         if ram == "1gb":
@@ -224,8 +285,6 @@ def main():
         
 
     parser = argparse.ArgumentParser()
-#    parser.add_argument("--model", default="medium", help="Model to use",
-#                        choices=["tiny", "base", "small", "medium", "large"])
     parser.add_argument("--ram", default="4gb", help="Model to use",
                         choices=["1gb", "2gb", "4gb", "6gb", "12gb"])
     parser.add_argument("--ramforce", action='store_true',
@@ -234,7 +293,7 @@ def main():
                         help="Don't use the english model.")
     parser.add_argument("--energy_threshold", default=100,
                         help="Energy level for mic to detect.", type=int)
-    parser.add_argument("--record_timeout", default=2,
+    parser.add_argument("--record_timeout", default=1,
                         help="How real time the recording is in seconds.", type=float)
     parser.add_argument("--phrase_timeout", default=1,
                         help="How much empty space between recordings before we "
@@ -266,7 +325,6 @@ def main():
                         help="About the project.")
     args = parser.parse_args()
 
-    # if no arguments are given, print help
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
@@ -274,7 +332,7 @@ def main():
     if args.about:
         print(f"\033[4m{Fore.GREEN}About the project:{Style.RESET_ALL}\033[0m")
         print(f"This project was created by \033[4m{Fore.GREEN}{ScriptCreator}{Style.RESET_ALL}\033[0m and is licensed under the \033[4m{Fore.GREEN}GPLv3{Style.RESET_ALL}\033[0m license.\n\nYou can find the source code at \033[4m{Fore.GREEN}{GitHubRepo}{Style.RESET_ALL}\033[0m.\nBased on Whisper from OpenAI at \033[4m{Fore.GREEN}https://github.com/openai/whisper{Style.RESET_ALL}\033[0m.\n\n\n\n")
-        # contributors
+        # contributors #
         print(f"\033[4m{Fore.GREEN}Contributors:{Style.RESET_ALL}\033[0m")
         print("@DaniruKun from https://watsonindustries.live")
         exit()
@@ -284,7 +342,6 @@ def main():
     hardmodel = None
 
     if args.ramforce:
-        #sett hardmodel to arg ram
         hardmodel = args.ram
 
     phrase_time = None
@@ -294,17 +351,14 @@ def main():
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
     
-    # create a dictionary of valid languages
     valid_languages = ["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"]
 
-    # check language for valid language
     if args.language:
         if args.language not in valid_languages:
             print("Invalid language. Please choose a valid language from the list below:")
             print(valid_languages)
             return
     
-    # if phrase_timeout is greater than 1 and discord webhook is set, tell the user the phrase_timeout will be set to 1 to avoid repeated messages
     if args.phrase_timeout > 1 and args.discord_webhook:
         red_text = Fore.RED + Back.BLACK
         print(f"{red_text}WARNING{reset_text}: phrase_timeout is set to {args.phrase_timeout} seconds. This will cause the webhook to send multiple messages. Setting phrase_timeout to 1 second to avoid this.")
@@ -314,18 +368,34 @@ def main():
         device = torch.device(args.device)
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # if cuda was chosen and it's not available, fall back to cpu
         if args.device == "cuda" and not torch.cuda.is_available():
             print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
     print(f"Using device: {device}")
 
-    # if cuda was chosen then set device number to use
     if device.type == "cuda":
-        torch.cuda.set_device(args.cuda_device)
+        # Check if multiple CUDA devices are available
+        cuda_device_count = torch.cuda.device_count()
+        if cuda_device_count > 1 and args.cuda_device == 0:
+            while True:
+                print("Multiple CUDA devices detected. Please choose a device:")
+                for i in range(cuda_device_count):
+                    print(f"{i}: {torch.cuda.get_device_name(i)}, VRAM: {torch.cuda.get_device_properties(i).total_memory / 1024 / 1024} MB")
+                try:
+                    selected_device = int(input("Enter the device number: "))
+                    if 0 <= selected_device < cuda_device_count:
+                        break
+                    else:
+                        print("Invalid device number. Please try again.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid device number.")
+        else:
+            selected_device = args.cuda_device
+
+        torch.cuda.set_device(selected_device)
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
-    # list all microphones that are available then set the source to desired microphone
+ 
     if args.list_microphones:
         print("Available microphone devices are: ")
         mic_table = PrettyTable()
@@ -336,7 +406,6 @@ def main():
                 mic_table.add_row([index, name])
 
         print(mic_table)
-        # exit program
         sys.exit(0)
 
     try:
@@ -352,21 +421,15 @@ def main():
         except AssertionError as e:
             print(e)
 
-    # if the language is set to english, then add .en to the model name
     if args.language == "en" or args.language == "English":
         model += ".en"
-        # if the large model is chosen, then remove the .en from the model name
         if model == "large" or model == "large.en":
             model = "large"
 
-    # download the fine-tuned model if it doesn't exist
     if not os.path.exists("models"):
         print("Creating models folder...")
         os.makedirs("models")
 
-    # final check before loading or downloading the model, check to see if cuda was chosen. If the user chosen cuda and the ram flag was more than the device, set the ram flag to be 1 step lower than the cuda vram
-    # "1gb", "2gb", "4gb", "6gb", "12gb" are t he valid ram flags
-    # if the user has chosen a ram flag that is lower than the cuda vram, then set the ram flag to be 1 step lower than the cuda vram    if device.type == "cuda":
     def print_warning(old_ram_flag, new_ram_flag, needed_vram, detected_vram):
         print(f"WARNING: CUDA was chosen, but the VRAM available is less than {old_ram_flag}. You have {detected_vram:.2f} MB available, and {needed_vram - detected_vram:.2f} MB additional overhead is needed. Setting ram flag to avoid out of memory errors. New Flag: {new_ram_flag}")
         print(f"Remember that the system will use VRAM for other processes, so you may need to lower the ram flag even more to avoid out of memory errors.")
@@ -400,7 +463,6 @@ def main():
 
     print("Now using ram flag: " + args.ram)
 
-    # check if ram size is set to 1gb, 2gb, or 4gb if so download compressed model else download fine-tuned model
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         red_text = Style.BRIGHT + Fore.RED
         reset_text = Style.RESET_ALL
@@ -408,12 +470,10 @@ def main():
             print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
             print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl_compressed()
-            # load the fine-tuned model into memory
             try:
                 if args.use_finetune == True:
                     whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
-                    # attempt to lower the max split size to 128 MB if the device is CUDA
                     if device.type == "cuda":
                         max_split_size_mb = 128
             except Exception as e:
@@ -422,12 +482,10 @@ def main():
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
         else:
-            # load the fine-tuned model into memory
             try:
                 if args.use_finetune == True:
                     whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
-                    # attempt to lower the max split size to 128 MB if the device is CUDA
                     if device.type == "cuda":
                         max_split_size_mb = 128
             except Exception as e:
@@ -439,12 +497,10 @@ def main():
         if not os.path.exists("models/fine_tuned_model.pt"):
             print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl()
-            # load the fine-tuned model into memory
             try:
                 if args.use_finetune == True:
                     whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
-                    # attempt to lower the max split size to 128 MB if the device is CUDA
                     if device.type == "cuda":
                         max_split_size_mb = 128
             except Exception as e:
@@ -453,7 +509,6 @@ def main():
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
         else:
-            # load the fine-tuned model into memory
             try:
                 if args.use_finetune == True:
                     whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
@@ -464,7 +519,6 @@ def main():
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
 
-    # check if hardmodel is set if it is set args.ram to it
     if args.ramforce:
         print("Hardmodel parameter detected. Setting ram flag to hardmodel parameter.")
         args.ram = hardmodel
@@ -478,7 +532,6 @@ def main():
     record_timeout = args.record_timeout
     phrase_timeout = args.phrase_timeout
 
-    # create a folder temp if it doesn't exist
     if not os.path.exists("temp"):
         os.makedirs("temp")
     temp_dir = "temp"
@@ -496,7 +549,6 @@ def main():
     if args.non_english:
         print("Using the multi-lingual model.")
 
-    # warn the user if they are using AMD that CUDA may not work properly, if they are using CUDA
     if device.type == "cuda":
         if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
             print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. If you experience issues, try using the CPU instead.")
@@ -505,7 +557,6 @@ def main():
     language_counters = {}
     last_detected_language = None 
 
-    # send a message to discord saying that the program has started, if translation is enabled then say that it is enabled
     if args.discord_webhook:
         if args.translate:
             send_to_discord_webhook(webhook_url, f"Transcription started. Translation enabled.\nUsing the {args.ram} ram model.")
@@ -544,28 +595,23 @@ def main():
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
                 mel = whisper.log_mel_spectrogram(audio).to(device)
-                # if model name has .en in it, then skip _,
                 if ".en" in model:
                     detected_language = "English"
                 else:
                     _, language_probs = audio_model.detect_language(mel)
                     detected_language = max(language_probs, key=language_probs.get)
 
-                #check arguments for language preference sett by --language if it set with argument then we dont need to auto detect language
                 if args.language:
                     detected_language = args.language
-                    # if the language was locked by the auto language lock, then print saying Locked to language if not then print set by argument
                     if args.auto_language_lock:
                         print(f"Language locked to {detected_language}")
                     else:
                         print(f"Language set by argument: {detected_language}")
                 else:
-                    # if the language model has .en in the name, then it is the english model and we don't need to detect the language
                     if ".en" in model:
                         detected_language = "English"
                         print(f"Language set by model: {detected_language}")
                     else:
-                        # if they use --auto_language_lock then lock the language after it has been detected 5 times in a row
                         if args.auto_language_lock:
                             if last_detected_language == detected_language:
                                 english_counter += 1
@@ -588,7 +634,6 @@ def main():
                 else:
                     result = audio_model.transcribe(temp_file)
                 print(f"Detected Speech: {result['text']}")
-                # if result is empty then try again
                 if result['text'] == "":
                     if args.retry:
                         print("Transcription failed, trying again...")
@@ -612,7 +657,6 @@ def main():
                         else:
                             translated_result = audio_model.transcribe(temp_file, task="translate")
                         translated_text = translated_result['text'].strip()
-                        # if result is empty then try again
                         if translated_text == "":
                             if args.retry:
                                 print("Translation failed, trying again...")
@@ -646,14 +690,10 @@ def main():
 
                 os.system('cls' if os.name=='nt' else 'clear')
                 for original_text, translated_text, language_code in transcription:
-                    # if there is no text in the transcription then skip it
                     if not original_text:
                         continue
-                    # if language code is en no need to show translation
-                    # print a bunch of "=" to make it look nice to fill the width of the terminal
                     print("=" * shutil.get_terminal_size().columns)
                     print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} Detected - {language_code} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    # print(f"Original ({language_code}):\n")
                     print(f"{original_text}")
 
 
@@ -662,13 +702,10 @@ def main():
                         print('', end='', flush=True)
                     else:
                         if translated_text:
-                            # print "-" in the center of the terminal with Translation in the middle
                             print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{translated_text}\n")
                 print('', end='', flush=True)
 
-                # change the model to base if the detected language is english
-                # if --auto-model-swap is set tru then we will change the model to base if the detected language is english
                 if args.auto_model_swap:
                     if last_detected_language != detected_language:
                         last_detected_language = detected_language
@@ -691,8 +728,6 @@ def main():
                 # Just here as a reminder
                 # sleep(0.25)
         except Exception as e:
-            # print error to file as error_report.txt, if it's a keyboard interrupt then don't print it.
-            # also if the file already exist, then append to end of file
             if not isinstance(e, KeyboardInterrupt):
                 print(e)
                 if os.path.isfile('error_report.txt'):
@@ -705,12 +740,10 @@ def main():
 
         except KeyboardInterrupt:
             print("Exiting...")
-            # send a message to discord webhook if --discord-webhook is set saying that the program has stopped
             if args.discord_webhook:
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
             break
 
-    # create out folder if it doesn't exist
     if not os.path.isdir('out'):
         os.mkdir('out')
     
