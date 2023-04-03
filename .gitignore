@@ -8,3 +8,5 @@ build.bat
 build
 dist
 .vscode/settings.json
+last_saved_timestamp.txt
+last_checked_timestamp.txt

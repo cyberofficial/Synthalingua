@@ -14,6 +14,7 @@ import json
 try:
     import pytz
 except:
+    print("Installing missing dependencies...")
     os.system("pip install pytz")
     try:
         import pytz
@@ -24,12 +25,24 @@ except:
 try:
     import pyaudio
 except:
+    print("Installing missing dependencies...")
     os.system("pip install pyaudio")
     try:
         import pyaudio
     except:
         print("Failed to install pyaudio. Please install it manually.")
         print("Use the command: pip install pyaudio")
+        exit()
+try:
+    import humanize
+except:
+    print("Installing missing dependencies...")
+    os.system("pip install humanize")
+    try:
+        import humanize
+    except:
+        print("Failed to install humanize. Please install it manually.")
+        print("Use the command: pip install humanize")
         exit()
 
 
@@ -46,12 +59,24 @@ from prettytable import PrettyTable
 try:
     from dateutil.tz import tzlocal
 except:
+    print("Installing missing dependencies...")
     os.system("pip install python-dateutil")
     try:
         from dateutil.tz import tzlocal
     except:
         print("Failed to install python-dateutil. Please install it manually.")
         print("Use the command: pip install python-dateutil")
+        exit()
+try:
+    from tzlocal import get_localzone
+except:
+    print("Installing missing dependencies...")
+    os.system("pip install tzlocal")
+    try:
+        from tzlocal import get_localzone
+    except:
+        print("Failed to install tzlocal. Please install it manually.")
+        print("Use the command: pip install tzlocal")
         exit()
 init()
 
@@ -69,6 +94,7 @@ def main():
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
     repo_name = "Synthalingua"
+    timestamp_file = "last_checked_timestamp.txt"
 
     def get_last_updated(repo_owner, repo_name):
         url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
@@ -79,16 +105,60 @@ def main():
             last_updated = repo_data["updated_at"]
             last_updated_dt = datetime.fromisoformat(last_updated.strip("Z"))
 
-            # Convert to the user's local timezone
             utc_timezone = pytz.timezone("UTC")
-            local_timezone = tzlocal()
+            local_timezone = get_localzone()
             last_updated_local = last_updated_dt.replace(tzinfo=utc_timezone).astimezone(local_timezone)
 
-            print(f"The repository {repo_owner}/{repo_name} was last updated on {last_updated_local}.")
+            return last_updated_local
         else:
             print(f"An error occurred. Status code: {response.status_code}")
+            return None
 
-    print(f"Last updated: {get_last_updated(repo_owner, repo_name)}")
+    def time_difference_in_words(updated_time):
+        now = datetime.now(updated_time.tzinfo)
+        time_difference = now - updated_time
+        days, remainder = divmod(time_difference.seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        time_parts = []
+        if days > 0:
+            time_parts.append(f"{days} days")
+        if hours > 0:
+            time_parts.append(f"{hours} hours")
+        if minutes > 0:
+            time_parts.append(f"{minutes} minutes")
+
+        return ", ".join(time_parts)
+
+    def save_last_checked_timestamp(timestamp):
+        with open(timestamp_file, "w") as file:
+            file.write(str(timestamp))
+
+    def load_last_checked_timestamp():
+        if os.path.exists(timestamp_file):
+            with open(timestamp_file, "r") as file:
+                timestamp_str = file.read()
+                return datetime.fromisoformat(timestamp_str.strip("Z"))
+        else:
+            return None
+
+    def check_for_updates():
+        last_updated_time = get_last_updated(repo_owner, repo_name)
+
+        if last_updated_time is not None:
+            last_checked_timestamp = load_last_checked_timestamp()
+
+            if last_checked_timestamp is None or last_updated_time > last_checked_timestamp:
+                time_difference = time_difference_in_words(last_updated_time)
+                print(f"The repository {repo_owner}/{repo_name} was last updated {time_difference} ago.")
+                print("Consider updating to the latest version.")
+                printf("Update available at: " + GitHubRepo)
+                save_last_checked_timestamp(last_updated_time)
+            else:
+                print("You are already using the latest version.")
+
+    check_for_updates()
 
     def fine_tune_model_dl():
         print("Downloading fine-tuned model... [Via OneDrive (Public)]")
