@@ -13,3 +13,5 @@ requests
 pytz
 python-dateutil
 numba
+humanize
+tzlocal
