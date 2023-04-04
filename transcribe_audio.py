@@ -157,6 +157,7 @@ def main():
                 save_last_checked_timestamp(last_updated_time)
             else:
                 print("You are already using the latest version.")
+                print(f"Last updated: {last_updated_time.strftime('%d %b %Y %H:%M:%S %Z')}\nThis was {time_difference_in_words(last_updated_time)} ago.")
 
     check_for_updates()
 
