@@ -11,6 +11,7 @@ import shutil
 import numpy as np
 import requests
 import json
+import re
 try:
     import pytz
 except:
@@ -89,75 +90,41 @@ except:
 
 def main():
 
-    version = "1.0.99"
+    version = "1.0.992"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
     repo_name = "Synthalingua"
-    timestamp_file = "last_checked_timestamp.txt"
 
-    def get_last_updated(repo_owner, repo_name):
-        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}"
+    def get_remote_version(repo_owner, repo_name, file_path):
+        url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/master/{file_path}"
         response = requests.get(url)
-        repo_data = response.json()
 
         if response.status_code == 200:
-            last_updated = repo_data["updated_at"]
-            last_updated_dt = datetime.fromisoformat(last_updated.strip("Z"))
-
-            utc_timezone = pytz.timezone("UTC")
-            local_timezone = get_localzone()
-            last_updated_local = last_updated_dt.replace(tzinfo=utc_timezone).astimezone(local_timezone)
-
-            return last_updated_local
+            remote_file_content = response.text
+            version_search = re.search(r'version\s*=\s*"([\d.]+)"', remote_file_content)
+            if version_search:
+                remote_version = version_search.group(1)
+                return remote_version
+            else:
+                print("Error: Version not found in the remote file.")
+                return None
         else:
             print(f"An error occurred. Status code: {response.status_code}")
             return None
 
-    def time_difference_in_words(updated_time):
-        now = datetime.now(updated_time.tzinfo)
-        time_difference = now - updated_time
-        days, remainder = divmod(time_difference.seconds, 86400)
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        time_parts = []
-        if days > 0:
-            time_parts.append(f"{days} days")
-        if hours > 0:
-            time_parts.append(f"{hours} hours")
-        if minutes > 0:
-            time_parts.append(f"{minutes} minutes")
-
-        return ", ".join(time_parts)
-
-    def save_last_checked_timestamp(timestamp):
-        with open(timestamp_file, "w") as file:
-            file.write(str(timestamp))
-
-    def load_last_checked_timestamp():
-        if os.path.exists(timestamp_file):
-            with open(timestamp_file, "r") as file:
-                timestamp_str = file.read()
-                return datetime.fromisoformat(timestamp_str.strip("Z"))
-        else:
-            return None
-
     def check_for_updates():
-        last_updated_time = get_last_updated(repo_owner, repo_name)
+        local_version = version
+        remote_version = get_remote_version(repo_owner, repo_name, "transcribe_audio.py")
 
-        if last_updated_time is not None:
-            last_checked_timestamp = load_last_checked_timestamp()
-
-            if last_checked_timestamp is None or last_updated_time > last_checked_timestamp:
-                time_difference = time_difference_in_words(last_updated_time)
-                print(f"The repository {repo_owner}/{repo_name} was last updated {time_difference} ago.")
+        if remote_version is not None:
+            if remote_version != local_version:
+                print(f"Version mismatch. Local version: {local_version}, remote version: {remote_version}")
                 print("Consider updating to the latest version.")
                 print(f"Update available at: " + GitHubRepo)
-                save_last_checked_timestamp(last_updated_time)
             else:
                 print("You are already using the latest version.")
-                print(f"Last updated: {last_updated_time.strftime('%d %b %Y %H:%M:%S %Z')}\nThis was {time_difference_in_words(last_updated_time)} ago.")
+                print(f"Current version: {local_version}")
 
     check_for_updates()
 
