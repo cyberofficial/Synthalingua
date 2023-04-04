@@ -90,7 +90,7 @@ except:
 
 def main():
 
-    version = "1.0.992"
+    version = "1.0.993"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
