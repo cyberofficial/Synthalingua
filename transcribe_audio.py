@@ -153,7 +153,7 @@ def main():
                 time_difference = time_difference_in_words(last_updated_time)
                 print(f"The repository {repo_owner}/{repo_name} was last updated {time_difference} ago.")
                 print("Consider updating to the latest version.")
-                printf("Update available at: " + GitHubRepo)
+                print(f"Update available at: " + GitHubRepo)
                 save_last_checked_timestamp(last_updated_time)
             else:
                 print("You are already using the latest version.")
