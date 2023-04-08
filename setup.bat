@@ -3,7 +3,7 @@ Title Realtime Whipser Translation App
 cls
 
 if exist "data_whisper" (
-    set /p reinstall=Python environment already exists. Do you want to reinstall? [y/n]
+    set /p reinstall="Python environment already exists. Do you want to reinstall? [y/n]: "
     if /i "%reinstall%"=="y" (
         echo Deleting existing environment...
         call data_whisper\Scripts\deactivate.bat
@@ -44,8 +44,8 @@ Echo You can edit with notepad anytime.
 Echo.
 Echo @echo off > livetranslation.bat
 Echo cls >> livetranslation.bat
-Echo call "%cd%\data_whisper\Scripts\activate.bat" >> livetranslation.bat
-Echo python "%cd%\transcribe_audio.py" --ram 4gb --non_english --translate >> livetranslation.bat
+Echo call "data_whisper\Scripts\activate.bat" >> livetranslation.bat
+Echo python "transcribe_audio.py" --ram 4gb --non_english --translate >> livetranslation.bat
 pause
 
 :eof
