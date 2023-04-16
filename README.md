@@ -13,7 +13,7 @@ Synthalingua is a tool that translates audio from one language to English in alm
 4. [Installing/Setup](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#installation)
 5. [Usage and File Arguments](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#usage)
      * [Examples](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#examples)
-6. [Trouble Shooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
+6. [Troubleshooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
 7. [Addtional Info](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#additional-information)
 8. [Video Demos](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#video-demonstration)
 9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
