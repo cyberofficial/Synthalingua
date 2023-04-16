@@ -147,21 +147,33 @@ I would put `python transcribe_audio.py --set_microphone "Microphone (Realtek US
 I would put `python transcribe_audio.py --set_microphone 4` to set the device to listen to.
 
 ## Troubleshooting
+
+If you encounter any issues with the tool, here are some common problems and their solutions:
+
 * Python is not recognized as an internal or external command, operable program or batch file.
-    * Make sure you have python installed and added to your PATH.
+    * Make sure you have Python installed and added to your PATH.
+    * If you recently installed Python, try restarting your computer to refresh the PATH environment variable.
+    * Check that you installed the correct version of Python required by the application. Some applications may require a specific version of Python.
+    * If you are still having issues, try running the command prompt as an administrator and running the installation again. However, only do this as a last resort and with caution, as running scripts as an administrator can potentially cause issues with the system.
+* I get an error saying "No module named 'transformers'".
+    * Re-run the setup.bat file.
+        * If issues persist, make sure you have Python installed and added to your PATH.
+        * Make sure you have the `transformers` module installed by running `pip install transformers`.
+        * If you have multiple versions of Python installed, make sure you are installing the module for the correct version by specifying the Python version when running the command, e.g. `python3.9 -m pip install transformers`.
+        * If you are still having issues, create a new issue on the repository and the developer may be able to help you fix the issue.
 * Git is not recognized as an internal or external command, operable program or batch file.
-    * Make sure you have git installed and added to your PATH.
+    * Make sure you have Git installed and added to your PATH.
+    * If you recently installed Git, try restarting your computer to refresh the PATH environment variable.
+    * If you are still having issues, try running the command prompt as an administrator and running the installation again. However, only do this as a last resort and with caution, as running scripts as an administrator can potentially cause issues with the system.
 * CUDA is not recognized or available.
     * Make sure you have CUDA installed. You can get it from [here](https://developer.nvidia.com/cuda-downloads).
     * CUDA is only for NVIDIA GPUs. If you have an AMD GPU, you have to use the CPU model. ROCm is not supported at this time.
-* I get an error saying "No module named 'transformers'".
-    * Re-run the setup.bat file.
-        * If issues persist, make sure you have python installed and added to your PATH.
-            * If you have python installed and added to your PATH, create a new issue on the repo and I will try to help you fix the issue.
 * [WinError 2] The system cannot find the file specified
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 * Translator can't pickup stream sound
-    * Check out this disccsion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+    * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+
+
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
