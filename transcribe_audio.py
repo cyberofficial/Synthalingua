@@ -303,6 +303,7 @@ def main():
         # contributors #
         print(f"\033[4m{Fore.GREEN}Contributors:{Style.RESET_ALL}\033[0m")
         print("@DaniruKun from https://watsonindustries.live")
+        print("[Expletive Deleted] https://evitelpxe.neocities.org")
         exit()
 
     model = set_model_by_ram(args.ram, args.language)
