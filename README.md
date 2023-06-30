@@ -35,8 +35,8 @@ Synthalingua is a tool that translates audio from one language to English in alm
 ## TODO
 | Todo  | Sub-Task | Status |
 |-------|----------|--------|
-| Add support for AMD GPUs. | ROCm support | ❌ |
-|       | OpenCL support | ❌ |
+| Add support for AMD GPUs. | ROCm support - Linux Only | ✅ |
+|       | OpenCL support - Linux Only | ✅ |
 | Add support API access. |          | ❌ |
 | Custom localhost web server. |      | ❌ |
 | Add reverse translation. |        | ❌ |
