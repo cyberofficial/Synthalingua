@@ -59,8 +59,8 @@ Synthalingua is a tool that translates audio from one language to English in alm
 | Supported GPUs | Description |
 | -------------- | ----------- |
 | Nvidia Dedicated Graphics | Supported |
-| Nvidia Integrated Graphics | Needs testing |
-| AMD/ATI | Not Supported |
+| Nvidia Integrated Graphics | Tested - Not Supported |
+| AMD/ATI | * Linux Verified |
 | Intel Arc | Not Supported |
 | Intel HD | Not Supported |
 | Intel iGPU | Not Supported |
