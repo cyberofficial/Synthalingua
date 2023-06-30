@@ -52,7 +52,8 @@ Synthalingua is a tool that translates audio from one language to English in alm
 
 
 # Contributors 
-#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
+#### [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
+#### [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org 
 
 # System Requirements
 | Supported GPUs | Description |
