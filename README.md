@@ -6,6 +6,18 @@ Synthalingua is a tool that translates audio from one language to English in alm
 
 #### Readme will update as time goes. This is a work in progress.
 
+### Table of Contents
+1. [Disclaimer](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-knowdisclaimerswarningsetc)
+2. [To Do List](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#todo)
+3. [Contributors](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#contributors)
+4. [Installing/Setup](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#installation)
+5. [Usage and File Arguments](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#usage)
+     * [Examples](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#examples)
+6. [Troubleshooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
+7. [Addtional Info](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#additional-information)
+8. [Video Demos](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#video-demonstration)
+9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
+
 ## Things to know/Disclaimers/Warnings/etc
 - This tool is not perfect. It's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
 - The tool will prioritize the language you select over the language it detects. For example if you select Japanese and the speaker is speaking in Spanish it will try and translate it to Japanese. If you want it to translate it to Spanish, you can select Spanish as the language or set the language to auto detect.
@@ -20,56 +32,51 @@ Synthalingua is a tool that translates audio from one language to English in alm
 - Your hardware will affect the outcome of the tool. If you have a weak CPU, the tool will not work as well. If you have a weak GPU, the tool will not work as well. *If you have a weak internet connection, the tool will not be affected. If you have a weak microphone or bad audio input, the tool will not work as well. 
 - This is a tool not a service. You are responsible for your own actions and can not blame me if the tool breaks tos or eulas, or if you get banned from Discord or any other service you use the tool with.
 
-# Todo
-- [ ] Add support for AMD GPUs.
-    - [ ] ROCm support
-    - [ ] OpenCL support
-- [ ] Add support API access.
-- [ ] Custom localhost web server.
-- [ ] Add reverse translation.
-     - [ ] Localize script to other languages. (Will take place after reverse translations.)
-- [ ] Custom dictionary support.
-- [ ] GUI.
-- [x] Linux support.
-- [ ] Improve performance.
-    - [x] Compressed Model Format for lower ram users
-    - [ ] Better large model loading speed
-        - [ ] Split model up into multiple chunks based on usage
-- [ ] Increase model swapping accuracy.
+## TODO
+| Todo  | Sub-Task | Status |
+|-------|----------|--------|
+| Add support for AMD GPUs. | ROCm support | ❌ |
+|       | OpenCL support | ❌ |
+| Add support API access. |          | ❌ |
+| Custom localhost web server. |      | ❌ |
+| Add reverse translation. |        | ❌ |
+|       | Localize script to other languages. (Will take place after reverse translations.) | ❌ |
+| Custom dictionary support. |       | ❌ |
+| GUI.  |          | ❌ |
+| Linux support. |          | ✅ |
+| Improve performance. |         | ❌ |
+|       | Compressed Model Format for lower ram users | ✅ |
+|       | Better large model loading speed | ❌ |
+|          | Split model up into multiple chunks based on usage | ❌ |
+| Increase model swapping accuracy. | | ❌ |
+
 
 # Contributors 
 #### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
 
 # System Requirements
-## Nvidia GPU is required*, Support for AMD GPUs is coming soon. Windows is required. Linux support is coming soon.
-#### *GPU is not fully required, but can improve performance. AMD GPUs are not supported yet, but will be supported soon.
-### Minimum Requirements
-- CPU with 2 cores running at 2.5 GHz or higher
-- *GPU with 2 GB of VRAM or higher
-- 4 GB of RAM or higher
-- 10 GB of free disk space
-* GPU is not required, but can improve performance.
+| Supported GPUs | Description |
+| -------------- | ----------- |
+| Nvidia Dedicated Graphics | Supported |
+| Nvidia Integrated Graphics | Needs testing |
+| AMD/ATI | Not Supported |
+| Intel Arc | Not Supported |
+| Intel HD | Not Supported |
+| Intel iGPU | Not Supported |
 
-### Moderate Requirements
-- CPU with 6 cores running at 3.0 GHz or higher
-- *GPU with 6 GB of VRAM or higher
-- 8 GB of RAM or higher
-- 10 GB of free disk space
-* GPU is not required, but can improve performance.
+| Requirement | Minimum | Moderate | Recommended | Best Performance |
+| ----------- | ------- | -------- | ----------- | ---------------- |
+| CPU Cores | 2 | 6 | 8 | 16 |
+| CPU Clock Speed (GHz) | 2.5 or higher | 3.0 or higher | 3.5 or higher | 4.0 or higher |
+| RAM (GB) | 4 or higher | 8 or higher | 16 or higher | 16 or higher |
+| GPU VRAM (GB) | 2 or higher | 6 or higher | 8 or higher | 12 or higher |
+| Free Disk Space (GB) | 10 or higher | 10 or higher | 10 or higher | 10 or higher |
+| GPU (suggested) As long as the gpu you have is within vram spec, it should work fine. | Nvidia GTX 1050 or higher | Nvidia GTX 1660 or higher | Nvidia RTX 3070 or higher | Nvidia RTX 3090 or higher |
 
-### Recommended Requirements
-- CPU with 8 cores running at 3.5 GHz or higher
-- *GPU with 8 GB of VRAM or higher
-- 16 GB of RAM or higher
-- 10 GB of free disk space
-* GPU is not required, but can improve performance.
-
-### Best Performance
-- CPU with 16 cores running at 4.0 GHz or higher
-- *GPU with 12 GB of VRAM or higher
-- 16 GB of RAM or higher
-- 10 GB of free disk space
-* GPU is not required, but can improve performance.
+Note:
+- Nvidia GPU support only
+- Nvidia GPU is suggested but not required.
+- AMD GPUs are not supported yet, but will be supported soon.
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
@@ -93,31 +100,27 @@ The tool will work on any system that meets the minimum requirements. The tool w
 ## Usage 
 
 This script uses argparse to accept command line arguments. The following options are available:
+| Flag | Description |
+| ---- | ----------- |
+| `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
+| `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
+| `--non_english` | Use non-English models for transcription. Enables the use of non-English models. |
+| `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
+| `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
+| `--phrase_timeout` | Set the time in seconds for empty space between recordings before considering it a new line in the transcription. Default is 1 second. |
+| `--translate` | Translate the transcriptions to English. Enables translation. |
+| `--language` | Select the language to translate from. Available choices are a list of languages in ISO 639-1 format, as well as their English names. |
+| `--auto_model_swap` | Automatically swap the model based on the detected language. Enables automatic model swapping. |
+| `--device` | Select the device to use for the model. Default is "cuda" if available. Available options are "cpu" and "cuda". When setting to CPU you can choose any RAM size as long as you have enough RAM. The CPU option is optimized for multi-threading, so if you have like 16 cores, 32 threads, you can see good results. |
+| `--cuda_device` | Select the CUDA device to use for the model. Default is 0. |
+| `--discord_webhook` | Set the Discord webhook to send the transcription to. |
+| `--list_microphones` | List available microphones and exit. |
+| `--set_microphone` | Set the default microphone to use. You can set the name or its ID number from the list. |
+| `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
+| `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
+| `--retry` | Retries translations and transcription if they fail. |
+| `--about` | Shows about the app. |
 
-* `--ram`: Change the amount of RAM to use. Default is 4gb. Choices are "1gb", "2gb", "4gb", "6gb", "12gb"
-    * Things to note, when choosing ram option with your gpu vram. You need to make sure you have enough over head for the ram.
-        * So for example if you have a 4GB GPU you may need to choose 2gb not 4gb, the ram size basically tells you how much space you need in the gpu vram.
-        If your gpu is 4gb you may not have enough vram for your operating system, since most of the time it'll be using about 512mb of vram. which leaves you with 3.5gb of vram. This logic applies to **1GB**, **2GB**, **4GB** & **6GB**. The 12GB option loads a model that uses about 11.4GB in vram size, which also has enough overhead for the operating system.
-* `--ramforce`: Use this flag to force the script to use desired vram, this may cause the script to crash if you don't have enough vram.
-    * Don't do like `--ramforce 6gb` just use it by it self, there are mo extras on it.
-    * Like `--ram 6gb --ramforce`
-* `--non_english`: Use non-English models for transcription. This flag enables the use of non-English models.
-* `--energy_threshold`: Set the energy level for microphone to detect. Default is 100, you can choose from 1 to 1000, anything higher will be harder to trigger the audio detection.
-* `--record_timeout`: Set the time in seconds for real-time recording. Default is 2 seconds.
-* `--phrase_timeout`: Set the time in seconds for empty space between recordings before considering it a new line in the transcription. Default is 1 second.
-* `--translate`: Translate the transcriptions to English. This flag enables translation.
-* `--language`: Select the language to translate from. Available choices are a list of languages in ISO 639-1 format, as well as their English names.
-* `--auto_model_swap`: Automatically swap the model based on the detected language. This flag enables automatic model swapping.
-* `--device`: Select the device to use for the model. Default is "cuda" if available. Available options are "cpu" and "cuda".
-    * When setting to CPU you can choose any ram size as long as you have enough ram. The CPU option is optimized for multi threading, so if you have like 16 cores, 32 threads, you can see good results.
-* `--cuda_device`: Select the CUDA device to use for the model. Default is 0.
-* `--discord_webhook`: Set the Discord webhook to send the transcription to.
-* `--list_microphones`: List available microphones and exit.
-* `--set_microphone`: Set the default microphone to use. You can set the name or it's ID number from the list.
-* `--auto_language_lock`: Automatically lock the language based on the detected language after 5 detections. This flag enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language.
-* `--use_finetune`: Use finetuned model. This will increase accuracy, but will also increase latency, addtional vram/ram usage is required.
-* `--retry`: Retries translations and transcription if they failed.
-* `--about`: Shows about the app.
 
 ## Examples
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
@@ -144,21 +147,33 @@ I would put `python transcribe_audio.py --set_microphone "Microphone (Realtek US
 I would put `python transcribe_audio.py --set_microphone 4` to set the device to listen to.
 
 ## Troubleshooting
+
+If you encounter any issues with the tool, here are some common problems and their solutions:
+
 * Python is not recognized as an internal or external command, operable program or batch file.
-    * Make sure you have python installed and added to your PATH.
+    * Make sure you have Python installed and added to your PATH.
+    * If you recently installed Python, try restarting your computer to refresh the PATH environment variable.
+    * Check that you installed the correct version of Python required by the application. Some applications may require a specific version of Python.
+    * If you are still having issues, try running the command prompt as an administrator and running the installation again. However, only do this as a last resort and with caution, as running scripts as an administrator can potentially cause issues with the system.
+* I get an error saying "No module named 'transformers'".
+    * Re-run the setup.bat file.
+        * If issues persist, make sure you have Python installed and added to your PATH.
+        * Make sure you have the `transformers` module installed by running `pip install transformers`.
+        * If you have multiple versions of Python installed, make sure you are installing the module for the correct version by specifying the Python version when running the command, e.g. `python3.9 -m pip install transformers`.
+        * If you are still having issues, create a new issue on the repository and the developer may be able to help you fix the issue.
 * Git is not recognized as an internal or external command, operable program or batch file.
-    * Make sure you have git installed and added to your PATH.
+    * Make sure you have Git installed and added to your PATH.
+    * If you recently installed Git, try restarting your computer to refresh the PATH environment variable.
+    * If you are still having issues, try running the command prompt as an administrator and running the installation again. However, only do this as a last resort and with caution, as running scripts as an administrator can potentially cause issues with the system.
 * CUDA is not recognized or available.
     * Make sure you have CUDA installed. You can get it from [here](https://developer.nvidia.com/cuda-downloads).
     * CUDA is only for NVIDIA GPUs. If you have an AMD GPU, you have to use the CPU model. ROCm is not supported at this time.
-* I get an error saying "No module named 'transformers'".
-    * Re-run the setup.bat file.
-        * If issues persist, make sure you have python installed and added to your PATH.
-            * If you have python installed and added to your PATH, create a new issue on the repo and I will try to help you fix the issue.
 * [WinError 2] The system cannot find the file specified
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 * Translator can't pickup stream sound
-    * Check out this disccsion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+    * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+
+
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
