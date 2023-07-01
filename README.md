@@ -77,7 +77,7 @@ Synthalingua is a tool that translates audio from one language to English in alm
 Note:
 - Nvidia GPU support on Linux and Windows
 - Nvidia GPU is suggested but not required.
-- AMD GPUs are supported on linux, now Windows, but will *try* to be supported soon.
+- AMD GPUs are supported on linux, not Windows, but will *try* to be supported soon.
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
