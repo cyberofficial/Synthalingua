@@ -35,8 +35,8 @@ Synthalingua is a tool that translates audio from one language to English in alm
 ## TODO
 | Todo  | Sub-Task | Status |
 |-------|----------|--------|
-| Add support for AMD GPUs. | ROCm support | ❌ |
-|       | OpenCL support | ❌ |
+| Add support for AMD GPUs. | ROCm support - Linux Only | ✅ |
+|       | OpenCL support - Linux Only | ✅ |
 | Add support API access. |          | ❌ |
 | Custom localhost web server. |      | ❌ |
 | Add reverse translation. |        | ❌ |
@@ -52,14 +52,15 @@ Synthalingua is a tool that translates audio from one language to English in alm
 
 
 # Contributors 
-#### [@DaniruKun](https://github.com/DaniruKun) from https://watsonindustries.live
+#### [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
+#### [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org 
 
 # System Requirements
 | Supported GPUs | Description |
 | -------------- | ----------- |
 | Nvidia Dedicated Graphics | Supported |
-| Nvidia Integrated Graphics | Needs testing |
-| AMD/ATI | Not Supported |
+| Nvidia Integrated Graphics | Tested - Not Supported |
+| AMD/ATI | * Linux Verified |
 | Intel Arc | Not Supported |
 | Intel HD | Not Supported |
 | Intel iGPU | Not Supported |
@@ -74,9 +75,9 @@ Synthalingua is a tool that translates audio from one language to English in alm
 | GPU (suggested) As long as the gpu you have is within vram spec, it should work fine. | Nvidia GTX 1050 or higher | Nvidia GTX 1660 or higher | Nvidia RTX 3070 or higher | Nvidia RTX 3090 or higher |
 
 Note:
-- Nvidia GPU support only
+- Nvidia GPU support on Linux and Windows
 - Nvidia GPU is suggested but not required.
-- AMD GPUs are not supported yet, but will be supported soon.
+- AMD GPUs are supported on linux, not Windows, but will *try* to be supported soon.
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
@@ -95,7 +96,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
      * **On Linux**: `setup.bash`
      * If you get an error saying "Setup.bat is not recognized as an internal or external command, operable program or batch file.", houston we have a problem. This will require you to fix your operating system.
 6. Run the newly created batch file/bash script. You can edit that file to change the settings.
-     * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have python installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
+     * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have  installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
 
 ## Usage 
 
@@ -159,7 +160,7 @@ If you encounter any issues with the tool, here are some common problems and the
     * Re-run the setup.bat file.
         * If issues persist, make sure you have Python installed and added to your PATH.
         * Make sure you have the `transformers` module installed by running `pip install transformers`.
-        * If you have multiple versions of Python installed, make sure you are installing the module for the correct version by specifying the Python version when running the command, e.g. `python3.9 -m pip install transformers`.
+        * If you have multiple versions of Python installed, make sure you are installing the module for the correct version by specifying the Python version when running the command, e.g. `python -m pip install transformers`.
         * If you are still having issues, create a new issue on the repository and the developer may be able to help you fix the issue.
 * Git is not recognized as an internal or external command, operable program or batch file.
     * Make sure you have Git installed and added to your PATH.

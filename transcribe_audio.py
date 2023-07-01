@@ -303,6 +303,7 @@ def main():
         # contributors #
         print(f"\033[4m{Fore.GREEN}Contributors:{Style.RESET_ALL}\033[0m")
         print("@DaniruKun from https://watsonindustries.live")
+        print("[Expletive Deleted] https://evitelpxe.neocities.org")
         exit()
 
     model = set_model_by_ram(args.ram, args.language)
@@ -715,22 +716,17 @@ def main():
     if not os.path.isdir('out'):
         os.mkdir('out')
     
-
-    if os.path.isfile('out\\transcription.txt'):
-        print('out\\transcription.txt already exists, changing the name to transcription_1.txt')
-        i = 1
-        while os.path.isfile('out\\transcription_' + str(i) + '.txt'):
-            i += 1
-        transcription_file = open('out\\transcription_' + str(i) + '.txt', 'w', encoding='utf-8')
-    else:
-        transcription_file = open('out\\transcription.txt', 'w', encoding='utf-8')
+    transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
+    if os.path.isfile(transcript):
+        transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
+    transcription_file = open(transcript, 'w',  encoding='utf-8')
 
     for original_text, translated_text, language_code in transcription:
         transcription_file.write(f"Original ({language_code}): {original_text}\n")
         if translated_text:
             transcription_file.write(f"Translation: {translated_text}\n")
     transcription_file.close()
-    print(f"Transcription was saved to out\\transcription{'_' + str(i) if i > 0 else ''}.txt")
+    print(f"Transcription was saved to {transcript}")
     
 
 if __name__ == "__main__":
