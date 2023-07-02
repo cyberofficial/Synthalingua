@@ -45,6 +45,8 @@ echo ""
 echo '#!/bin/bash' > livetranslation.sh
 echo "source \"$(pwd)/data_whisper/bin/activate\"" >> livetranslation.sh
 echo "python \"$(pwd)/transcribe_audio.py\" --ram 4gb --non_english --translate" >> livetranslation.sh
+# add a pause
+echo "read -p \"Press enter to exit...\"" >> livetranslation.sh
 chmod +x livetranslation.sh
 
 echo "Done!"

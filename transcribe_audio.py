@@ -13,6 +13,13 @@ import requests
 import json
 import re
 try:
+    # if the os is not windows then skip this
+    if os.name == 'nt':
+        import sys, win32api
+        win32api.SetDllDirectory(sys._MEIPASS)
+except:
+    pass
+try:
     import pytz
 except:
     print("Installing missing dependencies...")
@@ -90,7 +97,7 @@ except:
 
 def main():
 
-    version = "1.0.995"
+    version = "1.0.996"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
@@ -268,6 +275,8 @@ def main():
                              "consider it a new line in the transcription.", type=float)  
     parser.add_argument("--translate", action='store_true',
                         help="Translate the transcriptions to English.")
+    parser.add_argument("--transcribe", action='store_true',
+                        help="transcribe the text into the desired language.")
     parser.add_argument("--language",
                         help="Language to translate from.", type=str,
                         choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
@@ -599,7 +608,7 @@ def main():
                             pass
                 print("Transcribing...")
                 if device == "cuda":
-                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available())
+                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                 else:
                     result = audio_model.transcribe(temp_file)
                 print(f"Detected Speech: {result['text']}")
@@ -608,7 +617,7 @@ def main():
                         print("Transcription failed, trying again...")
                         send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
                         if device == "cuda":
-                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available())
+                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                         else:
                             result = audio_model.transcribe(temp_file)
                         print(f"Detected Speech: {result['text']}")
@@ -622,18 +631,18 @@ def main():
                     if detected_language != 'en':
                         print("Translating...")
                         if device == "cuda":
-                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate")
+                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=args.language)
                         else:
-                            translated_result = audio_model.transcribe(temp_file, task="translate")
+                            translated_result = audio_model.transcribe(temp_file, task="translate", language=args.language)
                         translated_text = translated_result['text'].strip()
                         if translated_text == "":
                             if args.retry:
                                 print("Translation failed, trying again...")
                                 send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
                                 if device == "cuda":
-                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate")
+                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=args.language)
                                 else:
-                                    translated_result = audio_model.transcribe(temp_file, task="translate")
+                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=args.language)
                             translated_text = translated_result['text'].strip()
                         if args.discord_webhook:
                             if translated_text == "":
@@ -645,6 +654,34 @@ def main():
                         translated_text = ""
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
+
+                if args.transcribe:
+                    if detected_language != 'en':
+                        print("Transcribing...")
+                        if device == "cuda":
+                            transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=detected_language)
+                        else:
+                            transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=detected_language)
+                        transcribed_text = transcribed_result['text'].strip()
+                        if transcribed_text == "":
+                            if args.retry:
+                                print("transcribe failed, trying again...")
+                                send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
+                                if device == "cuda":
+                                    transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=detected_language)
+                                else:
+                                    transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=detected_language)
+                            transcribed_text = transcribed_result['text'].strip()
+                        if args.discord_webhook:
+                            if transcribed_text == "":
+                                send_to_discord_webhook(webhook_url, f"Translation failed")
+                            else:
+                                send_to_discord_webhook(webhook_url, f"transcribed Speech: {transcribed_text}")
+
+                    else:
+                        transcribed_text = ""
+                        if args.discord_webhook:
+                            send_to_discord_webhook(webhook_url, "transcribe failed")
                 
                 if args.discord_webhook:
                     message = "----------------"
@@ -653,16 +690,16 @@ def main():
 
 
                 if phrase_complete:
-                    transcription.append((text, translated_text if args.translate else None, detected_language))
+                    transcription.append((text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language))
                 else:
-                    transcription[-1] = (text, translated_text if args.translate else None, detected_language)
+                    transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
                 os.system('cls' if os.name=='nt' else 'clear')
-                for original_text, translated_text, language_code in transcription:
+                for original_text, translated_text, transcribed_text, language_code in transcription:
                     if not original_text:
                         continue
                     print("=" * shutil.get_terminal_size().columns)
-                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} Detected - {language_code} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                     print(f"{original_text}")
 
 
@@ -671,8 +708,11 @@ def main():
                         print('', end='', flush=True)
                     else:
                         if translated_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{translated_text}\n")
+                        if transcribed_text:
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} Translated {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{transcribed_text}\n")
                 print('', end='', flush=True)
 
                 if args.auto_model_swap:
@@ -721,10 +761,12 @@ def main():
         transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
     transcription_file = open(transcript, 'w',  encoding='utf-8')
 
-    for original_text, translated_text, language_code in transcription:
+    for original_text, translated_text, transcribed_text, language_code in transcription:
         transcription_file.write(f"Original ({language_code}): {original_text}\n")
         if translated_text:
             transcription_file.write(f"Translation: {translated_text}\n")
+        if transcribed_text:
+            transcription_file.write(f"Transcription: {transcribed_text}\n")
     transcription_file.close()
     print(f"Transcription was saved to {transcript}")
     

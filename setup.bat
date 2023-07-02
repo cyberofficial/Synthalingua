@@ -46,6 +46,7 @@ Echo @echo off > livetranslation.bat
 Echo cls >> livetranslation.bat
 Echo call "data_whisper\Scripts\activate.bat" >> livetranslation.bat
 Echo python "transcribe_audio.py" --ram 4gb --non_english --translate >> livetranslation.bat
+Echo pause >> livetranslation.bat
 pause
 
 :eof
