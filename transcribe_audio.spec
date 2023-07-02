@@ -1,13 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+import os
+import glob
 
 block_cipher = None
 
+# Get the list of all DLLs in the CUDA bin directory
+cuda_dlls = glob.glob('C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.1\\bin\\*.dll')
+
+# Convert the list of DLL paths to a list of tuples for PyInstaller
+binaries = [(dll, '.') for dll in cuda_dlls]
 
 a = Analysis(
     ['transcribe_audio.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=[],
     hiddenimports=[],
     hookspath=[],
@@ -24,27 +31,23 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
+    exclude_binaries=False,
     name='transcribe_audio',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    upx_exclude=[],
     console=True,
+    icon=None,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='transcribe_audio',
+    onefile=True,
 )
