@@ -280,6 +280,9 @@ def main():
     parser.add_argument("--language",
                         help="Language to translate from.", type=str,
                         choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
+    parser.add_argument("--target_language",
+                        help="Language to translate to.", type=str,
+                        choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
     parser.add_argument("--auto_model_swap", action='store_true',
                         help="Automatically swap model based on detected language.")
     parser.add_argument("--device", default="cuda",
@@ -336,6 +339,18 @@ def main():
             print("Invalid language. Please choose a valid language from the list below:")
             print(valid_languages)
             return
+
+    # check if transcribed is set as an argument if so check if target language is set, if tagret language is not set then exit saying need target language
+    if args.transcribe:
+        if not args.target_language:
+            print("Transcribe is set but no target language is set. Please set a target language.")
+            return
+        else:
+            if args.target_language not in valid_languages:
+                print("Invalid target language. Please choose a valid language from the list below:")
+                print(valid_languages)
+                return
+        target_language = args.target_language
     
     if args.phrase_timeout > 1 and args.discord_webhook:
         red_text = Fore.RED + Back.BLACK
@@ -606,7 +621,8 @@ def main():
                             print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
-                print("Transcribing...")
+                if args.transcribe:
+                    print("Transcribing...")
                 if device == "cuda":
                     result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                 else:
@@ -631,18 +647,18 @@ def main():
                     if detected_language != 'en':
                         print("Translating...")
                         if device == "cuda":
-                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=args.language)
+                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
                         else:
-                            translated_result = audio_model.transcribe(temp_file, task="translate", language=args.language)
+                            translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
                         translated_text = translated_result['text'].strip()
                         if translated_text == "":
                             if args.retry:
                                 print("Translation failed, trying again...")
                                 send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
                                 if device == "cuda":
-                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=args.language)
+                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
                                 else:
-                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=args.language)
+                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
                             translated_text = translated_result['text'].strip()
                         if args.discord_webhook:
                             if translated_text == "":
@@ -656,32 +672,31 @@ def main():
                             send_to_discord_webhook(webhook_url, "Translation failed")
 
                 if args.transcribe:
-                    if detected_language != 'en':
-                        print("Transcribing...")
-                        if device == "cuda":
-                            transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=detected_language)
-                        else:
-                            transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=detected_language)
-                        transcribed_text = transcribed_result['text'].strip()
-                        if transcribed_text == "":
-                            if args.retry:
-                                print("transcribe failed, trying again...")
-                                send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
-                                if device == "cuda":
-                                    transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=detected_language)
-                                else:
-                                    transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=detected_language)
-                            transcribed_text = transcribed_result['text'].strip()
-                        if args.discord_webhook:
-                            if transcribed_text == "":
-                                send_to_discord_webhook(webhook_url, f"Translation failed")
-                            else:
-                                send_to_discord_webhook(webhook_url, f"transcribed Speech: {transcribed_text}")
-
+                    print(f"Transcribing to {target_language}...")
+                    if device == "cuda":
+                        transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
                     else:
-                        transcribed_text = ""
-                        if args.discord_webhook:
-                            send_to_discord_webhook(webhook_url, "transcribe failed")
+                        transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                    transcribed_text = transcribed_result['text'].strip()
+                    if transcribed_text == "":
+                        if args.retry:
+                            print("transcribe failed, trying again...")
+                            send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
+                            if device == "cuda":
+                                transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
+                            else:
+                                transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                        transcribed_text = transcribed_result['text'].strip()
+                    if args.discord_webhook:
+                        if transcribed_text == "":
+                            send_to_discord_webhook(webhook_url, f"Translation failed")
+                        else:
+                            send_to_discord_webhook(webhook_url, f"transcribed Speech: {transcribed_text}")
+
+                else:
+                    transcribed_text = ""
+                    if args.discord_webhook:
+                        send_to_discord_webhook(webhook_url, "transcribe failed")
                 
                 if args.discord_webhook:
                     message = "----------------"
@@ -699,10 +714,8 @@ def main():
                     if not original_text:
                         continue
                     print("=" * shutil.get_terminal_size().columns)
-                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                     print(f"{original_text}")
-
-
 
                     if language_code == 'en':
                         print('', end='', flush=True)
@@ -711,7 +724,7 @@ def main():
                             print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{translated_text}\n")
                         if transcribed_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} Translated {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{transcribed_text}\n")
                 print('', end='', flush=True)
 
