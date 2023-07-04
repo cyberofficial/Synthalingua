@@ -30,7 +30,7 @@ python -m pip install --upgrade pip
 echo "Installing Requirements..."
 pip install wheel
 pip install setuptools-rust
-pip install -r requirements.txt
+pip install -r requirements_static.txt
 
 echo "Fixing CUDA Since Whisper installs non-gpu version."
 pip uninstall --yes torch torchvision torchaudio
