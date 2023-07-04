@@ -27,7 +27,7 @@ python.exe -m pip install --upgrade pip
 Echo Installing Requirements...
 pip install wheel
 pip install setuptools-rust
-pip install -r requirements.txt
+pip install -r requirements_static.txt
 
 :cuda-patch
 Echo Fixing CUDA Since Whisper installs non gpu version.

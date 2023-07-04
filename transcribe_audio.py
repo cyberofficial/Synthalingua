@@ -272,7 +272,9 @@ def main():
                         help="How real time the recording is in seconds.", type=float)
     parser.add_argument("--phrase_timeout", default=1,
                         help="How much empty space between recordings before we "
-                             "consider it a new line in the transcription.", type=float)  
+                             "consider it a new line in the transcription.", type=float)
+    parser.add_argument("--no_log", action='store_true',
+                        help="Only show the last line of the transcription.")
     parser.add_argument("--translate", action='store_true',
                         help="Translate the transcriptions to English.")
     parser.add_argument("--transcribe", action='store_true',
@@ -568,7 +570,8 @@ def main():
         try:
             now = datetime.utcnow()
             if not data_queue.empty():
-                print("\nAudio stream detected...")
+                if args.no_log == False:
+                    print("\nAudio stream detected...")
                 phrase_complete = False
                 if phrase_time and now - phrase_time > timedelta(seconds=phrase_timeout):
                     last_sample = bytes()
@@ -619,7 +622,8 @@ def main():
                             confidence = language_probs[detected_language] * 100
                             confidence_color = Fore.GREEN if confidence > 75 else (Fore.YELLOW if confidence > 50 else Fore.RED)
                             set_window_title(detected_language, confidence)
-                            print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
+                            if args.discord_webhook:
+                                print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
                 
@@ -631,7 +635,8 @@ def main():
                 else:
                     result = audio_model.transcribe(temp_file)
 
-                print(f"Detected Speech: {result['text']}")
+                if args.no_log == False:
+                    print(f"Detected Speech: {result['text']}")
                 
                 if result['text'] == "":
                     if args.retry:
@@ -714,24 +719,37 @@ def main():
                 else:
                     transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
-                os.system('cls' if os.name=='nt' else 'clear')
-                for original_text, translated_text, transcribed_text, language_code in transcription:
-                    if not original_text:
-                        continue
-                    print("=" * shutil.get_terminal_size().columns)
-                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{original_text}")
+                if args.no_log == False:
+                    os.system('cls' if os.name=='nt' else 'clear')
+                    for original_text, translated_text, transcribed_text, language_code in transcription:
+                        if not original_text:
+                            continue
+                        print("=" * shutil.get_terminal_size().columns)
+                        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{original_text}")
 
-                    if language_code == 'en':
-                        print('', end='', flush=True)
-                    else:
-                        if translated_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{translated_text}\n")
-                        if transcribed_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{transcribed_text}\n")
-                print('', end='', flush=True)
+                        if language_code == 'en':
+                            print('', end='', flush=True)
+                        else:
+                            if translated_text:
+                                print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                                print(f"{translated_text}\n")
+                            if transcribed_text:
+                                print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                                print(f"{transcribed_text}\n")
+                    print('', end='', flush=True)
+                else:
+                    os.system('cls' if os.name=='nt' else 'clear')
+                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{text}")
+                    if translated_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{translated_text}\n")
+                    if transcribed_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{transcribed_text}\n")
+                    print('', end='', flush=True)
+
 
                 if args.auto_model_swap:
                     if last_detected_language != detected_language:
