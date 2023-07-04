@@ -137,11 +137,11 @@ def main():
 
     def fine_tune_model_dl():
         print("Downloading fine-tuned model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455917&authkey=AH9uvngPhJlVOg4"
+        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs"
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model.pt", "wb") as f:
+            with open("models/fine_tuned_model-v2.pt", "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
@@ -150,11 +150,11 @@ def main():
 
     def fine_tune_model_dl_compressed():
         print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455918&authkey=AGS9Zh8NuEo6qn4"
+        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ"
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model_compressed.pt", "wb") as f:
+            with open("models/fine_tuned_model_compressed_v2.pt", "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
@@ -459,13 +459,13 @@ def main():
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         red_text = Style.BRIGHT + Fore.RED
         reset_text = Style.RESET_ALL
-        if not os.path.exists("models/fine_tuned_model_compressed.pt"):
+        if not os.path.exists("models/fine_tuned_model_compressed_v2.pt"):
             print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
             print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl_compressed()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -477,7 +477,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -487,7 +487,7 @@ def main():
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
     else:
-        if not os.path.exists("models/fine_tuned_model.pt"):
+        if not os.path.exists("models/fine_tuned_model-v2.pt"):
             print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl()
             try:
@@ -504,7 +504,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
