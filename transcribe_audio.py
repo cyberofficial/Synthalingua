@@ -588,6 +588,7 @@ def main():
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
                 mel = whisper.log_mel_spectrogram(audio).to(device)
+
                 if ".en" in model:
                     detected_language = "English"
                 else:
@@ -621,13 +622,17 @@ def main():
                             print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
+                
                 if args.transcribe:
                     print("Transcribing...")
+                
                 if device == "cuda":
                     result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                 else:
                     result = audio_model.transcribe(temp_file)
+
                 print(f"Detected Speech: {result['text']}")
+                
                 if result['text'] == "":
                     if args.retry:
                         print("Transcription failed, trying again...")
@@ -775,7 +780,7 @@ def main():
     transcription_file = open(transcript, 'w',  encoding='utf-8')
 
     for original_text, translated_text, transcribed_text, language_code in transcription:
-        transcription_file.write(f"Original ({language_code}): {original_text}\n")
+        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({language_code}): {original_text}\n")
         if translated_text:
             transcription_file.write(f"Translation: {translated_text}\n")
         if transcribed_text:
