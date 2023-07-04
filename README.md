@@ -21,18 +21,23 @@ Synthalingua is a tool that translates audio from one language to English in alm
 9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
 
 ## Things to know/Disclaimers/Warnings/etc
-- This tool is not perfect. It's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
-- The tool will prioritize the language you select over the language it detects. For example if you select Japanese and the speaker is speaking in Spanish it will try and translate it to Japanese. If you want it to translate it to Spanish, you can select Spanish as the language or set the language to auto detect.
-- Translations will be more accurate if the speaker is speaking clearly and slowly. If the speaker is speaking fast or unclear, the translation will be less accurate. Though it will still be able to translate it to some degree.
-- The tool is not to be used in a professional setting. It's not perfect and is not meant to be used in a professional setting. It's meant to be used for fun and to learn languages and enjoy content at a reasonable pace. You may be required to try and understand the content on your own before using this tool.
-- You agree to not use the tool to produce misinformation; Example: If the tool says one thing and the speaker says another, you must do your own research to find out what is true. You may not use the tool to spread misinformation at all.
-- You agree to not use the tool to produce hate speech; Example: If the tool says one thing and the speaker says another, you must do your own research to find out what is true. You may not use the tool to spread hate speech at all.
-- Since this tool allows connecting to Discord, you must also adhere to Discord's Terms of Service. You may not use the tool to break Discord's Terms of Service or bypass any restrictions Discord has in place, if you use the Discord feature.
-- You run your own risk and liability, I (the repo owner), will not be held liable for any damages caused by the tool. You are responsible for your own actions and can not blame me if the tool breaks tos or eulas, or if you get banned from Discord or any other service you use the tool with.
-- The tool's model was tuned for conversational speech. It may not work well with other types of speech. For example, it may not work well with news broadcasts, or with a speaker that is speaking in traditional speech. It will work best with conversational speech and prioritizes names over alternate terms of names. For example in Japanese; "Okayu" will always be "Okayu" and not porridge. The A.I. will only translate "porridge" if it's in the context of a sentence is detected with enough confidence. A name will always be translated to the name even though it may have a different spelling in the target language. For example, "Okayu" will always be "Okayu" and not "Okaru" or "Okaru" will always be "Okaru" and not "Okayu" given enough context. The A.I. will only translate "Okayu" if it's in the context of a sentence is detected with enough confidence.
-- The tool is not meant to replace actual translators. It's meant to be used for fun and to learn languages and enjoy content at a reasonable pace. You may be required to try and understand the content on your own before using this tool.
-- Your hardware will affect the outcome of the tool. If you have a weak CPU, the tool will not work as well. If you have a weak GPU, the tool will not work as well. *If you have a weak internet connection, the tool will not be affected. If you have a weak microphone or bad audio input, the tool will not work as well. 
-- This is a tool not a service. You are responsible for your own actions and can not blame me if the tool breaks tos or eulas, or if you get banned from Discord or any other service you use the tool with.
+- This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
+Example: The tool might occasionally provide inaccurate translations or encounter bugs that are being actively worked on by the developers.
+- Translations are more accurate when the speaker speaks clearly and slowly. If the speaker is fast or unclear, the translation will be less accurate, though it will still provide some level of translation.
+Example: If the speaker speaks slowly and enunciates clearly, the tool is likely to provide more accurate translations compared to when the speaker speaks quickly or mumbles.
+- The tool is not intended for professional use. It's meant for fun, language learning, and enjoying content at a reasonable pace. You may need to try to understand the content on your own before using this tool.
+Example: This tool can be used for casual conversations, language practice with friends, or enjoying audio content in different languages.
+- You agree not to use the tool to produce or spread misinformation or hate speech. If there is a discrepancy between the tool's output and the speaker's words, you must conduct your own research to determine the truth.
+Example: If the tool translates a statement into something false or misleading, it is your responsibility to verify the accuracy of the information before sharing it. Avoid using the tool to spread false information or engage in hate speech.
+- You assume your own risk and liability. The repository owner will not be held responsible for any damages caused by the tool. You are responsible for your own actions and cannot hold the repository owner accountable if you encounter issues or face consequences due to your usage of the tool.
+Example: If the tool encounters technical issues, fails to provide accurate translations, or if you face any negative consequences resulting from its usage, the repository owner cannot be held liable.
+- The tool is not meant to replace human translators. It is designed for fun, language learning, and enjoying content at a reasonable pace. You may need to make an effort to understand the content on your own before using this tool.
+Example: When dealing with complex or highly specialized content, it is advisable to consult professional human translators for accurate translations.
+- Your hardware can affect the tool's performance. A weak CPU or GPU may hinder its functionality. However, a weak internet connection or microphone will not significantly impact the tool.
+Example: If you have a powerful computer with a fast processor, the tool is likely to perform better and provide translations more efficiently compared to using it on a slower or older system.
+- This is a tool, not a service. You are responsible for your own actions and cannot hold the repository owner accountable if the tool violates terms of service or end-user license agreements, or if you encounter any issues while using the tool.
+Example: If you use the tool in a way that violates the terms of service or policies of the platform you're using it with, the repository owner cannot be held responsible for any resulting consequences.
+
 
 ## TODO
 | Todo  | Sub-Task | Status |
@@ -116,6 +121,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
 | `--phrase_timeout` | Set the time in seconds for empty space between recordings before considering it a new line in the transcription. Default is 1 second. |
 | `--translate` | Translate the transcriptions to English. Enables translation. |
+| `--transcribe` | Transcribe the audio to a set target language. Target Language flag is required. |
+| `--target_language` | Select the language to translate to. Available choices are a list of languages in ISO 639-1 format, as well as their English names. |
 | `--language` | Select the language to translate from. Available choices are a list of languages in ISO 639-1 format, as well as their English names. |
 | `--auto_model_swap` | Automatically swap the model based on the detected language. Enables automatic model swapping. |
 | `--device` | Select the device to use for the model. Default is "cuda" if available. Available options are "cpu" and "cuda". When setting to CPU you can choose any RAM size as long as you have enough RAM. The CPU option is optimized for multi-threading, so if you have like 16 cores, 32 threads, you can see good results. |
@@ -179,8 +186,6 @@ If you encounter any issues with the tool, here are some common problems and the
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 * Translator can't pickup stream sound
     * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
-
-
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
