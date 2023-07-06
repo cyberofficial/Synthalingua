@@ -735,10 +735,9 @@ def main():
                 else:
                     transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
+                os.system('cls' if os.name=='nt' else 'clear')
 
-                if args.no_log == False:
-                    os.system('cls' if os.name=='nt' else 'clear')
-                    #print("No Log Section 1")
+                if not args.no_log:
                     for original_text, translated_text, transcribed_text, detected_language in transcription:
                         if not original_text:
                             continue
@@ -746,30 +745,24 @@ def main():
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
 
-                    if args.translate:
-                        if translated_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    if args.translate and translated_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{translated_text}\n")
-                    if args.transcribe:
-                        if transcribed_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+
+                    if args.transcribe and transcribed_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{transcribed_text}\n")
-                    print('', end='', flush=True)
+
                 else:
-                    os.system('cls' if os.name=='nt' else 'clear')
-                    #print("Nog Log Section 2")
-                    if args.no_log == False:
-                        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    # print(f"{text}")
-                    if args.translate:
-                        if translated_text:
-                            #print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{translated_text}\n")
-                    if args.transcribe:
-                        if transcribed_text:
-                            #print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{transcribed_text}\n")
-                    print('', end='', flush=True)
+                    for original_text, translated_text, transcribed_text, detected_language in transcription:
+                        if not original_text:
+                            continue
+                        if args.translate and translated_text:
+                            print(f"{translated_text}")
+                        if args.transcribe and transcribed_text:
+                            print(f"{transcribed_text}")
+
+                print('', end='', flush=True)
 
 
                 if args.auto_model_swap:
