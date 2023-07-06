@@ -1,8 +1,11 @@
 ## Synthalingua 
+
+## About
+
+Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
+
+
 ### [Download](https://github.com/cyberofficial/Synthalingua/releases/)
-
-
-Synthalingua is a tool that translates audio from one language to English in almsost real time. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
@@ -132,15 +135,26 @@ This script uses argparse to accept command line arguments. The following option
 | `--set_microphone` | Set the default microphone to use. You can set the name or its ID number from the list. |
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
+| `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
+# Things to note!
+- When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
+- When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
+- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
+- The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
 
 ## Examples
+#### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 `python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
 When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
+
+You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command:
+`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --non_english --language en`
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`
@@ -197,11 +211,4 @@ Command line arguments used. `--ram 6gb --record_timeout 2 --language ja --energ
 
 Command line arguments used. `--ram 12gb --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
-
-# Things to note!
-- When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
-- When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
-- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
-- The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
-
 
