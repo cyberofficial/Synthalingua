@@ -1,6 +1,6 @@
 ## Synthalingua 
 ### [Download](https://github.com/cyberofficial/Synthalingua/releases/)
-Synthalingua is a tool that translates audio from one language to English in almsost real time. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
+Synthalingua is a tool that translates audio from one language to English in almost real time. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
