@@ -12,6 +12,7 @@ import numpy as np
 import requests
 import json
 import re
+
 try:
     # if the os is not windows then skip this
     if os.name == 'nt':
@@ -601,19 +602,23 @@ def main():
                 if args.language:
                     detected_language = args.language
                     if args.auto_language_lock:
-                        print(f"Language locked to {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language locked to {detected_language}")
                     else:
-                        print(f"Language set by argument: {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language set by argument: {detected_language}")
                 else:
                     if ".en" in model:
                         detected_language = "English"
-                        print(f"Language set by model: {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language set by model: {detected_language}")
                     else:
                         if args.auto_language_lock:
                             if last_detected_language == detected_language:
                                 english_counter += 1
                                 if english_counter >= 5:
-                                    print(f"Language locked to {detected_language}")
+                                    if args.no_log == False:
+                                        print(f"Language locked to {detected_language}")
                                     args.language = detected_language
                             else:
                                 english_counter = 0
@@ -623,12 +628,15 @@ def main():
                             confidence_color = Fore.GREEN if confidence > 75 else (Fore.YELLOW if confidence > 50 else Fore.RED)
                             set_window_title(detected_language, confidence)
                             if args.discord_webhook:
-                                print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
+                                if args.no_log == False:
+                                    print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
-                
+            
+
                 if args.transcribe:
-                    print("Transcribing...")
+                    if args.no_log == False:
+                        print("Transcribing...")
                 
                 if device == "cuda":
                     result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
@@ -640,22 +648,26 @@ def main():
                 
                 if result['text'] == "":
                     if args.retry:
-                        print("Transcription failed, trying again...")
+                        if args.no_log == False:
+                            print("Transcription failed, trying again...")
                         send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
                         if device == "cuda":
                             result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                         else:
                             result = audio_model.transcribe(temp_file)
-                        print(f"Detected Speech: {result['text']}")
+                        if args.no_log == False:
+                            print(f"Detected Speech: {result['text']}")
                     else:
-                        print("Transcription failed, skipping...")
+                        if args.no_log == False:
+                            print("Transcription failed, skipping...")
                 if args.discord_webhook:
                     send_to_discord_webhook(webhook_url, f"Detected Speech: {result['text']}")
                 text = result['text'].strip()
                 
                 if args.translate:
                     if detected_language != 'en':
-                        print("Translating...")
+                        if args.no_log == False:
+                            print("Translating...")
                         if device == "cuda":
                             translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
                         else:
@@ -663,7 +675,8 @@ def main():
                         translated_text = translated_result['text'].strip()
                         if translated_text == "":
                             if args.retry:
-                                print("Translation failed, trying again...")
+                                if args.no_log == False:
+                                    print("Translation failed, trying again...")
                                 send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
                                 if device == "cuda":
                                     translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
@@ -680,9 +693,11 @@ def main():
                         translated_text = ""
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
+            
 
                 if args.transcribe:
-                    print(f"Transcribing to {target_language}...")
+                    if args.no_log == False:
+                        print(f"Transcribing to {target_language}...")
                     if device == "cuda":
                         transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
                     else:
@@ -690,7 +705,8 @@ def main():
                     transcribed_text = transcribed_result['text'].strip()
                     if transcribed_text == "":
                         if args.retry:
-                            print("transcribe failed, trying again...")
+                            if args.no_log == False:
+                                print("transcribe failed, trying again...")
                             send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
                             if device == "cuda":
                                 transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
@@ -719,35 +735,40 @@ def main():
                 else:
                     transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
+
                 if args.no_log == False:
                     os.system('cls' if os.name=='nt' else 'clear')
-                    for original_text, translated_text, transcribed_text, language_code in transcription:
+                    #print("No Log Section 1")
+                    for original_text, translated_text, transcribed_text, detected_language in transcription:
                         if not original_text:
                             continue
                         print("=" * shutil.get_terminal_size().columns)
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
 
-                        if language_code == 'en':
-                            print('', end='', flush=True)
-                        else:
-                            if translated_text:
-                                print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                                print(f"{translated_text}\n")
-                            if transcribed_text:
-                                print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                                print(f"{transcribed_text}\n")
+                    if args.translate:
+                        if translated_text:
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{translated_text}\n")
+                    if args.transcribe:
+                        if transcribed_text:
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{transcribed_text}\n")
                     print('', end='', flush=True)
                 else:
                     os.system('cls' if os.name=='nt' else 'clear')
-                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{text}")
-                    if translated_text:
-                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{translated_text}\n")
-                    if transcribed_text:
-                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {language_code} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{transcribed_text}\n")
+                    #print("Nog Log Section 2")
+                    if args.no_log == False:
+                        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    # print(f"{text}")
+                    if args.translate:
+                        if translated_text:
+                            #print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{translated_text}\n")
+                    if args.transcribe:
+                        if transcribed_text:
+                            #print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{transcribed_text}\n")
                     print('', end='', flush=True)
 
 
@@ -797,8 +818,8 @@ def main():
         transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
     transcription_file = open(transcript, 'w',  encoding='utf-8')
 
-    for original_text, translated_text, transcribed_text, language_code in transcription:
-        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({language_code}): {original_text}\n")
+    for original_text, translated_text, transcribed_text, detected_language in transcription:
+        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
         if translated_text:
             transcription_file.write(f"Translation: {translated_text}\n")
         if transcribed_text:
