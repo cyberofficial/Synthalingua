@@ -27,7 +27,7 @@ python.exe -m pip install --upgrade pip
 Echo Installing Requirements...
 pip install wheel
 pip install setuptools-rust
-pip install -r requirements.txt
+pip install -r requirements_static.txt
 
 :cuda-patch
 Echo Fixing CUDA Since Whisper installs non gpu version.
@@ -46,6 +46,7 @@ Echo @echo off > livetranslation.bat
 Echo cls >> livetranslation.bat
 Echo call "data_whisper\Scripts\activate.bat" >> livetranslation.bat
 Echo python "transcribe_audio.py" --ram 4gb --non_english --translate >> livetranslation.bat
+Echo pause >> livetranslation.bat
 pause
 
 :eof

@@ -30,7 +30,7 @@ python -m pip install --upgrade pip
 echo "Installing Requirements..."
 pip install wheel
 pip install setuptools-rust
-pip install -r requirements.txt
+pip install -r requirements_static.txt
 
 echo "Fixing CUDA Since Whisper installs non-gpu version."
 pip uninstall --yes torch torchvision torchaudio
@@ -45,6 +45,8 @@ echo ""
 echo '#!/bin/bash' > livetranslation.sh
 echo "source \"$(pwd)/data_whisper/bin/activate\"" >> livetranslation.sh
 echo "python \"$(pwd)/transcribe_audio.py\" --ram 4gb --non_english --translate" >> livetranslation.sh
+# add a pause
+echo "read -p \"Press enter to exit...\"" >> livetranslation.sh
 chmod +x livetranslation.sh
 
 echo "Done!"
