@@ -34,7 +34,7 @@ pytz==2023.3
 pytz-deprecation-shim==0.1.0.post0
 pywin32-ctypes==0.2.0
 regex==2023.3.23
-requests==2.28.2
+requests==2.31.0
 semantic-version==2.10.0
 setuptools-rust==1.5.2
 six==1.16.0
