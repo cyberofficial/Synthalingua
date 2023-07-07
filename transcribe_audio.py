@@ -98,7 +98,7 @@ except:
 
 def main():
 
-    version = "1.0.996"
+    version = "1.0.997"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
@@ -783,9 +783,6 @@ def main():
                             model = 'large'
                             audio_model = whisper.load_model(model, device=device)
                             print(f"Model was changed to large since {detected_language} was detected 5 times in a row.")
-                # Keeping sleep disabled for now will add a flag to enable it later to prevent spamming the API
-                # Just here as a reminder
-                # sleep(0.25)
         except Exception as e:
             if not isinstance(e, KeyboardInterrupt):
                 print(e)
