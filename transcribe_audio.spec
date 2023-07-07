@@ -15,7 +15,7 @@ a = Analysis(
     ['transcribe_audio.py'],
     pathex=[],
     binaries=binaries,
-    datas=[],
+    datas=[('data_whisper\\Lib\\site-packages\\whisper\\assets\\mel_filters.npz', '\\whisper\\assets'),],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
