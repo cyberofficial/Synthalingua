@@ -1,6 +1,11 @@
 ## Synthalingua 
+
+## About
+
+Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
+
+
 ### [Download](https://github.com/cyberofficial/Synthalingua/releases/)
-Synthalingua is a tool that translates audio from one language to English in almsost real time. It's a self hosted tool that can be used to translate audio from any language to English. It uses uses the power of A.I. to handle the input transcription and translation. Even though it's really powerful, it's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
@@ -19,18 +24,23 @@ Synthalingua is a tool that translates audio from one language to English in alm
 9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
 
 ## Things to know/Disclaimers/Warnings/etc
-- This tool is not perfect. It's still in beta and is not perfect. It's still a work in progress and will be updated in a reasonable amount of time.
-- The tool will prioritize the language you select over the language it detects. For example if you select Japanese and the speaker is speaking in Spanish it will try and translate it to Japanese. If you want it to translate it to Spanish, you can select Spanish as the language or set the language to auto detect.
-- Translations will be more accurate if the speaker is speaking clearly and slowly. If the speaker is speaking fast or unclear, the translation will be less accurate. Though it will still be able to translate it to some degree.
-- The tool is not to be used in a professional setting. It's not perfect and is not meant to be used in a professional setting. It's meant to be used for fun and to learn languages and enjoy content at a reasonable pace. You may be required to try and understand the content on your own before using this tool.
-- You agree to not use the tool to produce misinformation; Example: If the tool says one thing and the speaker says another, you must do your own research to find out what is true. You may not use the tool to spread misinformation at all.
-- You agree to not use the tool to produce hate speech; Example: If the tool says one thing and the speaker says another, you must do your own research to find out what is true. You may not use the tool to spread hate speech at all.
-- Since this tool allows connecting to Discord, you must also adhere to Discord's Terms of Service. You may not use the tool to break Discord's Terms of Service or bypass any restrictions Discord has in place, if you use the Discord feature.
-- You run your own risk and liability, I (the repo owner), will not be held liable for any damages caused by the tool. You are responsible for your own actions and can not blame me if the tool breaks tos or eulas, or if you get banned from Discord or any other service you use the tool with.
-- The tool's model was tuned for conversational speech. It may not work well with other types of speech. For example, it may not work well with news broadcasts, or with a speaker that is speaking in traditional speech. It will work best with conversational speech and prioritizes names over alternate terms of names. For example in Japanese; "Okayu" will always be "Okayu" and not porridge. The A.I. will only translate "porridge" if it's in the context of a sentence is detected with enough confidence. A name will always be translated to the name even though it may have a different spelling in the target language. For example, "Okayu" will always be "Okayu" and not "Okaru" or "Okaru" will always be "Okaru" and not "Okayu" given enough context. The A.I. will only translate "Okayu" if it's in the context of a sentence is detected with enough confidence.
-- The tool is not meant to replace actual translators. It's meant to be used for fun and to learn languages and enjoy content at a reasonable pace. You may be required to try and understand the content on your own before using this tool.
-- Your hardware will affect the outcome of the tool. If you have a weak CPU, the tool will not work as well. If you have a weak GPU, the tool will not work as well. *If you have a weak internet connection, the tool will not be affected. If you have a weak microphone or bad audio input, the tool will not work as well. 
-- This is a tool not a service. You are responsible for your own actions and can not blame me if the tool breaks tos or eulas, or if you get banned from Discord or any other service you use the tool with.
+- This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
+Example: The tool might occasionally provide inaccurate translations or encounter bugs that are being actively worked on by the developers.
+- Translations are more accurate when the speaker speaks clearly and slowly. If the speaker is fast or unclear, the translation will be less accurate, though it will still provide some level of translation.
+Example: If the speaker speaks slowly and enunciates clearly, the tool is likely to provide more accurate translations compared to when the speaker speaks quickly or mumbles.
+- The tool is not intended for professional use. It's meant for fun, language learning, and enjoying content at a reasonable pace. You may need to try to understand the content on your own before using this tool.
+Example: This tool can be used for casual conversations, language practice with friends, or enjoying audio content in different languages.
+- You agree not to use the tool to produce or spread misinformation or hate speech. If there is a discrepancy between the tool's output and the speaker's words, you must conduct your own research to determine the truth.
+Example: If the tool translates a statement into something false or misleading, it is your responsibility to verify the accuracy of the information before sharing it. Avoid using the tool to spread false information or engage in hate speech.
+- You assume your own risk and liability. The repository owner will not be held responsible for any damages caused by the tool. You are responsible for your own actions and cannot hold the repository owner accountable if you encounter issues or face consequences due to your usage of the tool.
+Example: If the tool encounters technical issues, fails to provide accurate translations, or if you face any negative consequences resulting from its usage, the repository owner cannot be held liable.
+- The tool is not meant to replace human translators. It is designed for fun, language learning, and enjoying content at a reasonable pace. You may need to make an effort to understand the content on your own before using this tool.
+Example: When dealing with complex or highly specialized content, it is advisable to consult professional human translators for accurate translations.
+- Your hardware can affect the tool's performance. A weak CPU or GPU may hinder its functionality. However, a weak internet connection or microphone will not significantly impact the tool.
+Example: If you have a powerful computer with a fast processor, the tool is likely to perform better and provide translations more efficiently compared to using it on a slower or older system.
+- This is a tool, not a service. You are responsible for your own actions and cannot hold the repository owner accountable if the tool violates terms of service or end-user license agreements, or if you encounter any issues while using the tool.
+Example: If you use the tool in a way that violates the terms of service or policies of the platform you're using it with, the repository owner cannot be held responsible for any resulting consequences.
+
 
 ## TODO
 | Todo  | Sub-Task | Status |
@@ -39,7 +49,7 @@ Synthalingua is a tool that translates audio from one language to English in alm
 |       | OpenCL support - Linux Only | ✅ |
 | Add support API access. |          | ❌ |
 | Custom localhost web server. |      | ❌ |
-| Add reverse translation. |        | ❌ |
+| Add reverse translation. |        | ✅ |
 |       | Localize script to other languages. (Will take place after reverse translations.) | ❌ |
 | Custom dictionary support. |       | ❌ |
 | GUI.  |          | ❌ |
@@ -64,6 +74,10 @@ Synthalingua is a tool that translates audio from one language to English in alm
 | Intel Arc | Not Supported |
 | Intel HD | Not Supported |
 | Intel iGPU | Not Supported |
+
+You can find full list of supported Nvida GPUs here:
+* [Official Nvidia List](https://developer.nvidia.com/cuda-gpus)
+* [Simple List](https://gist.github.com/standaloneSA/99788f30466516dbcc00338b36ad5acf)
 
 | Requirement | Minimum | Moderate | Recommended | Best Performance |
 | ----------- | ------- | -------- | ----------- | ---------------- |
@@ -110,6 +124,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
 | `--phrase_timeout` | Set the time in seconds for empty space between recordings before considering it a new line in the transcription. Default is 1 second. |
 | `--translate` | Translate the transcriptions to English. Enables translation. |
+| `--transcribe` | Transcribe the audio to a set target language. Target Language flag is required. |
+| `--target_language` | Select the language to translate to. Available choices are a list of languages in ISO 639-1 format, as well as their English names. |
 | `--language` | Select the language to translate from. Available choices are a list of languages in ISO 639-1 format, as well as their English names. |
 | `--auto_model_swap` | Automatically swap the model based on the detected language. Enables automatic model swapping. |
 | `--device` | Select the device to use for the model. Default is "cuda" if available. Available options are "cpu" and "cuda". When setting to CPU you can choose any RAM size as long as you have enough RAM. The CPU option is optimized for multi-threading, so if you have like 16 cores, 32 threads, you can see good results. |
@@ -119,15 +135,26 @@ This script uses argparse to accept command line arguments. The following option
 | `--set_microphone` | Set the default microphone to use. You can set the name or its ID number from the list. |
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
+| `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
+# Things to note!
+- When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
+- When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
+- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
+- The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 
 ## Examples
+#### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 `python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
 When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
+
+You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command:
+`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --non_english --language en`
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`
@@ -174,8 +201,6 @@ If you encounter any issues with the tool, here are some common problems and the
 * Translator can't pickup stream sound
     * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
 
-
-
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
     * Models were fine tuned using this [Documentation](https://huggingface.co/blog/fine-tune-whisper#load-whisperfeatureextractor)
@@ -186,11 +211,4 @@ Command line arguments used. `--ram 6gb --record_timeout 2 --language ja --energ
 
 Command line arguments used. `--ram 12gb --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
-
-# Things to note!
-- When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
-- When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
-- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
-- The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event if failure
-
 

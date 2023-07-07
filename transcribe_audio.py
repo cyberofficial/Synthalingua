@@ -12,6 +12,14 @@ import numpy as np
 import requests
 import json
 import re
+
+try:
+    # if the os is not windows then skip this
+    if os.name == 'nt':
+        import sys, win32api
+        win32api.SetDllDirectory(sys._MEIPASS)
+except:
+    pass
 try:
     import pytz
 except:
@@ -90,7 +98,7 @@ except:
 
 def main():
 
-    version = "1.0.995"
+    version = "1.0.996"
     ScriptCreator = "cyberofficial"
     GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
     repo_owner = "cyberofficial"
@@ -130,11 +138,11 @@ def main():
 
     def fine_tune_model_dl():
         print("Downloading fine-tuned model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455917&authkey=AH9uvngPhJlVOg4"
+        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs"
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model.pt", "wb") as f:
+            with open("models/fine_tuned_model-v2.pt", "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
@@ -143,11 +151,11 @@ def main():
 
     def fine_tune_model_dl_compressed():
         print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21455918&authkey=AGS9Zh8NuEo6qn4"
+        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ"
         r = requests.get(url, stream=True)
         total_length = int(r.headers.get('content-length'))
         with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model_compressed.pt", "wb") as f:
+            with open("models/fine_tuned_model_compressed_v2.pt", "wb") as f:
                 for chunk in r.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
@@ -265,11 +273,18 @@ def main():
                         help="How real time the recording is in seconds.", type=float)
     parser.add_argument("--phrase_timeout", default=1,
                         help="How much empty space between recordings before we "
-                             "consider it a new line in the transcription.", type=float)  
+                             "consider it a new line in the transcription.", type=float)
+    parser.add_argument("--no_log", action='store_true',
+                        help="Only show the last line of the transcription.")
     parser.add_argument("--translate", action='store_true',
                         help="Translate the transcriptions to English.")
+    parser.add_argument("--transcribe", action='store_true',
+                        help="transcribe the text into the desired language.")
     parser.add_argument("--language",
                         help="Language to translate from.", type=str,
+                        choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
+    parser.add_argument("--target_language",
+                        help="Language to translate to.", type=str,
                         choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
     parser.add_argument("--auto_model_swap", action='store_true',
                         help="Automatically swap model based on detected language.")
@@ -327,6 +342,18 @@ def main():
             print("Invalid language. Please choose a valid language from the list below:")
             print(valid_languages)
             return
+
+    # check if transcribed is set as an argument if so check if target language is set, if tagret language is not set then exit saying need target language
+    if args.transcribe:
+        if not args.target_language:
+            print("Transcribe is set but no target language is set. Please set a target language.")
+            return
+        else:
+            if args.target_language not in valid_languages:
+                print("Invalid target language. Please choose a valid language from the list below:")
+                print(valid_languages)
+                return
+        target_language = args.target_language
     
     if args.phrase_timeout > 1 and args.discord_webhook:
         red_text = Fore.RED + Back.BLACK
@@ -435,13 +462,13 @@ def main():
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         red_text = Style.BRIGHT + Fore.RED
         reset_text = Style.RESET_ALL
-        if not os.path.exists("models/fine_tuned_model_compressed.pt"):
+        if not os.path.exists("models/fine_tuned_model_compressed_v2.pt"):
             print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
             print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl_compressed()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -453,7 +480,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -463,7 +490,7 @@ def main():
                 print(f"{red_text}Error: {e}{reset_text}")
                 pass
     else:
-        if not os.path.exists("models/fine_tuned_model.pt"):
+        if not os.path.exists("models/fine_tuned_model-v2.pt"):
             print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
             fine_tune_model_dl()
             try:
@@ -480,7 +507,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
@@ -544,7 +571,8 @@ def main():
         try:
             now = datetime.utcnow()
             if not data_queue.empty():
-                print("\nAudio stream detected...")
+                if args.no_log == False:
+                    print("\nAudio stream detected...")
                 phrase_complete = False
                 if phrase_time and now - phrase_time > timedelta(seconds=phrase_timeout):
                     last_sample = bytes()
@@ -564,6 +592,7 @@ def main():
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
                 mel = whisper.log_mel_spectrogram(audio).to(device)
+
                 if ".en" in model:
                     detected_language = "English"
                 else:
@@ -573,19 +602,23 @@ def main():
                 if args.language:
                     detected_language = args.language
                     if args.auto_language_lock:
-                        print(f"Language locked to {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language locked to {detected_language}")
                     else:
-                        print(f"Language set by argument: {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language set by argument: {detected_language}")
                 else:
                     if ".en" in model:
                         detected_language = "English"
-                        print(f"Language set by model: {detected_language}")
+                        if args.no_log == False:
+                            print(f"Language set by model: {detected_language}")
                     else:
                         if args.auto_language_lock:
                             if last_detected_language == detected_language:
                                 english_counter += 1
                                 if english_counter >= 5:
-                                    print(f"Language locked to {detected_language}")
+                                    if args.no_log == False:
+                                        print(f"Language locked to {detected_language}")
                                     args.language = detected_language
                             else:
                                 english_counter = 0
@@ -594,46 +627,61 @@ def main():
                             confidence = language_probs[detected_language] * 100
                             confidence_color = Fore.GREEN if confidence > 75 else (Fore.YELLOW if confidence > 50 else Fore.RED)
                             set_window_title(detected_language, confidence)
-                            print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
+                            if args.discord_webhook:
+                                if args.no_log == False:
+                                    print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
-                print("Transcribing...")
+            
+
+                if args.transcribe:
+                    if args.no_log == False:
+                        print("Transcribing...")
+                
                 if device == "cuda":
-                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available())
+                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                 else:
                     result = audio_model.transcribe(temp_file)
-                print(f"Detected Speech: {result['text']}")
+
+                if args.no_log == False:
+                    print(f"Detected Speech: {result['text']}")
+                
                 if result['text'] == "":
                     if args.retry:
-                        print("Transcription failed, trying again...")
+                        if args.no_log == False:
+                            print("Transcription failed, trying again...")
                         send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
                         if device == "cuda":
-                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available())
+                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                         else:
                             result = audio_model.transcribe(temp_file)
-                        print(f"Detected Speech: {result['text']}")
+                        if args.no_log == False:
+                            print(f"Detected Speech: {result['text']}")
                     else:
-                        print("Transcription failed, skipping...")
+                        if args.no_log == False:
+                            print("Transcription failed, skipping...")
                 if args.discord_webhook:
                     send_to_discord_webhook(webhook_url, f"Detected Speech: {result['text']}")
                 text = result['text'].strip()
                 
                 if args.translate:
                     if detected_language != 'en':
-                        print("Translating...")
+                        if args.no_log == False:
+                            print("Translating...")
                         if device == "cuda":
-                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate")
+                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
                         else:
-                            translated_result = audio_model.transcribe(temp_file, task="translate")
+                            translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
                         translated_text = translated_result['text'].strip()
                         if translated_text == "":
                             if args.retry:
-                                print("Translation failed, trying again...")
+                                if args.no_log == False:
+                                    print("Translation failed, trying again...")
                                 send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
                                 if device == "cuda":
-                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate")
+                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
                                 else:
-                                    translated_result = audio_model.transcribe(temp_file, task="translate")
+                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
                             translated_text = translated_result['text'].strip()
                         if args.discord_webhook:
                             if translated_text == "":
@@ -645,6 +693,36 @@ def main():
                         translated_text = ""
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
+            
+
+                if args.transcribe:
+                    if args.no_log == False:
+                        print(f"Transcribing to {target_language}...")
+                    if device == "cuda":
+                        transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
+                    else:
+                        transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                    transcribed_text = transcribed_result['text'].strip()
+                    if transcribed_text == "":
+                        if args.retry:
+                            if args.no_log == False:
+                                print("transcribe failed, trying again...")
+                            send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
+                            if device == "cuda":
+                                transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
+                            else:
+                                transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                        transcribed_text = transcribed_result['text'].strip()
+                    if args.discord_webhook:
+                        if transcribed_text == "":
+                            send_to_discord_webhook(webhook_url, f"Translation failed")
+                        else:
+                            send_to_discord_webhook(webhook_url, f"transcribed Speech: {transcribed_text}")
+
+                else:
+                    transcribed_text = ""
+                    if args.discord_webhook:
+                        send_to_discord_webhook(webhook_url, "transcribe failed")
                 
                 if args.discord_webhook:
                     message = "----------------"
@@ -653,27 +731,39 @@ def main():
 
 
                 if phrase_complete:
-                    transcription.append((text, translated_text if args.translate else None, detected_language))
+                    transcription.append((text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language))
                 else:
-                    transcription[-1] = (text, translated_text if args.translate else None, detected_language)
+                    transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
                 os.system('cls' if os.name=='nt' else 'clear')
-                for original_text, translated_text, language_code in transcription:
-                    if not original_text:
-                        continue
-                    print("=" * shutil.get_terminal_size().columns)
-                    print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} Detected - {language_code} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{original_text}")
 
+                if not args.no_log:
+                    for original_text, translated_text, transcribed_text, detected_language in transcription:
+                        if not original_text:
+                            continue
+                        print("=" * shutil.get_terminal_size().columns)
+                        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{original_text}")
 
+                    if args.translate and translated_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{translated_text}\n")
 
-                    if language_code == 'en':
-                        print('', end='', flush=True)
-                    else:
-                        if translated_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{translated_text}\n")
+                    if args.transcribe and transcribed_text:
+                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{transcribed_text}\n")
+
+                else:
+                    for original_text, translated_text, transcribed_text, detected_language in transcription:
+                        if not original_text:
+                            continue
+                        if args.translate and translated_text:
+                            print(f"{translated_text}")
+                        if args.transcribe and transcribed_text:
+                            print(f"{transcribed_text}")
+
                 print('', end='', flush=True)
+
 
                 if args.auto_model_swap:
                     if last_detected_language != detected_language:
@@ -721,10 +811,12 @@ def main():
         transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
     transcription_file = open(transcript, 'w',  encoding='utf-8')
 
-    for original_text, translated_text, language_code in transcription:
-        transcription_file.write(f"Original ({language_code}): {original_text}\n")
+    for original_text, translated_text, transcribed_text, detected_language in transcription:
+        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
         if translated_text:
             transcription_file.write(f"Translation: {translated_text}\n")
+        if transcribed_text:
+            transcription_file.write(f"Transcription: {transcribed_text}\n")
     transcription_file.close()
     print(f"Transcription was saved to {transcript}")
     
