@@ -98,7 +98,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
      * Make sure to check the box that says "Add Python to PATH" when installing. If you don't check the box, you will have to manually add Python to your PATH. You can check this guide: [How to add Python to PATH](https://datatofish.com/add-python-to-windows-path/).
-     * You can choose any python version that is 3.10.9 up to the latest version. The tool will work on any python version that is 3.11 or higher. Must be 3.10.9+ not 3.11.x.
+     * You can choose any python version that is 3.10.9 up to the latest version. The tool will *not* work on any python version that is 3.11 or higher. Must be 3.10.9+ not 3.11.x.
 2. Download and install [Git](https://git-scm.com/downloads).
      * Using default settings is fine.
 3. Download and install FFMPEG
