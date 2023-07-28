@@ -1,4 +1,5 @@
 data_whisper
+data_whisper-
 out
 livetranslation.bat
 temp
@@ -11,3 +12,4 @@ dist
 last_saved_timestamp.txt
 last_checked_timestamp.txt
 error_report.txt
+livetranslation - Copy.bat
