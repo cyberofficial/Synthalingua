@@ -21,7 +21,7 @@ mpmath==1.3.0
 networkx==3.1
 numba==0.56.4
 numpy==1.23.5
-openai-whisper @ git+https://github.com/openai/whisper.git@b5851c6c40e753606765ac45b85b298e3ae9e00d
+openai-whisper
 pefile==2023.2.7
 Pillow==9.3.0
 prettytable==3.6.0
@@ -42,9 +42,6 @@ smmap==5.0.0
 SpeechRecognition==3.10.0
 sympy==1.11.1
 tiktoken==0.3.1
-torch==2.0.0+cu118
-torchaudio==2.0.1+cu118
-torchvision==0.15.1+cu118
 tqdm==4.65.0
 typing_extensions==4.5.0
 tzdata==2023.3
