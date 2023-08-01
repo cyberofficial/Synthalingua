@@ -94,73 +94,14 @@ try:
 except:
     cuda_available = False
 
+from modules.version_checker import check_for_updates
+from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
+
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
 def main():
 
-    version = "1.0.9971"
-    ScriptCreator = "cyberofficial"
-    GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
-    repo_owner = "cyberofficial"
-    repo_name = "Synthalingua"
-
-    def get_remote_version(repo_owner, repo_name, file_path):
-        url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/master/{file_path}"
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            remote_file_content = response.text
-            version_search = re.search(r'version\s*=\s*"([\d.]+)"', remote_file_content)
-            if version_search:
-                remote_version = version_search.group(1)
-                return remote_version
-            else:
-                print("Error: Version not found in the remote file.")
-                return None
-        else:
-            print(f"An error occurred. Status code: {response.status_code}")
-            return None
-
-    def check_for_updates():
-        local_version = version
-        remote_version = get_remote_version(repo_owner, repo_name, "transcribe_audio.py")
-
-        if remote_version is not None:
-            if remote_version != local_version:
-                print(f"Version mismatch. Local version: {local_version}, remote version: {remote_version}")
-                print("Consider updating to the latest version.")
-                print(f"Update available at: " + GitHubRepo)
-            else:
-                print("You are already using the latest version.")
-                print(f"Current version: {local_version}")
-
     check_for_updates()
-
-    def fine_tune_model_dl():
-        print("Downloading fine-tuned model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs"
-        r = requests.get(url, stream=True)
-        total_length = int(r.headers.get('content-length'))
-        with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model-v2.pt", "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(1024)
-        print("Fine-tuned model downloaded.")
-
-    def fine_tune_model_dl_compressed():
-        print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ"
-        r = requests.get(url, stream=True)
-        total_length = int(r.headers.get('content-length'))
-        with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model_compressed_v2.pt", "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(1024)
-        print("Fine-tuned model (compressed) downloaded.")
 
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
@@ -495,7 +436,7 @@ def main():
             fine_tune_model_dl()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
