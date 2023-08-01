@@ -96,6 +96,7 @@ except:
 
 from modules.version_checker import check_for_updates
 from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
+from modules.discord import send_to_discord_webhook
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
@@ -116,27 +117,6 @@ def main():
             sys.stdout.write(f"\x1b]2;{title}\x1b\x5c")
             sys.stdout.flush()
 
-    def send_to_discord_webhook(webhook_url, text):
-        data = {
-            "content": text
-        }
-        headers = {
-            "Content-Type": "application/json"
-        }
-        try:
-            if len(text) > 1800:
-                for i in range(0, len(text), 1800):
-                    data["content"] = text[i:i+1800]
-                    response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
-                    if response.status_code == 429:
-                        print("Discord webhook is being rate limited.")
-            else:
-                response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
-                if response.status_code == 429:
-                    print("Discord webhook is being rate limited.")
-        except:
-            print("Failed to send message to Discord webhook.")
-            pass
 
     def is_input_device(device_index):
         pa = pyaudio.PyAudio()
