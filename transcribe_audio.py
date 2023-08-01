@@ -97,6 +97,7 @@ except:
 from modules.version_checker import check_for_updates
 from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
 from modules.discord import send_to_discord_webhook
+from modules.console_settings import set_window_title
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
@@ -107,16 +108,6 @@ def main():
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
         data_queue.put(data)
-
-    def set_window_title(detected_language, confidence):
-        title = f"Model: {model} - {detected_language} [{confidence:.2f}%]"
-
-        if sys.platform == "win32":
-            ctypes.windll.kernel32.SetConsoleTitleW(title)
-        else:
-            sys.stdout.write(f"\x1b]2;{title}\x1b\x5c")
-            sys.stdout.flush()
-
 
     def is_input_device(device_index):
         pa = pyaudio.PyAudio()
