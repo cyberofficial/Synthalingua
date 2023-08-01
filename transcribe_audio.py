@@ -12,7 +12,6 @@ import numpy as np
 import requests
 import json
 import re
-
 try:
     # if the os is not windows then skip this
     if os.name == 'nt':
@@ -20,40 +19,10 @@ try:
         win32api.SetDllDirectory(sys._MEIPASS)
 except:
     pass
-try:
-    import pytz
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install pytz")
-    try:
-        import pytz
-    except:
-        print("Failed to install pytz. Please install it manually.")
-        print("Use the command: pip install pytz")
-        exit()
-try:
-    import pyaudio
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install pyaudio")
-    try:
-        import pyaudio
-    except:
-        print("Failed to install pyaudio. Please install it manually.")
-        print("Use the command: pip install pyaudio")
-        exit()
-try:
-    import humanize
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install humanize")
-    try:
-        import humanize
-    except:
-        print("Failed to install humanize. Please install it manually.")
-        print("Use the command: pip install humanize")
-        exit()
-
+import pytz
+import pyaudio
+import humanize
+import humanize
 
 from datetime import datetime, timedelta
 from queue import Queue
@@ -65,28 +34,8 @@ from tqdm import tqdm
 from datetime import datetime
 from numba import cuda
 from prettytable import PrettyTable
-try:
-    from dateutil.tz import tzlocal
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install python-dateutil")
-    try:
-        from dateutil.tz import tzlocal
-    except:
-        print("Failed to install python-dateutil. Please install it manually.")
-        print("Use the command: pip install python-dateutil")
-        exit()
-try:
-    from tzlocal import get_localzone
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install tzlocal")
-    try:
-        from tzlocal import get_localzone
-    except:
-        print("Failed to install tzlocal. Please install it manually.")
-        print("Use the command: pip install tzlocal")
-        exit()
+from dateutil.tz import tzlocal
+from tzlocal import get_localzone
 init()
 
 try:
