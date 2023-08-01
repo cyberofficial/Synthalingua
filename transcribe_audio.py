@@ -100,7 +100,7 @@ def main():
 
     version = "1.0.997"
     ScriptCreator = "cyberofficial"
-    GitHubRepo = "https://github.com/cyberofficial/Real-Time-Synthalingua"
+    GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
     repo_owner = "cyberofficial"
     repo_name = "Synthalingua"
 
