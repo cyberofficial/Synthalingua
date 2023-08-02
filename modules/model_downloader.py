@@ -27,3 +27,5 @@ def fine_tune_model_dl_compressed():
                     f.write(chunk)
                     pbar.update(1024)
     print("Fine-tuned model (compressed) downloaded.")
+
+print("Model Downloader Module Loaded")

@@ -9,3 +9,6 @@ def contributors(ScriptCreator, GitHubRepo):
     print("@DaniruKun from https://watsonindustries.live")
     print("[Expletive Deleted] https://evitelpxe.neocities.org")
     exit()
+
+
+print("About Module Loaded")

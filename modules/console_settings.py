@@ -11,3 +11,4 @@ def set_window_title(detected_language, confidence):
         sys.stdout.write(f"\x1b]2;{title}\x1b\x5c")
         sys.stdout.flush()
 
+print("Console Settings Module Loaded")

@@ -33,6 +33,10 @@ def check_for_updates():
             print(f"Version mismatch. Local version: {local_version}, remote version: {remote_version}")
             print("Consider updating to the latest version.")
             print(f"Update available at: " + GitHubRepo)
+            print("\n\n\n\n\n\n")
         else:
             print("You are already using the latest version.")
             print(f"Current version: {local_version}")
+            print("\n\n\n\n\n\n")
+
+print("Version Checker Module Loaded")
