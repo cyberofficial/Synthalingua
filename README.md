@@ -5,8 +5,14 @@
 Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
 
 
-### [Download](https://github.com/cyberofficial/Synthalingua/releases/)
+### Downloads
+| Version (Click to DL) | Portable Included | Type | Notes |
+| ------- | ----------------- | ---- | ----- | 
+| [1.0.996](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.996) | Yes | Stable | This version comes with a portable build and is stable some minor bugs are included. |
+| [1.0.997](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.997) | No | Stable | This fixes some issues in the previous build, but not enough to trigger a entire new build for a portable. |
+| [1.0.9971](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9971) | Yes | Pre- Release | This fixes a few bugs in the previous builds and has enough changes to warrant a new build, but some changes are in progress, this is the most safest version of the new script. | 
 
+### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
 #### Readme will update as time goes. This is a work in progress.
