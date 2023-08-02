@@ -23,3 +23,5 @@ def send_to_discord_webhook(webhook_url, text):
     except:
         print("Failed to send message to Discord webhook.")
         pass
+
+print("Discord Module Loaded")

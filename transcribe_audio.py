@@ -43,11 +43,14 @@ try:
 except:
     cuda_available = False
 
+print("Loading Modules...")
 from modules.version_checker import check_for_updates
 from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
 from modules.discord import send_to_discord_webhook
 from modules.console_settings import set_window_title
 from modules.warnings import print_warning
+from modules.parser_args import set_model_by_ram
+print("Modules Loaded\n\n\n\n\n")
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
@@ -92,34 +95,6 @@ def main():
                 return sr.Microphone(sample_rate=16000, device_index=index), "system default"
 
         raise ValueError("No valid input devices found.")
-
-    def set_model_by_ram(ram, language):
-        ram = ram.lower()
-
-        if ram == "1gb":
-            model = "tiny"
-        elif ram == "2gb":
-            model = "base"
-        elif ram == "4gb":
-            model = "small"
-        elif ram == "6gb":
-            model = "medium"
-        elif ram == "12gb":
-            model = "large"
-            if language == "en":
-                red_text = Fore.RED + Back.BLACK
-                green_text = Fore.GREEN + Back.BLACK
-                yellow_text = Fore.YELLOW + Back.BLACK
-                reset_text = Style.RESET_ALL
-                print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model?")
-                if input("y/n: ").lower() == "y":
-                    model = "medium"
-                else:
-                    model = "large"
-        else:
-            raise ValueError("Invalid RAM setting provided")
-
-        return model
         
 
     parser = argparse.ArgumentParser()
