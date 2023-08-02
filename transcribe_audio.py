@@ -47,6 +47,7 @@ from modules.version_checker import check_for_updates
 from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
 from modules.discord import send_to_discord_webhook
 from modules.console_settings import set_window_title
+from modules.warnings import print_warning
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
@@ -286,10 +287,6 @@ def main():
     if not os.path.exists("models"):
         print("Creating models folder...")
         os.makedirs("models")
-
-    def print_warning(old_ram_flag, new_ram_flag, needed_vram, detected_vram):
-        print(f"WARNING: CUDA was chosen, but the VRAM available is less than {old_ram_flag}. You have {detected_vram:.2f} MB available, and {needed_vram - detected_vram:.2f} MB additional overhead is needed. Setting ram flag to avoid out of memory errors. New Flag: {new_ram_flag}")
-        print(f"Remember that the system will use VRAM for other processes, so you may need to lower the ram flag even more to avoid out of memory errors.")
 
     if device.type == "cuda":
         cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
