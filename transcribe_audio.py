@@ -51,13 +51,16 @@ from modules.console_settings import set_window_title
 from modules.warnings import print_warning
 from modules import parser_args
 from modules.languages import get_valid_languages
-print("Modules Loaded\n\n\n\n\n")
+print("Modules Loaded\n\n")
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
 def main():
+    args = parser_args.parse_arguments()
 
-    check_for_updates()
+    # if args.updatebranch is set as disable then skip
+    if args.updatebranch != "disable":
+        check_for_updates(args.updatebranch)
 
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
@@ -96,9 +99,6 @@ def main():
                 return sr.Microphone(sample_rate=16000, device_index=index), "system default"
 
         raise ValueError("No valid input devices found.")
-        
-
-    args = parser_args.parse_arguments()
 
     if len(sys.argv) == 1:
         parser.print_help()
