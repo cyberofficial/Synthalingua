@@ -1,57 +1,18 @@
-import argparse
-import io
-import os
-import speech_recognition as sr
-import whisper
-import torch
-import math
-import sys
-import ctypes
-import shutil
-import numpy as np
-import requests
-import json
-import re
 try:
-    # if the os is not windows then skip this
-    if os.name == 'nt':
-        import sys, win32api
-        win32api.SetDllDirectory(sys._MEIPASS)
-except:
-    pass
-import pytz
-import pyaudio
-import humanize
-import humanize
+    print("Loading Primary Imports")
+    from modules.imports import *
+except Exception as e:
+    print("Error Loading Primary Imports")
+    print("Check the Modules folder for the imports.py file and make sure it is not missing or corrupted.")
+    print(e)
+    sys.exit(1)
 
-from datetime import datetime, timedelta
-from queue import Queue
-from tempfile import NamedTemporaryFile
-from time import sleep
-from sys import platform
-from colorama import Fore, Back, Style, init
-from tqdm import tqdm
-from datetime import datetime
-from numba import cuda
-from prettytable import PrettyTable
-from dateutil.tz import tzlocal
-from tzlocal import get_localzone
 init()
 
 try:
     cuda_available = torch.cuda.is_available()
 except:
     cuda_available = False
-
-print("Loading Modules...")
-from modules.version_checker import check_for_updates
-from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
-from modules.discord import send_to_discord_webhook
-from modules.console_settings import set_window_title
-from modules.warnings import print_warning
-from modules import parser_args
-from modules.languages import get_valid_languages
-print("Modules Loaded\n\n")
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
