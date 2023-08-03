@@ -14,3 +14,4 @@ last_checked_timestamp.txt
 error_report.txt
 livetranslation - Copy.bat
 *.pyc
+modules/__pycache__/*

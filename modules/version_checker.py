@@ -1,6 +1,4 @@
-import requests
-import re
-from colorama import Fore, Back, Style, init
+from modules.imports import *
 
 version = "1.0.9973"
 ScriptCreator = "cyberofficial"

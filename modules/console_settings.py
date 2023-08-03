@@ -1,6 +1,4 @@
-import sys
-import ctypes
-
+from modules.imports import *
 
 def set_window_title(detected_language, confidence):
     title = f"Model: {model} - {detected_language} [{confidence:.2f}%]"
