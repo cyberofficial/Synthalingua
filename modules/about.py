@@ -1,4 +1,4 @@
-from colorama import Fore, Back, Style, init
+from modules.imports import *
 
 # from the main file we passed ScriptCreator
 def contributors(ScriptCreator, GitHubRepo):

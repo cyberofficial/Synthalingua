@@ -1,6 +1,4 @@
-from colorama import Fore, Back, Style, init
-import argparse
-
+from modules.imports import *
 
 def set_model_by_ram(ram, language):
     ram = ram.lower()
