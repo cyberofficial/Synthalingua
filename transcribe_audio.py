@@ -1,3 +1,11 @@
+from modules import checkenv
+isinenv = checkenv.in_virtualenv()
+
+if isinenv == False:
+    checkenv.env_message()
+else:
+    print("You are in a virtual environment, continuing with script...\n\n")
+
 try:
     print("Loading Primary Imports")
     from modules.imports import *
@@ -21,6 +29,7 @@ def main():
 
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
+        print("\nChecking for updates...")
         check_for_updates(args.updatebranch)
 
     def record_callback(_, audio:sr.AudioData) -> None:
