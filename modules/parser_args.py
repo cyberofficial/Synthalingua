@@ -53,7 +53,7 @@ def parse_arguments():
     parser.add_argument("--auto_language_lock", action='store_true', help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
     parser.add_argument("--retry", action='store_true', help="Retries the transcription if it fails. May increase output time.")
     parser.add_argument("--use_finetune", action='store_true', help="Use finetuned model.")
-    parser.add_argument("--updatebranch", default="master", help="Check which branch from the repo to check for updates. Default is master, choices are master and dev-testing. To turn off update checks use disable.", choices=["master", "dev-testing", "disable"])
+    parser.add_argument("--updatebranch", default="master", help="Check which branch from the repo to check for updates. Default is master, choices are master and dev-testing and bleeding-under-work. To turn off update checks use disable. bleeding-under-work is basically latest changes and can break at any time.", choices=["master", "dev-testing", "disable", "bleeding-under-work"])
     parser.add_argument("--keep_temp", action='store_true', help="Keep temporary audio files.")
     parser.add_argument("--about", action='store_true', help="About the project.")
     args = parser.parse_args()
