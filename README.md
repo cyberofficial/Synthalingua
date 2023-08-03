@@ -142,6 +142,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
+| `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing**.  To turn off update checks use **disable**. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
