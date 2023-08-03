@@ -277,7 +277,13 @@ def main():
     if not os.path.exists("temp"):
         os.makedirs("temp")
     temp_dir = "temp"
-    temp_file = NamedTemporaryFile(dir=temp_dir, delete=True, suffix=".ts", prefix="rec_").name
+    if args.keep_temp:
+        keep = True
+        print("Keeping temporary files, warning this will take up a lot of space over time.")
+    else:
+        keep = False
+        print("Keeping temporary files disabled.")
+    temp_file = NamedTemporaryFile(dir=temp_dir, delete=keep, suffix=".ts", prefix="rec_").name
     transcription = ['']
         
     if args.discord_webhook:

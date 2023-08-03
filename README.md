@@ -143,6 +143,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing**.  To turn off update checks use **disable**. |
+| `--keep_temp` | Keeps audio files in the **out** folder. This will take up space over time though. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
