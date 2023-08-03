@@ -12,7 +12,6 @@ import numpy as np
 import requests
 import json
 import re
-
 try:
     # if the os is not windows then skip this
     if os.name == 'nt':
@@ -20,40 +19,10 @@ try:
         win32api.SetDllDirectory(sys._MEIPASS)
 except:
     pass
-try:
-    import pytz
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install pytz")
-    try:
-        import pytz
-    except:
-        print("Failed to install pytz. Please install it manually.")
-        print("Use the command: pip install pytz")
-        exit()
-try:
-    import pyaudio
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install pyaudio")
-    try:
-        import pyaudio
-    except:
-        print("Failed to install pyaudio. Please install it manually.")
-        print("Use the command: pip install pyaudio")
-        exit()
-try:
-    import humanize
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install humanize")
-    try:
-        import humanize
-    except:
-        print("Failed to install humanize. Please install it manually.")
-        print("Use the command: pip install humanize")
-        exit()
-
+import pytz
+import pyaudio
+import humanize
+import humanize
 
 from datetime import datetime, timedelta
 from queue import Queue
@@ -65,28 +34,8 @@ from tqdm import tqdm
 from datetime import datetime
 from numba import cuda
 from prettytable import PrettyTable
-try:
-    from dateutil.tz import tzlocal
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install python-dateutil")
-    try:
-        from dateutil.tz import tzlocal
-    except:
-        print("Failed to install python-dateutil. Please install it manually.")
-        print("Use the command: pip install python-dateutil")
-        exit()
-try:
-    from tzlocal import get_localzone
-except:
-    print("Installing missing dependencies...")
-    os.system("pip install tzlocal")
-    try:
-        from tzlocal import get_localzone
-    except:
-        print("Failed to install tzlocal. Please install it manually.")
-        print("Use the command: pip install tzlocal")
-        exit()
+from dateutil.tz import tzlocal
+from tzlocal import get_localzone
 init()
 
 try:
@@ -94,108 +43,28 @@ try:
 except:
     cuda_available = False
 
+print("Loading Modules...")
+from modules.version_checker import check_for_updates
+from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
+from modules.discord import send_to_discord_webhook
+from modules.console_settings import set_window_title
+from modules.warnings import print_warning
+from modules import parser_args
+from modules.languages import get_valid_languages
+print("Modules Loaded\n\n")
+
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
 def main():
+    args = parser_args.parse_arguments()
 
-    version = "1.0.997"
-    ScriptCreator = "cyberofficial"
-    GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
-    repo_owner = "cyberofficial"
-    repo_name = "Synthalingua"
-
-    def get_remote_version(repo_owner, repo_name, file_path):
-        url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/master/{file_path}"
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            remote_file_content = response.text
-            version_search = re.search(r'version\s*=\s*"([\d.]+)"', remote_file_content)
-            if version_search:
-                remote_version = version_search.group(1)
-                return remote_version
-            else:
-                print("Error: Version not found in the remote file.")
-                return None
-        else:
-            print(f"An error occurred. Status code: {response.status_code}")
-            return None
-
-    def check_for_updates():
-        local_version = version
-        remote_version = get_remote_version(repo_owner, repo_name, "transcribe_audio.py")
-
-        if remote_version is not None:
-            if remote_version != local_version:
-                print(f"Version mismatch. Local version: {local_version}, remote version: {remote_version}")
-                print("Consider updating to the latest version.")
-                print(f"Update available at: " + GitHubRepo)
-            else:
-                print("You are already using the latest version.")
-                print(f"Current version: {local_version}")
-
-    check_for_updates()
-
-    def fine_tune_model_dl():
-        print("Downloading fine-tuned model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs"
-        r = requests.get(url, stream=True)
-        total_length = int(r.headers.get('content-length'))
-        with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model-v2.pt", "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(1024)
-        print("Fine-tuned model downloaded.")
-
-    def fine_tune_model_dl_compressed():
-        print("Downloading fine-tuned compressed model... [Via OneDrive (Public)]")
-        url = "https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ"
-        r = requests.get(url, stream=True)
-        total_length = int(r.headers.get('content-length'))
-        with tqdm(total=total_length, unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-            with open("models/fine_tuned_model_compressed_v2.pt", "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-                        pbar.update(1024)
-        print("Fine-tuned model (compressed) downloaded.")
+    # if args.updatebranch is set as disable then skip
+    if args.updatebranch != "disable":
+        check_for_updates(args.updatebranch)
 
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
         data_queue.put(data)
-
-    def set_window_title(detected_language, confidence):
-        title = f"Model: {model} - {detected_language} [{confidence:.2f}%]"
-
-        if sys.platform == "win32":
-            ctypes.windll.kernel32.SetConsoleTitleW(title)
-        else:
-            sys.stdout.write(f"\x1b]2;{title}\x1b\x5c")
-            sys.stdout.flush()
-
-    def send_to_discord_webhook(webhook_url, text):
-        data = {
-            "content": text
-        }
-        headers = {
-            "Content-Type": "application/json"
-        }
-        try:
-            if len(text) > 1800:
-                for i in range(0, len(text), 1800):
-                    data["content"] = text[i:i+1800]
-                    response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
-                    if response.status_code == 429:
-                        print("Discord webhook is being rate limited.")
-            else:
-                response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
-                if response.status_code == 429:
-                    print("Discord webhook is being rate limited.")
-        except:
-            print("Failed to send message to Discord webhook.")
-            pass
 
     def is_input_device(device_index):
         pa = pyaudio.PyAudio()
@@ -231,97 +100,17 @@ def main():
 
         raise ValueError("No valid input devices found.")
 
-    def set_model_by_ram(ram, language):
-        ram = ram.lower()
-
-        if ram == "1gb":
-            model = "tiny"
-        elif ram == "2gb":
-            model = "base"
-        elif ram == "4gb":
-            model = "small"
-        elif ram == "6gb":
-            model = "medium"
-        elif ram == "12gb":
-            model = "large"
-            if language == "en":
-                red_text = Fore.RED + Back.BLACK
-                green_text = Fore.GREEN + Back.BLACK
-                yellow_text = Fore.YELLOW + Back.BLACK
-                reset_text = Style.RESET_ALL
-                print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model?")
-                if input("y/n: ").lower() == "y":
-                    model = "medium"
-                else:
-                    model = "large"
-        else:
-            raise ValueError("Invalid RAM setting provided")
-
-        return model
-        
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ram", default="4gb", help="Model to use",
-                        choices=["1gb", "2gb", "4gb", "6gb", "12gb"])
-    parser.add_argument("--ramforce", action='store_true',
-                        help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
-    parser.add_argument("--non_english", action='store_true',
-                        help="Don't use the english model.")
-    parser.add_argument("--energy_threshold", default=100,
-                        help="Energy level for mic to detect.", type=int)
-    parser.add_argument("--record_timeout", default=1,
-                        help="How real time the recording is in seconds.", type=float)
-    parser.add_argument("--phrase_timeout", default=1,
-                        help="How much empty space between recordings before we "
-                             "consider it a new line in the transcription.", type=float)
-    parser.add_argument("--no_log", action='store_true',
-                        help="Only show the last line of the transcription.")
-    parser.add_argument("--translate", action='store_true',
-                        help="Translate the transcriptions to English.")
-    parser.add_argument("--transcribe", action='store_true',
-                        help="transcribe the text into the desired language.")
-    parser.add_argument("--language",
-                        help="Language to translate from.", type=str,
-                        choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
-    parser.add_argument("--target_language",
-                        help="Language to translate to.", type=str,
-                        choices=["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"])
-    parser.add_argument("--auto_model_swap", action='store_true',
-                        help="Automatically swap model based on detected language.")
-    parser.add_argument("--device", default="cuda",
-                        help="Device to use for model. If not specified, will use CUDA if available. Available options: cpu, cuda")
-    parser.add_argument("--cuda_device", default=0,
-                        help="CUDA device to use for model. If not specified, will use CUDA device 0.", type=int)
-    parser.add_argument("--discord_webhook", default=None,
-                        help="Discord webhook to send transcription to.", type=str)
-    parser.add_argument("--list_microphones", action='store_true',
-                        help="List available microphones and exit.")
-    parser.add_argument("--set_microphone", default=None,
-                        help="Set default microphone to use.", type=str)
-    parser.add_argument("--auto_language_lock", action='store_true',
-                        help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
-    parser.add_argument("--retry", action='store_true',
-                        help="Retries the transcription if it fails. May increase output time.")
-    parser.add_argument("--use_finetune", action='store_true',
-                        help="Use finetuned model.")
-    parser.add_argument("--about", action='store_true',
-                        help="About the project.")
-    args = parser.parse_args()
-
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
     if args.about:
-        print(f"\033[4m{Fore.GREEN}About the project:{Style.RESET_ALL}\033[0m")
-        print(f"This project was created by \033[4m{Fore.GREEN}{ScriptCreator}{Style.RESET_ALL}\033[0m and is licensed under the \033[4m{Fore.GREEN}GPLv3{Style.RESET_ALL}\033[0m license.\n\nYou can find the source code at \033[4m{Fore.GREEN}{GitHubRepo}{Style.RESET_ALL}\033[0m.\nBased on Whisper from OpenAI at \033[4m{Fore.GREEN}https://github.com/openai/whisper{Style.RESET_ALL}\033[0m.\n\n\n\n")
-        # contributors #
-        print(f"\033[4m{Fore.GREEN}Contributors:{Style.RESET_ALL}\033[0m")
-        print("@DaniruKun from https://watsonindustries.live")
-        print("[Expletive Deleted] https://evitelpxe.neocities.org")
-        exit()
+        from modules.about import contributors
+        from modules.version_checker import ScriptCreator, GitHubRepo
+        contributors(ScriptCreator, GitHubRepo)
 
-    model = set_model_by_ram(args.ram, args.language)
+
+    model = parser_args.set_model_by_ram(args.ram, args.language)
 
     hardmodel = None
 
@@ -335,7 +124,7 @@ def main():
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
     
-    valid_languages = ["af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk", "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz", "vi", "yi", "yo", "zh", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"]
+    valid_languages = get_valid_languages()
 
     if args.language:
         if args.language not in valid_languages:
@@ -426,10 +215,6 @@ def main():
         print("Creating models folder...")
         os.makedirs("models")
 
-    def print_warning(old_ram_flag, new_ram_flag, needed_vram, detected_vram):
-        print(f"WARNING: CUDA was chosen, but the VRAM available is less than {old_ram_flag}. You have {detected_vram:.2f} MB available, and {needed_vram - detected_vram:.2f} MB additional overhead is needed. Setting ram flag to avoid out of memory errors. New Flag: {new_ram_flag}")
-        print(f"Remember that the system will use VRAM for other processes, so you may need to lower the ram flag even more to avoid out of memory errors.")
-
     if device.type == "cuda":
         cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
         overhead_buffer = 200
@@ -495,7 +280,7 @@ def main():
             fine_tune_model_dl()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -520,7 +305,7 @@ def main():
         args.ram = hardmodel
 
 
-    model = set_model_by_ram(args.ram, args.language)
+    model = parser_args.set_model_by_ram(args.ram, args.language)
     print(f"Loading model {model}...")
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
