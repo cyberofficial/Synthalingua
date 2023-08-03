@@ -217,4 +217,3 @@ Command line arguments used. `--ram 6gb --record_timeout 2 --language ja --energ
 
 Command line arguments used. `--ram 12gb --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
-
