@@ -14,6 +14,7 @@ try:
     import requests
     import json
     import re
+    import flask
     try:
         # if the os is not windows then skip this
         if os.name == 'nt':
@@ -55,6 +56,7 @@ try:
     from modules.warnings import print_warning
     from modules import parser_args
     from modules.languages import get_valid_languages
+    from modules import api_backend
 except Exception as e:
     print("Error Loading Extensions")
     print("Check the Modules folder and see if there are any missing or corrupted files.")
