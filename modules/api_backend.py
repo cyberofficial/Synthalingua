@@ -2,7 +2,7 @@ import os
 from flask import Flask, send_from_directory, url_for
 from threading import Thread
 
-def flask_server(operation, port):
+def flask_server(operation, portnumber):
     if operation == "start":
         # Define paths
         script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -15,7 +15,7 @@ def flask_server(operation, port):
         app.config["DEBUG"] = False
 
         # Set port number
-        port = 5000
+        port = portnumber
 
         # Time to start the server
         print("Starting Flask Server on port:", port)
@@ -53,3 +53,9 @@ def flask_server(operation, port):
 
         # Start the server in a new thread
         Thread(target=run).start()
+
+def kill_server():
+    print("Killing Server")
+    os._exit(0)
+
+print("Web Server Module Loaded")

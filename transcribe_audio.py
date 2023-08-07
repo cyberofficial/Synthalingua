@@ -2,13 +2,18 @@ from modules import checkenv
 isinenv = checkenv.in_virtualenv()
 
 if isinenv == False:
-    checkenv.env_message()
+    print("Checking if portable version is being used...")
+    if os.path.exists("transcribe_audio.exe"):
+        print("Portable version detected, continuing with script...\n\n")
+    else:
+        checkenv.env_message()
 else:
     print("You are in a virtual environment, continuing with script...\n\n")
 
 try:
     print("Loading Primary Imports")
     from modules.imports import *
+    print("\n\n")
 except Exception as e:
     print("Error Loading Primary Imports")
     print("Check the Modules folder for the imports.py file and make sure it is not missing or corrupted.")
@@ -16,8 +21,6 @@ except Exception as e:
     sys.exit(1)
 
 init()
-
-api_backend.flask_server(operation="start", portnumber=5000)
 
 try:
     cuda_available = torch.cuda.is_available()
@@ -28,6 +31,10 @@ except:
 
 def main():
     args = parser_args.parse_arguments()
+
+    if args.portnumber:
+        print("Port number was set, so spinning up a web server...")
+        api_backend.flask_server(operation="start", portnumber=args.portnumber)
 
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
@@ -561,24 +568,31 @@ def main():
             print("Exiting...")
             if args.discord_webhook:
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
-            break
+            # break
 
-    if not os.path.isdir('out'):
-        os.mkdir('out')
-    
-    transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
-    if os.path.isfile(transcript):
-        transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
-    transcription_file = open(transcript, 'w',  encoding='utf-8')
+            if not os.path.isdir('out'):
+                os.mkdir('out')
+            
+            transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
+            if os.path.isfile(transcript):
+                transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
+            transcription_file = open(transcript, 'w',  encoding='utf-8')
 
-    for original_text, translated_text, transcribed_text, detected_language in transcription:
-        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
-        if translated_text:
-            transcription_file.write(f"Translation: {translated_text}\n")
-        if transcribed_text:
-            transcription_file.write(f"Transcription: {transcribed_text}\n")
-    transcription_file.close()
-    print(f"Transcription was saved to {transcript}")
+            for original_text, translated_text, transcribed_text, detected_language in transcription:
+                transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
+                if translated_text:
+                    transcription_file.write(f"Translation: {translated_text}\n")
+                if transcribed_text:
+                    transcription_file.write(f"Transcription: {transcribed_text}\n")
+            transcription_file.close()
+            print(f"Transcription was saved to {transcript}")
+
+            if args.portnumber:
+                api_backend.kill_server()
+
+            sys.exit(0)
+            
+
     
 
 if __name__ == "__main__":

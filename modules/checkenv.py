@@ -39,4 +39,5 @@ if current_os == 'windows':
 elif current_os == 'linux':
     os.system('clear')
 
+print("Check ENV Module Loaded")
 print("Checking if you are in a virtual environment...\n\n")
