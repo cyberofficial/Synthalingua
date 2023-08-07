@@ -17,7 +17,7 @@ except Exception as e:
 
 init()
 
-api_backend.start_flask_server()
+api_backend.flask_server(operation="start", portnumber=5000)
 
 try:
     cuda_available = torch.cuda.is_available()
