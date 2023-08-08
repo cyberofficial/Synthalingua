@@ -512,20 +512,23 @@ def main():
                         print("=" * shutil.get_terminal_size().columns)
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
-                        new_header = f"{original_text}"
-                        api_backend.update_header(new_header)
+                        if args.portnumber:
+                            new_header = f"({detected_language}) {original_text}"
+                            api_backend.update_header(new_header)
 
                     if args.translate and translated_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{translated_text}\n")
-                        new_header = f"{translated_text}"
-                        api_backend.update_translated_header(new_header)
+                        if args.portnumber:
+                            new_header = f"{translated_text}"
+                            api_backend.update_translated_header(new_header)
                         
                     if args.transcribe and transcribed_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{transcribed_text}\n")
-                        new_header = f"{transcribed_text}"
-                        api_backend.update_transcribed_header(new_header)
+                        if args.portnumber:
+                            new_header = f"{transcribed_text}"
+                            api_backend.update_transcribed_header(new_header)
 
                 else:
                     for original_text, translated_text, transcribed_text, detected_language in transcription:
@@ -533,8 +536,14 @@ def main():
                             continue
                         if args.translate and translated_text:
                             print(f"{translated_text}")
+                            if args.portnumber:
+                                new_header = f"{translated_text}"
+                                api_backend.update_translated_header(new_header)
                         if args.transcribe and transcribed_text:
                             print(f"{transcribed_text}")
+                            if args.portnumber:
+                                new_header = f"{transcribed_text}"
+                                api_backend.update_transcribed_header(new_header)
 
                 print('', end='', flush=True)
 

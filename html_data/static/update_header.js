@@ -19,5 +19,5 @@ document.addEventListener("DOMContentLoaded", function() {
             });
     }
 
-    setInterval(updateHeaders, 100);
+    setInterval(updateHeaders, 500);
 });
