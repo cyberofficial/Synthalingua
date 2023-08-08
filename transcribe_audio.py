@@ -32,10 +32,6 @@ except:
 def main():
     args = parser_args.parse_arguments()
 
-    if args.portnumber:
-        print("Port number was set, so spinning up a web server...")
-        api_backend.flask_server(operation="start", portnumber=args.portnumber)
-
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
         print("\nChecking for updates...")
@@ -88,7 +84,6 @@ def main():
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
-
     model = parser_args.set_model_by_ram(args.ram, args.language)
 
     hardmodel = None
@@ -136,6 +131,18 @@ def main():
             print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
     print(f"Using device: {device}")
 
+    if args.list_microphones:
+        print("Available microphone devices are: ")
+        mic_table = PrettyTable()
+        mic_table.field_names = ["Index", "Microphone Name"]
+
+        for index, name in enumerate(sr.Microphone.list_microphone_names()):
+            if is_input_device(index):
+                mic_table.add_row([index, name])
+
+        print(mic_table)
+        sys.exit(0)
+
     if device.type == "cuda":
         # Check if multiple CUDA devices are available
         cuda_device_count = torch.cuda.device_count()
@@ -159,18 +166,9 @@ def main():
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
- 
-    if args.list_microphones:
-        print("Available microphone devices are: ")
-        mic_table = PrettyTable()
-        mic_table.field_names = ["Index", "Microphone Name"]
-
-        for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            if is_input_device(index):
-                mic_table.add_row([index, name])
-
-        print(mic_table)
-        sys.exit(0)
+    if args.portnumber:
+        print("Port number was set, so spinning up a web server...")
+        api_backend.flask_server(operation="start", portnumber=args.portnumber)
 
     try:
         source, mic_name = get_microphone_source(args)
