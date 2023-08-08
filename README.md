@@ -18,17 +18,17 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 #### Readme will update as time goes. This is a work in progress.
 
 ### Table of Contents
-1. [Disclaimer](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-knowdisclaimerswarningsetc)
-2. [To Do List](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#todo)
-3. [Contributors](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#contributors)
-4. [Installing/Setup](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#installation)
-5. [Usage and File Arguments](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#usage)
-     * [Examples](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#examples)
-     * [Web Server](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#web-server)
-6. [Troubleshooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
-7. [Addtional Info](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#additional-information)
-8. [Video Demos](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#video-demonstration)
-9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
+1. [Disclaimer](#things-to-knowdisclaimerswarningsetc)
+2. [To Do List](#todo)
+3. [Contributors](#contributors)
+4. [Installing/Setup](#installation)
+5. [Usage and File Arguments](#usage)
+     * [Examples](#examples)
+     * [Web Server](#web-server)
+6. [Troubleshooting](#troubleshooting)
+7. [Additional Info](#additional-information)
+8. [Video Demos](#video-demonstration)
+9. [Extra Notes](#things-to-note)
 
 ## Things to know/Disclaimers/Warnings/etc
 - This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
