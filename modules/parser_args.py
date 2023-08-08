@@ -10,27 +10,38 @@ def valid_port_number(value):
         raise argparse.ArgumentTypeError(f"Invalid port number: {value}. Please choose a number between 1 and 65535.")
     return port
 
-def set_model_by_ram(ram, language):
+def set_model_by_ram(ram, language, target_language):
     ram = ram.lower()
-    
     if ram == "1gb":
-        model = "tiny"
+        if language == "en" or language == "English":
+            model = "tiny.en"
+        else:
+            model = "tiny"
     elif ram == "2gb":
-        model = "base"
+        if language == "en" or language == "English":
+            model = "base.en"
+        else:
+            model = "base"
     elif ram == "4gb":
-        model = "small"
+        if language == "en" or language == "English":
+            model = "small.en"
+        else:
+            model = "small"
     elif ram == "6gb":
-        model = "medium"
+        if language == "en" or language == "English":
+            model = "medium.en"
+        else:
+            model = "medium"
     elif ram == "12gb":
         model = "large"
-        if language == "en":
+        if language == "en" or language == "English":
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
             yellow_text = Fore.YELLOW + Back.BLACK
             reset_text = Style.RESET_ALL
-            print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model?")
+            print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model? If you are transcribing a language other than English, you can ignore this warning and press {green_text}n{reset_text}.")
             if input("y/n: ").lower() == "y":
-                model = "medium"
+                model = "medium.en"
             else:
                 model = "large"
     else:
@@ -45,7 +56,7 @@ def parse_arguments():
     parser.add_argument("--non_english", action='store_true', help="Don't use the english model.")
     parser.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
     parser.add_argument("--record_timeout", default=1, help="How real time the recording is in seconds.", type=float)
-    parser.add_argument("--phrase_timeout", default=1, help="How much empty space between recordings before we "
+    parser.add_argument("--phrase_timeout", default=5, help="How much empty space between recordings before we "
                              "consider it a new line in the transcription.", type=float)
     parser.add_argument("--no_log", action='store_true', help="Only show the last line of the transcription.")
     parser.add_argument("--translate", action='store_true', help="Translate the transcriptions to English.")
