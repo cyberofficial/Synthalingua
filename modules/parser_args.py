@@ -74,7 +74,6 @@ def parse_arguments():
     parser.add_argument("--use_finetune", action='store_true', help="Use finetuned model.")
     parser.add_argument("--updatebranch", default="master", help="Check which branch from the repo to check for updates. Default is master, choices are master and dev-testing and bleeding-under-work. To turn off update checks use disable. bleeding-under-work is basically latest changes and can break at any time.", choices=["master", "dev-testing", "disable", "bleeding-under-work"])
     parser.add_argument("--keep_temp", action='store_true', help="Keep temporary audio files.")
-    # add portnumber argument, but make it optional, so if a portnumber is set we know to run the webserver if there is no portnumber we don't run the webserver, though make the choices 0-65535
     parser.add_argument(
     "--portnumber", default=None, help="Port number to run the web server on. If not specified, the web server will not run.", type=valid_port_number)
     parser.add_argument("--about", action='store_true', help="About the project.")
