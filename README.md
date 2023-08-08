@@ -156,7 +156,7 @@ This script uses argparse to accept command line arguments. The following option
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 
 ## Web Server
-With this command flag, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default.
+With the command flag `--port 4000`, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default. You can choose another number other than `4000` if you want.
 
 For example:
 - `http://localhost:4000?showoriginal` will show the `original` detected text.
