@@ -24,6 +24,7 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 4. [Installing/Setup](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#installation)
 5. [Usage and File Arguments](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#usage)
      * [Examples](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#examples)
+     * [Web Server](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#web-server)
 6. [Troubleshooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
 7. [Addtional Info](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#additional-information)
 8. [Video Demos](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#video-demonstration)
@@ -144,6 +145,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing** and **bleeding-under-work**. To turn off update checks use **disable**. **bleeding-under-work** is basically latest changes and can break at any time. |
 | `--keep_temp` | Keeps audio files in the **out** folder. This will take up space over time though. |
+| `--portnumber` | Set the port number for the web server. If no number is set then the web server will not start. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
@@ -153,8 +155,19 @@ This script uses argparse to accept command line arguments. The following option
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 
+## Web Server
+With this command flag, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default.
+
+For example:
+- `http://localhost:4000?showoriginal` will show the `original` detected text.
+- `http://localhost:4000?showtranslation` will show the `translated` text.
+- `http://localhost:4000?showtranscription` will show the `transcribed` text.
+- `http://localhost:4000/?showoriginal&showtranscription` will show the `original` and `transcribed` text.
+- `http://localhost:4000` or `http://localhost:4000?otherparam=value` will show all elements by default.
+
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
 
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 `python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
