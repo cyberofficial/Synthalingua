@@ -84,7 +84,7 @@ def main():
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
-    model = parser_args.set_model_by_ram(args.ram, args.language)
+    model = ""
 
     hardmodel = None
 
@@ -183,10 +183,10 @@ def main():
         except AssertionError as e:
             print(e)
 
-    if args.language == "en" or args.language == "English":
-        model += ".en"
-        if model == "large" or model == "large.en":
-            model = "large"
+    #if args.language == "en" or args.language == "English":
+    #    model += ".en"
+    #    if model == "large" or model == "large.en":
+    #        model = "large"
 
     if not os.path.exists("models"):
         print("Creating models folder...")
@@ -282,7 +282,10 @@ def main():
         args.ram = hardmodel
 
 
-    model = parser_args.set_model_by_ram(args.ram, args.language)
+    if args.target_language:
+        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language)
+    else:
+        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language==None)
     print(f"Loading model {model}...")
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
