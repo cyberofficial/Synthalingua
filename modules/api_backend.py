@@ -1,6 +1,13 @@
 import os
+import logging
 from flask import Flask, send_from_directory, url_for
 from threading import Thread
+
+header_text = "Welcome to the Test Page"
+
+def update_header(new_header):
+    global header_text
+    header_text = new_header
 
 def flask_server(operation, portnumber):
     if operation == "start":
@@ -14,6 +21,14 @@ def flask_server(operation, portnumber):
         app = Flask(__name__, static_folder=static_dir, static_url_path='/static')
         app.config["DEBUG"] = False
 
+        # Set the logging level to WARNING
+        app.logger.setLevel(logging.WARNING)
+
+        # Disable logging for "/update-header" route
+        log = logging.getLogger('werkzeug')
+        log.setLevel(logging.ERROR)
+        log.disabled = True
+
         # Set port number
         port = portnumber
 
@@ -24,12 +39,21 @@ def flask_server(operation, portnumber):
         # Set the root directory
         @app.route('/')
         def serve_index():
-            return send_from_directory(html_data_dir, 'index.html')
+            index_html_path = os.path.join(html_data_dir, 'index.html')
+            with open(index_html_path, 'r') as file:
+                html_content = file.read()
+                updated_html = html_content.replace("{{ header_text }}", header_text)
+            return updated_html
 
         # Serve static files (CSS, JS, images)
         @app.route('/static/<path:filename>')
         def serve_static(filename):
             return send_from_directory(static_dir, filename)
+
+        # Route for updating the header dynamically
+        @app.route('/update-header')
+        def update_header_route():
+            return header_text
 
         # Generate URL for static file in index.html
         @app.context_processor

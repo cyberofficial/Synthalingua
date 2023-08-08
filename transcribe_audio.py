@@ -512,11 +512,13 @@ def main():
                         print("=" * shutil.get_terminal_size().columns)
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
+                        new_header = f"{original_text}"
+                        api_backend.update_header(new_header)
 
                     if args.translate and translated_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{translated_text}\n")
-
+                        
                     if args.transcribe and transcribed_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{transcribed_text}\n")
@@ -531,7 +533,6 @@ def main():
                             print(f"{transcribed_text}")
 
                 print('', end='', flush=True)
-
 
                 if args.auto_model_swap:
                     if last_detected_language != detected_language:
@@ -590,8 +591,5 @@ def main():
 
             sys.exit(0)
             
-
-    
-
 if __name__ == "__main__":
     main()
