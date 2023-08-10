@@ -3,19 +3,22 @@ document.addEventListener("DOMContentLoaded", function() {
         fetch("/update-header")
             .then(response => response.text())
             .then(originalText => {
-                document.getElementById("header-text").innerText = "Detected: " + originalText;
+                /*Detected: */
+                document.getElementById("header-text").innerText = "" + originalText;
             });
             
         fetch("/update-translated-header")
             .then(response => response.text())
             .then(translatedText => {
-                document.getElementById("translated-header").innerText = "Translated: " + translatedText;
+                /*Translated: */
+                document.getElementById("translated-header").innerText = "" + translatedText;
             });
             
         fetch("/update-transcribed-header")
             .then(response => response.text())
             .then(transcribedText => {
-                document.getElementById("transcribed-header").innerText = "Transcribed: " + transcribedText;
+                /*Transcribed: */
+                document.getElementById("transcribed-header").innerText = "" + transcribedText;
             });
     }
 
