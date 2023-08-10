@@ -462,6 +462,8 @@ def main():
 
                     else:
                         translated_text = ""
+                        new_header = f"{translated_text}"
+                        api_backend.update_translated_header(new_header)
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
             
