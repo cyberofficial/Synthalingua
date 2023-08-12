@@ -1,8 +1,6 @@
-import requests
-import re
-from colorama import Fore, Back, Style, init
+from modules.imports import *
 
-version = "1.0.9971"
+version = "1.0.9979"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"

@@ -11,6 +11,7 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 | [1.0.996](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.996) | Yes | Stable | This version comes with a portable build and is stable some minor bugs are included. |
 | [1.0.997](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.997) | No | Stable | This fixes some issues in the previous build, but not enough to trigger a entire new build for a portable. |
 | [1.0.9971](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9971) | Yes | Pre- Release | This fixes a few bugs in the previous builds and has enough changes to warrant a new build, but some changes are in progress, this is the most safest version of the new script. | 
+| [1.0.9978](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9978) | Yes | Unstable | Unstable release, but works well enough for a new build, this build has various bug fixes and has the ability to use a custom web server. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
@@ -18,16 +19,17 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 #### Readme will update as time goes. This is a work in progress.
 
 ### Table of Contents
-1. [Disclaimer](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-knowdisclaimerswarningsetc)
-2. [To Do List](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#todo)
-3. [Contributors](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#contributors)
-4. [Installing/Setup](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#installation)
-5. [Usage and File Arguments](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#usage)
-     * [Examples](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#examples)
-6. [Troubleshooting](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#troubleshooting)
-7. [Addtional Info](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#additional-information)
-8. [Video Demos](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#video-demonstration)
-9. [Extra Notes](https://github.com/cyberofficial/Synthalingua/tree/dev-testing#things-to-note)
+1. [Disclaimer](#things-to-knowdisclaimerswarningsetc)
+2. [To Do List](#todo)
+3. [Contributors](#contributors)
+4. [Installing/Setup](#installation)
+5. [Usage and File Arguments](#usage)
+     * [Examples](#examples)
+     * [Web Server](#web-server)
+6. [Troubleshooting](#troubleshooting)
+7. [Additional Info](#additional-information)
+8. [Video Demos](#video-demonstration)
+9. [Extra Notes](#things-to-note)
 
 ## Things to know/Disclaimers/Warnings/etc
 - This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
@@ -54,7 +56,7 @@ Example: If you use the tool in a way that violates the terms of service or poli
 | Add support for AMD GPUs. | ROCm support - Linux Only | ✅ |
 |       | OpenCL support - Linux Only | ✅ |
 | Add support API access. |          | ❌ |
-| Custom localhost web server. |      | ❌ |
+| Custom localhost web server. |      | ✅ |
 | Add reverse translation. |        | ✅ |
 |       | Localize script to other languages. (Will take place after reverse translations.) | ❌ |
 | Custom dictionary support. |       | ❌ |
@@ -142,7 +144,9 @@ This script uses argparse to accept command line arguments. The following option
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
-| `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing**.  To turn off update checks use **disable**. |
+| `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing** and **bleeding-under-work**. To turn off update checks use **disable**. **bleeding-under-work** is basically latest changes and can break at any time. |
+| `--keep_temp` | Keeps audio files in the **out** folder. This will take up space over time though. |
+| `--portnumber` | Set the port number for the web server. If no number is set then the web server will not start. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
 
@@ -152,8 +156,19 @@ This script uses argparse to accept command line arguments. The following option
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 
+## Web Server
+With the command flag `--port 4000`, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default. You can choose another number other than `4000` if you want. You can mix the query parameters to show specific elements, leave blank to show all elements.
+
+For example:
+- `http://localhost:4000?showoriginal` will show the `original` detected text.
+- `http://localhost:4000?showtranslation` will show the `translated` text.
+- `http://localhost:4000?showtranscription` will show the `transcribed` text.
+- `http://localhost:4000/?showoriginal&showtranscription` will show the `original` and `transcribed` text.
+- `http://localhost:4000` or `http://localhost:4000?otherparam=value` will show all elements by default.
+
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
 
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 `python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`

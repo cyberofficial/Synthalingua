@@ -1,6 +1,4 @@
-import requests
-from tqdm import tqdm
-import re
+from modules.imports import *
 
 def fine_tune_model_dl():
     print("Downloading fine-tuned model... [Via OneDrive (Public)]")

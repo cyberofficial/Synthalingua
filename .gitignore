@@ -13,3 +13,12 @@ last_saved_timestamp.txt
 last_checked_timestamp.txt
 error_report.txt
 livetranslation - Copy.bat
+*.pyc
+__pycache__
+modules/__pycache__/warnings.cpython-310.pyc
+modules/__pycache__/version_checker.cpython-310.pyc
+modules/__pycache__/parser_args.cpython-310.pyc
+modules/__pycache__/model_downloader.cpython-310.pyc
+modules/__pycache__/languages.cpython-310.pyc
+modules/__pycache__/discord.cpython-310.pyc
+modules/__pycache__/console_settings.cpython-310.pyc
