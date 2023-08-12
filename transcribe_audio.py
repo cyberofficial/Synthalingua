@@ -1,57 +1,31 @@
-import argparse
-import io
-import os
-import speech_recognition as sr
-import whisper
-import torch
-import math
-import sys
-import ctypes
-import shutil
-import numpy as np
-import requests
-import json
-import re
-try:
-    # if the os is not windows then skip this
-    if os.name == 'nt':
-        import sys, win32api
-        win32api.SetDllDirectory(sys._MEIPASS)
-except:
-    pass
-import pytz
-import pyaudio
-import humanize
-import humanize
+from modules import checkenv
+isinenv = checkenv.in_virtualenv()
 
-from datetime import datetime, timedelta
-from queue import Queue
-from tempfile import NamedTemporaryFile
-from time import sleep
-from sys import platform
-from colorama import Fore, Back, Style, init
-from tqdm import tqdm
-from datetime import datetime
-from numba import cuda
-from prettytable import PrettyTable
-from dateutil.tz import tzlocal
-from tzlocal import get_localzone
+if isinenv == False:
+    print("Checking if portable version is being used...")
+    if os.path.exists("transcribe_audio.exe"):
+        print("Portable version detected, continuing with script...\n\n")
+    else:
+        checkenv.env_message()
+else:
+    print("You are in a virtual environment, continuing with script...\n\n")
+
+try:
+    print("Loading Primary Imports")
+    from modules.imports import *
+    print("\n\n")
+except Exception as e:
+    print("Error Loading Primary Imports")
+    print("Check the Modules folder for the imports.py file and make sure it is not missing or corrupted.")
+    print(e)
+    sys.exit(1)
+
 init()
 
 try:
     cuda_available = torch.cuda.is_available()
 except:
     cuda_available = False
-
-print("Loading Modules...")
-from modules.version_checker import check_for_updates
-from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
-from modules.discord import send_to_discord_webhook
-from modules.console_settings import set_window_title
-from modules.warnings import print_warning
-from modules import parser_args
-from modules.languages import get_valid_languages
-print("Modules Loaded\n\n")
 
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
@@ -60,6 +34,7 @@ def main():
 
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
+        print("\nChecking for updates...")
         check_for_updates(args.updatebranch)
 
     def record_callback(_, audio:sr.AudioData) -> None:
@@ -109,8 +84,7 @@ def main():
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
-
-    model = parser_args.set_model_by_ram(args.ram, args.language)
+    model = ""
 
     hardmodel = None
 
@@ -157,6 +131,18 @@ def main():
             print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
     print(f"Using device: {device}")
 
+    if args.list_microphones:
+        print("Available microphone devices are: ")
+        mic_table = PrettyTable()
+        mic_table.field_names = ["Index", "Microphone Name"]
+
+        for index, name in enumerate(sr.Microphone.list_microphone_names()):
+            if is_input_device(index):
+                mic_table.add_row([index, name])
+
+        print(mic_table)
+        sys.exit(0)
+
     if device.type == "cuda":
         # Check if multiple CUDA devices are available
         cuda_device_count = torch.cuda.device_count()
@@ -180,18 +166,9 @@ def main():
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
- 
-    if args.list_microphones:
-        print("Available microphone devices are: ")
-        mic_table = PrettyTable()
-        mic_table.field_names = ["Index", "Microphone Name"]
-
-        for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            if is_input_device(index):
-                mic_table.add_row([index, name])
-
-        print(mic_table)
-        sys.exit(0)
+    if args.portnumber:
+        print("Port number was set, so spinning up a web server...")
+        api_backend.flask_server(operation="start", portnumber=args.portnumber)
 
     try:
         source, mic_name = get_microphone_source(args)
@@ -206,10 +183,10 @@ def main():
         except AssertionError as e:
             print(e)
 
-    if args.language == "en" or args.language == "English":
-        model += ".en"
-        if model == "large" or model == "large.en":
-            model = "large"
+    #if args.language == "en" or args.language == "English":
+    #    model += ".en"
+    #    if model == "large" or model == "large.en":
+    #        model = "large"
 
     if not os.path.exists("models"):
         print("Creating models folder...")
@@ -305,7 +282,10 @@ def main():
         args.ram = hardmodel
 
 
-    model = parser_args.set_model_by_ram(args.ram, args.language)
+    if args.target_language:
+        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language)
+    else:
+        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language==None)
     print(f"Loading model {model}...")
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
@@ -316,7 +296,13 @@ def main():
     if not os.path.exists("temp"):
         os.makedirs("temp")
     temp_dir = "temp"
-    temp_file = NamedTemporaryFile(dir=temp_dir, delete=True, suffix=".ts", prefix="rec_").name
+    if args.keep_temp:
+        keep = True
+        print("Keeping temporary files, warning this will take up a lot of space over time.")
+    else:
+        keep = False
+        print("Keeping temporary files disabled.")
+    temp_file = NamedTemporaryFile(dir=temp_dir, delete=keep, suffix=".ts", prefix="rec_").name
     transcription = ['']
         
     if args.discord_webhook:
@@ -476,6 +462,8 @@ def main():
 
                     else:
                         translated_text = ""
+                        new_header = f"{translated_text}"
+                        api_backend.update_translated_header(new_header)
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
             
@@ -529,14 +517,23 @@ def main():
                         print("=" * shutil.get_terminal_size().columns)
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
+                        if args.portnumber:
+                            new_header = f"({detected_language}) {original_text}"
+                            api_backend.update_header(new_header)
 
                     if args.translate and translated_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{translated_text}\n")
-
+                        if args.portnumber:
+                            new_header = f"{translated_text}"
+                            api_backend.update_translated_header(new_header)
+                        
                     if args.transcribe and transcribed_text:
                         print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{transcribed_text}\n")
+                        if args.portnumber:
+                            new_header = f"{transcribed_text}"
+                            api_backend.update_transcribed_header(new_header)
 
                 else:
                     for original_text, translated_text, transcribed_text, detected_language in transcription:
@@ -544,11 +541,16 @@ def main():
                             continue
                         if args.translate and translated_text:
                             print(f"{translated_text}")
+                            if args.portnumber:
+                                new_header = f"{translated_text}"
+                                api_backend.update_translated_header(new_header)
                         if args.transcribe and transcribed_text:
                             print(f"{transcribed_text}")
+                            if args.portnumber:
+                                new_header = f"{transcribed_text}"
+                                api_backend.update_transcribed_header(new_header)
 
                 print('', end='', flush=True)
-
 
                 if args.auto_model_swap:
                     if last_detected_language != detected_language:
@@ -583,25 +585,29 @@ def main():
             print("Exiting...")
             if args.discord_webhook:
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
-            break
+            # break
 
-    if not os.path.isdir('out'):
-        os.mkdir('out')
-    
-    transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
-    if os.path.isfile(transcript):
-        transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
-    transcription_file = open(transcript, 'w',  encoding='utf-8')
+            if not os.path.isdir('out'):
+                os.mkdir('out')
+            
+            transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
+            if os.path.isfile(transcript):
+                transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
+            transcription_file = open(transcript, 'w',  encoding='utf-8')
 
-    for original_text, translated_text, transcribed_text, detected_language in transcription:
-        transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
-        if translated_text:
-            transcription_file.write(f"Translation: {translated_text}\n")
-        if transcribed_text:
-            transcription_file.write(f"Transcription: {transcribed_text}\n")
-    transcription_file.close()
-    print(f"Transcription was saved to {transcript}")
-    
+            for original_text, translated_text, transcribed_text, detected_language in transcription:
+                transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
+                if translated_text:
+                    transcription_file.write(f"Translation: {translated_text}\n")
+                if transcribed_text:
+                    transcription_file.write(f"Transcription: {transcribed_text}\n")
+            transcription_file.close()
+            print(f"Transcription was saved to {transcript}")
 
+            if args.portnumber:
+                api_backend.kill_server()
+
+            sys.exit(0)
+            
 if __name__ == "__main__":
     main()

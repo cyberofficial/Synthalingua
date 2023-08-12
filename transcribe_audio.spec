@@ -13,11 +13,13 @@ binaries = [(dll, '.') for dll in cuda_dlls]
 
 a = Analysis(
     ['transcribe_audio.py'],
-    pathex=['.', './modules'],
+    pathex=['.', './modules', './html_data'],
     binaries=binaries,
     datas=[('data_whisper\\Lib\\site-packages\\whisper\\assets\\mel_filters.npz', 'whisper\\assets'),
        ('data_whisper\\Lib\\site-packages\\whisper\\assets\\multilingual.tiktoken', 'whisper\\assets'),
-       ('data_whisper\\Lib\\site-packages\\whisper\\assets\\gpt2.tiktoken', 'whisper\\assets')],
+       ('data_whisper\\Lib\\site-packages\\whisper\\assets\\gpt2.tiktoken', 'whisper\\assets'),
+       ('html_data\\static\\*', 'html_data\\static\\'),
+       ('html_data\\*', 'html_data\\')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
