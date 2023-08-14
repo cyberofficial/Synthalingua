@@ -7,11 +7,8 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
-| ------- | ----------------- | ---- | ----- | 
-| [1.0.996](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.996) | Yes | Stable | This version comes with a portable build and is stable some minor bugs are included. |
-| [1.0.997](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.997) | No | Stable | This fixes some issues in the previous build, but not enough to trigger a entire new build for a portable. |
-| [1.0.9971](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9971) | Yes | Pre- Release | This fixes a few bugs in the previous builds and has enough changes to warrant a new build, but some changes are in progress, this is the most safest version of the new script. | 
-| [1.0.9978](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9978) | Yes | Unstable | Unstable release, but works well enough for a new build, this build has various bug fixes and has the ability to use a custom web server. |
+| --------------------- | ----------------- | ---- | ----- |
+| [1.0.9978](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9978) | Yes | Stable | Unstable release, but works well enough for a new build, this build has various bug fixes and has the ability to use a custom web server. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
