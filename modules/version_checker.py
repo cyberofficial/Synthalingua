@@ -1,6 +1,6 @@
 from modules.imports import *
 
-version = "1.0.9979"
+version = "1.0.9980"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"

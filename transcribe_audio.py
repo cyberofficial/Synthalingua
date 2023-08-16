@@ -97,6 +97,7 @@ def main():
     recorder = sr.Recognizer()
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
+    reset_text = Style.RESET_ALL
     
     valid_languages = get_valid_languages()
 
@@ -223,7 +224,6 @@ def main():
 
     if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
         red_text = Style.BRIGHT + Fore.RED
-        reset_text = Style.RESET_ALL
         if not os.path.exists("models/fine_tuned_model_compressed_v2.pt"):
             print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
             print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
