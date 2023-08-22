@@ -570,6 +570,9 @@ def main():
                             model = 'large'
                             audio_model = whisper.load_model(model, device=device)
                             print(f"Model was changed to large since {detected_language} was detected 5 times in a row.")
+        # sleep for 1 second
+            sleep(1)
+        
         except Exception as e:
             if not isinstance(e, KeyboardInterrupt):
                 print(e)
