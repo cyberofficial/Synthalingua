@@ -9,9 +9,7 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
 | ------- | ----------------- | ---- | ----- | 
-| [1.0.9978](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9978) | Yes | Unstable | Unstable release, but works well enough for a new build, this build has various bug fixes and has the ability to use a custom web server. |
-| [1.0.9980](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9980) | Yes | Stable | Fixes an issue with Discord Webhook and Phrase timeout. This build is considered stable enough for a portable build. |
-| [1.0.9981](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9981) | *Building...* | Stable | Fixes an issue with web server, debug statement left over was removed. |
+| [1.0.9981](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9981) | Yes | Stable | Fixes an issue with web server, debug statement left over was removed. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
