@@ -35,7 +35,12 @@ def main():
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
         print("\nChecking for updates...")
-        check_for_updates(args.updatebranch)
+        try:
+            check_for_updates(args.updatebranch)
+        except Exception as e:
+            print("Error checking for updates.")
+            print("Error: " + str(e))
+            print("Continuing with script...\n\n")
 
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
@@ -98,6 +103,32 @@ def main():
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
     reset_text = Style.RESET_ALL
+
+    def mic_calibration():
+        print("Starting mic calibration...")
+        with sr.Microphone() as source:
+            recorder.adjust_for_ambient_noise(source, duration=args.mic_calibration_time)
+            print(f"Calibration complete. The microphone is set to: {Fore.YELLOW}" + str(recorder.energy_threshold) + f"{reset_text}")
+
+    if args.mic_calibration_time:
+        print("Mic calibration flag detected.\n")
+        print(f"Press {Fore.YELLOW}[enter]{reset_text} when ready to start mic calibration.\nMake sure there is no one speaking during this time.")
+        if args.mic_calibration_time == 0:
+            args.mic_calibration_time = 5
+            mic_calibration()
+        else:
+            print("Waiting for user input...")
+            input()
+            mic_calibration()
+            print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
+            while True:
+                user_input = input("r/enter: ")
+                if user_input == "r":
+                    mic_calibration()
+                    print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
+                else:
+                    break
+
     
     valid_languages = get_valid_languages()
 
@@ -521,19 +552,19 @@ def main():
                             new_header = f"({detected_language}) {original_text}"
                             api_backend.update_header(new_header)
 
-                    if args.translate and translated_text:
-                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{translated_text}\n")
-                        if args.portnumber:
-                            new_header = f"{translated_text}"
-                            api_backend.update_translated_header(new_header)
+                        if args.translate and translated_text:
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{translated_text}\n")
+                            if args.portnumber:
+                                new_header = f"{translated_text}"
+                                api_backend.update_translated_header(new_header)
                         
-                    if args.transcribe and transcribed_text:
-                        print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{transcribed_text}\n")
-                        if args.portnumber:
-                            new_header = f"{transcribed_text}"
-                            api_backend.update_transcribed_header(new_header)
+                        if args.transcribe and transcribed_text:
+                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                            print(f"{transcribed_text}\n")
+                            if args.portnumber:
+                                new_header = f"{transcribed_text}"
+                                api_backend.update_transcribed_header(new_header)
 
                 else:
                     for original_text, translated_text, transcribed_text, detected_language in transcription:
