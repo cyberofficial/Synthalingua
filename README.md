@@ -21,17 +21,17 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 #### Readme will update as time goes. This is a work in progress.
 
 ### Table of Contents
-1. [Disclaimer](#things-to-knowdisclaimerswarningsetc)
-2. [To Do List](#todo)
-3. [Contributors](#contributors)
-4. [Installing/Setup](#installation)
-5. [Usage and File Arguments](#usage)
-     * [Examples](#examples)
-     * [Web Server](#web-server)
-6. [Troubleshooting](#troubleshooting)
-7. [Additional Info](#additional-information)
-8. [Video Demos](#video-demonstration)
-9. [Extra Notes](#things-to-note)
+| Table of Contents | Description |
+| ----------------- | ----------- |
+| [Disclaimer](#things-to-knowdisclaimerswarningsetc) | Things to know/Disclaimers/Warnings/etc |
+| [To Do List](#todo) | Things to do |
+| [Contributors](#contributors) | People who helped with the project or contributed to the project. |
+| [Installing/Setup](#installation) | How to install and setup the tool. |
+| Misc | [Usage and File Arguments](#usage) - [Examples](#examples) - [Web Server](#web-server) |
+| [Troubleshooting](#troubleshooting) | Common issues and how to fix them. |
+| [Additional Info](#additional-information) | Additional information about the tool. |
+| [Video Demos](#video-demonstration) | Video demonstrations of the tool. |
+| [Extra Notes](#things-to-note) | Extra notes about the tool. |
 
 ## Things to know/Disclaimers/Warnings/etc
 - This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
