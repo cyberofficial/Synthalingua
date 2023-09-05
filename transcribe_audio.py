@@ -110,6 +110,20 @@ def main():
             recorder.adjust_for_ambient_noise(source, duration=args.mic_calibration_time)
             print(f"Calibration complete. The microphone is set to: {Fore.YELLOW}" + str(recorder.energy_threshold) + f"{reset_text}")
 
+    if args.list_microphones:
+        print("Available microphone devices are: ")
+        mic_table = PrettyTable()
+        mic_table.field_names = ["Index", "Microphone Name"]
+
+        for index, name in enumerate(sr.Microphone.list_microphone_names()):
+            if is_input_device(index):
+                mic_table.add_row([index, name])
+
+        print(mic_table)
+        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+        sys.exit(0)
+
+
     if args.mic_calibration_time:
         print("Mic calibration flag detected.\n")
         print(f"Press {Fore.YELLOW}[enter]{reset_text} when ready to start mic calibration.\nMake sure there is no one speaking during this time.")
@@ -163,17 +177,6 @@ def main():
             print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
     print(f"Using device: {device}")
 
-    if args.list_microphones:
-        print("Available microphone devices are: ")
-        mic_table = PrettyTable()
-        mic_table.field_names = ["Index", "Microphone Name"]
-
-        for index, name in enumerate(sr.Microphone.list_microphone_names()):
-            if is_input_device(index):
-                mic_table.add_row([index, name])
-
-        print(mic_table)
-        sys.exit(0)
 
     if device.type == "cuda":
         # Check if multiple CUDA devices are available
