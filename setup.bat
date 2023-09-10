@@ -1,15 +1,17 @@
 @echo off
+setlocal enabledelayedexpansion
 Title Realtime Whipser Translation App
 cls
 
 if exist "data_whisper" (
     set /p reinstall="Python environment already exists. Do you want to reinstall? [y/n]: "
-    if /I "%reinstall%"=="y" (
+    if /i "!reinstall!"=="y" (
         echo Deleting existing environment...
         REM call data_whisper\Scripts\deactivate.bat :: Not Needed for now
         rmdir /s /q data_whisper
     ) else (
         echo Exiting...
+        pause
         exit /b
     )
 )
