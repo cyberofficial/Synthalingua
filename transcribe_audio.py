@@ -30,6 +30,7 @@ except:
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
 def main():
+    global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
     args = parser_args.parse_arguments()
 
     # if args.updatebranch is set as disable then skip
@@ -123,7 +124,6 @@ def main():
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
         sys.exit(0)
 
-
     if args.mic_calibration_time:
         print("Mic calibration flag detected.\n")
         print(f"Press {Fore.YELLOW}[enter]{reset_text} when ready to start mic calibration.\nMake sure there is no one speaking during this time.")
@@ -143,7 +143,6 @@ def main():
                 else:
                     break
 
-    
     valid_languages = get_valid_languages()
 
     if args.language:
@@ -163,12 +162,12 @@ def main():
                 print(valid_languages)
                 return
         target_language = args.target_language
-    
+
     if args.phrase_timeout > 1 and args.discord_webhook:
         red_text = Fore.RED + Back.BLACK
         print(f"{red_text}WARNING{reset_text}: phrase_timeout is set to {args.phrase_timeout} seconds. This will cause the webhook to send multiple messages. Setting phrase_timeout to 1 second to avoid this.")
         args.phrase_timeout = 1
-        
+
     if args.device:
         device = torch.device(args.device)
     else:
@@ -176,7 +175,6 @@ def main():
         if args.device == "cuda" and not torch.cuda.is_available():
             print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
     print(f"Using device: {device}")
-
 
     if device.type == "cuda":
         # Check if multiple CUDA devices are available
@@ -315,7 +313,6 @@ def main():
         print("Hardmodel parameter detected. Setting ram flag to hardmodel parameter.")
         args.ram = hardmodel
 
-
     if args.target_language:
         model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language)
     else:
@@ -338,13 +335,13 @@ def main():
         print("Keeping temporary files disabled.")
     temp_file = NamedTemporaryFile(dir=temp_dir, delete=keep, suffix=".ts", prefix="rec_").name
     transcription = ['']
-        
+
     if args.discord_webhook:
         webhook_url = args.discord_webhook
         print(f"Sending console output to Discord webhook that was set in parameters.")
 
     recorder.listen_in_background(source, record_callback, phrase_time_limit=record_timeout)
-    
+
     print("Model loaded.\n")
     print(f"Using {model} model.")
     if args.non_english:
@@ -356,7 +353,7 @@ def main():
 
     english_counter = 0
     language_counters = {}
-    last_detected_language = None 
+    last_detected_language = None
 
     if args.discord_webhook:
         if args.translate:
@@ -437,12 +434,11 @@ def main():
                                     print(f"Detected language: {detected_language} {confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
                         except:
                             pass
-            
 
                 if args.transcribe:
                     if args.no_log == False:
                         print("Transcribing...")
-                
+
                 if device == "cuda":
                     result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
                 else:
@@ -450,7 +446,7 @@ def main():
 
                 if args.no_log == False:
                     print(f"Detected Speech: {result['text']}")
-                
+
                 if result['text'] == "":
                     if args.retry:
                         if args.no_log == False:
@@ -468,7 +464,7 @@ def main():
                 if args.discord_webhook:
                     send_to_discord_webhook(webhook_url, f"Detected Speech: {result['text']}")
                 text = result['text'].strip()
-                
+
                 if args.translate:
                     if detected_language != 'en':
                         if args.no_log == False:
@@ -500,7 +496,6 @@ def main():
                         api_backend.update_translated_header(new_header)
                         if args.discord_webhook:
                             send_to_discord_webhook(webhook_url, "Translation failed")
-            
 
                 if args.transcribe:
                     if args.no_log == False:
@@ -534,8 +529,6 @@ def main():
                 if args.discord_webhook:
                     message = "----------------"
                     send_to_discord_webhook(webhook_url, message)
-                    
-
 
                 if phrase_complete:
                     transcription.append((text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language))
@@ -561,7 +554,7 @@ def main():
                             if args.portnumber:
                                 new_header = f"{translated_text}"
                                 api_backend.update_translated_header(new_header)
-                        
+
                         if args.transcribe and transcribed_text:
                             print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{transcribed_text}\n")
