@@ -74,6 +74,7 @@ Example: If you use the tool in a way that violates the terms of service or poli
 # Contributors 
 #### [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
 #### [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org 
+#### [@Adenser](https://github.com/Adenser)
 
 # System Requirements
 | Supported GPUs | Description |
