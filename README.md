@@ -5,6 +5,13 @@
 
 Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
 
+## Developed Proudly in PyCharm IDE from JetBrains
+JetBrains kindly approved me for an OSS licenses for thier software for use of this project. This will grealty improve my production rate.
+
+Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceSupport?from=Synthalingua)
+
+[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
+[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
