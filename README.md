@@ -22,8 +22,8 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
-| ------- | ----------------- | ---- | ----- | 
-| [1.0.9981](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9981) | Yes | Stable | Fixes an issue with web server, debug statement left over was removed. |
+| ------- |-------------------| ---- | ----- |
+| [1.0.9986](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9986) | Yes               | Stable | various updates and bug fixes, added noise gate supression argument. `--mic_calibration_time` check arguments below. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
