@@ -1,6 +1,6 @@
 from modules.imports import *
 
-version = "1.0.9981"
+version = "1.0.9985"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"
@@ -9,6 +9,14 @@ repo_name = "Synthalingua"
 def get_remote_version(repo_owner, repo_name, updatebranch, file_path):
     url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{updatebranch}/{file_path}"
     response = requests.get(url)
+
+    # if the response failed then return None
+    if response.status_code != 200:
+        print(f"{Fore.RED}An error occurred when checking for updates. Status code: {response.status_code}{Style.RESET_ALL}")
+        print(f"Could not fetch remote version from: {Fore.YELLOW}{url}{Style.RESET_ALL}")
+        print(f"Please check your internet connection and try again.")
+        print("\n\n")
+        return None
 
     if response.status_code == 200:
         remote_file_content = response.text
@@ -29,6 +37,10 @@ def get_remote_version(repo_owner, repo_name, updatebranch, file_path):
 def check_for_updates(updatebranch):
     local_version = version
     remote_version = get_remote_version(repo_owner, repo_name, updatebranch, "modules/version_checker.py")
+
+    # if the response failed then return None
+    if remote_version is None:
+        return
 
     if remote_version is not None:
         # Split the version numbers into parts (major, minor, patch)
