@@ -5,6 +5,7 @@
 
 Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
 
+
 ## Developed Proudly in PyCharm IDE from JetBrains
 JetBrains kindly approved me for an OSS licenses for thier software for use of this project. This will grealty improve my production rate.
 
@@ -12,6 +13,12 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
+
+# Changes in the Dev-Testing branch
+* Added microphone calibration time. This will allow you to set how long the microphone will calibrate for. This will help with background noise and other issues. You can set it to 0 to skip user input and set it to auto 5 seconds.
+* Fixed an issue where the console log did not show the translated text on update.
+* If the updater fails to update, it will now show the error message rather crashing.
+
 
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
@@ -24,17 +31,17 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 #### Readme will update as time goes. This is a work in progress.
 
 ### Table of Contents
-1. [Disclaimer](#things-to-knowdisclaimerswarningsetc)
-2. [To Do List](#todo)
-3. [Contributors](#contributors)
-4. [Installing/Setup](#installation)
-5. [Usage and File Arguments](#usage)
-     * [Examples](#examples)
-     * [Web Server](#web-server)
-6. [Troubleshooting](#troubleshooting)
-7. [Additional Info](#additional-information)
-8. [Video Demos](#video-demonstration)
-9. [Extra Notes](#things-to-note)
+| Table of Contents | Description |
+| ----------------- | ----------- |
+| [Disclaimer](#things-to-knowdisclaimerswarningsetc) | Things to know/Disclaimers/Warnings/etc |
+| [To Do List](#todo) | Things to do |
+| [Contributors](#contributors) | People who helped with the project or contributed to the project. |
+| [Installing/Setup](#installation) | How to install and setup the tool. |
+| Misc | [Usage and File Arguments](#usage) - [Examples](#examples) - [Web Server](#web-server) |
+| [Troubleshooting](#troubleshooting) | Common issues and how to fix them. |
+| [Additional Info](#additional-information) | Additional information about the tool. |
+| [Video Demos](#video-demonstration) | Video demonstrations of the tool. |
+| [Extra Notes](#things-to-note) | Extra notes about the tool. |
 
 ## Things to know/Disclaimers/Warnings/etc
 - This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
@@ -77,6 +84,7 @@ Example: If you use the tool in a way that violates the terms of service or poli
 # Contributors 
 #### [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
 #### [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org 
+#### [@Adenser](https://github.com/Adenser)
 
 # System Requirements
 | Supported GPUs | Description |
@@ -134,6 +142,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
 | `--non_english` | Use non-English models for transcription. Enables the use of non-English models. |
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
+| `--mic_calibration_time` | How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds. |
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
 | `--phrase_timeout` | Set the time in seconds for empty space between recordings before considering it a new line in the transcription. Default is 1 second. |
 | `--translate` | Translate the transcriptions to English. Enables translation. |
