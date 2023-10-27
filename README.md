@@ -116,6 +116,8 @@ Note:
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
+### A Microphone is required! You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information. 
+
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
      * Make sure to check the box that says "Add Python to PATH" when installing. If you don't check the box, you will have to manually add Python to your PATH. You can check this guide: [How to add Python to PATH](https://datatofish.com/add-python-to-windows-path/).

@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-Title Realtime Whipser Translation App
+Title Realtime Whisper Translation App
 cls
 
 if exist "data_whisper" (

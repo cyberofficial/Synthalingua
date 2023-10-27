@@ -617,22 +617,27 @@ def main():
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
             # break
 
-            if not os.path.isdir('out'):
-                os.mkdir('out')
-            
-            transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
-            if os.path.isfile(transcript):
-                transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
-            transcription_file = open(transcript, 'w',  encoding='utf-8')
+            if args.save_transcript:
+                # if args.save_folder isn't set use "out" as the default
+                if not args.output:
+                    out = "out"
+                out = args.output
+                if not os.path.isdir(out):
+                    os.mkdir(out)
 
-            for original_text, translated_text, transcribed_text, detected_language in transcription:
-                transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
-                if translated_text:
-                    transcription_file.write(f"Translation: {translated_text}\n")
-                if transcribed_text:
-                    transcription_file.write(f"Transcription: {transcribed_text}\n")
-            transcription_file.close()
-            print(f"Transcription was saved to {transcript}")
+                transcript = os.path.join(os.getcwd(), out, 'transcription.txt')
+                if os.path.isfile(transcript):
+                    transcript = os.path.join(os.getcwd(), out, 'transcription_' + str(len(os.listdir(out))) + '.txt')
+                transcription_file = open(transcript, 'w',  encoding='utf-8')
+
+                for original_text, translated_text, transcribed_text, detected_language in transcription:
+                    transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
+                    if translated_text:
+                        transcription_file.write(f"Translation: {translated_text}\n")
+                    if transcribed_text:
+                        transcription_file.write(f"Transcription: {transcribed_text}\n")
+                transcription_file.close()
+                print(f"Transcription was saved to {transcript}")
 
             if args.portnumber:
                 api_backend.kill_server()
