@@ -105,6 +105,13 @@ def main():
     recorder.dynamic_energy_threshold = False
     reset_text = Style.RESET_ALL
 
+    #mic_check = microphone_check()
+    #if mic_check == False:
+    #    print("Microphone check failed. Exiting...")
+    #    print("If you are using a virtual audio cable, please make sure it is set as the default input device.")
+    #    print("If you are windows, make sure the microphone is set as the default input device, check the privacy settings, and make sure the microphone is plugged in, if you are using a virtual audio cable, make sure it is set as the default input device.")
+    #    sys.exit(1)
+
     def mic_calibration():
         print("Starting mic calibration...")
         with sr.Microphone() as source:
@@ -206,15 +213,17 @@ def main():
     try:
         source, mic_name = get_microphone_source(args)
     except ValueError as e:
-        print(e)
-        sys.exit(0)
+        print(
+            "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+        print("Error Message:\n" + str(e))
 
     with source as s:
         try:
             recorder.adjust_for_ambient_noise(s)
             print(f"Microphone set to: {mic_name}")
         except AssertionError as e:
-            print(e)
+            print("It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+            print("Error Message:\n" + str(e))
 
     #if args.language == "en" or args.language == "English":
     #    model += ".en"
@@ -621,7 +630,8 @@ def main():
                 # if args.save_folder isn't set use "out" as the default
                 if not args.output:
                     out = "out"
-                out = args.output
+                else:
+                    out = args.output
                 if not os.path.isdir(out):
                     os.mkdir(out)
 
