@@ -1,54 +1,72 @@
 @echo off
 setlocal enabledelayedexpansion
-Title Realtime Whisper Translation App
-cls
+Title Realtime Whisper Translation App Setup
 
+:check_python
+echo Checking for Python installation...
+where python >nul 2>&1
+if !errorlevel! neq 0 (
+    echo Python is not installed or not in the PATH. Please install Python before continuing.
+    exit /b
+)
+
+:prepare_environment
+cls
 if exist "data_whisper" (
-    set /p reinstall="Python environment already exists. Do you want to reinstall? [y/n]: "
-    if /i "!reinstall!"=="y" (
+    set /p reinstall="Python environment 'data_whisper' already exists. Reinstall it? [Y/N]: "
+    if /i "!reinstall!"=="Y" (
         echo Deleting existing environment...
-        REM call data_whisper\Scripts\deactivate.bat :: Not Needed for now
         rmdir /s /q data_whisper
     ) else (
-        echo Exiting...
+        echo Operation cancelled by user.
         pause
         exit /b
     )
 )
 
-Echo Creating python environment...
+echo Creating a new Python virtual environment...
 python -m venv data_whisper
 
-Echo Created Env...
-
+echo Activating the environment...
 call data_whisper\Scripts\activate.bat
-Echo Installing Whisper
-Echo Updating pip
+
+:install_dependencies
+echo Upgrading pip to the latest version...
 python.exe -m pip install --upgrade pip
 
-Echo Installing Requirements...
+echo Installing wheel and setuptools-rust...
 pip install wheel
 pip install setuptools-rust
-pip install -r requirements_static.txt
 
-:cuda-patch
-Echo Fixing CUDA Since Whisper installs non gpu version.
+echo Checking for 'requirements.txt'...
+if not exist "requirements.txt" (
+    echo 'requirements.txt' not found. Please ensure it is in the current directory.
+    exit /b
+)
+
+echo Installing requirements from 'requirements.txt'...
+pip install -r requirements.txt
+
+:cuda_patch
+echo Applying CUDA patch to install GPU versions of PyTorch packages...
 pip uninstall --yes torch torchvision torchaudio
 pip cache purge
-pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-Echo. Setup Completed!
+echo Whisper translation environment setup completed!
 
+:create_shortcut
+echo Creating a shortcut batch file for the translation app...
+(
+    echo @echo off
+    echo cls
+    echo call "data_whisper\Scripts\activate.bat"
+    echo python "transcribe_audio.py" --ram 4gb --non_english --translate
+    echo pause
+) > "livetranslation.bat"
 
-:creating shortcut
-Echo Creating example shortcut in %cd%
-Echo You can edit with notepad anytime.
-Echo.
-Echo @echo off > livetranslation.bat
-Echo cls >> livetranslation.bat
-Echo call "data_whisper\Scripts\activate.bat" >> livetranslation.bat
-Echo python "transcribe_audio.py" --ram 4gb --non_english --translate >> livetranslation.bat
-Echo pause >> livetranslation.bat
+echo Shortcut 'livetranslation.bat' created in the current directory.
+echo You can edit this file with notepad if necessary.
+
 pause
-
-:eof
+exit /b

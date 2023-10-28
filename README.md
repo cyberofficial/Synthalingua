@@ -160,6 +160,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--portnumber` | Set the port number for the web server. If no number is set then the web server will not start. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
+| `--save_transcript` | Saves the transcript to a text file. |
+| `--save_folder` | Set the folder to save the transcript to. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -233,6 +235,8 @@ If you encounter any issues with the tool, here are some common problems and the
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 * Translator can't pickup stream sound
     * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+* Error: Audio source must be entered before adjusting.
+    * You need to make sure you have a microphone set up. See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
