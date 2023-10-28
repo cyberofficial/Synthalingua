@@ -14,16 +14,11 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
-# Changes in the Dev-Testing branch
-* Added microphone calibration time. This will allow you to set how long the microphone will calibrate for. This will help with background noise and other issues. You can set it to 0 to skip user input and set it to auto 5 seconds.
-* Fixed an issue where the console log did not show the translated text on update.
-* If the updater fails to update, it will now show the error message rather crashing.
-
 
 ### Downloads
 | Version (Click to DL) | Portable Included | Type | Notes |
-| ------- | ----------------- | ---- | ----- | 
-| [1.0.9981](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9981) | Yes | Stable | Fixes an issue with web server, debug statement left over was removed. |
+| ------- |-------------------| ---- | ----- |
+| [1.0.9986](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9986) | Yes               | Stable | various updates and bug fixes, added noise gate supression argument. `--mic_calibration_time` check arguments below. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
