@@ -16,9 +16,10 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 
 ### Downloads
-| Version (Click to DL) | Portable Included | Type | Notes |
-| ------- |-------------------| ---- | ----- |
+| Version (Click to DL)                                                           | Portable Included | Type | Notes                                                                                                                |
+|---------------------------------------------------------------------------------|-------------------| ---- |----------------------------------------------------------------------------------------------------------------------|
 | [1.0.9986](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9986) | Yes               | Stable | various updates and bug fixes, added noise gate supression argument. `--mic_calibration_time` check arguments below. |
+| [Pre Release \| 1.0.9989](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9989) | Building...       | Pre-Release | Update for Model V3. Various bug fixes. New command line arguments                                                   |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
@@ -111,6 +112,8 @@ Note:
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
+### A Microphone is required! You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information. 
+
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
      * Make sure to check the box that says "Add Python to PATH" when installing. If you don't check the box, you will have to manually add Python to your PATH. You can check this guide: [How to add Python to PATH](https://datatofish.com/add-python-to-windows-path/).
@@ -158,6 +161,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--portnumber` | Set the port number for the web server. If no number is set then the web server will not start. |
 | `--retry` | Retries translations and transcription if they fail. |
 | `--about` | Shows about the app. |
+| `--save_transcript` | Saves the transcript to a text file. |
+| `--save_folder` | Set the folder to save the transcript to. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -231,6 +236,8 @@ If you encounter any issues with the tool, here are some common problems and the
     Try this fix: https://github.com/cyberofficial/Real-Time-Translation/issues/2#issuecomment-1491098222
 * Translator can't pickup stream sound
     * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
+* Error: Audio source must be entered before adjusting.
+    * You need to make sure you have a microphone set up. See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)

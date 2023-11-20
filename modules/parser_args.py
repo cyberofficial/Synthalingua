@@ -33,7 +33,7 @@ def set_model_by_ram(ram, language, target_language):
         else:
             model = "medium"
     elif ram == "12gb":
-        model = "large"
+        model = "large-v3"
         if language == "en" or language == "English":
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
@@ -78,6 +78,8 @@ def parse_arguments():
     parser.add_argument(
     "--portnumber", default=None, help="Port number to run the web server on. If not specified, the web server will not run.", type=valid_port_number)
     parser.add_argument("--about", action='store_true', help="About the project.")
+    parser.add_argument("--save_transcript", action='store_true', help="Save the transcript to a file.")
+    parser.add_argument("--save_folder", default="out", help="Folder to save the transcript to.")
     args = parser.parse_args()
     return args
 

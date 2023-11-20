@@ -105,6 +105,13 @@ def main():
     recorder.dynamic_energy_threshold = False
     reset_text = Style.RESET_ALL
 
+    #mic_check = microphone_check()
+    #if mic_check == False:
+    #    print("Microphone check failed. Exiting...")
+    #    print("If you are using a virtual audio cable, please make sure it is set as the default input device.")
+    #    print("If you are windows, make sure the microphone is set as the default input device, check the privacy settings, and make sure the microphone is plugged in, if you are using a virtual audio cable, make sure it is set as the default input device.")
+    #    sys.exit(1)
+
     def mic_calibration():
         print("Starting mic calibration...")
         with sr.Microphone() as source:
@@ -206,15 +213,17 @@ def main():
     try:
         source, mic_name = get_microphone_source(args)
     except ValueError as e:
-        print(e)
-        sys.exit(0)
+        print(
+            "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+        print("Error Message:\n" + str(e))
 
     with source as s:
         try:
             recorder.adjust_for_ambient_noise(s)
             print(f"Microphone set to: {mic_name}")
         except AssertionError as e:
-            print(e)
+            print("It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+            print("Error Message:\n" + str(e))
 
     #if args.language == "en" or args.language == "English":
     #    model += ".en"
@@ -393,7 +402,11 @@ def main():
 
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
-                mel = whisper.log_mel_spectrogram(audio).to(device)
+                # if ram is set to 12 use n_mels=128 else use n_mels=80
+                if args.ram == "12gb":
+                    mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
+                else:
+                    mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
 
                 if ".en" in model:
                     detected_language = "English"
@@ -617,22 +630,28 @@ def main():
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
             # break
 
-            if not os.path.isdir('out'):
-                os.mkdir('out')
-            
-            transcript = os.path.join(os.getcwd(), 'out', 'transcription.txt')
-            if os.path.isfile(transcript):
-                transcript = os.path.join(os.getcwd(), 'out', 'transcription_' + str(len(os.listdir('out'))) + '.txt')
-            transcription_file = open(transcript, 'w',  encoding='utf-8')
+            if args.save_transcript:
+                # if args.save_folder isn't set use "out" as the default
+                if not args.output:
+                    out = "out"
+                else:
+                    out = args.output
+                if not os.path.isdir(out):
+                    os.mkdir(out)
 
-            for original_text, translated_text, transcribed_text, detected_language in transcription:
-                transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
-                if translated_text:
-                    transcription_file.write(f"Translation: {translated_text}\n")
-                if transcribed_text:
-                    transcription_file.write(f"Transcription: {transcribed_text}\n")
-            transcription_file.close()
-            print(f"Transcription was saved to {transcript}")
+                transcript = os.path.join(os.getcwd(), out, 'transcription.txt')
+                if os.path.isfile(transcript):
+                    transcript = os.path.join(os.getcwd(), out, 'transcription_' + str(len(os.listdir(out))) + '.txt')
+                transcription_file = open(transcript, 'w',  encoding='utf-8')
+
+                for original_text, translated_text, transcribed_text, detected_language in transcription:
+                    transcription_file.write(f"-=-=-=-=-=-=-=-\nOriginal ({detected_language}): {original_text}\n")
+                    if translated_text:
+                        transcription_file.write(f"Translation: {translated_text}\n")
+                    if transcribed_text:
+                        transcription_file.write(f"Transcription: {transcribed_text}\n")
+                transcription_file.close()
+                print(f"Transcription was saved to {transcript}")
 
             if args.portnumber:
                 api_backend.kill_server()
