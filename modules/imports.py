@@ -37,6 +37,7 @@ try:
     from prettytable import PrettyTable
     from dateutil.tz import tzlocal
     from tzlocal import get_localzone
+
 except Exception as e:
     print("Error Loading Primary Imports")
     print("Check to make sure you have all the required modules installed.")
@@ -57,6 +58,7 @@ try:
     from modules import parser_args
     from modules.languages import get_valid_languages
     from modules import api_backend
+    #from modules import microphone_check
 except Exception as e:
     print("Error Loading Extensions")
     print("Check the Modules folder and see if there are any missing or corrupted files.")
