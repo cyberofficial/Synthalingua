@@ -33,7 +33,7 @@ def set_model_by_ram(ram, language, target_language):
         else:
             model = "medium"
     elif ram == "12gb":
-        model = "large"
+        model = "large-v3"
         if language == "en" or language == "English":
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
