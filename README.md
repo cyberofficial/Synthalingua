@@ -18,7 +18,6 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 ### Downloads
 | Version (Click to DL)                                                           | Portable Included | Type | Notes                                                                                                                |
 |---------------------------------------------------------------------------------|-------------------| ---- |----------------------------------------------------------------------------------------------------------------------|
-| [1.0.9986](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9986) | Yes | Stable | various updates and bug fixes, added noise gate supression argument. `--mic_calibration_time` check arguments below. |
 | [1.0.9989](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9989) | Yes | Release | Update for Model V3. Various bug fixes. New command line arguments                                                   |
 
 ### Badges
