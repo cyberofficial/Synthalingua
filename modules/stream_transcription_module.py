@@ -1,24 +1,27 @@
 # stream_transcription_module.py
-
-import os
-import hashlib
-import queue
-import shutil
-import threading
-import whisper
-import m3u8
-import requests
+from modules.imports import *
 
 # Global shutdown flag
 shutdown_flag = False
 
-def start_stream_transcription(hls_url, model_name, temp_dir, segments_max):
+def load_cookies_from_file(file_path):
+    cookie_jar = http.cookiejar.MozillaCookieJar()
+    cookie_jar.load(file_path, ignore_discard=True, ignore_expires=True)
+    return cookie_jar
+
+def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path=None):
     global shutdown_flag
     audio_queue = queue.Queue()
 
+    # Load cookies if a cookie file path is provided
+    cookies = None
+    if cookie_file_path:
+        cookies = load_cookies_from_file(cookie_file_path)
+
     def download_segment(segment_url, output_path):
         try:
-            response = requests.get(segment_url, stream=True)
+            # Use cookies if they are loaded
+            response = requests.get(segment_url, stream=True, cookies=cookies) if cookies else requests.get(segment_url, stream=True)
             if response.status_code == 200:
                 with open(output_path, 'wb') as file:
                     for chunk in response.iter_content(chunk_size=16000):
@@ -41,7 +44,7 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max):
 
     def translate_audio(file_path, model):
         try:
-            result = model.transcribe(file_path, task="translate")
+            result = model.transcribe(file_path, task="translate", language=stream_language)
             return result["text"]
         except RuntimeError as e:
             print(f"Error transcribing audio: {e}")
@@ -49,7 +52,7 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max):
 
     def transcribe_audio(file_path, model):
         try:
-            result = model.transcribe(file_path)
+            result = model.transcribe(file_path, language=target_language)
             return result["text"]
         except RuntimeError as e:
             print(f"Error transcribing audio: {e}")
@@ -60,11 +63,25 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max):
             file_path = audio_queue.get()
             if file_path is None:
                 break
-            translation = translate_audio(file_path, model)
-            if translation:
-                print(
-                    f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                print(translation)
+
+            transcription = None
+            translation = None
+
+            if tasktranslate_task:
+                translation = translate_audio(file_path, model)
+                if translation:
+                    print(f"{'-' * 50} Stream EN Translation {'-' * 50}")
+                    print(translation)
+                    if webhook_url:
+                        send_to_discord_webhook(webhook_url, f"Stream EN Translation:\n{translation}\n")
+
+            if tasktranscribe_task:
+                transcription = transcribe_audio(file_path, model)
+                if transcription:
+                    print(f"{'-' * 50} Stream {target_language} Transcription {'-' * 50}")
+                    print(transcription)
+                    if webhook_url:
+                        send_to_discord_webhook(webhook_url, f"Stream {target_language} Transcription:\n{transcription}\n")
 
             os.remove(file_path)
 
@@ -107,3 +124,5 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max):
 def stop_transcription():
     global shutdown_flag
     shutdown_flag = True
+
+print("Stream Transcription Module Loaded")
