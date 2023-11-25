@@ -30,6 +30,7 @@ except:
 # Code is semi documented, but if you have any questions, feel free to ask in the Discussions tab.
 
 def main():
+
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
     args = parser_args.parse_arguments()
 
@@ -82,7 +83,7 @@ def main():
         raise ValueError("No valid input devices found.")
 
     if len(sys.argv) == 1:
-        parser.print_help()
+        print("No arguments provided. Please run the script with the --help flag to see a list of available arguments.")
         sys.exit(1)
 
     if args.about:
@@ -105,12 +106,6 @@ def main():
     recorder.dynamic_energy_threshold = False
     reset_text = Style.RESET_ALL
 
-    #mic_check = microphone_check()
-    #if mic_check == False:
-    #    print("Microphone check failed. Exiting...")
-    #    print("If you are using a virtual audio cable, please make sure it is set as the default input device.")
-    #    print("If you are windows, make sure the microphone is set as the default input device, check the privacy settings, and make sure the microphone is plugged in, if you are using a virtual audio cable, make sure it is set as the default input device.")
-    #    sys.exit(1)
 
     def mic_calibration():
         print("Starting mic calibration...")
@@ -216,6 +211,7 @@ def main():
         print(
             "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
         print("Error Message:\n" + str(e))
+        pass
 
     with source as s:
         try:
@@ -224,6 +220,7 @@ def main():
         except AssertionError as e:
             print("It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
             print("Error Message:\n" + str(e))
+            pass
 
     #if args.language == "en" or args.language == "English":
     #    model += ".en"
@@ -376,7 +373,30 @@ def main():
         if args.discord_webhook:
             send_to_discord_webhook(webhook_url, "Auto language lock enabled. Will auto lock after 5 consecutive detections of the same language.")
 
-    print("Awaiting audio stream...")
+    if args.stream:
+        print("Stream mode enabled.")
+        print(f"You have chosen to use the stream {args.stream}.")
+
+        # Get HLS URL using yt-dlp
+        hls_url = subprocess.check_output(["yt-dlp", args.stream, "-g"]).decode("utf-8").strip()
+        print(f"Found the Stream URL:\n{hls_url}")
+
+        # Define the temp directory and model name
+        temp_dir = os.path.join(os.getcwd(), "./temp")
+        os.makedirs(temp_dir, exist_ok=True)
+        model_name = audio_model  # or any other model you want to use
+
+
+        # Start stream transcription
+        segments_max = args.stream_chunks if hasattr(args, 'stream_chunks') else 1
+        # start start_stream_transcription(hls_url, model_name, temp_dir, segments_max) in a new thread
+        stream_thread = threading.Thread(target=start_stream_transcription,
+                                         args=(hls_url, model_name, temp_dir, segments_max))
+        stream_thread.start()
+
+
+
+    print("Awaiting audio stream from microphone...")
 
     while True:
         try:
@@ -626,6 +646,10 @@ def main():
 
         except KeyboardInterrupt:
             print("Exiting...")
+            # kill stream_thread
+            if args.stream:
+                stop_transcription()
+
             if args.discord_webhook:
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
             # break
