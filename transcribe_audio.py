@@ -398,10 +398,6 @@ def main():
         print("Stream mode enabled.")
         print(f"You have chosen to use the stream {args.stream}.")
 
-        # Get HLS URL using yt-dlp
-        hls_url = subprocess.check_output(["yt-dlp", args.stream, "-g"]).decode("utf-8").strip()
-        print(f"Found the Stream URL:\n{hls_url}")
-
         # Define the temp directory and model name
         temp_dir = os.path.join(os.getcwd(), "./temp")
         os.makedirs(temp_dir, exist_ok=True)
@@ -429,10 +425,17 @@ def main():
         else:
             webhook_url = None
 
+        # Get HLS URL using yt-dlp
+        hls_url = subprocess.check_output(["yt-dlp", args.stream, "-g"]).decode("utf-8").strip()
+
         if args.cookies:
             # f"cookies\\{args.cookies}.txt"
             cookie_file_path = f"cookies\\{args.cookies}.txt"
+            # update hls_url with cookies if cookies are set
+            hls_url = subprocess.check_output(["yt-dlp", args.stream, "-g", "--cookies", cookie_file_path]).decode("utf-8").strip()
 
+
+        print(f"Found the Stream URL:\n{hls_url}")
 
 
         # Start stream transcription
