@@ -44,6 +44,7 @@ try:
     import time
     import m3u8
     import hashlib
+    import http.cookiejar
 
 except Exception as e:
     print("Error Loading Primary Imports")

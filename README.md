@@ -73,6 +73,7 @@ Example: If you use the tool in a way that violates the terms of service or poli
 |       | Compressed Model Format for lower ram users | ✅ |
 |       | Better large model loading speed | ❌ |
 |          | Split model up into multiple chunks based on usage | ❌ |
+| Stream Audio from URL | | ✅ |
 | Increase model swapping accuracy. | | ❌ |
 
 
@@ -152,6 +153,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--discord_webhook` | Set the Discord webhook to send the transcription to. |
 | `--list_microphones` | List available microphones and exit. |
 | `--set_microphone` | Set the default microphone to use. You can set the name or its ID number from the list. |
+| `--microphone_enabled` | Enables microphone usage. Add `true` after the flag. |
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
@@ -162,12 +164,22 @@ This script uses argparse to accept command line arguments. The following option
 | `--about` | Shows about the app. |
 | `--save_transcript` | Saves the transcript to a text file. |
 | `--save_folder` | Set the folder to save the transcript to. |
+| `--stream_language` | Language of the stream. Default is English. |
+| `--stream_target_language` | Language to translate the stream to. Default is English. |
+| `--stream_translate` | Translate the stream. |
+| `--stream_transcribe` | Transcribe the stream to different language. |
+| `--stream_chunks` | How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10. The higher the number, the more accurate, but also the slower and delayed the stream translation and transcription will be. |
+| (`--cookies`)[#cookies] | Set the cookies for the stream.  |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
+
+## Cookies
+Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
+You can save cookies using this https://cookie-editor.com/ or any other cookie editor, but it must be in netscape format.
 
 ## Web Server
 With the command flag `--port 4000`, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default. You can choose another number other than `4000` if you want. You can mix the query parameters to show specific elements, leave blank to show all elements.
@@ -181,6 +193,10 @@ For example:
 
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
+You have a 12gb GPU and want to stream the audio from a live stream https://www.twitch.tv/somestreamerhere and want to translate it to English. You can run the following command:
+`python transcribe_audio.py --ram 12gb --stream_translate --stream_language Japanese --stream_url https://www.twitch.tv/somestreamerhere`
+Stream Sources from YouTube and Twitch are supported. You can also use any other stream source that supports HLS/m3u8.
 
 
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:

@@ -34,6 +34,21 @@ def main():
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
     args = parser_args.parse_arguments()
 
+    # Check for Stream or Microphone is no present then exit
+    if args.stream == None and args.microphone_enabled == None:
+        print("No audio source was set. Please set an audio source.")
+        reset_text = Style.RESET_ALL
+        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+        sys.exit("Exiting...")
+
+    # If stream and microphone is set then exit saying you can only use one input source
+    if args.stream != None and args.microphone_enabled != None:
+        print("You can only use one input source. Please only set one input source.")
+        reset_text = Style.RESET_ALL
+        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+        sys.exit("Exiting...")
+
+
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
         print("\nChecking for updates...")
@@ -126,24 +141,25 @@ def main():
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
         sys.exit(0)
 
-    if args.mic_calibration_time:
-        print("Mic calibration flag detected.\n")
-        print(f"Press {Fore.YELLOW}[enter]{reset_text} when ready to start mic calibration.\nMake sure there is no one speaking during this time.")
-        if args.mic_calibration_time == 0:
-            args.mic_calibration_time = 5
-            mic_calibration()
-        else:
-            print("Waiting for user input...")
-            input()
-            mic_calibration()
-            print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
-            while True:
-                user_input = input("r/enter: ")
-                if user_input == "r":
-                    mic_calibration()
-                    print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
-                else:
-                    break
+    if args.microphone_enabled:
+        if args.mic_calibration_time:
+            print("Mic calibration flag detected.\n")
+            print(f"Press {Fore.YELLOW}[enter]{reset_text} when ready to start mic calibration.\nMake sure there is no one speaking during this time.")
+            if args.mic_calibration_time == 0:
+                args.mic_calibration_time = 5
+                mic_calibration()
+            else:
+                print("Waiting for user input...")
+                input()
+                mic_calibration()
+                print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
+                while True:
+                    user_input = input("r/enter: ")
+                    if user_input == "r":
+                        mic_calibration()
+                        print(f"If you are happy with this setting press {Fore.YELLOW}[enter]{reset_text} or type {Fore.YELLOW}[r]{reset_text} then {Fore.YELLOW}[enter]{reset_text} to recalibrate.\n")
+                    else:
+                        break
 
     valid_languages = get_valid_languages()
 
@@ -165,10 +181,11 @@ def main():
                 return
         target_language = args.target_language
 
-    if args.phrase_timeout > 1 and args.discord_webhook:
-        red_text = Fore.RED + Back.BLACK
-        print(f"{red_text}WARNING{reset_text}: phrase_timeout is set to {args.phrase_timeout} seconds. This will cause the webhook to send multiple messages. Setting phrase_timeout to 1 second to avoid this.")
-        args.phrase_timeout = 1
+    if args.microphone_enabled:
+        if args.phrase_timeout > 1 and args.discord_webhook:
+            red_text = Fore.RED + Back.BLACK
+            print(f"{red_text}WARNING{reset_text}: phrase_timeout is set to {args.phrase_timeout} seconds. This will cause the webhook to send multiple messages. Setting phrase_timeout to 1 second to avoid this.")
+            args.phrase_timeout = 1
 
     if args.device:
         device = torch.device(args.device)
@@ -206,21 +223,23 @@ def main():
         api_backend.flask_server(operation="start", portnumber=args.portnumber)
 
     try:
-        source, mic_name = get_microphone_source(args)
+        if args.microphone_enabled:
+            source, mic_name = get_microphone_source(args)
     except ValueError as e:
         print(
             "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
         print("Error Message:\n" + str(e))
         pass
 
-    with source as s:
-        try:
-            recorder.adjust_for_ambient_noise(s)
-            print(f"Microphone set to: {mic_name}")
-        except AssertionError as e:
-            print("It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
-            print("Error Message:\n" + str(e))
-            pass
+    if args.microphone_enabled:
+        with source as s:
+            try:
+                recorder.adjust_for_ambient_noise(s)
+                print(f"Microphone set to: {mic_name}")
+            except AssertionError as e:
+                print("It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+                print("Error Message:\n" + str(e))
+                pass
 
     #if args.language == "en" or args.language == "English":
     #    model += ".en"
@@ -327,8 +346,9 @@ def main():
 
     audio_model = whisper.load_model(model, device=device, download_root="models")
 
-    record_timeout = args.record_timeout
-    phrase_timeout = args.phrase_timeout
+    if args.microphone_enabled:
+        record_timeout = args.record_timeout
+        phrase_timeout = args.phrase_timeout
 
     if not os.path.exists("temp"):
         os.makedirs("temp")
@@ -346,7 +366,8 @@ def main():
         webhook_url = args.discord_webhook
         print(f"Sending console output to Discord webhook that was set in parameters.")
 
-    recorder.listen_in_background(source, record_callback, phrase_time_limit=record_timeout)
+    if args.microphone_enabled:
+        recorder.listen_in_background(source, record_callback, phrase_time_limit=record_timeout)
 
     print("Model loaded.\n")
     print(f"Using {model} model.")
@@ -386,17 +407,46 @@ def main():
         os.makedirs(temp_dir, exist_ok=True)
         model_name = audio_model  # or any other model you want to use
 
+        stream_language = args.stream_language
+        if args.stream_target_language:
+            target_language = args.stream_target_language
+        else:
+            target_language = "en"
+        if args.stream_translate:
+            tasktranslate_task = True
+        else:
+            tasktranslate_task = False
+        if args.stream_transcribe:
+            tasktranscribe_task = True
+        else:
+            tasktranscribe_task = False
+
+        if args.discord_webhook:
+            if args.stream_translate:
+                send_to_discord_webhook(webhook_url, f"Stream Transcription started. Translation enabled.\nUsing the {args.ram} ram model.")
+            if args.stream_transcribe:
+                send_to_discord_webhook(webhook_url, f"Stream Transcription started. Transcription enabled.\nUsing the {args.ram} ram model.")
+        else:
+            webhook_url = None
+
+        if args.cookies:
+            # f"cookies\\{args.cookies}.txt"
+            cookie_file_path = f"cookies\\{args.cookies}.txt"
+
+
 
         # Start stream transcription
         segments_max = args.stream_chunks if hasattr(args, 'stream_chunks') else 1
         # start start_stream_transcription(hls_url, model_name, temp_dir, segments_max) in a new thread
         stream_thread = threading.Thread(target=start_stream_transcription,
-                                         args=(hls_url, model_name, temp_dir, segments_max))
+                                         args=(hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path))
         stream_thread.start()
 
+    if args.microphone_enabled:
+        print("Awaiting audio stream from microphone...")
+    else:
+        print("Microphone disabled. Awaiting audio stream from stream...")
 
-
-    print("Awaiting audio stream from microphone...")
 
     while True:
         try:
