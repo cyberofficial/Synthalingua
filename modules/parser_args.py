@@ -43,7 +43,7 @@ def set_model_by_ram(ram, language, target_language):
             if input("y/n: ").lower() == "y":
                 model = "medium.en"
             else:
-                model = "large"
+                model = "large-v3"
     else:
         raise ValueError("Invalid RAM setting provided")
 
@@ -80,6 +80,8 @@ def parse_arguments():
     parser.add_argument("--about", action='store_true', help="About the project.")
     parser.add_argument("--save_transcript", action='store_true', help="Save the transcript to a file.")
     parser.add_argument("--save_folder", default="out", help="Folder to save the transcript to.")
+    parser.add_argument("--stream", default=None, help="Stream mode. Specify the url to the stream. Example: https://twitch.tv/laplusdarknesss_hololive")
+    parser.add_argument("--stream_chunks", default=5, help="How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10.", type=int)
     args = parser.parse_args()
     return args
 

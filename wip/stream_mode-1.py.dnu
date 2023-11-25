@@ -8,10 +8,10 @@ import threading
 import queue
 
 # Default settings
-url = "m3u8 url"
+url = "https://manifest.googlevideo.com/api/manifest/hls_playlist/expire/1700959456/ei/gEBiZeyXBM-6_9EP1c2FgAw/ip/174.166.164.2/id/GGIjs5vwb7E.1/itag/301/source/yt_live_broadcast/requiressl/yes/ratebypass/yes/live/1/sgoap/gir%3Dyes%3Bitag%3D140/sgovp/gir%3Dyes%3Bitag%3D299/rqh/1/hls_chunk_host/rr1---sn-jvhj5nu-2ial.googlevideo.com/playlist_duration/30/manifest_duration/30/spc/UWF9fzw4FLLhOS4j94q0GXaYf6GYNrE/vprv/1/playlist_type/DVR/initcwndbps/1542500/mh/fp/mm/44/mn/sn-jvhj5nu-2ial/ms/lva/mv/m/mvi/1/pl/22/dover/11/pacing/0/keepalive/yes/fexp/24007246/mt/1700937394/sparams/expire,ei,ip,id,itag,source,requiressl,ratebypass,live,sgoap,sgovp,rqh,playlist_duration,manifest_duration,spc,vprv,playlist_type/sig/ANLwegAwRgIhAPBzXdd51OkUrAQdQVX6POJSaq_Ua43qr1H3Q1SAO2ANAiEA22KjiB15AZS8JE-mN237dPangAvF-Pj1yz8EjfXm8Ws%3D/lsparams/hls_chunk_host,initcwndbps,mh,mm,mn,ms,mv,mvi,pl/lsig/AM8Gb2swQwIgVgbiYDbwumb_HEsxYuU8bTm2FcZgTcBUTJIZOn1FJHsCHwvnZ8o3X8tfZoq6jB2xJbkg_SvQKZh7OHHU5-8stdY%3D/playlist/index.m3u8"
 fmt = 'aac'  # the audio format extension of the stream
 initial_step_s = 1  # Initial chunk size
-max_step_s = 20     # Maximum chunk size
+max_step_s = 30     # Maximum chunk size
 model_name = "base"
 
 # Initialize a queue
@@ -53,7 +53,7 @@ if len(sys.argv) > 3:
     model_name = sys.argv[3]
 
 # Temporary file paths
-temp_dir = os.path.join(os.getcwd(), "temp")
+temp_dir = os.path.join(os.getcwd(), "../temp")
 os.makedirs(temp_dir, exist_ok=True)
 temp_stream_file = os.path.join(temp_dir, f"whisper-live0.{fmt}")
 
