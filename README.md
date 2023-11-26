@@ -170,6 +170,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--stream_target_language` | Language to translate the stream to. Default is English. Needed for `--stream_transcribe` |
 | `--stream_translate` | Translate the stream. |
 | `--stream_transcribe` | Transcribe the stream to different language. Use `--stream_target_language` to change the output.  |
+| `--stream_original_text` | Show the detected original text. |
 | `--stream_chunks` | How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10. The higher the number, the more accurate, but also the slower and delayed the stream translation and transcription will be. |
 | `--cookies` | Cookies file name, just like twitch, youtube, twitchacc1, twitchacczed |
 
@@ -178,6 +179,7 @@ This script uses argparse to accept command line arguments. The following option
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
+- When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
 
 ## Cookies
 Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
