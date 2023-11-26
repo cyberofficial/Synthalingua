@@ -16,9 +16,9 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 
 ### Downloads
-| Version (Click to DL)                                                           | Portable Included | Type | Notes                                                                                                                |
-|---------------------------------------------------------------------------------|-------------------| ---- |----------------------------------------------------------------------------------------------------------------------|
-| [1.0.9989](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9989) | Yes | Release | Update for Model V3. Various bug fixes. New command line arguments                                                   |
+| Version (Click to DL)                                                           | Portable Included | Type | Notes                          |
+|---------------------------------------------------------------------------------|-------------------| ---- |--------------------------------|
+| [1.0.9994](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9994) | TBA               | Release | Supports HLS input streaming. Check [Examples](#examples) for more information. |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
@@ -112,7 +112,8 @@ Note:
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
-### A Microphone is required! You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information. 
+### ~~A Microphone is required! You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.~~ 
+### A microphone is now optional. You can use the `--stream` flag to stream audio from a HLS stream. See [Examples](#examples) for more information.
 
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
