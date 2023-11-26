@@ -10,7 +10,7 @@ def load_cookies_from_file(cookie_file_path):
     cookie_jar.load(cookie_file_path, ignore_discard=True, ignore_expires=True)
     return cookie_jar
 
-def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path=None):
+def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path=None):
     global shutdown_flag
     audio_queue = queue.Queue()
 
@@ -32,9 +32,9 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
             print(f"Error downloading segment: {e}")
             return False
 
-    def generate_segment_filename(url, counter):
+    def generate_segment_filename(url, counter, task_id):
         url_hash = hashlib.md5(url.encode()).hexdigest()
-        return os.path.join(temp_dir, f"{counter:05d}_{url_hash}.ts")
+        return os.path.join(temp_dir, f"{task_id}_{counter:05d}_{url_hash}.ts")
 
     def combine_audio_segments(segment_paths, output_path):
         with open(output_path, 'wb') as outfile:
@@ -135,14 +135,14 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
             m3u8_obj = m3u8.load(hls_url)
             for segment in m3u8_obj.segments:
                 if segment.uri not in downloaded_segments:
-                    segment_path = generate_segment_filename(segment.uri, counter)
+                    segment_path = generate_segment_filename(segment.uri, counter, task_id)
                     counter += 1
                     if download_segment(segment.absolute_uri, segment_path):
                         downloaded_segments.add(segment.uri)
                         accumulated_segments.append(segment_path)
 
                         if len(accumulated_segments) >= segments_max:
-                            combined_path = os.path.join(temp_dir, f"combined_{counter}.ts")
+                            combined_path = os.path.join(temp_dir, f"{task_id}_combined_{counter}.ts")
                             combine_audio_segments(accumulated_segments, combined_path)
                             audio_queue.put(combined_path)
                             accumulated_segments = []
