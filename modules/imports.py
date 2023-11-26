@@ -38,6 +38,14 @@ try:
     from dateutil.tz import tzlocal
     from tzlocal import get_localzone
 
+    import subprocess
+    import threading
+    import queue
+    import time
+    import m3u8
+    import hashlib
+    import http.cookiejar
+
 except Exception as e:
     print("Error Loading Primary Imports")
     print("Check to make sure you have all the required modules installed.")
@@ -58,6 +66,7 @@ try:
     from modules import parser_args
     from modules.languages import get_valid_languages
     from modules import api_backend
+    from modules.stream_transcription_module import start_stream_transcription, stop_transcription
     #from modules import microphone_check
 except Exception as e:
     print("Error Loading Extensions")

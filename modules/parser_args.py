@@ -43,7 +43,7 @@ def set_model_by_ram(ram, language, target_language):
             if input("y/n: ").lower() == "y":
                 model = "medium.en"
             else:
-                model = "large"
+                model = "large-v3"
     else:
         raise ValueError("Invalid RAM setting provided")
 
@@ -70,6 +70,7 @@ def parse_arguments():
     parser.add_argument("--discord_webhook", default=None, help="Discord webhook to send transcription to.", type=str)
     parser.add_argument("--list_microphones", action='store_true', help="List available microphones and exit.")
     parser.add_argument("--set_microphone", default=None, help="Set default microphone to use.", type=str)
+    parser.add_argument("--microphone_enabled", default=None, help="Enable microphone by name.", type=str)
     parser.add_argument("--auto_language_lock", action='store_true', help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
     parser.add_argument("--retry", action='store_true', help="Retries the transcription if it fails. May increase output time.")
     parser.add_argument("--use_finetune", action='store_true', help="Use finetuned model.")
@@ -80,6 +81,14 @@ def parse_arguments():
     parser.add_argument("--about", action='store_true', help="About the project.")
     parser.add_argument("--save_transcript", action='store_true', help="Save the transcript to a file.")
     parser.add_argument("--save_folder", default="out", help="Folder to save the transcript to.")
+    parser.add_argument("--stream", default=None, help="Stream mode. Specify the url to the stream. Example: https://twitch.tv/laplusdarknesss_hololive")
+    parser.add_argument("--stream_original_text", action='store_true', help="Show's the detected language of the stream.")
+    parser.add_argument("--stream_chunks", default=5, help="How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10.", type=int)
+    parser.add_argument("--stream_language", default="en", help="Language of the stream. Default is English.", type=str, choices=VALID_LANGUAGES)
+    parser.add_argument("--stream_target_language", default=None, help="Language to translate the stream to. Default is English.", type=str, choices=VALID_LANGUAGES)
+    parser.add_argument("--stream_translate", action='store_true', help="Translate the stream.")
+    parser.add_argument("--stream_transcribe", action='store_true', help="Transcribe the stream.")
+    parser.add_argument("--cookies", default=None, help="Path to cookies.txt file. In NetScape format.")
     args = parser.parse_args()
     return args
 
