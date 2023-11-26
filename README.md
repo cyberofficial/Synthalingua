@@ -166,9 +166,9 @@ This script uses argparse to accept command line arguments. The following option
 | `--save_folder` | Set the folder to save the transcript to. |
 | `--stream` | Stream audio from a HLS stream. |
 | `--stream_language` | Language of the stream. Default is English. |
-| `--stream_target_language` | Language to translate the stream to. Default is English. |
+| `--stream_target_language` | Language to translate the stream to. Default is English. Needed for `--stream_transcribe` |
 | `--stream_translate` | Translate the stream. |
-| `--stream_transcribe` | Transcribe the stream to different language. |
+| `--stream_transcribe` | Transcribe the stream to different language. Use `--stream_target_language` to change the output.  |
 | `--stream_chunks` | How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10. The higher the number, the more accurate, but also the slower and delayed the stream translation and transcription will be. |
 | `--cookies` | Cookies file name, just like twitch, youtube, twitchacc1, twitchacczed |
 
