@@ -133,15 +133,19 @@ Public Class MainUI
     End Sub
 
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
-        If MIC_RadioButton.Checked = True Then
-            Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
-            MessageBox.Show(TempCommand)
-            Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
-            File.WriteAllText(tmpBatFile, TempCommand)
-            Process.Start(tmpBatFile)
-        Else
-            MsgBox("Please select the microphone option")
+        Try
+            If MIC_RadioButton.Checked = True Then
+                Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
+                Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+                File.WriteAllText(tmpBatFile, TempCommand)
+                Process.Start(tmpBatFile)
+            Else
+                MsgBox("Please select the microphone option")
 
-        End If
+            End If
+        Catch ex As Exception
+            MessageBox.Show("Error: " & ex.Message)
+        End Try
+
     End Sub
 End Class
