@@ -82,6 +82,7 @@ def parse_arguments():
     parser.add_argument("--save_transcript", action='store_true', help="Save the transcript to a file.")
     parser.add_argument("--save_folder", default="out", help="Folder to save the transcript to.")
     parser.add_argument("--stream", default=None, help="Stream mode. Specify the url to the stream. Example: https://twitch.tv/laplusdarknesss_hololive")
+    parser.add_argument("--stream_original_text", action='store_true', help="Show's the detected language of the stream.")
     parser.add_argument("--stream_chunks", default=5, help="How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10.", type=int)
     parser.add_argument("--stream_language", default="en", help="Language of the stream. Default is English.", type=str, choices=VALID_LANGUAGES)
     parser.add_argument("--stream_target_language", default=None, help="Language to translate the stream to. Default is English.", type=str, choices=VALID_LANGUAGES)

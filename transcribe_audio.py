@@ -363,7 +363,8 @@ def main():
     else:
         keep = False
         print("Keeping temporary files disabled.")
-    temp_file = NamedTemporaryFile(dir=temp_dir, delete=keep, suffix=".ts", prefix="rec_").name
+    if args.microphone_enabled:
+        temp_file = NamedTemporaryFile(dir=temp_dir, delete=keep, suffix=".ts", prefix="rec_").name
     transcription = ['']
 
     if args.discord_webhook:
@@ -707,6 +708,11 @@ def main():
             # kill stream_thread
             if args.stream:
                 stop_transcription()
+                # clear temp folder of files that do not start with "rec_"
+                for file in os.listdir(temp_dir):
+                    if not file.startswith("rec_"):
+                        os.remove(os.path.join(temp_dir, file))
+
 
             if args.discord_webhook:
                 send_to_discord_webhook(webhook_url, "Service has stopped.")
