@@ -48,6 +48,10 @@ def main():
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
         sys.exit("Exiting...")
 
+    if args.stream_transcribe and args.stream_target_language == None:
+        print("Stream Transcribe is set but no stream target language is set. Please set a stream target language.")
+        sys.exit("Exiting...")
+
 
     # if args.updatebranch is set as disable then skip
     if args.updatebranch != "disable":
