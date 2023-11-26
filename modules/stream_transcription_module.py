@@ -39,9 +39,13 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
     def combine_audio_segments(segment_paths, output_path):
         with open(output_path, 'wb') as outfile:
             for segment_path in segment_paths:
-                with open(segment_path, 'rb') as infile:
-                    outfile.write(infile.read())
-                os.remove(segment_path)
+                try:
+                    with open(segment_path, 'rb') as infile:
+                        outfile.write(infile.read())
+                    os.remove(segment_path)
+                except Exception as e:
+                    print(f"Error combining audio segments: {e}")
+                    pass
 
     def translate_audio(file_path, model):
         try:

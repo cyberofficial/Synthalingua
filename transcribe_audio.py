@@ -348,6 +348,9 @@ def main():
         model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language==None)
     print(f"Loading model {model}...")
 
+    # remove .en from model if target_language is not set to English
+    if args.target_language != "en" or args.target_language != "English":
+        model = model.replace(".en", "")
     audio_model = whisper.load_model(model, device=device, download_root="models")
 
     if args.microphone_enabled:
@@ -376,8 +379,6 @@ def main():
 
     print("Model loaded.\n")
     print(f"Using {model} model.")
-    if args.non_english:
-        print("Using the multi-lingual model.")
 
     if device.type == "cuda":
         if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
