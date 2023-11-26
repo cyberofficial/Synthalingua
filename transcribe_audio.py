@@ -425,6 +425,7 @@ def main():
         else:
             webhook_url = None
 
+        cookie_file_path = None
         # Get HLS URL using yt-dlp
         hls_url = subprocess.check_output(["yt-dlp", args.stream, "-g"]).decode("utf-8").strip()
 
