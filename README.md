@@ -170,7 +170,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--stream_translate` | Translate the stream. |
 | `--stream_transcribe` | Transcribe the stream to different language. |
 | `--stream_chunks` | How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10. The higher the number, the more accurate, but also the slower and delayed the stream translation and transcription will be. |
-| (`--cookies`) | Cookies file name, just like twitch, youtube, twitchacc1, twitchacczed |
+| `--cookies` | Cookies file name, just like twitch, youtube, twitchacc1, twitchacczed |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
