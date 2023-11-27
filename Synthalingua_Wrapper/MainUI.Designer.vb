@@ -22,6 +22,7 @@ Partial Class MainUI
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
+        components = New ComponentModel.Container()
         GroupBox1 = New GroupBox()
         MIC_RadioButton = New RadioButton()
         HSL_RadioButton = New RadioButton()
@@ -53,7 +54,6 @@ Partial Class MainUI
         ConfigTextBox = New TextBox()
         GenerateConfigButton = New Button()
         Label8 = New Label()
-        CookiesName = New TextBox()
         SaveFileDialog = New SaveFileDialog()
         PortNumber = New NumericUpDown()
         WebServerButton = New CheckBox()
@@ -81,6 +81,14 @@ Partial Class MainUI
         RunScript = New Button()
         Label13 = New Label()
         DiscordWebHook = New TextBox()
+        GroupBox5 = New GroupBox()
+        WebLinkT2 = New Button()
+        WebLinkT1 = New Button()
+        WebLinkOG = New Button()
+        Label15 = New Label()
+        CookiesName = New ComboBox()
+        CookiesRefresh = New Button()
+        ToolTip1 = New ToolTip(components)
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -95,6 +103,7 @@ Partial Class MainUI
         CType(RecordTimeout, ComponentModel.ISupportInitialize).BeginInit()
         CType(MicCaliTime, ComponentModel.ISupportInitialize).BeginInit()
         CType(EnThreshValue, ComponentModel.ISupportInitialize).BeginInit()
+        GroupBox5.SuspendLayout()
         SuspendLayout()
         ' 
         ' GroupBox1
@@ -154,6 +163,7 @@ Partial Class MainUI
         ' 
         ScriptFileLocation.Location = New Point(369, 9)
         ScriptFileLocation.Name = "ScriptFileLocation"
+        ScriptFileLocation.PlaceholderText = "C:\Somelocation"
         ScriptFileLocation.Size = New Size(292, 27)
         ScriptFileLocation.TabIndex = 3
         ' 
@@ -254,6 +264,7 @@ Partial Class MainUI
         ' 
         HLS_URL.Location = New Point(101, 20)
         HLS_URL.Name = "HLS_URL"
+        HLS_URL.PlaceholderText = "Stream URL"
         HLS_URL.Size = New Size(407, 27)
         HLS_URL.TabIndex = 1
         ' 
@@ -404,13 +415,6 @@ Partial Class MainUI
         Label8.Size = New Size(129, 20)
         Label8.TabIndex = 12
         Label8.Text = "Cookie File Name:"
-        ' 
-        ' CookiesName
-        ' 
-        CookiesName.Location = New Point(586, 54)
-        CookiesName.Name = "CookiesName"
-        CookiesName.Size = New Size(123, 27)
-        CookiesName.TabIndex = 13
         ' 
         ' PortNumber
         ' 
@@ -674,20 +678,96 @@ Partial Class MainUI
         ' 
         DiscordWebHook.Location = New Point(313, 209)
         DiscordWebHook.Name = "DiscordWebHook"
+        DiscordWebHook.PasswordChar = "*"c
+        DiscordWebHook.PlaceholderText = "<--- Discord WebHook URL --->"
         DiscordWebHook.Size = New Size(396, 27)
         DiscordWebHook.TabIndex = 22
+        ' 
+        ' GroupBox5
+        ' 
+        GroupBox5.Controls.Add(WebLinkT2)
+        GroupBox5.Controls.Add(WebLinkT1)
+        GroupBox5.Controls.Add(WebLinkOG)
+        GroupBox5.Controls.Add(Label15)
+        GroupBox5.Location = New Point(12, 327)
+        GroupBox5.Name = "GroupBox5"
+        GroupBox5.Size = New Size(157, 151)
+        GroupBox5.TabIndex = 25
+        GroupBox5.TabStop = False
+        GroupBox5.Text = "Browser Source"
+        ' 
+        ' WebLinkT2
+        ' 
+        WebLinkT2.Location = New Point(6, 113)
+        WebLinkT2.Name = "WebLinkT2"
+        WebLinkT2.Size = New Size(145, 29)
+        WebLinkT2.TabIndex = 1
+        WebLinkT2.Text = "Translation 2"
+        WebLinkT2.UseVisualStyleBackColor = True
+        ' 
+        ' WebLinkT1
+        ' 
+        WebLinkT1.Location = New Point(6, 78)
+        WebLinkT1.Name = "WebLinkT1"
+        WebLinkT1.Size = New Size(145, 29)
+        WebLinkT1.TabIndex = 1
+        WebLinkT1.Text = "Translation"
+        WebLinkT1.UseVisualStyleBackColor = True
+        ' 
+        ' WebLinkOG
+        ' 
+        WebLinkOG.Location = New Point(6, 46)
+        WebLinkOG.Name = "WebLinkOG"
+        WebLinkOG.Size = New Size(145, 29)
+        WebLinkOG.TabIndex = 1
+        WebLinkOG.Text = "Original Text"
+        WebLinkOG.UseVisualStyleBackColor = True
+        ' 
+        ' Label15
+        ' 
+        Label15.AutoSize = True
+        Label15.Location = New Point(6, 23)
+        Label15.Name = "Label15"
+        Label15.Size = New Size(96, 20)
+        Label15.TabIndex = 0
+        Label15.Text = "Click to Copy"
+        ' 
+        ' CookiesName
+        ' 
+        CookiesName.AutoCompleteMode = AutoCompleteMode.SuggestAppend
+        CookiesName.AutoCompleteSource = AutoCompleteSource.ListItems
+        CookiesName.DropDownStyle = ComboBoxStyle.DropDownList
+        CookiesName.FormattingEnabled = True
+        CookiesName.Location = New Point(579, 54)
+        CookiesName.Name = "CookiesName"
+        CookiesName.Size = New Size(98, 28)
+        CookiesName.TabIndex = 26
+        ' 
+        ' CookiesRefresh
+        ' 
+        CookiesRefresh.FlatStyle = FlatStyle.Flat
+        CookiesRefresh.Font = New Font("Segoe UI", 8F)
+        CookiesRefresh.ImageAlign = ContentAlignment.TopLeft
+        CookiesRefresh.Location = New Point(684, 54)
+        CookiesRefresh.Name = "CookiesRefresh"
+        CookiesRefresh.Size = New Size(25, 28)
+        CookiesRefresh.TabIndex = 27
+        CookiesRefresh.Text = "🔃"
+        CookiesRefresh.UseVisualStyleBackColor = True
         ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(8F, 20F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(713, 898)
+        Controls.Add(CookiesRefresh)
+        Controls.Add(CookiesName)
+        Controls.Add(GroupBox5)
         Controls.Add(DiscordWebHook)
         Controls.Add(Label13)
         Controls.Add(RunScript)
         Controls.Add(TabControl1)
         Controls.Add(GroupBox4)
-        Controls.Add(CookiesName)
         Controls.Add(EnglishTranslationCheckBox)
         Controls.Add(Label8)
         Controls.Add(Label7)
@@ -731,6 +811,8 @@ Partial Class MainUI
         CType(RecordTimeout, ComponentModel.ISupportInitialize).EndInit()
         CType(MicCaliTime, ComponentModel.ISupportInitialize).EndInit()
         CType(EnThreshValue, ComponentModel.ISupportInitialize).EndInit()
+        GroupBox5.ResumeLayout(False)
+        GroupBox5.PerformLayout()
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -765,7 +847,6 @@ Partial Class MainUI
     Friend WithEvents ConfigTextBox As TextBox
     Friend WithEvents GenerateConfigButton As Button
     Friend WithEvents Label8 As Label
-    Friend WithEvents CookiesName As TextBox
     Friend WithEvents SaveFileDialog As SaveFileDialog
     Friend WithEvents PortNumber As NumericUpDown
     Friend WithEvents WebServerButton As CheckBox
@@ -794,5 +875,13 @@ Partial Class MainUI
     Friend WithEvents MicCaliCheckBox As CheckBox
     Friend WithEvents MicEnCheckBox As CheckBox
     Friend WithEvents ShowOriginalText As CheckBox
+    Friend WithEvents GroupBox5 As GroupBox
+    Friend WithEvents WebLinkT1 As Button
+    Friend WithEvents WebLinkOG As Button
+    Friend WithEvents Label15 As Label
+    Friend WithEvents WebLinkT2 As Button
+    Friend WithEvents CookiesName As ComboBox
+    Friend WithEvents CookiesRefresh As Button
+    Friend WithEvents ToolTip1 As ToolTip
 
 End Class

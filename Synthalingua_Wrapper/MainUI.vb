@@ -148,4 +148,59 @@ Public Class MainUI
         End Try
 
     End Sub
+
+    Private Sub WebLinkOG_Click(sender As Object, e As EventArgs) Handles WebLinkOG.Click
+        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showoriginal")
+        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showoriginal to clipboard")
+    End Sub
+
+    Private Sub WebLinkT1_Click(sender As Object, e As EventArgs) Handles WebLinkT1.Click
+        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranslation ")
+        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranslation to clipboard")
+    End Sub
+
+    Private Sub WebLinkT2_Click(sender As Object, e As EventArgs) Handles WebLinkT2.Click
+        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranscription  ")
+        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
+    End Sub
+
+    Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
+        If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
+            For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
+                CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+            Next
+        End If
+    End Sub
+
+    Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
+        ' refresh the CookiesName by clearing it and then repopulating it
+        CookiesName.Items.Clear()
+        If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
+            For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
+                CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+            Next
+        End If
+    End Sub
+
+    Private Sub CookiesRefresh_MouseHover(sender As Object, e As EventArgs) Handles CookiesRefresh.MouseHover
+        ' shows a little tooltip when you hover over the button that says "Refresh Cookies"
+        ToolTip1.SetToolTip(CookiesRefresh, "Clear the set cookie.")
+    End Sub
+
+    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover
+        ToolTip1.SetToolTip(Button2, "Select the propgram file.")
+    End Sub
+
+    Private Sub WebLinkOG_MouseHover(sender As Object, e As EventArgs) Handles WebLinkOG.MouseHover
+        ToolTip1.SetToolTip(WebLinkOG, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showoriginal")
+    End Sub
+
+    Private Sub WebLinkT1_MouseHover(sender As Object, e As EventArgs) Handles WebLinkT1.MouseHover
+        ToolTip1.SetToolTip(WebLinkT1, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showtranslation")
+    End Sub
+
+    Private Sub WebLinkT2_MouseHover(sender As Object, e As EventArgs) Handles WebLinkT2.MouseHover
+        ToolTip1.SetToolTip(WebLinkT2, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showtranscription")
+    End Sub
 End Class
