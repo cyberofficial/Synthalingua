@@ -16,9 +16,10 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 
 ### Downloads
-| Version (Click to DL)                                                           | Portable Included | Type | Notes                          |
-|---------------------------------------------------------------------------------|-------------------| ---- |--------------------------------|
-| [1.0.9994](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9994) | TBA               | Release | Supports HLS input streaming. Check [Examples](#examples) for more information. |
+| Version (Click to DL)                                                           | Portable Included | Type         | Notes                                                                           |
+|---------------------------------------------------------------------------------|-------------------|--------------|---------------------------------------------------------------------------------|
+| [1.0.9994](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9994) | TBA               | Release      | Supports HLS input streaming. Check [Examples](#examples) for more information. |
+| GUI Wrapper (Windows Only) [1.0.9995](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9995) | No | Early Access | GUI Wrapper for Synthalingua.                                                   |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
