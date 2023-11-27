@@ -203,4 +203,13 @@ Public Class MainUI
     Private Sub WebLinkT2_MouseHover(sender As Object, e As EventArgs) Handles WebLinkT2.MouseHover
         ToolTip1.SetToolTip(WebLinkT2, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showtranscription")
     End Sub
+
+    Private Sub CheckBoxCMDBLock_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBoxCMDBLock.CheckedChanged
+        If CheckBoxCMDBLock.Checked = False Then
+            ConfigTextBox.Visible = False
+        Else
+            ConfigTextBox.Visible = True
+
+        End If
+    End Sub
 End Class
