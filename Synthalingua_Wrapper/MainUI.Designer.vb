@@ -67,15 +67,15 @@ Partial Class MainUI
         MicCaliCheckBox = New CheckBox()
         MicEnCheckBox = New CheckBox()
         microphone_id_button = New Button()
-        Label14 = New Label()
+        SetMicLbl = New Label()
         MicID = New NumericUpDown()
         PhraseTimeout = New NumericUpDown()
         RecordTimeout = New NumericUpDown()
         MicCaliTime = New NumericUpDown()
-        Label12 = New Label()
+        PhraseTimeOutlbl = New Label()
         EnThreshValue = New NumericUpDown()
-        Label11 = New Label()
-        Label9 = New Label()
+        RecordTimeoutLbl = New Label()
+        MicCaliLbl = New Label()
         Energy_Threshold = New Label()
         MicIDs = New Button()
         RunScript = New Button()
@@ -486,15 +486,15 @@ Partial Class MainUI
         TabPage2.Controls.Add(MicCaliCheckBox)
         TabPage2.Controls.Add(MicEnCheckBox)
         TabPage2.Controls.Add(microphone_id_button)
-        TabPage2.Controls.Add(Label14)
+        TabPage2.Controls.Add(SetMicLbl)
         TabPage2.Controls.Add(MicID)
         TabPage2.Controls.Add(PhraseTimeout)
         TabPage2.Controls.Add(RecordTimeout)
         TabPage2.Controls.Add(MicCaliTime)
-        TabPage2.Controls.Add(Label12)
+        TabPage2.Controls.Add(PhraseTimeOutlbl)
         TabPage2.Controls.Add(EnThreshValue)
-        TabPage2.Controls.Add(Label11)
-        TabPage2.Controls.Add(Label9)
+        TabPage2.Controls.Add(RecordTimeoutLbl)
+        TabPage2.Controls.Add(MicCaliLbl)
         TabPage2.Controls.Add(Energy_Threshold)
         TabPage2.Location = New Point(4, 29)
         TabPage2.Name = "TabPage2"
@@ -507,7 +507,7 @@ Partial Class MainUI
         ' PhraseTimeOutCheckbox
         ' 
         PhraseTimeOutCheckbox.AutoSize = True
-        PhraseTimeOutCheckbox.Location = New Point(308, 104)
+        PhraseTimeOutCheckbox.Location = New Point(328, 104)
         PhraseTimeOutCheckbox.Name = "PhraseTimeOutCheckbox"
         PhraseTimeOutCheckbox.Size = New Size(76, 24)
         PhraseTimeOutCheckbox.TabIndex = 24
@@ -517,7 +517,7 @@ Partial Class MainUI
         ' RecordTimeOutCHeckBox
         ' 
         RecordTimeOutCHeckBox.AutoSize = True
-        RecordTimeOutCHeckBox.Location = New Point(308, 71)
+        RecordTimeOutCHeckBox.Location = New Point(328, 71)
         RecordTimeOutCHeckBox.Name = "RecordTimeOutCHeckBox"
         RecordTimeOutCHeckBox.Size = New Size(76, 24)
         RecordTimeOutCHeckBox.TabIndex = 24
@@ -527,7 +527,7 @@ Partial Class MainUI
         ' MicCaliCheckBox
         ' 
         MicCaliCheckBox.AutoSize = True
-        MicCaliCheckBox.Location = New Point(308, 38)
+        MicCaliCheckBox.Location = New Point(328, 38)
         MicCaliCheckBox.Name = "MicCaliCheckBox"
         MicCaliCheckBox.Size = New Size(76, 24)
         MicCaliCheckBox.TabIndex = 24
@@ -537,7 +537,7 @@ Partial Class MainUI
         ' MicEnCheckBox
         ' 
         MicEnCheckBox.AutoSize = True
-        MicEnCheckBox.Location = New Point(308, 5)
+        MicEnCheckBox.Location = New Point(328, 5)
         MicEnCheckBox.Name = "MicEnCheckBox"
         MicEnCheckBox.Size = New Size(76, 24)
         MicEnCheckBox.TabIndex = 24
@@ -546,25 +546,25 @@ Partial Class MainUI
         ' 
         ' microphone_id_button
         ' 
-        microphone_id_button.Location = New Point(308, 131)
+        microphone_id_button.Location = New Point(328, 131)
         microphone_id_button.Name = "microphone_id_button"
         microphone_id_button.Size = New Size(94, 29)
         microphone_id_button.TabIndex = 4
         microphone_id_button.Text = "Get IDs"
         microphone_id_button.UseVisualStyleBackColor = True
         ' 
-        ' Label14
+        ' SetMicLbl
         ' 
-        Label14.AutoSize = True
-        Label14.Location = New Point(92, 135)
-        Label14.Name = "Label14"
-        Label14.Size = New Size(117, 20)
-        Label14.TabIndex = 3
-        Label14.Text = "Set Microphone:"
+        SetMicLbl.AutoSize = True
+        SetMicLbl.Location = New Point(98, 135)
+        SetMicLbl.Name = "SetMicLbl"
+        SetMicLbl.Size = New Size(138, 20)
+        SetMicLbl.TabIndex = 3
+        SetMicLbl.Text = "Set Microphone (?):"
         ' 
         ' MicID
         ' 
-        MicID.Location = New Point(215, 133)
+        MicID.Location = New Point(235, 133)
         MicID.Maximum = New Decimal(New Integer() {9999, 0, 0, 0})
         MicID.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         MicID.Name = "MicID"
@@ -574,7 +574,7 @@ Partial Class MainUI
         ' 
         ' PhraseTimeout
         ' 
-        PhraseTimeout.Location = New Point(215, 103)
+        PhraseTimeout.Location = New Point(235, 103)
         PhraseTimeout.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         PhraseTimeout.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         PhraseTimeout.Name = "PhraseTimeout"
@@ -584,7 +584,7 @@ Partial Class MainUI
         ' 
         ' RecordTimeout
         ' 
-        RecordTimeout.Location = New Point(215, 70)
+        RecordTimeout.Location = New Point(235, 70)
         RecordTimeout.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         RecordTimeout.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         RecordTimeout.Name = "RecordTimeout"
@@ -594,7 +594,7 @@ Partial Class MainUI
         ' 
         ' MicCaliTime
         ' 
-        MicCaliTime.Location = New Point(215, 37)
+        MicCaliTime.Location = New Point(235, 37)
         MicCaliTime.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         MicCaliTime.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         MicCaliTime.Name = "MicCaliTime"
@@ -602,18 +602,18 @@ Partial Class MainUI
         MicCaliTime.TabIndex = 2
         MicCaliTime.Value = New Decimal(New Integer() {5, 0, 0, 0})
         ' 
-        ' Label12
+        ' PhraseTimeOutlbl
         ' 
-        Label12.AutoSize = True
-        Label12.Location = New Point(98, 105)
-        Label12.Name = "Label12"
-        Label12.Size = New Size(111, 20)
-        Label12.TabIndex = 1
-        Label12.Text = "Phrase Timeout"
+        PhraseTimeOutlbl.AutoSize = True
+        PhraseTimeOutlbl.Location = New Point(98, 105)
+        PhraseTimeOutlbl.Name = "PhraseTimeOutlbl"
+        PhraseTimeOutlbl.Size = New Size(139, 20)
+        PhraseTimeOutlbl.TabIndex = 1
+        PhraseTimeOutlbl.Text = "Phrase Timeout (?): "
         ' 
         ' EnThreshValue
         ' 
-        EnThreshValue.Location = New Point(215, 4)
+        EnThreshValue.Location = New Point(235, 4)
         EnThreshValue.Maximum = New Decimal(New Integer() {1000, 0, 0, 0})
         EnThreshValue.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         EnThreshValue.Name = "EnThreshValue"
@@ -621,32 +621,32 @@ Partial Class MainUI
         EnThreshValue.TabIndex = 2
         EnThreshValue.Value = New Decimal(New Integer() {1, 0, 0, 0})
         ' 
-        ' Label11
+        ' RecordTimeoutLbl
         ' 
-        Label11.AutoSize = True
-        Label11.Location = New Point(94, 72)
-        Label11.Name = "Label11"
-        Label11.Size = New Size(115, 20)
-        Label11.TabIndex = 1
-        Label11.Text = "Record Timeout"
+        RecordTimeoutLbl.AutoSize = True
+        RecordTimeoutLbl.Location = New Point(94, 72)
+        RecordTimeoutLbl.Name = "RecordTimeoutLbl"
+        RecordTimeoutLbl.Size = New Size(143, 20)
+        RecordTimeoutLbl.TabIndex = 1
+        RecordTimeoutLbl.Text = "Record Timeout (?): "
         ' 
-        ' Label9
+        ' MicCaliLbl
         ' 
-        Label9.AutoSize = True
-        Label9.Location = New Point(6, 39)
-        Label9.Name = "Label9"
-        Label9.Size = New Size(203, 20)
-        Label9.TabIndex = 1
-        Label9.Text = "Microphone Calibration Time"
+        MicCaliLbl.AutoSize = True
+        MicCaliLbl.Location = New Point(6, 39)
+        MicCaliLbl.Name = "MicCaliLbl"
+        MicCaliLbl.Size = New Size(231, 20)
+        MicCaliLbl.TabIndex = 1
+        MicCaliLbl.Text = "Microphone Calibration Time (?): "
         ' 
         ' Energy_Threshold
         ' 
         Energy_Threshold.AutoSize = True
-        Energy_Threshold.Location = New Point(6, 6)
+        Energy_Threshold.Location = New Point(86, 6)
         Energy_Threshold.Name = "Energy_Threshold"
-        Energy_Threshold.Size = New Size(123, 20)
+        Energy_Threshold.Size = New Size(151, 20)
         Energy_Threshold.TabIndex = 1
-        Energy_Threshold.Text = "Energy Threshold"
+        Energy_Threshold.Text = "Energy Threshold (?): "
         ' 
         ' MicIDs
         ' 
@@ -873,13 +873,13 @@ Partial Class MainUI
     Friend WithEvents PhraseTimeout As NumericUpDown
     Friend WithEvents RecordTimeout As NumericUpDown
     Friend WithEvents MicCaliTime As NumericUpDown
-    Friend WithEvents Label12 As Label
+    Friend WithEvents PhraseTimeOutlbl As Label
     Friend WithEvents EnThreshValue As NumericUpDown
-    Friend WithEvents Label11 As Label
-    Friend WithEvents Label9 As Label
+    Friend WithEvents RecordTimeoutLbl As Label
+    Friend WithEvents MicCaliLbl As Label
     Friend WithEvents Label13 As Label
     Friend WithEvents DiscordWebHook As TextBox
-    Friend WithEvents Label14 As Label
+    Friend WithEvents SetMicLbl As Label
     Friend WithEvents MicID As NumericUpDown
     Friend WithEvents MicIDs As Button
     Friend WithEvents microphone_id_button As Button

@@ -212,4 +212,80 @@ Public Class MainUI
 
         End If
     End Sub
+
+    Private Sub HSL_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles HSL_RadioButton.MouseHover
+        ToolTip1.SetToolTip(HSL_RadioButton, "Use HLS stream instead of microphone. HLS stream is a stream of audio from a website.")
+    End Sub
+
+    Private Sub MIC_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles MIC_RadioButton.MouseHover
+        ToolTip1.SetToolTip(MIC_RadioButton, "Use microphone instead of HLS stream.")
+    End Sub
+
+    Private Sub CUDA_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles CUDA_RadioButton.MouseHover
+        ToolTip1.SetToolTip(CUDA_RadioButton, "Use CUDA for speech recognition. More powerful but requires a GPU.")
+    End Sub
+
+    Private Sub CPU_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles CPU_RadioButton.MouseHover
+        ToolTip1.SetToolTip(CPU_RadioButton, "Use CPU for speech recognition. Less powerful but does not require a GPU.")
+    End Sub
+
+    Private Sub WebServerButton_MouseHover(sender As Object, e As EventArgs) Handles WebServerButton.MouseHover
+        ToolTip1.SetToolTip(WebServerButton, "Enable the web server. This will allow you to view the output of the program in a web browser.")
+    End Sub
+
+    Private Sub RamSize_MouseHover(sender As Object, e As EventArgs) Handles RamSize.MouseHover
+        ToolTip1.SetToolTip(RamSize, "Set the amount of V-RAM to use for the program. This is in GB. The higher the number the more RAM it will use but the more accurate it will be.")
+    End Sub
+
+    Private Sub CookiesName_MouseHover(sender As Object, e As EventArgs) Handles CookiesName.MouseHover
+        ToolTip1.SetToolTip(CookiesName, "Set the cookie to use for the program. This will allow you to use a premium account.")
+    End Sub
+
+    Private Sub StreamLanguage_MouseHover(sender As Object, e As EventArgs) Handles StreamLanguage.MouseHover
+        ToolTip1.SetToolTip(StreamLanguage, "Set the language of the stream. This is the language that the stream is in.")
+    End Sub
+
+    Private Sub EnglishTranslationCheckBox_MouseHover(sender As Object, e As EventArgs) Handles EnglishTranslationCheckBox.MouseHover
+        ToolTip1.SetToolTip(EnglishTranslationCheckBox, "Enable English translation. This will translate the stream to English.")
+    End Sub
+
+    Private Sub SecondaryTranslationLanguage_MouseHover(sender As Object, e As EventArgs) Handles SecondaryTranslationLanguage.MouseHover
+        ToolTip1.SetToolTip(SecondaryTranslationLanguage, "Set the language to translate the stream to. This is the language that the stream will be translated to.")
+    End Sub
+
+    Private Sub DiscordWebHook_MouseHover(sender As Object, e As EventArgs) Handles DiscordWebHook.MouseHover
+        ToolTip1.SetToolTip(DiscordWebHook, "Set the discord webhook to use. This will send the output of the program to a discord channel.")
+    End Sub
+
+    Private Sub HLS_URL_MouseHover(sender As Object, e As EventArgs) Handles HLS_URL.MouseHover
+        ToolTip1.SetToolTip(HLS_URL, "Set the HLS stream URL to use. This is the URL of the stream. Example: https://example.com/stream")
+    End Sub
+
+    Private Sub ChunkSizeTrackBar_MouseHover(sender As Object, e As EventArgs) Handles ChunkSizeTrackBar.MouseHover
+        ToolTip1.SetToolTip(ChunkSizeTrackBar, "Set the chunk size. This is the amount of audio to process at once. The higher the number the more accurate it will be but the more delay there will be.")
+    End Sub
+
+    Private Sub ShowOriginalText_MouseHover(sender As Object, e As EventArgs) Handles ShowOriginalText.MouseHover
+        ToolTip1.SetToolTip(ShowOriginalText, "Show the original text of the stream. This will show the original text of the stream. So if the speaker is speaking Japanese it will show the Japanese text.")
+    End Sub
+
+    Private Sub Energy_Threshold_MouseClick(sender As Object, e As MouseEventArgs) Handles Energy_Threshold.MouseClick
+        MessageBox.Show("Set the energy threshold. This is the amount of energy required to start recording. The higher the number the more energy is required to start recording.")
+    End Sub
+
+    Private Sub MicCaliLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles MicCaliLbl.MouseClick
+        MessageBox.Show("Set the microphone calibration time. This is the amount of time to calibrate the microphone. The higher the number the more time it will take to calibrate the microphone.")
+    End Sub
+
+    Private Sub RecordTimeoutLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles RecordTimeoutLbl.MouseClick
+        MessageBox.Show("Set the record timeout. This is the amount of time to record for. The higher the number the more time it will record for.")
+    End Sub
+
+    Private Sub PhraseTimeOutlbl_MouseClick(sender As Object, e As MouseEventArgs) Handles PhraseTimeOutlbl.MouseClick
+        MessageBox.Show("Set the phrase timeout. This is the amount of time to wait for a phrase. The higher the number the more time it will wait for a phrase. How many sentences in a paragraph it'll show.")
+    End Sub
+
+    Private Sub SetMicLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles SetMicLbl.MouseClick
+        MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
+    End Sub
 End Class
