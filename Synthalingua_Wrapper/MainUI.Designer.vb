@@ -89,6 +89,7 @@ Partial Class MainUI
         CookiesName = New ComboBox()
         CookiesRefresh = New Button()
         ToolTip1 = New ToolTip(components)
+        CheckBoxCMDBLock = New CheckBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -389,13 +390,14 @@ Partial Class MainUI
         ' ConfigTextBox
         ' 
         ConfigTextBox.Font = New Font("Segoe UI", 13F)
-        ConfigTextBox.Location = New Point(175, 444)
+        ConfigTextBox.Location = New Point(175, 467)
         ConfigTextBox.Multiline = True
         ConfigTextBox.Name = "ConfigTextBox"
         ConfigTextBox.ReadOnly = True
         ConfigTextBox.ScrollBars = ScrollBars.Vertical
-        ConfigTextBox.Size = New Size(534, 394)
+        ConfigTextBox.Size = New Size(534, 371)
         ConfigTextBox.TabIndex = 10
+        ConfigTextBox.Visible = False
         ' 
         ' GenerateConfigButton
         ' 
@@ -755,11 +757,22 @@ Partial Class MainUI
         CookiesRefresh.Text = "🔃"
         CookiesRefresh.UseVisualStyleBackColor = True
         ' 
+        ' CheckBoxCMDBLock
+        ' 
+        CheckBoxCMDBLock.AutoSize = True
+        CheckBoxCMDBLock.Location = New Point(175, 437)
+        CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
+        CheckBoxCMDBLock.Size = New Size(523, 24)
+        CheckBoxCMDBLock.TabIndex = 28
+        CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
+        CheckBoxCMDBLock.UseVisualStyleBackColor = True
+        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(8F, 20F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(713, 898)
+        Controls.Add(CheckBoxCMDBLock)
         Controls.Add(CookiesRefresh)
         Controls.Add(CookiesName)
         Controls.Add(GroupBox5)
@@ -883,5 +896,6 @@ Partial Class MainUI
     Friend WithEvents CookiesName As ComboBox
     Friend WithEvents CookiesRefresh As Button
     Friend WithEvents ToolTip1 As ToolTip
+    Friend WithEvents CheckBoxCMDBLock As CheckBox
 
 End Class
