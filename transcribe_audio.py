@@ -348,6 +348,9 @@ def main():
         model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language==None)
     print(f"Loading model {model}...")
 
+    # remove .en from model if target_language is not set to English
+    if args.target_language != "en" or args.target_language != "English":
+        model = model.replace(".en", "")
     audio_model = whisper.load_model(model, device=device, download_root="models")
 
     if args.microphone_enabled:
@@ -376,8 +379,6 @@ def main():
 
     print("Model loaded.\n")
     print(f"Using {model} model.")
-    if args.non_english:
-        print("Using the multi-lingual model.")
 
     if device.type == "cuda":
         if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
@@ -443,12 +444,16 @@ def main():
 
         print(f"Found the Stream URL:\n{hls_url}")
 
+        # generated a random 6 digit number for the task id
+        import random
+        task_id = random.randint(100000, 999999)
+
 
         # Start stream transcription
         segments_max = args.stream_chunks if hasattr(args, 'stream_chunks') else 1
         # start start_stream_transcription(hls_url, model_name, temp_dir, segments_max) in a new thread
         stream_thread = threading.Thread(target=start_stream_transcription,
-                                         args=(hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path))
+                                         args=(task_id, hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path))
         stream_thread.start()
 
     if args.microphone_enabled:
