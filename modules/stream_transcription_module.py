@@ -46,19 +46,18 @@ def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_
             os.remove(output_path)
         return False
 
-    def load_m3u8_with_retry(hls_url, max_retries=3, retry_delay=5):
-        retry_count = 0
-        while retry_count < max_retries:
+    def load_m3u8_with_retry(hls_url, retry_delay=5):
+        while not shutdown_flag:
             try:
                 m3u8_obj = m3u8.load(hls_url)
                 return m3u8_obj
-            except (http.client.RemoteDisconnected, requests.exceptions.RequestException) as e:
+            except (
+            http.client.RemoteDisconnected, http.client.IncompleteRead, requests.exceptions.RequestException) as e:
                 print(f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
-                retry_count += 1
             except Exception as e:
                 print(f"Unexpected error loading m3u8 file: {e}")
-                break
+                time.sleep(retry_delay)
         return None
 
     def generate_segment_filename(url, counter, task_id):
