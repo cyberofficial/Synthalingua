@@ -25,3 +25,7 @@ modules/__pycache__/console_settings.cpython-310.pyc
 .idea
 cookies/
 patchfile.patch
+tmp.bat
+Synthalingua_Wrapper/bin
+Synthalingua_Wrapper/obj
+Synthalingua_Wrapper/.vs

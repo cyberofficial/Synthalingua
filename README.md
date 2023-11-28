@@ -16,9 +16,10 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 
 
 ### Downloads
-| Version (Click to DL)                                                           | Portable Included | Type | Notes                          |
-|---------------------------------------------------------------------------------|-------------------| ---- |--------------------------------|
-| [1.0.9994](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9994) | TBA               | Release | Supports HLS input streaming. Check [Examples](#examples) for more information. |
+| Version (Click to DL)                                                           | Portable Included | Type         | Notes                                                                           |
+|---------------------------------------------------------------------------------|-------------------|--------------|---------------------------------------------------------------------------------|
+| [1.0.9994](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9994) | TBA               | Release      | Supports HLS input streaming. Check [Examples](#examples) for more information. |
+| GUI Wrapper (Windows Only) [1.0.9995](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9995) | No | Early Access | GUI Wrapper for Synthalingua. [Read more here](https://github.com/cyberofficial/Synthalingua/tree/dev-testing/Synthalingua_Wrapper)                                    |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
@@ -139,7 +140,7 @@ This script uses argparse to accept command line arguments. The following option
 | ---- | ----------- |
 | `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
-| `--non_english` | Use non-English models for transcription. Enables the use of non-English models. |
+| ~~`--non_english`~~ | Use non-English models for transcription. Enables the use of non-English models. Deprecated. |
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
 | `--mic_calibration_time` | How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds. |
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
@@ -211,13 +212,13 @@ Stream Sources from YouTube and Twitch are supported. You can also use any other
 
 You have a GPU with 6GB of memory and you want to use the Japanese model. You also want to translate the transcription to English. You also want to send the transcription to a Discord channel. You also want to set the energy threshold to 300. You can run the following command:
 
-`python transcribe_audio.py --ram 6gb --non_english --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
+`python transcribe_audio.py --ram 6gb --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
 When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
 
 You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command:
 
-`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --non_english --language en`
+`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --language en`
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`

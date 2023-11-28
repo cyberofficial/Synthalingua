@@ -10,7 +10,8 @@ def load_cookies_from_file(cookie_file_path):
     cookie_jar.load(cookie_file_path, ignore_discard=True, ignore_expires=True)
     return cookie_jar
 
-def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path=None):
+def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path=None):
+
     global shutdown_flag
     audio_queue = queue.Queue()
 
@@ -19,29 +20,62 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
     if cookie_file_path:
         cookies = load_cookies_from_file(cookie_file_path)
 
-    def download_segment(segment_url, output_path):
-        try:
-            # Use cookies if they are loaded
-            response = requests.get(segment_url, stream=True, cookies=cookies) if cookies else requests.get(segment_url, stream=True)
-            if response.status_code == 200:
-                with open(output_path, 'wb') as file:
-                    for chunk in response.iter_content(chunk_size=16000):
-                        file.write(chunk)
-                return True
-        except Exception as e:
-            print(f"Error downloading segment: {e}")
-            return False
+    def download_segment(segment_url, output_path, max_retries=3, retry_delay=5):
+        retry_count = 0
+        while retry_count < max_retries:
+            try:
+                response = requests.get(segment_url, stream=True, cookies=cookies) if cookies else requests.get(
+                    segment_url, stream=True)
+                if response.status_code == 200:
+                    with open(output_path, 'wb') as file:
+                        for chunk in response.iter_content(chunk_size=16000):
+                            file.write(chunk)
+                    return True
+                else:
+                    print(f"Failed to download segment, status code: {response.status_code}")
+                    break
+            except requests.exceptions.RequestException as e:
+                print(f"Network error: {e}, retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_count += 1
+            except Exception as e:
+                print(f"Unexpected error downloading segment: {e}")
+                break
+        # Clean up partial file if exists
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return False
 
-    def generate_segment_filename(url, counter):
+    def load_m3u8_with_retry(hls_url, retry_delay=5):
+        while not shutdown_flag:
+            try:
+                m3u8_obj = m3u8.load(hls_url)
+                return m3u8_obj
+            except (
+            http.client.RemoteDisconnected, http.client.IncompleteRead, requests.exceptions.RequestException) as e:
+                print(f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            except Exception as e:
+                print(f"Unexpected error loading m3u8 file: {e}")
+                time.sleep(retry_delay)
+        return None
+
+    def generate_segment_filename(url, counter, task_id):
         url_hash = hashlib.md5(url.encode()).hexdigest()
-        return os.path.join(temp_dir, f"{counter:05d}_{url_hash}.ts")
+        return os.path.join(temp_dir, f"{task_id}_{counter:05d}_{url_hash}.ts")
 
     def combine_audio_segments(segment_paths, output_path):
         with open(output_path, 'wb') as outfile:
             for segment_path in segment_paths:
-                with open(segment_path, 'rb') as infile:
-                    outfile.write(infile.read())
-                os.remove(segment_path)
+                if not os.path.exists(segment_path):
+                    print(f"Warning: File {segment_path} does not exist, skipping.")
+                    continue
+                try:
+                    with open(segment_path, 'rb') as infile:
+                        outfile.write(infile.read())
+                    os.remove(segment_path)
+                except Exception as e:
+                    print(f"Error combining audio segments: {e}")
 
     def translate_audio(file_path, model):
         try:
@@ -78,8 +112,10 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
     def process_audio_queue(model):
         while True:
             file_path = audio_queue.get()
-            if file_path is None:
-                break
+            if file_path is None or not os.path.exists(file_path):
+                if file_path:
+                    print(f"Warning: File {file_path} does not exist, skipping.")
+                continue
 
             transcription = None
             translation = None
@@ -114,7 +150,11 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
                         new_header = f"{transcription}"
                         api_backend.update_transcribed_header(new_header)
 
-            os.remove(file_path)
+            try:
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                print(f"Error removing file {file_path}: {e}")
 
     # Start processing thread
     processing_thread = threading.Thread(target=process_audio_queue, args=(model_name,))
@@ -128,17 +168,21 @@ def start_stream_transcription(hls_url, model_name, temp_dir, segments_max, targ
         accumulated_segments = []
 
         while not shutdown_flag:
-            m3u8_obj = m3u8.load(hls_url)
+            m3u8_obj = load_m3u8_with_retry(hls_url)
+            if not m3u8_obj:
+                print("Failed to load m3u8 after retries, stopping.")
+                break
+
             for segment in m3u8_obj.segments:
                 if segment.uri not in downloaded_segments:
-                    segment_path = generate_segment_filename(segment.uri, counter)
+                    segment_path = generate_segment_filename(segment.uri, counter, task_id)
                     counter += 1
                     if download_segment(segment.absolute_uri, segment_path):
                         downloaded_segments.add(segment.uri)
                         accumulated_segments.append(segment_path)
 
                         if len(accumulated_segments) >= segments_max:
-                            combined_path = os.path.join(temp_dir, f"combined_{counter}.ts")
+                            combined_path = os.path.join(temp_dir, f"{task_id}_combined_{counter}.ts")
                             combine_audio_segments(accumulated_segments, combined_path)
                             audio_queue.put(combined_path)
                             accumulated_segments = []
