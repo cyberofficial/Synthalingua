@@ -35,6 +35,9 @@ PyAudio==0.2.13
 pycryptodomex==3.19.0
 pyinstaller==5.10.0
 pyinstaller-hooks-contrib==2023.2
+PyQt6==6.6.0
+PyQt6-Qt6==6.6.0
+PyQt6-sip==13.6.0
 python-dateutil==2.8.2
 pytz==2023.3
 pytz-deprecation-shim==0.1.0.post0
@@ -45,6 +48,7 @@ semantic-version==2.10.0
 setuptools-rust==1.5.2
 six==1.16.0
 smmap==5.0.0
+soupsieve==2.5
 SpeechRecognition==3.10.0
 sympy==1.11.1
 tiktoken==0.3.1
