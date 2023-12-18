@@ -36,10 +36,14 @@ def main():
 
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
-        print("No audio source was set. Please set an audio source.")
-        reset_text = Style.RESET_ALL
-        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-        sys.exit("Exiting...")
+        if args.makecaptions:
+            # skip if makecaptions is set
+            pass
+        else:
+            print("No audio source was set. Please set an audio source.")
+            reset_text = Style.RESET_ALL
+            input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+            sys.exit("Exiting...")
 
     # If stream and microphone is set then exit saying you can only use one input source
     if args.stream != None and args.microphone_enabled != None:
@@ -388,6 +392,13 @@ def main():
     language_counters = {}
     last_detected_language = None
 
+    if args.makecaptions:
+        fileinput = args.file_input
+        fileout = args.file_output
+        generate_subtitles(fileinput, fileout, model)
+        # exit after generating subtitles
+        sys.exit(0)
+
     if args.discord_webhook:
         if args.translate:
             send_to_discord_webhook(webhook_url, f"Transcription started. Translation enabled.\nUsing the {args.ram} ram model.")
@@ -720,7 +731,7 @@ def main():
 
 
             if args.discord_webhook:
-                send_to_discord_webhook(webhook_url, "Service has stopped.")
+                send_to_discord_webhook(webhook_url, "**Service has stopped.**")
             # break
 
             if args.save_transcript:
