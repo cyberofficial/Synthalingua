@@ -23,6 +23,10 @@ Public Class MainUI
     End Sub
 
     Private Sub GenerateConfigButton_Click(sender As Object, e As EventArgs) Handles GenerateConfigButton.Click
+        If ScriptFileLocation.Text = "" Then
+            MsgBox("Please select the program file.")
+            Exit Sub
+        End If
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
         If ShortCutType = "Source" Then
             ConfigTextBox.Text += "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat" & vbNewLine
@@ -65,10 +69,24 @@ Public Class MainUI
         End If
 
         If HSL_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--stream_language " & StreamLanguage.Text & " "
+            If StreamLanguage.Text = "--Auto Detect--" Then
+                ' do nothing for now
+            Else
+                ConfigTextBox.Text += "--stream_language " & StreamLanguage.Text & " "
+            End If
         Else
-            ConfigTextBox.Text += "--language " & StreamLanguage.Text & " "
+            If StreamLanguage.Text = "--Auto Detect--" Then
+                ' do nothing for now
+            Else
+                ConfigTextBox.Text += "--language " & StreamLanguage.Text & " "
+            End If
         End If
+
+        'If HSL_RadioButton.Checked = True Then
+        '    ConfigTextBox.Text += "--stream_language " & StreamLanguage.Text & " "
+        'Else
+        '    ConfigTextBox.Text += "--language " & StreamLanguage.Text & " "
+        'End If
 
         If EnglishTranslationCheckBox.Checked = True Then
             If HSL_RadioButton.Checked = True Then
@@ -126,6 +144,11 @@ Public Class MainUI
     End Sub
 
     Private Sub RunScript_Click(sender As Object, e As EventArgs) Handles RunScript.Click
+        If ScriptFileLocation.Text = "" Then
+            MsgBox("Please select the program file.")
+            Exit Sub
+        End If
+
         ' save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
         File.WriteAllText(tmpBatFile, ConfigTextBox.Text)
