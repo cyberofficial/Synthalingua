@@ -67,6 +67,7 @@ try:
     from modules.languages import get_valid_languages
     from modules import api_backend
     from modules.stream_transcription_module import start_stream_transcription, stop_transcription
+    from modules.sub_gen import generate_subtitles
     #from modules import microphone_check
 except Exception as e:
     print("Error Loading Extensions")

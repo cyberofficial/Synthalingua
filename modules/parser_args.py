@@ -88,6 +88,9 @@ def parse_arguments():
     parser.add_argument("--stream_translate", action='store_true', help="Translate the stream.")
     parser.add_argument("--stream_transcribe", action='store_true', help="Transcribe the stream.")
     parser.add_argument("--cookies", default=None, help="Path to cookies.txt file. In NetScape format.")
+    parser.add_argument("--makecaptions", action='store_true', help="Make captions for the stream.")
+    parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")
+    parser.add_argument("--file_output", default=None, help="Path to file to save transcript to.")
     args = parser.parse_args()
     return args
 
