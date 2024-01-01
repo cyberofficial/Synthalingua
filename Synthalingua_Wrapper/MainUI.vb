@@ -7,6 +7,9 @@ Public Class MainUI
     Dim PrimaryFolder As String
     Dim ShortCutType As String
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
+        If Label1.ForeColor = Color.Red Then
+            Label1.ForeColor = Color.Black
+        End If
         OpenScriptDiag.ShowDialog()
         ScriptFileLocation.Text = OpenScriptDiag.FileName
         PrimaryFolder = System.IO.Path.GetDirectoryName(OpenScriptDiag.FileName)
@@ -158,13 +161,49 @@ Public Class MainUI
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
         Try
             If MIC_RadioButton.Checked = True Then
-                Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
-                Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
-                File.WriteAllText(tmpBatFile, TempCommand)
-                Process.Start(tmpBatFile)
+                Try
+                    If ScriptFileLocation.Text.Contains(" ") Then
+                        MsgBox("Please select a program file that does not have spaces in the file path.")
+                        Exit Sub
+                    End If
+                    If ScriptFileLocation.Text.Contains(".py") Then
+                        Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
+                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+                        File.WriteAllText(tmpBatFile, TempCommand)
+                        Process.Start(tmpBatFile)
+                    Else
+                        MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
+                        ' add a pause to the end of the command so the user can see the output
+                        Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbNewLine & "pause"
+                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+                        File.WriteAllText(tmpBatFile, TempCommand)
+                        Process.Start(tmpBatFile)
+                    End If
+
+                Catch ex As Exception
+                    MessageBox.Show("Error: " & ex.Message)
+                    MessageBox.Show("Possible error is that the program path is not valid, or is missing a file. Make sure to select the program file.")
+                    ' make Label1 flash black and red
+                    Dim t As New Timer
+                    t.Interval = 100
+                    AddHandler t.Tick, Sub()
+                                            If Label1.ForeColor = Color.Black Then
+                                                Label1.ForeColor = Color.Red
+                                            Else
+                                                Label1.ForeColor = Color.Black
+                                            End If
+                                        End Sub
+                    t.Start()
+                    ' stop the timer after 5 seconds
+                    Dim t2 As New Timer
+                    t2.Interval = 5000
+                    AddHandler t2.Tick, Sub()
+                                             t.Stop()
+                                         End Sub
+                    t2.Start()
+                End Try
             Else
                 MsgBox("Please select the microphone option")
-
             End If
         Catch ex As Exception
             MessageBox.Show("Error: " & ex.Message)
