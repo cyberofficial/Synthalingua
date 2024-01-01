@@ -1,6 +1,6 @@
 from modules.imports import *
 
-def set_window_title(detected_language, confidence):
+def set_window_title(detected_language, confidence, model):
     title = f"Model: {model} - {detected_language} [{confidence:.2f}%]"
 
     if sys.platform == "win32":

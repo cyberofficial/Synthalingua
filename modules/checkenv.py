@@ -1,6 +1,4 @@
-import sys
-import os
-
+from modules.imports import *
 def get_base_prefix_compat():
     """Get base/real prefix, or sys.prefix if there is none."""
     return (
@@ -10,7 +8,12 @@ def get_base_prefix_compat():
     )
 
 def in_virtualenv():
-    return sys.prefix != get_base_prefix_compat()
+    # from parser args check if the flag is_portable is set
+    args = parser_args.parse_arguments()
+    if args.is_portable:
+        return True
+    else:
+        return False
 
 def check_os():
     if os.name == 'nt':
