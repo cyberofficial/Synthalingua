@@ -158,13 +158,30 @@ Public Class MainUI
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
         Try
             If MIC_RadioButton.Checked = True Then
-                Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
-                Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
-                File.WriteAllText(tmpBatFile, TempCommand)
-                Process.Start(tmpBatFile)
+                Try
+                    If ScriptFileLocation.Text.Contains(" ") Then
+                        MsgBox("Please select a program file that does not have spaces in the file path.")
+                        Exit Sub
+                    End If
+                    If ScriptFileLocation.Text.Contains(".py") Then
+                        Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
+                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+                        File.WriteAllText(tmpBatFile, TempCommand)
+                        Process.Start(tmpBatFile)
+                    Else
+                        MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
+                        ' add a pause to the end of the command so the user can see the output
+                        Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbNewLine & "pause"
+                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+                        File.WriteAllText(tmpBatFile, TempCommand)
+                        Process.Start(tmpBatFile)
+                    End If
+
+                Catch ex As Exception
+                    MessageBox.Show("Error: " & ex.Message)
+                End Try
             Else
                 MsgBox("Please select the microphone option")
-
             End If
         Catch ex As Exception
             MessageBox.Show("Error: " & ex.Message)
