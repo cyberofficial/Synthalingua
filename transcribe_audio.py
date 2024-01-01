@@ -1,15 +1,3 @@
-from modules import checkenv
-isinenv = checkenv.in_virtualenv()
-
-if isinenv == False:
-    print("Checking if portable version is being used...")
-    if os.path.exists("transcribe_audio.exe"):
-        print("Portable version detected, continuing with script...\n\n")
-    else:
-        checkenv.env_message()
-else:
-    print("You are in a virtual environment, continuing with script...\n\n")
-
 try:
     print("Loading Primary Imports")
     from modules.imports import *
@@ -36,14 +24,14 @@ def main():
 
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
-        if args.makecaptions:
-            # skip if makecaptions is set
-            pass
-        else:
-            print("No audio source was set. Please set an audio source.")
-            reset_text = Style.RESET_ALL
-            input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-            sys.exit("Exiting...")
+#        if args.makecaptions:
+#            # skip if makecaptions is set
+#            pass
+#        else:
+        print("No audio source was set. Please set an audio source.")
+        reset_text = Style.RESET_ALL
+        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+        sys.exit("Exiting...")
 
     # If stream and microphone is set then exit saying you can only use one input source
     if args.stream != None and args.microphone_enabled != None:
@@ -392,12 +380,12 @@ def main():
     language_counters = {}
     last_detected_language = None
 
-    if args.makecaptions:
-        fileinput = args.file_input
-        fileout = args.file_output
-        generate_subtitles(fileinput, fileout, model)
-        # exit after generating subtitles
-        sys.exit(0)
+#    if args.makecaptions:
+#        fileinput = args.file_input
+#        fileout = args.file_output
+#        generate_subtitles(fileinput, fileout, model)
+#        # exit after generating subtitles
+#        sys.exit(0)
 
     if args.discord_webhook:
         if args.translate:
@@ -725,9 +713,12 @@ def main():
             if args.stream:
                 stop_transcription()
                 # clear temp folder of files that do not start with "rec_"
-                for file in os.listdir(temp_dir):
-                    if not file.startswith("rec_"):
-                        os.remove(os.path.join(temp_dir, file))
+                try:
+                    for file in os.listdir(temp_dir):
+                        if not file.startswith("rec_"):
+                            os.remove(os.path.join(temp_dir, file))
+                except Exception as e:
+                    pass
 
 
             if args.discord_webhook:
