@@ -18,7 +18,7 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 ### Downloads
 | Version (Click to DL)                                                           | Portable Included | Type         | Notes                                                                           |
 |---------------------------------------------------------------------------------|-------------------|--------------|---------------------------------------------------------------------------------|
-| [1.0.9996](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9996) | Yes | Release | Updated the GUI Wrapper for Synthalingua. [Read more here](https://github.com/cyberofficial/Synthalingua/tree/dev-testing/Synthalingua_Wrapper) and Various fixes included.                                    |
+| [1.0.9996](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9996) | Yes | Release | Updated the GUI Wrapper for Synthalingua. [Read more here](https://github.com/cyberofficial/Synthalingua/tree/master/Synthalingua_Wrapper) and Various fixes included.                                    |
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
