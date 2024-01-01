@@ -1,7 +1,7 @@
 # Synthalingua GUI Wrapper
 This is a GUI wrapper for the Synthalingua project. It is written in Visual Basic.
 
-You can get the latest build from [here](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9995)
+You can get the latest build from [here](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9996)
 
 # Minimum Requirements
 * Windows 10 64-bit 21H1 or newer
