@@ -52,10 +52,10 @@ soupsieve==2.5
 SpeechRecognition==3.10.0
 sympy==1.11.1
 tiktoken==0.3.1
-tomli==2.0.1
-torch==2.1.0+cu118
-torchaudio==2.1.0+cu118
-torchvision==0.16.0+cu118
+#tomli==2.0.1
+torch
+torchaudio
+torchvision
 tqdm==4.65.0
 typing_extensions==4.5.0
 tzdata==2023.3
@@ -65,3 +65,4 @@ wcwidth==0.2.6
 websockets==12.0
 Werkzeug==2.3.4
 yt-dlp==2023.11.16
+git+https://github.com/openai/whisper.git 
