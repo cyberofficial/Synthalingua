@@ -2,16 +2,24 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <StartupObject>Sub Main</StartupObject>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <StartupObject>Synthalingua_Wrapper.My.MyApplication</StartupObject>
     <UseWindowsForms>true</UseWindowsForms>
     <MyType>WindowsForms</MyType>
+    <Platforms>AnyCPU;x64</Platforms>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <ImportedNamespaces>System.Data=False,System.Drawing=False,System.Windows.Forms=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,Synthalingua_Wrapper=True</ImportedNamespaces>
   </PropertyGroup>
 
   <ItemGroup>
     <Import Include="System.Data" />
     <Import Include="System.Drawing" />
     <Import Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CefSharp.Common.NETCore" Version="120.2.70" />
+    <PackageReference Include="CefSharp.WinForms" Version="120.2.70" />
   </ItemGroup>
 
   <ItemGroup>

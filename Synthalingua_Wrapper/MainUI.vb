@@ -187,19 +187,19 @@ Public Class MainUI
                     Dim t As New Timer
                     t.Interval = 100
                     AddHandler t.Tick, Sub()
-                                            If Label1.ForeColor = Color.Black Then
-                                                Label1.ForeColor = Color.Red
-                                            Else
-                                                Label1.ForeColor = Color.Black
-                                            End If
-                                        End Sub
+                                           If Label1.ForeColor = Color.Black Then
+                                               Label1.ForeColor = Color.Red
+                                           Else
+                                               Label1.ForeColor = Color.Black
+                                           End If
+                                       End Sub
                     t.Start()
                     ' stop the timer after 5 seconds
                     Dim t2 As New Timer
                     t2.Interval = 5000
                     AddHandler t2.Tick, Sub()
-                                             t.Stop()
-                                         End Sub
+                                            t.Stop()
+                                        End Sub
                     t2.Start()
                 End Try
             Else
@@ -349,5 +349,9 @@ Public Class MainUI
 
     Private Sub SetMicLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles SetMicLbl.MouseClick
         MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
+    End Sub
+
+    Private Sub SubWindow_Click(sender As Object, e As EventArgs) Handles SubWindow.Click
+        subtitlewindow.Show()
     End Sub
 End Class

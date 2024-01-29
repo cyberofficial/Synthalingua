@@ -90,6 +90,7 @@ Partial Class MainUI
         CookiesRefresh = New Button()
         ToolTip1 = New ToolTip(components)
         CheckBoxCMDBLock = New CheckBox()
+        SubWindow = New Button()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -111,9 +112,11 @@ Partial Class MainUI
         ' 
         GroupBox1.Controls.Add(MIC_RadioButton)
         GroupBox1.Controls.Add(HSL_RadioButton)
-        GroupBox1.Location = New Point(12, 12)
+        GroupBox1.Location = New Point(10, 9)
+        GroupBox1.Margin = New Padding(3, 2, 3, 2)
         GroupBox1.Name = "GroupBox1"
-        GroupBox1.Size = New Size(157, 95)
+        GroupBox1.Padding = New Padding(3, 2, 3, 2)
+        GroupBox1.Size = New Size(137, 71)
         GroupBox1.TabIndex = 0
         GroupBox1.TabStop = False
         GroupBox1.Text = "Audio Soruce"
@@ -121,9 +124,10 @@ Partial Class MainUI
         ' MIC_RadioButton
         ' 
         MIC_RadioButton.AutoSize = True
-        MIC_RadioButton.Location = New Point(6, 56)
+        MIC_RadioButton.Location = New Point(5, 42)
+        MIC_RadioButton.Margin = New Padding(3, 2, 3, 2)
         MIC_RadioButton.Name = "MIC_RadioButton"
-        MIC_RadioButton.Size = New Size(110, 24)
+        MIC_RadioButton.Size = New Size(90, 19)
         MIC_RadioButton.TabIndex = 1
         MIC_RadioButton.TabStop = True
         MIC_RadioButton.Text = "Microphone"
@@ -133,9 +137,10 @@ Partial Class MainUI
         ' 
         HSL_RadioButton.AutoSize = True
         HSL_RadioButton.Checked = True
-        HSL_RadioButton.Location = New Point(6, 26)
+        HSL_RadioButton.Location = New Point(5, 20)
+        HSL_RadioButton.Margin = New Padding(3, 2, 3, 2)
         HSL_RadioButton.Name = "HSL_RadioButton"
-        HSL_RadioButton.Size = New Size(107, 24)
+        HSL_RadioButton.Size = New Size(86, 19)
         HSL_RadioButton.TabIndex = 0
         HSL_RadioButton.TabStop = True
         HSL_RadioButton.Text = "HLS Stream"
@@ -144,9 +149,10 @@ Partial Class MainUI
         ' SaveConfigToFileButton
         ' 
         SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
-        SaveConfigToFileButton.Location = New Point(586, 844)
+        SaveConfigToFileButton.Location = New Point(513, 633)
+        SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
         SaveConfigToFileButton.Name = "SaveConfigToFileButton"
-        SaveConfigToFileButton.Size = New Size(123, 42)
+        SaveConfigToFileButton.Size = New Size(108, 32)
         SaveConfigToFileButton.TabIndex = 1
         SaveConfigToFileButton.Text = "Save to File"
         SaveConfigToFileButton.UseVisualStyleBackColor = True
@@ -154,25 +160,27 @@ Partial Class MainUI
         ' Label1
         ' 
         Label1.AutoSize = True
-        Label1.Location = New Point(175, 12)
+        Label1.Location = New Point(153, 9)
         Label1.Name = "Label1"
-        Label1.Size = New Size(188, 20)
+        Label1.Size = New Size(150, 15)
         Label1.TabIndex = 2
         Label1.Text = "Script or Portable Location:"
         ' 
         ' ScriptFileLocation
         ' 
-        ScriptFileLocation.Location = New Point(369, 9)
+        ScriptFileLocation.Location = New Point(323, 7)
+        ScriptFileLocation.Margin = New Padding(3, 2, 3, 2)
         ScriptFileLocation.Name = "ScriptFileLocation"
         ScriptFileLocation.PlaceholderText = "C:\Somelocation"
-        ScriptFileLocation.Size = New Size(292, 27)
+        ScriptFileLocation.Size = New Size(256, 23)
         ScriptFileLocation.TabIndex = 3
         ' 
         ' Button2
         ' 
-        Button2.Location = New Point(669, 8)
+        Button2.Location = New Point(585, 6)
+        Button2.Margin = New Padding(3, 2, 3, 2)
         Button2.Name = "Button2"
-        Button2.Size = New Size(40, 29)
+        Button2.Size = New Size(35, 22)
         Button2.TabIndex = 4
         Button2.Text = "..."
         Button2.UseVisualStyleBackColor = True
@@ -180,9 +188,9 @@ Partial Class MainUI
         ' Label2
         ' 
         Label2.AutoSize = True
-        Label2.Location = New Point(175, 57)
+        Label2.Location = New Point(153, 43)
         Label2.Name = "Label2"
-        Label2.Size = New Size(75, 20)
+        Label2.Size = New Size(59, 15)
         Label2.TabIndex = 5
         Label2.Text = "RAM Size:"
         ' 
@@ -193,17 +201,19 @@ Partial Class MainUI
         RamSize.DropDownStyle = ComboBoxStyle.DropDownList
         RamSize.FormattingEnabled = True
         RamSize.Items.AddRange(New Object() {"1gb", "2gb", "4gb", "6gb", "12gb"})
-        RamSize.Location = New Point(256, 54)
+        RamSize.Location = New Point(224, 40)
+        RamSize.Margin = New Padding(3, 2, 3, 2)
         RamSize.Name = "RamSize"
-        RamSize.Size = New Size(82, 28)
+        RamSize.Size = New Size(72, 23)
         RamSize.TabIndex = 6
         ' 
         ' ForceRam
         ' 
         ForceRam.AutoSize = True
-        ForceRam.Location = New Point(344, 56)
+        ForceRam.Location = New Point(301, 42)
+        ForceRam.Margin = New Padding(3, 2, 3, 2)
         ForceRam.Name = "ForceRam"
-        ForceRam.Size = New Size(101, 24)
+        ForceRam.Size = New Size(82, 19)
         ForceRam.TabIndex = 7
         ForceRam.Text = "Force Ram"
         ForceRam.UseVisualStyleBackColor = True
@@ -216,9 +226,11 @@ Partial Class MainUI
         GroupBox2.Controls.Add(Label6)
         GroupBox2.Controls.Add(HLS_URL)
         GroupBox2.Controls.Add(Label3)
-        GroupBox2.Location = New Point(6, 12)
+        GroupBox2.Location = New Point(5, 9)
+        GroupBox2.Margin = New Padding(3, 2, 3, 2)
         GroupBox2.Name = "GroupBox2"
-        GroupBox2.Size = New Size(514, 133)
+        GroupBox2.Padding = New Padding(3, 2, 3, 2)
+        GroupBox2.Size = New Size(450, 100)
         GroupBox2.TabIndex = 8
         GroupBox2.TabStop = False
         GroupBox2.Text = "HLS Info"
@@ -226,9 +238,10 @@ Partial Class MainUI
         ' ShowOriginalText
         ' 
         ShowOriginalText.AutoSize = True
-        ShowOriginalText.Location = New Point(6, 94)
+        ShowOriginalText.Location = New Point(5, 70)
+        ShowOriginalText.Margin = New Padding(3, 2, 3, 2)
         ShowOriginalText.Name = "ShowOriginalText"
-        ShowOriginalText.Size = New Size(155, 24)
+        ShowOriginalText.Size = New Size(124, 19)
         ShowOriginalText.TabIndex = 23
         ShowOriginalText.Text = "Show Original Text"
         ShowOriginalText.UseVisualStyleBackColor = True
@@ -236,54 +249,57 @@ Partial Class MainUI
         ' ChunkSizeTrackBarValue
         ' 
         ChunkSizeTrackBarValue.AutoSize = True
-        ChunkSizeTrackBarValue.Location = New Point(146, 62)
+        ChunkSizeTrackBarValue.Location = New Point(128, 46)
         ChunkSizeTrackBarValue.Name = "ChunkSizeTrackBarValue"
-        ChunkSizeTrackBarValue.Size = New Size(70, 20)
+        ChunkSizeTrackBarValue.Size = New Size(59, 15)
         ChunkSizeTrackBarValue.TabIndex = 11
         ChunkSizeTrackBarValue.Text = "Chunks: 5"
         ' 
         ' ChunkSizeTrackBar
         ' 
-        ChunkSizeTrackBar.Location = New Point(222, 62)
+        ChunkSizeTrackBar.Location = New Point(194, 46)
+        ChunkSizeTrackBar.Margin = New Padding(3, 2, 3, 2)
         ChunkSizeTrackBar.Maximum = 30
         ChunkSizeTrackBar.Minimum = 1
         ChunkSizeTrackBar.Name = "ChunkSizeTrackBar"
-        ChunkSizeTrackBar.Size = New Size(286, 56)
+        ChunkSizeTrackBar.Size = New Size(250, 45)
         ChunkSizeTrackBar.TabIndex = 10
         ChunkSizeTrackBar.Value = 5
         ' 
         ' Label6
         ' 
         Label6.AutoSize = True
-        Label6.Location = New Point(6, 62)
+        Label6.Location = New Point(5, 46)
         Label6.Name = "Label6"
-        Label6.Size = New Size(134, 20)
+        Label6.Size = New Size(108, 15)
         Label6.TabIndex = 9
         Label6.Text = "Stream Chunk Size:"
         ' 
         ' HLS_URL
         ' 
-        HLS_URL.Location = New Point(101, 20)
+        HLS_URL.Location = New Point(88, 15)
+        HLS_URL.Margin = New Padding(3, 2, 3, 2)
         HLS_URL.Name = "HLS_URL"
         HLS_URL.PlaceholderText = "Stream URL"
-        HLS_URL.Size = New Size(407, 27)
+        HLS_URL.Size = New Size(357, 23)
         HLS_URL.TabIndex = 1
         ' 
         ' Label3
         ' 
         Label3.AutoSize = True
-        Label3.Location = New Point(6, 23)
+        Label3.Location = New Point(5, 17)
         Label3.Name = "Label3"
-        Label3.Size = New Size(89, 20)
+        Label3.Size = New Size(71, 15)
         Label3.TabIndex = 0
         Label3.Text = "Stream URL:"
         ' 
         ' EnglishTranslationCheckBox
         ' 
         EnglishTranslationCheckBox.AutoSize = True
-        EnglishTranslationCheckBox.Location = New Point(316, 121)
+        EnglishTranslationCheckBox.Location = New Point(276, 91)
+        EnglishTranslationCheckBox.Margin = New Padding(3, 2, 3, 2)
         EnglishTranslationCheckBox.Name = "EnglishTranslationCheckBox"
-        EnglishTranslationCheckBox.Size = New Size(278, 24)
+        EnglishTranslationCheckBox.Size = New Size(219, 19)
         EnglishTranslationCheckBox.TabIndex = 8
         EnglishTranslationCheckBox.Text = "Enable | Will also do regular captions"
         EnglishTranslationCheckBox.UseVisualStyleBackColor = True
@@ -291,18 +307,19 @@ Partial Class MainUI
         ' Label7
         ' 
         Label7.AutoSize = True
-        Label7.Location = New Point(175, 122)
+        Label7.Location = New Point(153, 92)
         Label7.Name = "Label7"
-        Label7.Size = New Size(135, 20)
+        Label7.Size = New Size(108, 15)
         Label7.TabIndex = 7
         Label7.Text = "English Translation:"
         ' 
         ' SecondaryTranslation
         ' 
         SecondaryTranslation.AutoSize = True
-        SecondaryTranslation.Location = New Point(528, 150)
+        SecondaryTranslation.Location = New Point(462, 112)
+        SecondaryTranslation.Margin = New Padding(3, 2, 3, 2)
         SecondaryTranslation.Name = "SecondaryTranslation"
-        SecondaryTranslation.Size = New Size(149, 24)
+        SecondaryTranslation.Size = New Size(119, 19)
         SecondaryTranslation.TabIndex = 5
         SecondaryTranslation.Text = "Enable Secondary"
         SecondaryTranslation.UseVisualStyleBackColor = True
@@ -310,9 +327,9 @@ Partial Class MainUI
         ' Label5
         ' 
         Label5.AutoSize = True
-        Label5.Location = New Point(175, 151)
+        Label5.Location = New Point(153, 113)
         Label5.Name = "Label5"
-        Label5.Size = New Size(157, 20)
+        Label5.Size = New Size(125, 15)
         Label5.TabIndex = 4
         Label5.Text = "Secondary Translation:"
         ' 
@@ -322,9 +339,10 @@ Partial Class MainUI
         SecondaryTranslationLanguage.DropDownStyle = ComboBoxStyle.DropDownList
         SecondaryTranslationLanguage.FormattingEnabled = True
         SecondaryTranslationLanguage.Items.AddRange(New Object() {"Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"})
-        SecondaryTranslationLanguage.Location = New Point(338, 148)
+        SecondaryTranslationLanguage.Location = New Point(296, 111)
+        SecondaryTranslationLanguage.Margin = New Padding(3, 2, 3, 2)
         SecondaryTranslationLanguage.Name = "SecondaryTranslationLanguage"
-        SecondaryTranslationLanguage.Size = New Size(184, 28)
+        SecondaryTranslationLanguage.Size = New Size(162, 23)
         SecondaryTranslationLanguage.Sorted = True
         SecondaryTranslationLanguage.TabIndex = 3
         ' 
@@ -334,18 +352,19 @@ Partial Class MainUI
         StreamLanguage.DropDownStyle = ComboBoxStyle.DropDownList
         StreamLanguage.FormattingEnabled = True
         StreamLanguage.Items.AddRange(New Object() {"--Auto Detect--", "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Assamese", "Azerbaijani", "Bashkir", "Basque", "Belarusian", "Bengali", "Bosnian", "Breton", "Bulgarian", "Burmese", "Castilian", "Catalan", "Chinese", "Croatian", "Czech", "Danish", "Dutch", "English", "Estonian", "Faroese", "Finnish", "Flemish", "French", "Galician", "Georgian", "German", "Greek", "Gujarati", "Haitian", "Haitian Creole", "Hausa", "Hawaiian", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian", "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Lao", "Latin", "Latvian", "Letzeburgesch", "Lingala", "Lithuanian", "Luxembourgish", "Macedonian", "Malagasy", "Malay", "Malayalam", "Maltese", "Maori", "Marathi", "Moldavian", "Moldovan", "Mongolian", "Myanmar", "Nepali", "Norwegian", "Nynorsk", "Occitan", "Panjabi", "Pashto", "Persian", "Polish", "Portuguese", "Punjabi", "Pushto", "Romanian", "Russian", "Sanskrit", "Serbian", "Shona", "Sindhi", "Sinhala", "Sinhalese", "Slovak", "Slovenian", "Somali", "Spanish", "Sundanese", "Swahili", "Swedish", "Tagalog", "Tajik", "Tamil", "Tatar", "Telugu", "Thai", "Tibetan", "Turkish", "Turkmen", "Ukrainian", "Urdu", "Uzbek", "Valencian", "Vietnamese", "Welsh", "Yiddish", "Yoruba"})
-        StreamLanguage.Location = New Point(313, 87)
+        StreamLanguage.Location = New Point(274, 65)
+        StreamLanguage.Margin = New Padding(3, 2, 3, 2)
         StreamLanguage.Name = "StreamLanguage"
-        StreamLanguage.Size = New Size(396, 28)
+        StreamLanguage.Size = New Size(347, 23)
         StreamLanguage.Sorted = True
         StreamLanguage.TabIndex = 3
         ' 
         ' Label4
         ' 
         Label4.AutoSize = True
-        Label4.Location = New Point(175, 90)
+        Label4.Location = New Point(153, 68)
         Label4.Name = "Label4"
-        Label4.Size = New Size(132, 20)
+        Label4.Size = New Size(105, 15)
         Label4.TabIndex = 2
         Label4.Text = "Stream Language: "
         ' 
@@ -353,9 +372,11 @@ Partial Class MainUI
         ' 
         GroupBox3.Controls.Add(CPU_RadioButton)
         GroupBox3.Controls.Add(CUDA_RadioButton)
-        GroupBox3.Location = New Point(12, 113)
+        GroupBox3.Location = New Point(10, 85)
+        GroupBox3.Margin = New Padding(3, 2, 3, 2)
         GroupBox3.Name = "GroupBox3"
-        GroupBox3.Size = New Size(157, 93)
+        GroupBox3.Padding = New Padding(3, 2, 3, 2)
+        GroupBox3.Size = New Size(137, 70)
         GroupBox3.TabIndex = 9
         GroupBox3.TabStop = False
         GroupBox3.Text = "Proc Device"
@@ -363,9 +384,10 @@ Partial Class MainUI
         ' CPU_RadioButton
         ' 
         CPU_RadioButton.AutoSize = True
-        CPU_RadioButton.Location = New Point(6, 56)
+        CPU_RadioButton.Location = New Point(5, 42)
+        CPU_RadioButton.Margin = New Padding(3, 2, 3, 2)
         CPU_RadioButton.Name = "CPU_RadioButton"
-        CPU_RadioButton.Size = New Size(54, 24)
+        CPU_RadioButton.Size = New Size(45, 19)
         CPU_RadioButton.TabIndex = 0
         CPU_RadioButton.Text = "cpu"
         CPU_RadioButton.UseVisualStyleBackColor = True
@@ -374,9 +396,10 @@ Partial Class MainUI
         ' 
         CUDA_RadioButton.AutoSize = True
         CUDA_RadioButton.Checked = True
-        CUDA_RadioButton.Location = New Point(6, 26)
+        CUDA_RadioButton.Location = New Point(5, 20)
+        CUDA_RadioButton.Margin = New Padding(3, 2, 3, 2)
         CUDA_RadioButton.Name = "CUDA_RadioButton"
-        CUDA_RadioButton.Size = New Size(62, 24)
+        CUDA_RadioButton.Size = New Size(51, 19)
         CUDA_RadioButton.TabIndex = 0
         CUDA_RadioButton.TabStop = True
         CUDA_RadioButton.Text = "cuda"
@@ -390,21 +413,23 @@ Partial Class MainUI
         ' ConfigTextBox
         ' 
         ConfigTextBox.Font = New Font("Segoe UI", 13F)
-        ConfigTextBox.Location = New Point(175, 467)
+        ConfigTextBox.Location = New Point(153, 350)
+        ConfigTextBox.Margin = New Padding(3, 2, 3, 2)
         ConfigTextBox.Multiline = True
         ConfigTextBox.Name = "ConfigTextBox"
         ConfigTextBox.ReadOnly = True
         ConfigTextBox.ScrollBars = ScrollBars.Vertical
-        ConfigTextBox.Size = New Size(534, 371)
+        ConfigTextBox.Size = New Size(468, 279)
         ConfigTextBox.TabIndex = 10
         ConfigTextBox.Visible = False
         ' 
         ' GenerateConfigButton
         ' 
         GenerateConfigButton.Font = New Font("Segoe UI", 13F)
-        GenerateConfigButton.Location = New Point(175, 844)
+        GenerateConfigButton.Location = New Point(153, 633)
+        GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
         GenerateConfigButton.Name = "GenerateConfigButton"
-        GenerateConfigButton.Size = New Size(132, 42)
+        GenerateConfigButton.Size = New Size(116, 32)
         GenerateConfigButton.TabIndex = 11
         GenerateConfigButton.Text = "Generate Config"
         GenerateConfigButton.UseVisualStyleBackColor = True
@@ -412,27 +437,29 @@ Partial Class MainUI
         ' Label8
         ' 
         Label8.AutoSize = True
-        Label8.Location = New Point(451, 57)
+        Label8.Location = New Point(395, 43)
         Label8.Name = "Label8"
-        Label8.Size = New Size(129, 20)
+        Label8.Size = New Size(103, 15)
         Label8.TabIndex = 12
         Label8.Text = "Cookie File Name:"
         ' 
         ' PortNumber
         ' 
-        PortNumber.Location = New Point(7, 69)
+        PortNumber.Location = New Point(6, 52)
+        PortNumber.Margin = New Padding(3, 2, 3, 2)
         PortNumber.Maximum = New Decimal(New Integer() {65535, 0, 0, 0})
         PortNumber.Name = "PortNumber"
-        PortNumber.Size = New Size(95, 27)
+        PortNumber.Size = New Size(83, 23)
         PortNumber.TabIndex = 15
         PortNumber.Value = New Decimal(New Integer() {2000, 0, 0, 0})
         ' 
         ' WebServerButton
         ' 
         WebServerButton.AutoSize = True
-        WebServerButton.Location = New Point(6, 19)
+        WebServerButton.Location = New Point(5, 14)
+        WebServerButton.Margin = New Padding(3, 2, 3, 2)
         WebServerButton.Name = "WebServerButton"
-        WebServerButton.Size = New Size(76, 24)
+        WebServerButton.Size = New Size(61, 19)
         WebServerButton.TabIndex = 16
         WebServerButton.Text = "Enable"
         WebServerButton.UseVisualStyleBackColor = True
@@ -440,9 +467,9 @@ Partial Class MainUI
         ' Label10
         ' 
         Label10.AutoSize = True
-        Label10.Location = New Point(6, 46)
+        Label10.Location = New Point(5, 34)
         Label10.Name = "Label10"
-        Label10.Size = New Size(96, 20)
+        Label10.Size = New Size(79, 15)
         Label10.TabIndex = 17
         Label10.Text = "Port Number:"
         ' 
@@ -451,9 +478,11 @@ Partial Class MainUI
         GroupBox4.Controls.Add(Label10)
         GroupBox4.Controls.Add(PortNumber)
         GroupBox4.Controls.Add(WebServerButton)
-        GroupBox4.Location = New Point(12, 212)
+        GroupBox4.Location = New Point(10, 159)
+        GroupBox4.Margin = New Padding(3, 2, 3, 2)
         GroupBox4.Name = "GroupBox4"
-        GroupBox4.Size = New Size(157, 109)
+        GroupBox4.Padding = New Padding(3, 2, 3, 2)
+        GroupBox4.Size = New Size(137, 82)
         GroupBox4.TabIndex = 18
         GroupBox4.TabStop = False
         GroupBox4.Text = "Web Server"
@@ -462,19 +491,21 @@ Partial Class MainUI
         ' 
         TabControl1.Controls.Add(TabPage1)
         TabControl1.Controls.Add(TabPage2)
-        TabControl1.Location = New Point(175, 235)
+        TabControl1.Location = New Point(153, 176)
+        TabControl1.Margin = New Padding(3, 2, 3, 2)
         TabControl1.Name = "TabControl1"
         TabControl1.SelectedIndex = 0
-        TabControl1.Size = New Size(534, 203)
+        TabControl1.Size = New Size(467, 152)
         TabControl1.TabIndex = 19
         ' 
         ' TabPage1
         ' 
         TabPage1.Controls.Add(GroupBox2)
-        TabPage1.Location = New Point(4, 29)
+        TabPage1.Location = New Point(4, 24)
+        TabPage1.Margin = New Padding(3, 2, 3, 2)
         TabPage1.Name = "TabPage1"
-        TabPage1.Padding = New Padding(3)
-        TabPage1.Size = New Size(526, 170)
+        TabPage1.Padding = New Padding(3, 2, 3, 2)
+        TabPage1.Size = New Size(459, 124)
         TabPage1.TabIndex = 0
         TabPage1.Text = "HLS Settings"
         TabPage1.UseVisualStyleBackColor = True
@@ -496,10 +527,11 @@ Partial Class MainUI
         TabPage2.Controls.Add(RecordTimeoutLbl)
         TabPage2.Controls.Add(MicCaliLbl)
         TabPage2.Controls.Add(Energy_Threshold)
-        TabPage2.Location = New Point(4, 29)
+        TabPage2.Location = New Point(4, 24)
+        TabPage2.Margin = New Padding(3, 2, 3, 2)
         TabPage2.Name = "TabPage2"
-        TabPage2.Padding = New Padding(3)
-        TabPage2.Size = New Size(526, 170)
+        TabPage2.Padding = New Padding(3, 2, 3, 2)
+        TabPage2.Size = New Size(459, 124)
         TabPage2.TabIndex = 1
         TabPage2.Text = "Microphone Settings"
         TabPage2.UseVisualStyleBackColor = True
@@ -507,9 +539,10 @@ Partial Class MainUI
         ' PhraseTimeOutCheckbox
         ' 
         PhraseTimeOutCheckbox.AutoSize = True
-        PhraseTimeOutCheckbox.Location = New Point(328, 104)
+        PhraseTimeOutCheckbox.Location = New Point(287, 78)
+        PhraseTimeOutCheckbox.Margin = New Padding(3, 2, 3, 2)
         PhraseTimeOutCheckbox.Name = "PhraseTimeOutCheckbox"
-        PhraseTimeOutCheckbox.Size = New Size(76, 24)
+        PhraseTimeOutCheckbox.Size = New Size(61, 19)
         PhraseTimeOutCheckbox.TabIndex = 24
         PhraseTimeOutCheckbox.Text = "Enable"
         PhraseTimeOutCheckbox.UseVisualStyleBackColor = True
@@ -517,9 +550,10 @@ Partial Class MainUI
         ' RecordTimeOutCHeckBox
         ' 
         RecordTimeOutCHeckBox.AutoSize = True
-        RecordTimeOutCHeckBox.Location = New Point(328, 71)
+        RecordTimeOutCHeckBox.Location = New Point(287, 53)
+        RecordTimeOutCHeckBox.Margin = New Padding(3, 2, 3, 2)
         RecordTimeOutCHeckBox.Name = "RecordTimeOutCHeckBox"
-        RecordTimeOutCHeckBox.Size = New Size(76, 24)
+        RecordTimeOutCHeckBox.Size = New Size(61, 19)
         RecordTimeOutCHeckBox.TabIndex = 24
         RecordTimeOutCHeckBox.Text = "Enable"
         RecordTimeOutCHeckBox.UseVisualStyleBackColor = True
@@ -527,9 +561,10 @@ Partial Class MainUI
         ' MicCaliCheckBox
         ' 
         MicCaliCheckBox.AutoSize = True
-        MicCaliCheckBox.Location = New Point(328, 38)
+        MicCaliCheckBox.Location = New Point(287, 28)
+        MicCaliCheckBox.Margin = New Padding(3, 2, 3, 2)
         MicCaliCheckBox.Name = "MicCaliCheckBox"
-        MicCaliCheckBox.Size = New Size(76, 24)
+        MicCaliCheckBox.Size = New Size(61, 19)
         MicCaliCheckBox.TabIndex = 24
         MicCaliCheckBox.Text = "Enable"
         MicCaliCheckBox.UseVisualStyleBackColor = True
@@ -537,18 +572,20 @@ Partial Class MainUI
         ' MicEnCheckBox
         ' 
         MicEnCheckBox.AutoSize = True
-        MicEnCheckBox.Location = New Point(328, 5)
+        MicEnCheckBox.Location = New Point(287, 4)
+        MicEnCheckBox.Margin = New Padding(3, 2, 3, 2)
         MicEnCheckBox.Name = "MicEnCheckBox"
-        MicEnCheckBox.Size = New Size(76, 24)
+        MicEnCheckBox.Size = New Size(61, 19)
         MicEnCheckBox.TabIndex = 24
         MicEnCheckBox.Text = "Enable"
         MicEnCheckBox.UseVisualStyleBackColor = True
         ' 
         ' microphone_id_button
         ' 
-        microphone_id_button.Location = New Point(328, 131)
+        microphone_id_button.Location = New Point(287, 98)
+        microphone_id_button.Margin = New Padding(3, 2, 3, 2)
         microphone_id_button.Name = "microphone_id_button"
-        microphone_id_button.Size = New Size(94, 29)
+        microphone_id_button.Size = New Size(82, 22)
         microphone_id_button.TabIndex = 4
         microphone_id_button.Text = "Get IDs"
         microphone_id_button.UseVisualStyleBackColor = True
@@ -556,95 +593,100 @@ Partial Class MainUI
         ' SetMicLbl
         ' 
         SetMicLbl.AutoSize = True
-        SetMicLbl.Location = New Point(98, 135)
+        SetMicLbl.Location = New Point(86, 101)
         SetMicLbl.Name = "SetMicLbl"
-        SetMicLbl.Size = New Size(138, 20)
+        SetMicLbl.Size = New Size(110, 15)
         SetMicLbl.TabIndex = 3
         SetMicLbl.Text = "Set Microphone (?):"
         ' 
         ' MicID
         ' 
-        MicID.Location = New Point(235, 133)
+        MicID.Location = New Point(206, 100)
+        MicID.Margin = New Padding(3, 2, 3, 2)
         MicID.Maximum = New Decimal(New Integer() {9999, 0, 0, 0})
         MicID.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         MicID.Name = "MicID"
-        MicID.Size = New Size(87, 27)
+        MicID.Size = New Size(76, 23)
         MicID.TabIndex = 2
         MicID.Value = New Decimal(New Integer() {1, 0, 0, 0})
         ' 
         ' PhraseTimeout
         ' 
-        PhraseTimeout.Location = New Point(235, 103)
+        PhraseTimeout.Location = New Point(206, 77)
+        PhraseTimeout.Margin = New Padding(3, 2, 3, 2)
         PhraseTimeout.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         PhraseTimeout.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         PhraseTimeout.Name = "PhraseTimeout"
-        PhraseTimeout.Size = New Size(87, 27)
+        PhraseTimeout.Size = New Size(76, 23)
         PhraseTimeout.TabIndex = 2
         PhraseTimeout.Value = New Decimal(New Integer() {5, 0, 0, 0})
         ' 
         ' RecordTimeout
         ' 
-        RecordTimeout.Location = New Point(235, 70)
+        RecordTimeout.Location = New Point(206, 52)
+        RecordTimeout.Margin = New Padding(3, 2, 3, 2)
         RecordTimeout.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         RecordTimeout.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         RecordTimeout.Name = "RecordTimeout"
-        RecordTimeout.Size = New Size(87, 27)
+        RecordTimeout.Size = New Size(76, 23)
         RecordTimeout.TabIndex = 2
         RecordTimeout.Value = New Decimal(New Integer() {5, 0, 0, 0})
         ' 
         ' MicCaliTime
         ' 
-        MicCaliTime.Location = New Point(235, 37)
+        MicCaliTime.Location = New Point(206, 28)
+        MicCaliTime.Margin = New Padding(3, 2, 3, 2)
         MicCaliTime.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
         MicCaliTime.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         MicCaliTime.Name = "MicCaliTime"
-        MicCaliTime.Size = New Size(87, 27)
+        MicCaliTime.Size = New Size(76, 23)
         MicCaliTime.TabIndex = 2
         MicCaliTime.Value = New Decimal(New Integer() {5, 0, 0, 0})
         ' 
         ' PhraseTimeOutlbl
         ' 
         PhraseTimeOutlbl.AutoSize = True
-        PhraseTimeOutlbl.Location = New Point(98, 105)
+        PhraseTimeOutlbl.Location = New Point(86, 79)
         PhraseTimeOutlbl.Name = "PhraseTimeOutlbl"
-        PhraseTimeOutlbl.Size = New Size(139, 20)
+        PhraseTimeOutlbl.Size = New Size(111, 15)
         PhraseTimeOutlbl.TabIndex = 1
         PhraseTimeOutlbl.Text = "Phrase Timeout (?): "
         ' 
         ' EnThreshValue
         ' 
-        EnThreshValue.Location = New Point(235, 4)
+        EnThreshValue.Location = New Point(206, 3)
+        EnThreshValue.Margin = New Padding(3, 2, 3, 2)
         EnThreshValue.Maximum = New Decimal(New Integer() {1000, 0, 0, 0})
         EnThreshValue.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         EnThreshValue.Name = "EnThreshValue"
-        EnThreshValue.Size = New Size(87, 27)
+        EnThreshValue.Size = New Size(76, 23)
         EnThreshValue.TabIndex = 2
         EnThreshValue.Value = New Decimal(New Integer() {1, 0, 0, 0})
         ' 
         ' RecordTimeoutLbl
         ' 
         RecordTimeoutLbl.AutoSize = True
-        RecordTimeoutLbl.Location = New Point(94, 72)
+        RecordTimeoutLbl.Location = New Point(82, 54)
         RecordTimeoutLbl.Name = "RecordTimeoutLbl"
-        RecordTimeoutLbl.Size = New Size(143, 20)
+        RecordTimeoutLbl.Size = New Size(113, 15)
         RecordTimeoutLbl.TabIndex = 1
         RecordTimeoutLbl.Text = "Record Timeout (?): "
         ' 
         ' MicCaliLbl
         ' 
         MicCaliLbl.AutoSize = True
-        MicCaliLbl.Location = New Point(6, 39)
+        MicCaliLbl.Location = New Point(5, 29)
         MicCaliLbl.Name = "MicCaliLbl"
-        MicCaliLbl.Size = New Size(231, 20)
+        MicCaliLbl.Size = New Size(184, 15)
         MicCaliLbl.TabIndex = 1
         MicCaliLbl.Text = "Microphone Calibration Time (?): "
         ' 
         ' Energy_Threshold
         ' 
         Energy_Threshold.AutoSize = True
-        Energy_Threshold.Location = New Point(86, 6)
+        Energy_Threshold.Location = New Point(75, 4)
         Energy_Threshold.Name = "Energy_Threshold"
-        Energy_Threshold.Size = New Size(151, 20)
+        Energy_Threshold.Size = New Size(120, 15)
         Energy_Threshold.TabIndex = 1
         Energy_Threshold.Text = "Energy Threshold (?): "
         ' 
@@ -660,9 +702,10 @@ Partial Class MainUI
         ' RunScript
         ' 
         RunScript.Font = New Font("Segoe UI", 15F)
-        RunScript.Location = New Point(313, 844)
+        RunScript.Location = New Point(274, 633)
+        RunScript.Margin = New Padding(3, 2, 3, 2)
         RunScript.Name = "RunScript"
-        RunScript.Size = New Size(268, 42)
+        RunScript.Size = New Size(234, 32)
         RunScript.TabIndex = 20
         RunScript.Text = "Run"
         RunScript.UseVisualStyleBackColor = True
@@ -670,19 +713,20 @@ Partial Class MainUI
         ' Label13
         ' 
         Label13.AutoSize = True
-        Label13.Location = New Point(175, 212)
+        Label13.Location = New Point(153, 159)
         Label13.Name = "Label13"
-        Label13.Size = New Size(141, 20)
+        Label13.Size = New Size(112, 15)
         Label13.TabIndex = 21
         Label13.Text = "Discord Web Hook: "
         ' 
         ' DiscordWebHook
         ' 
-        DiscordWebHook.Location = New Point(313, 209)
+        DiscordWebHook.Location = New Point(274, 157)
+        DiscordWebHook.Margin = New Padding(3, 2, 3, 2)
         DiscordWebHook.Name = "DiscordWebHook"
         DiscordWebHook.PasswordChar = "*"c
         DiscordWebHook.PlaceholderText = "<--- Discord WebHook URL --->"
-        DiscordWebHook.Size = New Size(396, 27)
+        DiscordWebHook.Size = New Size(347, 23)
         DiscordWebHook.TabIndex = 22
         ' 
         ' GroupBox5
@@ -691,36 +735,41 @@ Partial Class MainUI
         GroupBox5.Controls.Add(WebLinkT1)
         GroupBox5.Controls.Add(WebLinkOG)
         GroupBox5.Controls.Add(Label15)
-        GroupBox5.Location = New Point(12, 327)
+        GroupBox5.Location = New Point(10, 245)
+        GroupBox5.Margin = New Padding(3, 2, 3, 2)
         GroupBox5.Name = "GroupBox5"
-        GroupBox5.Size = New Size(157, 151)
+        GroupBox5.Padding = New Padding(3, 2, 3, 2)
+        GroupBox5.Size = New Size(137, 113)
         GroupBox5.TabIndex = 25
         GroupBox5.TabStop = False
         GroupBox5.Text = "Browser Source"
         ' 
         ' WebLinkT2
         ' 
-        WebLinkT2.Location = New Point(6, 113)
+        WebLinkT2.Location = New Point(5, 85)
+        WebLinkT2.Margin = New Padding(3, 2, 3, 2)
         WebLinkT2.Name = "WebLinkT2"
-        WebLinkT2.Size = New Size(145, 29)
+        WebLinkT2.Size = New Size(127, 22)
         WebLinkT2.TabIndex = 1
         WebLinkT2.Text = "Translation 2"
         WebLinkT2.UseVisualStyleBackColor = True
         ' 
         ' WebLinkT1
         ' 
-        WebLinkT1.Location = New Point(6, 78)
+        WebLinkT1.Location = New Point(5, 58)
+        WebLinkT1.Margin = New Padding(3, 2, 3, 2)
         WebLinkT1.Name = "WebLinkT1"
-        WebLinkT1.Size = New Size(145, 29)
+        WebLinkT1.Size = New Size(127, 22)
         WebLinkT1.TabIndex = 1
         WebLinkT1.Text = "Translation"
         WebLinkT1.UseVisualStyleBackColor = True
         ' 
         ' WebLinkOG
         ' 
-        WebLinkOG.Location = New Point(6, 46)
+        WebLinkOG.Location = New Point(5, 34)
+        WebLinkOG.Margin = New Padding(3, 2, 3, 2)
         WebLinkOG.Name = "WebLinkOG"
-        WebLinkOG.Size = New Size(145, 29)
+        WebLinkOG.Size = New Size(127, 22)
         WebLinkOG.TabIndex = 1
         WebLinkOG.Text = "Original Text"
         WebLinkOG.UseVisualStyleBackColor = True
@@ -728,9 +777,9 @@ Partial Class MainUI
         ' Label15
         ' 
         Label15.AutoSize = True
-        Label15.Location = New Point(6, 23)
+        Label15.Location = New Point(5, 17)
         Label15.Name = "Label15"
-        Label15.Size = New Size(96, 20)
+        Label15.Size = New Size(78, 15)
         Label15.TabIndex = 0
         Label15.Text = "Click to Copy"
         ' 
@@ -740,9 +789,10 @@ Partial Class MainUI
         CookiesName.AutoCompleteSource = AutoCompleteSource.ListItems
         CookiesName.DropDownStyle = ComboBoxStyle.DropDownList
         CookiesName.FormattingEnabled = True
-        CookiesName.Location = New Point(579, 54)
+        CookiesName.Location = New Point(507, 40)
+        CookiesName.Margin = New Padding(3, 2, 3, 2)
         CookiesName.Name = "CookiesName"
-        CookiesName.Size = New Size(98, 28)
+        CookiesName.Size = New Size(86, 23)
         CookiesName.TabIndex = 26
         ' 
         ' CookiesRefresh
@@ -750,9 +800,10 @@ Partial Class MainUI
         CookiesRefresh.FlatStyle = FlatStyle.Flat
         CookiesRefresh.Font = New Font("Segoe UI", 8F)
         CookiesRefresh.ImageAlign = ContentAlignment.TopLeft
-        CookiesRefresh.Location = New Point(684, 54)
+        CookiesRefresh.Location = New Point(598, 40)
+        CookiesRefresh.Margin = New Padding(3, 2, 3, 2)
         CookiesRefresh.Name = "CookiesRefresh"
-        CookiesRefresh.Size = New Size(25, 28)
+        CookiesRefresh.Size = New Size(22, 21)
         CookiesRefresh.TabIndex = 27
         CookiesRefresh.Text = "🔃"
         CookiesRefresh.UseVisualStyleBackColor = True
@@ -760,18 +811,29 @@ Partial Class MainUI
         ' CheckBoxCMDBLock
         ' 
         CheckBoxCMDBLock.AutoSize = True
-        CheckBoxCMDBLock.Location = New Point(175, 437)
+        CheckBoxCMDBLock.Location = New Point(153, 328)
+        CheckBoxCMDBLock.Margin = New Padding(3, 2, 3, 2)
         CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
-        CheckBoxCMDBLock.Size = New Size(523, 24)
+        CheckBoxCMDBLock.Size = New Size(419, 19)
         CheckBoxCMDBLock.TabIndex = 28
         CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
         CheckBoxCMDBLock.UseVisualStyleBackColor = True
         ' 
+        ' SubWindow
+        ' 
+        SubWindow.Location = New Point(30, 422)
+        SubWindow.Name = "SubWindow"
+        SubWindow.Size = New Size(75, 23)
+        SubWindow.TabIndex = 29
+        SubWindow.Text = "Button1"
+        SubWindow.UseVisualStyleBackColor = True
+        ' 
         ' MainUI
         ' 
-        AutoScaleDimensions = New SizeF(8F, 20F)
+        AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(713, 898)
+        ClientSize = New Size(624, 674)
+        Controls.Add(SubWindow)
         Controls.Add(CheckBoxCMDBLock)
         Controls.Add(CookiesRefresh)
         Controls.Add(CookiesName)
@@ -801,6 +863,7 @@ Partial Class MainUI
         Controls.Add(SaveConfigToFileButton)
         Controls.Add(GroupBox1)
         FormBorderStyle = FormBorderStyle.FixedSingle
+        Margin = New Padding(3, 2, 3, 2)
         MaximizeBox = False
         Name = "MainUI"
         StartPosition = FormStartPosition.CenterScreen
@@ -897,5 +960,6 @@ Partial Class MainUI
     Friend WithEvents CookiesRefresh As Button
     Friend WithEvents ToolTip1 As ToolTip
     Friend WithEvents CheckBoxCMDBLock As CheckBox
+    Friend WithEvents SubWindow As Button
 
 End Class
