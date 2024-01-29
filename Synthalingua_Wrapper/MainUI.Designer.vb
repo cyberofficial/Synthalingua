@@ -731,6 +731,7 @@ Partial Class MainUI
         ' 
         ' GroupBox5
         ' 
+        GroupBox5.Controls.Add(SubWindow)
         GroupBox5.Controls.Add(WebLinkT2)
         GroupBox5.Controls.Add(WebLinkT1)
         GroupBox5.Controls.Add(WebLinkOG)
@@ -739,7 +740,7 @@ Partial Class MainUI
         GroupBox5.Margin = New Padding(3, 2, 3, 2)
         GroupBox5.Name = "GroupBox5"
         GroupBox5.Padding = New Padding(3, 2, 3, 2)
-        GroupBox5.Size = New Size(137, 113)
+        GroupBox5.Size = New Size(137, 163)
         GroupBox5.TabIndex = 25
         GroupBox5.TabStop = False
         GroupBox5.Text = "Browser Source"
@@ -821,11 +822,11 @@ Partial Class MainUI
         ' 
         ' SubWindow
         ' 
-        SubWindow.Location = New Point(30, 422)
+        SubWindow.Location = New Point(6, 110)
         SubWindow.Name = "SubWindow"
-        SubWindow.Size = New Size(75, 23)
+        SubWindow.Size = New Size(126, 48)
         SubWindow.TabIndex = 29
-        SubWindow.Text = "Button1"
+        SubWindow.Text = "Show Sub Title Window"
         SubWindow.UseVisualStyleBackColor = True
         ' 
         ' MainUI
@@ -833,7 +834,6 @@ Partial Class MainUI
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(624, 674)
-        Controls.Add(SubWindow)
         Controls.Add(CheckBoxCMDBLock)
         Controls.Add(CookiesRefresh)
         Controls.Add(CookiesName)

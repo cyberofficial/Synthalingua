@@ -352,6 +352,10 @@ Public Class MainUI
     End Sub
 
     Private Sub SubWindow_Click(sender As Object, e As EventArgs) Handles SubWindow.Click
-        subtitlewindow.Show()
+        If WebServerButton.Checked = True Then
+            subtitlewindow.Show()
+        Else
+            MessageBox.Show("Please enable the web server to use this feature.")
+        End If
     End Sub
 End Class
