@@ -7,5 +7,8 @@
     <Compile Update="MainUI.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="subtitlewindow.vb">
+      <SubType>Form</SubType>
+    </Compile>
   </ItemGroup>
 </Project>
