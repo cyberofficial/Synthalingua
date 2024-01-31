@@ -1,7 +1,7 @@
 ﻿Imports System.Net.Http
 Imports System.Net.Sockets
-Imports System.Threading
 Imports System.Runtime.InteropServices
+Imports System.Threading
 
 
 Public Class subtitlewindow
@@ -46,7 +46,7 @@ Public Class subtitlewindow
     Private Sub InitializeLabelWrapping(label As Label)
         label.AutoSize = True
         label.AutoEllipsis = True
-        label.MaximumSize = New Size(Me.ClientSize.Width, 0)
+        label.MaximumSize = New Size(ClientSize.Width, 0)
     End Sub
 
     Private Sub subtitlewindow_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -70,7 +70,7 @@ Public Class subtitlewindow
 
     Private Async Sub InfoSaverTimer_Tick(sender As Object, e As EventArgs) Handles InfoSaverTimer.Tick
         ' Check if the form is closing. If so, do not proceed with updates.
-        If Me.IsDisposed OrElse Me.Disposing Then
+        If IsDisposed OrElse Disposing Then
             Return
         End If
 
@@ -100,13 +100,13 @@ Public Class subtitlewindow
         End Try
 
         ' Before updating the UI, check if the form is still open and its handle is created
-        If Not Me.IsDisposed AndAlso Not Me.Disposing AndAlso Me.IsHandleCreated Then
+        If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
-                Me.Invoke(Sub()
-                              headertextlbl.Text = headerText
-                              translatedheaderlbl.Text = translatedHeaderText
-                              transcribedheaderlbl.Text = transcribedHeaderText
-                          End Sub)
+                Invoke(Sub()
+                           headertextlbl.Text = headerText
+                           translatedheaderlbl.Text = translatedHeaderText
+                           transcribedheaderlbl.Text = transcribedHeaderText
+                       End Sub)
             Catch ex As InvalidOperationException
                 Debug.WriteLine("InvalidOperationException: " & ex.Message)
             Catch ex As Exception
@@ -115,19 +115,19 @@ Public Class subtitlewindow
         End If
 
         ' Check if the form is still valid for updating
-        If Not Me.IsDisposed AndAlso Not Me.Disposing AndAlso Me.IsHandleCreated Then
+        If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
-                Me.Invoke(Sub()
-                              headertextlbl.Text = headerText
-                              translatedheaderlbl.Text = translatedHeaderText
-                              transcribedheaderlbl.Text = transcribedHeaderText
+                Invoke(Sub()
+                           headertextlbl.Text = headerText
+                           translatedheaderlbl.Text = translatedHeaderText
+                           transcribedheaderlbl.Text = transcribedHeaderText
 
-                              ' Force redraw
-                              headertextlbl.Invalidate()
-                              translatedheaderlbl.Invalidate()
-                              transcribedheaderlbl.Invalidate()
-                              Me.Refresh()
-                          End Sub)
+                           ' Force redraw
+                           headertextlbl.Invalidate()
+                           translatedheaderlbl.Invalidate()
+                           transcribedheaderlbl.Invalidate()
+                           Refresh()
+                       End Sub)
             Catch ex As InvalidOperationException
                 Debug.WriteLine("InvalidOperationException: " & ex.Message)
             Catch ex As Exception
@@ -172,20 +172,20 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub PlantToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles PlantToolStripMenuItem.Click
-        MessageBox.Show("Help: " + vbCrLf + "Restore: Double Click then Right click the captions." + vbCrLf + vbCrLf + "Move: Click and Drag the captions", "Help Message")
+        Dim unused = MessageBox.Show("Help: " + vbCrLf + "Restore: Double Click then Right click the captions." + vbCrLf + vbCrLf + "Move: Click and Drag the captions", "Help Message")
 
         ' set transparency key to control
-        Me.TransparencyKey = Color.FromArgb(255, 255, 255)
+        TransparencyKey = Color.FromArgb(255, 255, 255)
         ' set background color to transparent
-        Me.BackColor = Color.FromArgb(255, 255, 255)
+        BackColor = Color.FromArgb(255, 255, 255)
         ' set form boder style to none
-        Me.FormBorderStyle = FormBorderStyle.None
+        FormBorderStyle = FormBorderStyle.None
         ' set topmost to true
-        Me.TopMost = True
+        TopMost = True
 
         MenuStrip1.Visible = False
 
-        Me.Opacity = 0.65
+        Opacity = 0.7
 
     End Sub
 
@@ -217,23 +217,23 @@ Public Class subtitlewindow
 
     Private Sub headertextlbl_MouseDoubleClick(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDoubleClick, translatedheaderlbl.MouseDoubleClick, transcribedheaderlbl.MouseDoubleClick
         ' Reset transparency key
-        Me.TransparencyKey = Color.Empty ' or the original color
+        TransparencyKey = Color.Empty ' or the original color
 
         ' Reset background color
-        Me.BackColor = SystemColors.Control ' or the original color
+        BackColor = SystemColors.Control ' or the original color
 
         ' Reset form border style
-        Me.FormBorderStyle = FormBorderStyle.Sizable ' or the original style
+        FormBorderStyle = FormBorderStyle.Sizable ' or the original style
 
         ' Reset topmost property
-        Me.TopMost = False
+        TopMost = False
 
         ' Optionally, bring the form to the front
-        Me.BringToFront()
+        BringToFront()
 
         MenuStrip1.Visible = True
 
-        Me.Opacity = 1
+        Opacity = 1
     End Sub
 
     Private Sub ShowToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem.Click
@@ -261,8 +261,8 @@ Public Class subtitlewindow
 
     Private Sub headertextlbl_MouseDown(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDown, translatedheaderlbl.MouseDown, transcribedheaderlbl.MouseDown
         If e.Button = MouseButtons.Left Then
-            ReleaseCapture()
-            SendMessage(Handle, &H112, &HF012, 0)
+            Dim unused1 = ReleaseCapture()
+            Dim unused = SendMessage(Handle, &H112, &HF012, 0)
         End If
     End Sub
 
@@ -276,5 +276,23 @@ Public Class subtitlewindow
         headertextlbl.Dock = DockStyle.Bottom
         translatedheaderlbl.Dock = DockStyle.Bottom
         transcribedheaderlbl.Dock = DockStyle.Bottom
+    End Sub
+
+    Private Sub RightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem.Click
+        headertextlbl.Dock = DockStyle.Right
+        translatedheaderlbl.Dock = DockStyle.Right
+        transcribedheaderlbl.Dock = DockStyle.Right
+    End Sub
+
+    Private Sub LeftToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem1.Click
+        headertextlbl.RightToLeft = RightToLeft.No
+        translatedheaderlbl.RightToLeft = RightToLeft.No
+        transcribedheaderlbl.RightToLeft = RightToLeft.No
+    End Sub
+
+    Private Sub RightToLeftToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToLeftToolStripMenuItem.Click
+        headertextlbl.RightToLeft = RightToLeft.Yes
+        translatedheaderlbl.RightToLeft = RightToLeft.Yes
+        transcribedheaderlbl.RightToLeft = RightToLeft.Yes
     End Sub
 End Class
