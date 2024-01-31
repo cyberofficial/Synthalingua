@@ -33,6 +33,9 @@ Partial Class subtitlewindow
         TextColorToolStripMenuItem = New ToolStripMenuItem()
         FrontToolStripMenuItem = New ToolStripMenuItem()
         BackToolStripMenuItem = New ToolStripMenuItem()
+        LanguageModeToolStripMenuItem = New ToolStripMenuItem()
+        LeftToolStripMenuItem1 = New ToolStripMenuItem()
+        RightToLeftToolStripMenuItem = New ToolStripMenuItem()
         AddRemoveSubtitleControlToolStripMenuItem = New ToolStripMenuItem()
         OriginalToolStripMenuItem = New ToolStripMenuItem()
         ShowToolStripMenuItem = New ToolStripMenuItem()
@@ -43,11 +46,12 @@ Partial Class subtitlewindow
         SecondaryTranslationToolStripMenuItem = New ToolStripMenuItem()
         ShowToolStripMenuItem2 = New ToolStripMenuItem()
         HideToolStripMenuItem2 = New ToolStripMenuItem()
+        FormatToolStripMenuItem = New ToolStripMenuItem()
+        TopTextToolStripMenuItem = New ToolStripMenuItem()
+        BottomTextToolStripMenuItem = New ToolStripMenuItem()
+        RightToolStripMenuItem = New ToolStripMenuItem()
         PlantToolStripMenuItem = New ToolStripMenuItem()
         FontDialog1 = New FontDialog()
-        FormatToolStripMenuItem = New ToolStripMenuItem()
-        BottomTextToolStripMenuItem = New ToolStripMenuItem()
-        TopTextToolStripMenuItem = New ToolStripMenuItem()
         MenuStrip1.SuspendLayout()
         SuspendLayout()
         ' 
@@ -58,10 +62,13 @@ Partial Class subtitlewindow
         ' 
         headertextlbl.AutoEllipsis = True
         headertextlbl.AutoSize = True
+        headertextlbl.BackColor = SystemColors.ActiveCaptionText
         headertextlbl.Dock = DockStyle.Bottom
-        headertextlbl.Location = New Point(0, 106)
+        headertextlbl.Font = New Font("Segoe UI", 21F)
+        headertextlbl.ForeColor = SystemColors.ButtonFace
+        headertextlbl.Location = New Point(0, 37)
         headertextlbl.Name = "headertextlbl"
-        headertextlbl.Size = New Size(74, 15)
+        headertextlbl.Size = New Size(172, 38)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text"
         headertextlbl.Visible = False
@@ -70,10 +77,13 @@ Partial Class subtitlewindow
         ' 
         translatedheaderlbl.AutoEllipsis = True
         translatedheaderlbl.AutoSize = True
+        translatedheaderlbl.BackColor = SystemColors.ActiveCaptionText
         translatedheaderlbl.Dock = DockStyle.Bottom
-        translatedheaderlbl.Location = New Point(0, 121)
+        translatedheaderlbl.Font = New Font("Segoe UI", 21F)
+        translatedheaderlbl.ForeColor = SystemColors.ButtonFace
+        translatedheaderlbl.Location = New Point(0, 75)
         translatedheaderlbl.Name = "translatedheaderlbl"
-        translatedheaderlbl.Size = New Size(74, 15)
+        translatedheaderlbl.Size = New Size(172, 38)
         translatedheaderlbl.TabIndex = 1
         translatedheaderlbl.Text = "Dummy Text"
         translatedheaderlbl.Visible = False
@@ -82,10 +92,13 @@ Partial Class subtitlewindow
         ' 
         transcribedheaderlbl.AutoEllipsis = True
         transcribedheaderlbl.AutoSize = True
+        transcribedheaderlbl.BackColor = SystemColors.ActiveCaptionText
         transcribedheaderlbl.Dock = DockStyle.Bottom
-        transcribedheaderlbl.Location = New Point(0, 136)
+        transcribedheaderlbl.Font = New Font("Segoe UI", 21F)
+        transcribedheaderlbl.ForeColor = SystemColors.ButtonFace
+        transcribedheaderlbl.Location = New Point(0, 113)
         transcribedheaderlbl.Name = "transcribedheaderlbl"
-        transcribedheaderlbl.Size = New Size(74, 15)
+        transcribedheaderlbl.Size = New Size(172, 38)
         transcribedheaderlbl.TabIndex = 2
         transcribedheaderlbl.Text = "Dummy Text"
         transcribedheaderlbl.Visible = False
@@ -93,7 +106,7 @@ Partial Class subtitlewindow
         ' MenuStrip1
         ' 
         MenuStrip1.Dock = DockStyle.Bottom
-        MenuStrip1.Items.AddRange(New ToolStripItem() {FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, PlantToolStripMenuItem, FormatToolStripMenuItem})
+        MenuStrip1.Items.AddRange(New ToolStripItem() {FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem})
         MenuStrip1.Location = New Point(0, 151)
         MenuStrip1.Name = "MenuStrip1"
         MenuStrip1.Size = New Size(475, 24)
@@ -102,7 +115,7 @@ Partial Class subtitlewindow
         ' 
         ' FontSettingsToolStripMenuItem
         ' 
-        FontSettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FontFaceToolStripMenuItem, TextColorToolStripMenuItem})
+        FontSettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FontFaceToolStripMenuItem, TextColorToolStripMenuItem, LanguageModeToolStripMenuItem})
         FontSettingsToolStripMenuItem.Name = "FontSettingsToolStripMenuItem"
         FontSettingsToolStripMenuItem.Size = New Size(88, 20)
         FontSettingsToolStripMenuItem.Text = "Font Settings"
@@ -110,14 +123,14 @@ Partial Class subtitlewindow
         ' FontFaceToolStripMenuItem
         ' 
         FontFaceToolStripMenuItem.Name = "FontFaceToolStripMenuItem"
-        FontFaceToolStripMenuItem.Size = New Size(127, 22)
+        FontFaceToolStripMenuItem.Size = New Size(160, 22)
         FontFaceToolStripMenuItem.Text = "Font Face"
         ' 
         ' TextColorToolStripMenuItem
         ' 
         TextColorToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FrontToolStripMenuItem, BackToolStripMenuItem})
         TextColorToolStripMenuItem.Name = "TextColorToolStripMenuItem"
-        TextColorToolStripMenuItem.Size = New Size(127, 22)
+        TextColorToolStripMenuItem.Size = New Size(160, 22)
         TextColorToolStripMenuItem.Text = "Text Color"
         ' 
         ' FrontToolStripMenuItem
@@ -131,6 +144,25 @@ Partial Class subtitlewindow
         BackToolStripMenuItem.Name = "BackToolStripMenuItem"
         BackToolStripMenuItem.Size = New Size(102, 22)
         BackToolStripMenuItem.Text = "Back"
+        ' 
+        ' LanguageModeToolStripMenuItem
+        ' 
+        LanguageModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem1, RightToLeftToolStripMenuItem})
+        LanguageModeToolStripMenuItem.Name = "LanguageModeToolStripMenuItem"
+        LanguageModeToolStripMenuItem.Size = New Size(160, 22)
+        LanguageModeToolStripMenuItem.Text = "Language Mode"
+        ' 
+        ' LeftToolStripMenuItem1
+        ' 
+        LeftToolStripMenuItem1.Name = "LeftToolStripMenuItem1"
+        LeftToolStripMenuItem1.Size = New Size(140, 22)
+        LeftToolStripMenuItem1.Text = "Left"
+        ' 
+        ' RightToLeftToolStripMenuItem
+        ' 
+        RightToLeftToolStripMenuItem.Name = "RightToLeftToolStripMenuItem"
+        RightToLeftToolStripMenuItem.Size = New Size(140, 22)
+        RightToLeftToolStripMenuItem.Text = "Right To Left"
         ' 
         ' AddRemoveSubtitleControlToolStripMenuItem
         ' 
@@ -196,6 +228,31 @@ Partial Class subtitlewindow
         HideToolStripMenuItem2.Size = New Size(103, 22)
         HideToolStripMenuItem2.Text = "Hide"
         ' 
+        ' FormatToolStripMenuItem
+        ' 
+        FormatToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TopTextToolStripMenuItem, BottomTextToolStripMenuItem, RightToolStripMenuItem})
+        FormatToolStripMenuItem.Name = "FormatToolStripMenuItem"
+        FormatToolStripMenuItem.Size = New Size(57, 20)
+        FormatToolStripMenuItem.Text = "Format"
+        ' 
+        ' TopTextToolStripMenuItem
+        ' 
+        TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
+        TopTextToolStripMenuItem.Size = New Size(180, 22)
+        TopTextToolStripMenuItem.Text = "Top Left"
+        ' 
+        ' BottomTextToolStripMenuItem
+        ' 
+        BottomTextToolStripMenuItem.Name = "BottomTextToolStripMenuItem"
+        BottomTextToolStripMenuItem.Size = New Size(180, 22)
+        BottomTextToolStripMenuItem.Text = "Bottom Left"
+        ' 
+        ' RightToolStripMenuItem
+        ' 
+        RightToolStripMenuItem.Name = "RightToolStripMenuItem"
+        RightToolStripMenuItem.Size = New Size(180, 22)
+        RightToolStripMenuItem.Text = "Top Right"
+        ' 
         ' PlantToolStripMenuItem
         ' 
         PlantToolStripMenuItem.Name = "PlantToolStripMenuItem"
@@ -204,25 +261,6 @@ Partial Class subtitlewindow
         ' 
         ' FontDialog1
         ' 
-        ' 
-        ' FormatToolStripMenuItem
-        ' 
-        FormatToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TopTextToolStripMenuItem, BottomTextToolStripMenuItem})
-        FormatToolStripMenuItem.Name = "FormatToolStripMenuItem"
-        FormatToolStripMenuItem.Size = New Size(57, 20)
-        FormatToolStripMenuItem.Text = "Format"
-        ' 
-        ' BottomTextToolStripMenuItem
-        ' 
-        BottomTextToolStripMenuItem.Name = "BottomTextToolStripMenuItem"
-        BottomTextToolStripMenuItem.Size = New Size(180, 22)
-        BottomTextToolStripMenuItem.Text = "Bottom Text"
-        ' 
-        ' TopTextToolStripMenuItem
-        ' 
-        TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(180, 22)
-        TopTextToolStripMenuItem.Text = "Top Text"
         ' 
         ' subtitlewindow
         ' 
@@ -268,4 +306,8 @@ Partial Class subtitlewindow
     Friend WithEvents FormatToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents TopTextToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents BottomTextToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents RightToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents LanguageModeToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents LeftToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents RightToLeftToolStripMenuItem As ToolStripMenuItem
 End Class

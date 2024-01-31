@@ -1,33 +1,28 @@
-﻿Imports System.Linq.Expressions
-' using the system file storage
+﻿' using the system file storage
 Imports System.IO
 
 Public Class MainUI
-
-    Dim PrimaryFolder As String
-    Dim ShortCutType As String
+    Private PrimaryFolder As String
+    Private ShortCutType As String
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
         End If
-        OpenScriptDiag.ShowDialog()
+        Dim unused = OpenScriptDiag.ShowDialog()
         ScriptFileLocation.Text = OpenScriptDiag.FileName
         PrimaryFolder = System.IO.Path.GetDirectoryName(OpenScriptDiag.FileName)
         ' Check file name as .py or .exe, if py ShortCutType is Source else ShortCutType is Portable
-        If System.IO.Path.GetExtension(OpenScriptDiag.FileName) = ".py" Then
-            ShortCutType = "Source"
-        Else
-            ShortCutType = "Portable"
-        End If
+        ShortCutType = If(System.IO.Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
     End Sub
 
     Private Sub ChunkSizeTrackBar_ValueChanged(sender As Object, e As EventArgs) Handles ChunkSizeTrackBar.ValueChanged
         ChunkSizeTrackBarValue.Text = "Chunks: " & ChunkSizeTrackBar.Value
     End Sub
 
+    <Obsolete>
     Private Sub GenerateConfigButton_Click(sender As Object, e As EventArgs) Handles GenerateConfigButton.Click
         If ScriptFileLocation.Text = "" Then
-            MsgBox("Please select the program file.")
+            Dim unused = MsgBox("Please select the program file.")
             Exit Sub
         End If
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
@@ -140,7 +135,7 @@ Public Class MainUI
     Private Sub SaveConfigToFileButton_Click(sender As Object, e As EventArgs) Handles SaveConfigToFileButton.Click
         SaveFileDialog.Filter = "Batch File|*.bat"
         SaveFileDialog.Title = "Save Config File"
-        SaveFileDialog.ShowDialog()
+        Dim unused = SaveFileDialog.ShowDialog()
         If SaveFileDialog.FileName <> "" Then
             My.Computer.FileSystem.WriteAllText(SaveFileDialog.FileName, ConfigTextBox.Text, False)
         End If
@@ -148,89 +143,88 @@ Public Class MainUI
 
     Private Sub RunScript_Click(sender As Object, e As EventArgs) Handles RunScript.Click
         If ScriptFileLocation.Text = "" Then
-            MsgBox("Please select the program file.")
+            Dim unused1 = MsgBox("Please select the program file.")
             Exit Sub
         End If
 
         ' save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
         File.WriteAllText(tmpBatFile, ConfigTextBox.Text)
-        Process.Start(tmpBatFile)
+        Dim unused = Process.Start(tmpBatFile)
     End Sub
 
+    <Obsolete>
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
         Try
             If MIC_RadioButton.Checked = True Then
                 Try
                     If ScriptFileLocation.Text.Contains(" ") Then
-                        MsgBox("Please select a program file that does not have spaces in the file path.")
+                        Dim unused7 = MsgBox("Please select a program file that does not have spaces in the file path.")
                         Exit Sub
                     End If
                     If ScriptFileLocation.Text.Contains(".py") Then
                         Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
                         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
                         File.WriteAllText(tmpBatFile, TempCommand)
-                        Process.Start(tmpBatFile)
+                        Dim unused6 = Process.Start(tmpBatFile)
                     Else
-                        MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
+                        Dim unused5 = MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
                         ' add a pause to the end of the command so the user can see the output
                         Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbNewLine & "pause"
                         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
                         File.WriteAllText(tmpBatFile, TempCommand)
-                        Process.Start(tmpBatFile)
+                        Dim unused4 = Process.Start(tmpBatFile)
                     End If
 
                 Catch ex As Exception
-                    MessageBox.Show("Error: " & ex.Message)
-                    MessageBox.Show("Possible error is that the program path is not valid, or is missing a file. Make sure to select the program file.")
+                    Dim unused3 = MessageBox.Show("Error: " & ex.Message)
+                    Dim unused2 = MessageBox.Show("Possible error is that the program path is not valid, or is missing a file. Make sure to select the program file.")
                     ' make Label1 flash black and red
-                    Dim t As New Timer
-                    t.Interval = 100
+                    Dim t As New Timer With {
+                        .Interval = 100
+                    }
                     AddHandler t.Tick, Sub()
-                                           If Label1.ForeColor = Color.Black Then
-                                               Label1.ForeColor = Color.Red
-                                           Else
-                                               Label1.ForeColor = Color.Black
-                                           End If
+                                           Label1.ForeColor = If(Label1.ForeColor = Color.Black, Color.Red, Color.Black)
                                        End Sub
                     t.Start()
                     ' stop the timer after 5 seconds
-                    Dim t2 As New Timer
-                    t2.Interval = 5000
+                    Dim t2 As New Timer With {
+                        .Interval = 5000
+                    }
                     AddHandler t2.Tick, Sub()
                                             t.Stop()
                                         End Sub
                     t2.Start()
                 End Try
             Else
-                MsgBox("Please select the microphone option")
+                Dim unused1 = MsgBox("Please select the microphone option")
             End If
         Catch ex As Exception
-            MessageBox.Show("Error: " & ex.Message)
+            Dim unused = MessageBox.Show("Error: " & ex.Message)
         End Try
 
     End Sub
 
     Private Sub WebLinkOG_Click(sender As Object, e As EventArgs) Handles WebLinkOG.Click
         Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showoriginal")
-        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showoriginal to clipboard")
+        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showoriginal to clipboard")
     End Sub
 
     Private Sub WebLinkT1_Click(sender As Object, e As EventArgs) Handles WebLinkT1.Click
         Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranslation ")
-        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranslation to clipboard")
+        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranslation to clipboard")
     End Sub
 
     Private Sub WebLinkT2_Click(sender As Object, e As EventArgs) Handles WebLinkT2.Click
         Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranscription  ")
-        MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
+        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
 
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
         If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
             For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
-                CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
     End Sub
@@ -240,7 +234,7 @@ Public Class MainUI
         CookiesName.Items.Clear()
         If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
             For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
-                CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
     End Sub
@@ -267,12 +261,7 @@ Public Class MainUI
     End Sub
 
     Private Sub CheckBoxCMDBLock_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBoxCMDBLock.CheckedChanged
-        If CheckBoxCMDBLock.Checked = False Then
-            ConfigTextBox.Visible = False
-        Else
-            ConfigTextBox.Visible = True
-
-        End If
+        ConfigTextBox.Visible = CheckBoxCMDBLock.Checked <> False
     End Sub
 
     Private Sub HSL_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles HSL_RadioButton.MouseHover
@@ -332,30 +321,30 @@ Public Class MainUI
     End Sub
 
     Private Sub Energy_Threshold_MouseClick(sender As Object, e As MouseEventArgs) Handles Energy_Threshold.MouseClick
-        MessageBox.Show("Set the energy threshold. This is the amount of energy required to start recording. The higher the number the more energy is required to start recording.")
+        Dim unused = MessageBox.Show("Set the energy threshold. This is the amount of energy required to start recording. The higher the number the more energy is required to start recording.")
     End Sub
 
     Private Sub MicCaliLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles MicCaliLbl.MouseClick
-        MessageBox.Show("Set the microphone calibration time. This is the amount of time to calibrate the microphone. The higher the number the more time it will take to calibrate the microphone.")
+        Dim unused = MessageBox.Show("Set the microphone calibration time. This is the amount of time to calibrate the microphone. The higher the number the more time it will take to calibrate the microphone.")
     End Sub
 
     Private Sub RecordTimeoutLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles RecordTimeoutLbl.MouseClick
-        MessageBox.Show("Set the record timeout. This is the amount of time to record for. The higher the number the more time it will record for.")
+        Dim unused = MessageBox.Show("Set the record timeout. This is the amount of time to record for. The higher the number the more time it will record for.")
     End Sub
 
     Private Sub PhraseTimeOutlbl_MouseClick(sender As Object, e As MouseEventArgs) Handles PhraseTimeOutlbl.MouseClick
-        MessageBox.Show("Set the phrase timeout. This is the amount of time to wait for a phrase. The higher the number the more time it will wait for a phrase. How many sentences in a paragraph it'll show.")
+        Dim unused = MessageBox.Show("Set the phrase timeout. This is the amount of time to wait for a phrase. The higher the number the more time it will wait for a phrase. How many sentences in a paragraph it'll show.")
     End Sub
 
     Private Sub SetMicLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles SetMicLbl.MouseClick
-        MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
+        Dim unused = MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
     End Sub
 
     Private Sub SubWindow_Click(sender As Object, e As EventArgs) Handles SubWindow.Click
         If WebServerButton.Checked = True Then
             subtitlewindow.Show()
         Else
-            MessageBox.Show("Please enable the web server to use this feature.")
+            Dim unused = MessageBox.Show("Please enable the web server to use this feature.")
         End If
     End Sub
 End Class
