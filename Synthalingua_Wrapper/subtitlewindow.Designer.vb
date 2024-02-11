@@ -238,19 +238,19 @@ Partial Class subtitlewindow
         ' TopTextToolStripMenuItem
         ' 
         TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(180, 22)
+        TopTextToolStripMenuItem.Size = New Size(137, 22)
         TopTextToolStripMenuItem.Text = "Top Left"
         ' 
         ' BottomTextToolStripMenuItem
         ' 
         BottomTextToolStripMenuItem.Name = "BottomTextToolStripMenuItem"
-        BottomTextToolStripMenuItem.Size = New Size(180, 22)
+        BottomTextToolStripMenuItem.Size = New Size(137, 22)
         BottomTextToolStripMenuItem.Text = "Bottom Left"
         ' 
         ' RightToolStripMenuItem
         ' 
         RightToolStripMenuItem.Name = "RightToolStripMenuItem"
-        RightToolStripMenuItem.Size = New Size(180, 22)
+        RightToolStripMenuItem.Size = New Size(137, 22)
         RightToolStripMenuItem.Text = "Top Right"
         ' 
         ' PlantToolStripMenuItem
