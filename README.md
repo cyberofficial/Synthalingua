@@ -58,23 +58,24 @@ Example: If you use the tool in a way that violates the terms of service or poli
 
 
 ## TODO
-| Todo  | Sub-Task | Status |
-|-------|----------|--------|
-| Add support for AMD GPUs. | ROCm support - Linux Only | ✅ |
-|       | OpenCL support - Linux Only | ✅ |
-| Add support API access. |          | ❌ |
-| Custom localhost web server. |      | ✅ |
-| Add reverse translation. |        | ✅ |
-|       | Localize script to other languages. (Will take place after reverse translations.) | ❌ |
-| Custom dictionary support. |       | ❌ |
-| GUI.  |          | ❌ |
-| Linux support. |          | ✅ |
-| Improve performance. |         | ❌ |
-|       | Compressed Model Format for lower ram users | ✅ |
-|       | Better large model loading speed | ❌ |
-|          | Split model up into multiple chunks based on usage | ❌ |
-| Stream Audio from URL | | ✅ |
-| Increase model swapping accuracy. | | ❌ |
+| Todo  | Sub-Task                                                                          | Status |
+|-------|-----------------------------------------------------------------------------------|--------|
+| Add support for AMD GPUs. | ROCm support - Linux Only                                                         | ✅      |
+|       | OpenCL support - Linux Only                                                       | ✅      |
+| Add support API access. |                                                                                   | ✅      |
+| Custom localhost web server. |                                                                                   | ✅      |
+| Add reverse translation. |                                                                                   | ✅      |
+|       | Localize script to other languages. (Will take place after reverse translations.) | ❌      |
+| Custom dictionary support. |                                                                                   | ❌      |
+| GUI.  |                                                                                   | ✅      |
+| Linux support. |                                                                                   | ✅      |
+| Improve performance. |                                                                                   | ❌      |
+|       | Compressed Model Format for lower ram users                                       | ✅      |
+|       | Better large model loading speed                                                  | ✅      |
+|          | Split model up into multiple chunks based on usage                                | ❌      |
+| Stream Audio from URL |                                                                                   | ✅      |
+| Increase model swapping accuracy. |                                                                                   | ❌      |
+| No Microphone Required | Streaming Module                                                                  | ✅      |
 
 
 # Contributors 
@@ -113,13 +114,14 @@ Note:
 
 The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
 
-### ~~A Microphone is required! You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.~~ 
-### A microphone is now optional. You can use the `--stream` flag to stream audio from a HLS stream. See [Examples](#examples) for more information.
+## A microphone is optional. You can use the `--stream` flag to stream audio from a HLS stream. See [Examples](#examples) for more information.
+### You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
 
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
      * Make sure to check the box that says "Add Python to PATH" when installing. If you don't check the box, you will have to manually add Python to your PATH. You can check this guide: [How to add Python to PATH](https://datatofish.com/add-python-to-windows-path/).
      * You can choose any python version that is 3.10.9 up to the latest version. The tool will *not* work on any python version that is 3.11 or higher. Must be 3.10.9+ not 3.11.x.
+     * Make sure to grab the x64 bit version! This program is not compatible with x86. (32bit)
 2. Download and install [Git](https://git-scm.com/downloads).
      * Using default settings is fine.
 3. Download and install FFMPEG
@@ -140,7 +142,6 @@ This script uses argparse to accept command line arguments. The following option
 | ---- | ----------- |
 | `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
-| ~~`--non_english`~~ | Use non-English models for transcription. Enables the use of non-English models. Deprecated. |
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
 | `--mic_calibration_time` | How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds. |
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |
@@ -266,6 +267,8 @@ If you encounter any issues with the tool, here are some common problems and the
     * Check out this discussion thread for a possible fix: [#12 Discussion](https://github.com/cyberofficial/Synthalingua/discussions/12)
 * Error: Audio source must be entered before adjusting.
     * You need to make sure you have a microphone set up. See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
+* Error: "could not find a version that satisfies the requirement torch" (See Issue [#82](https://github.com/cyberofficial/Synthalingua/issues/82)) )
+  * Please make sure you have python 64bit installed. If you have 32bit installed, you will need to uninstall it and install 64bit. You can grab it here for windows. Windows Direct: https://www.python.org/ftp/python/3.10.9/python-3.10.9-amd64.exe Main: https://www.python.org/downloads/release/python-3109/
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
