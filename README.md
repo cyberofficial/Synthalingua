@@ -1,6 +1,11 @@
 ## Synthalingua 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
+
+## Grab the portable version on itch!
+
+[<img src="https://i.imgur.com/dyZz6u5.png">](https://cyberofficial.itch.io/synthalingua)
+
 ## About
 
 Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
