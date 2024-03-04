@@ -7,7 +7,7 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 
 
 ## Developed Proudly in PyCharm IDE from JetBrains
-JetBrains kindly approved me for an OSS licenses for thier software for use of this project. This will grealty improve my production rate.
+JetBrains kindly approved me for an OSS licenses for their software for use of this project. This will grealty improve my production rate.
 
 Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceSupport?from=Synthalingua)
 
