@@ -2,9 +2,7 @@
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
 
-## Grab the portable version on itch!
 
-[<img src="https://i.imgur.com/dyZz6u5.png">](https://cyberofficial.itch.io/synthalingua)
 
 ## About
 
@@ -20,10 +18,9 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
 
-### Downloads
-| Version (Click to DL)                                                           | Portable Included | Type         | Notes                                                                           |
-|---------------------------------------------------------------------------------|-------------------|--------------|---------------------------------------------------------------------------------|
-| [1.0.9997](https://github.com/cyberofficial/Synthalingua/releases/tag/1.0.9997) | Yes | Release | Updated the GUI Wrapper for Synthalingua. [Read more here](https://github.com/cyberofficial/Synthalingua/tree/master/Synthalingua_Wrapper) and Various fixes included.                                    |
+## You can grab the GUI from the Releases section on github.
+## Grab the portable version on itch!
+[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
