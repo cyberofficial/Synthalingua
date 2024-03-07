@@ -225,6 +225,12 @@ Public Class MainUI
         ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
 
+        ' Create the "cookies" folder if it doesn't exist
+        Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
+        If Not System.IO.Directory.Exists(cookiesFolderPath) Then
+            System.IO.Directory.CreateDirectory(cookiesFolderPath)
+        End If
+
         ' Search for "transcribe_audio.exe" in the current running directory
         Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
 
@@ -244,8 +250,8 @@ Public Class MainUI
         End If
 
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
-        If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
-            For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
+        If Directory.Exists(cookiesFolderPath) Then
+            For Each file As String In Directory.GetFiles(cookiesFolderPath)
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
