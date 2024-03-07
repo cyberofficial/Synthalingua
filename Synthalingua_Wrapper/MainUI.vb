@@ -221,12 +221,35 @@ Public Class MainUI
     End Sub
 
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        ' Get the current running directory
+        Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
+
+        ' Search for "transcribe_audio.exe" in the current running directory
+        Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
+
+        ' Check if the file exists
+        If System.IO.File.Exists(scriptFilePath) Then
+            ' Set the ScriptFileLocation textbox to the file location
+            ScriptFileLocation.Text = scriptFilePath
+
+            ' Get the primary folder from the script file location
+            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
+
+            ' Set the ShortCutType to "Portable" since we found the executable file
+            ShortCutType = "Portable"
+        Else
+            ' Show a message box to the user indicating that the file was not found
+            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory.")
+        End If
+
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
         If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
             For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
+
     End Sub
 
     Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
