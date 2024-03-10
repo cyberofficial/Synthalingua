@@ -38,8 +38,8 @@ Public Class MainUI
         If CAP_RadioButton.Checked = True Then
             ConfigTextBox.Text += "--makecaptions "
             ConfigTextBox.Text += "--file_input=""" & CaptionsInput.Text & """ "
-            ConfigTextBox.Text += "--file_output=""" & CaptionsInput.Text & """ "
-            ConfigTextBox.Text += "--file_output_name=""" & CaptionsInput.Text & """ "
+            ConfigTextBox.Text += "--file_output=""" & CaptionsOutput.Text & """ "
+            ConfigTextBox.Text += "--file_output_name=""" & CaptionsName.Text & """ "
         End If
 
         If MIC_RadioButton.Checked = True Then
@@ -136,6 +136,8 @@ Public Class MainUI
         If DiscordWebHook.Text <> "" Then
             ConfigTextBox.Text += "--discord_webhook """ & DiscordWebHook.Text & """" & " "
         End If
+
+        ConfigTextBox.Text += vbNewLine & "pause"
 
     End Sub
 
@@ -387,13 +389,13 @@ Public Class MainUI
     Private Sub CaptionsInputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsInputBtn.Click
         Dim unused = CaptionsInputFile.ShowDialog
         CaptionsInput.Text = CaptionsInputFile.FileName
-        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
         CaptionsName.Text = Path.GetFileNameWithoutExtension(CaptionsInputFile.SafeFileName)
     End Sub
 
     Private Sub CaptionsOutputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsOutputBtn.Click
         Dim unused = FolderBrowserDialog1.ShowDialog
         CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
-        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
     End Sub
 End Class
