@@ -375,7 +375,7 @@ Public Class MainUI
     End Sub
 
     Private Sub SetMicLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles SetMicLbl.MouseClick
-        Dim unused = MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
+        Dim unused = MessageBox.Show("Set the microphone to use, click Get IDs and set the ID of the microphone.")
     End Sub
 
     Private Sub SubWindow_Click(sender As Object, e As EventArgs) Handles SubWindow.Click
