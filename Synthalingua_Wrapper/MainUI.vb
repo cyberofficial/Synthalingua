@@ -155,6 +155,21 @@ Public Class MainUI
             Dim unused1 = MsgBox("Please select the program file.")
             Exit Sub
         End If
+        If CAP_RadioButton.Checked = True Then
+            If CaptionsName.Text = "" Then
+                Dim unused1 = MsgBox("Please set a file name for captions.")
+                Exit Sub
+            End If
+            If CaptionsOutput.Text = "" Then
+                Dim unused1 = MsgBox("Please set the output folder.")
+                Exit Sub
+            End If
+            If CaptionsInput.Text = "" Then
+                Dim unused1 = MsgBox("Please set the input file.")
+                Exit Sub
+            End If
+        End If
+
 
         ' save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
@@ -255,7 +270,7 @@ Public Class MainUI
             ShortCutType = "Portable"
         Else
             ' Show a message box to the user indicating that the file was not found
-            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory.")
+            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory. Please click the ""..."" to search for it.")
         End If
 
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
