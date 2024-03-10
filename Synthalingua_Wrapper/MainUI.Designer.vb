@@ -24,6 +24,7 @@ Partial Class MainUI
     Private Sub InitializeComponent()
         components = New ComponentModel.Container()
         GroupBox1 = New GroupBox()
+        CAP_RadioButton = New RadioButton()
         MIC_RadioButton = New RadioButton()
         HSL_RadioButton = New RadioButton()
         SaveConfigToFileButton = New Button()
@@ -77,11 +78,21 @@ Partial Class MainUI
         RecordTimeoutLbl = New Label()
         MicCaliLbl = New Label()
         Energy_Threshold = New Label()
+        TabPage3 = New TabPage()
+        CaptionsName = New TextBox()
+        CaptionsOutput = New TextBox()
+        Label12 = New Label()
+        CaptionsInput = New TextBox()
+        Label11 = New Label()
+        CaptionsOutputBtn = New Button()
+        Label9 = New Label()
+        CaptionsInputBtn = New Button()
         MicIDs = New Button()
         RunScript = New Button()
         Label13 = New Label()
         DiscordWebHook = New TextBox()
         GroupBox5 = New GroupBox()
+        SubWindow = New Button()
         WebLinkT2 = New Button()
         WebLinkT1 = New Button()
         WebLinkOG = New Button()
@@ -90,7 +101,8 @@ Partial Class MainUI
         CookiesRefresh = New Button()
         ToolTip1 = New ToolTip(components)
         CheckBoxCMDBLock = New CheckBox()
-        SubWindow = New Button()
+        FolderBrowserDialog1 = New FolderBrowserDialog()
+        CaptionsInputFile = New OpenFileDialog()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -105,21 +117,35 @@ Partial Class MainUI
         CType(RecordTimeout, ComponentModel.ISupportInitialize).BeginInit()
         CType(MicCaliTime, ComponentModel.ISupportInitialize).BeginInit()
         CType(EnThreshValue, ComponentModel.ISupportInitialize).BeginInit()
+        TabPage3.SuspendLayout()
         GroupBox5.SuspendLayout()
         SuspendLayout()
         ' 
         ' GroupBox1
         ' 
+        GroupBox1.Controls.Add(CAP_RadioButton)
         GroupBox1.Controls.Add(MIC_RadioButton)
         GroupBox1.Controls.Add(HSL_RadioButton)
         GroupBox1.Location = New Point(10, 9)
         GroupBox1.Margin = New Padding(3, 2, 3, 2)
         GroupBox1.Name = "GroupBox1"
         GroupBox1.Padding = New Padding(3, 2, 3, 2)
-        GroupBox1.Size = New Size(137, 71)
+        GroupBox1.Size = New Size(137, 101)
         GroupBox1.TabIndex = 0
         GroupBox1.TabStop = False
         GroupBox1.Text = "Audio Soruce"
+        ' 
+        ' CAP_RadioButton
+        ' 
+        CAP_RadioButton.AutoSize = True
+        CAP_RadioButton.Location = New Point(5, 65)
+        CAP_RadioButton.Margin = New Padding(3, 2, 3, 2)
+        CAP_RadioButton.Name = "CAP_RadioButton"
+        CAP_RadioButton.Size = New Size(122, 19)
+        CAP_RadioButton.TabIndex = 1
+        CAP_RadioButton.TabStop = True
+        CAP_RadioButton.Text = "Generate Captions"
+        CAP_RadioButton.UseVisualStyleBackColor = True
         ' 
         ' MIC_RadioButton
         ' 
@@ -372,7 +398,7 @@ Partial Class MainUI
         ' 
         GroupBox3.Controls.Add(CPU_RadioButton)
         GroupBox3.Controls.Add(CUDA_RadioButton)
-        GroupBox3.Location = New Point(10, 85)
+        GroupBox3.Location = New Point(10, 114)
         GroupBox3.Margin = New Padding(3, 2, 3, 2)
         GroupBox3.Name = "GroupBox3"
         GroupBox3.Padding = New Padding(3, 2, 3, 2)
@@ -478,7 +504,7 @@ Partial Class MainUI
         GroupBox4.Controls.Add(Label10)
         GroupBox4.Controls.Add(PortNumber)
         GroupBox4.Controls.Add(WebServerButton)
-        GroupBox4.Location = New Point(10, 159)
+        GroupBox4.Location = New Point(10, 188)
         GroupBox4.Margin = New Padding(3, 2, 3, 2)
         GroupBox4.Name = "GroupBox4"
         GroupBox4.Padding = New Padding(3, 2, 3, 2)
@@ -491,6 +517,7 @@ Partial Class MainUI
         ' 
         TabControl1.Controls.Add(TabPage1)
         TabControl1.Controls.Add(TabPage2)
+        TabControl1.Controls.Add(TabPage3)
         TabControl1.Location = New Point(153, 176)
         TabControl1.Margin = New Padding(3, 2, 3, 2)
         TabControl1.Name = "TabControl1"
@@ -690,6 +717,95 @@ Partial Class MainUI
         Energy_Threshold.TabIndex = 1
         Energy_Threshold.Text = "Energy Threshold (?): "
         ' 
+        ' TabPage3
+        ' 
+        TabPage3.Controls.Add(CaptionsName)
+        TabPage3.Controls.Add(CaptionsOutput)
+        TabPage3.Controls.Add(Label12)
+        TabPage3.Controls.Add(CaptionsInput)
+        TabPage3.Controls.Add(Label11)
+        TabPage3.Controls.Add(CaptionsOutputBtn)
+        TabPage3.Controls.Add(Label9)
+        TabPage3.Controls.Add(CaptionsInputBtn)
+        TabPage3.Location = New Point(4, 24)
+        TabPage3.Name = "TabPage3"
+        TabPage3.Padding = New Padding(3)
+        TabPage3.Size = New Size(459, 124)
+        TabPage3.TabIndex = 2
+        TabPage3.Text = "Generate Captions"
+        TabPage3.UseVisualStyleBackColor = True
+        ' 
+        ' CaptionsName
+        ' 
+        CaptionsName.Location = New Point(92, 61)
+        CaptionsName.Name = "CaptionsName"
+        CaptionsName.PlaceholderText = "CaptionFile (just name not name.txt, etc)"
+        CaptionsName.Size = New Size(320, 23)
+        CaptionsName.TabIndex = 1
+        ' 
+        ' CaptionsOutput
+        ' 
+        CaptionsOutput.Location = New Point(92, 32)
+        CaptionsOutput.Name = "CaptionsOutput"
+        CaptionsOutput.PlaceholderText = "C:\SomeLocation"
+        CaptionsOutput.Size = New Size(320, 23)
+        CaptionsOutput.TabIndex = 1
+        ' 
+        ' Label12
+        ' 
+        Label12.AutoSize = True
+        Label12.Location = New Point(10, 64)
+        Label12.Name = "Label12"
+        Label12.Size = New Size(76, 15)
+        Label12.TabIndex = 0
+        Label12.Text = "Export Name"
+        ' 
+        ' CaptionsInput
+        ' 
+        CaptionsInput.Location = New Point(92, 3)
+        CaptionsInput.Name = "CaptionsInput"
+        CaptionsInput.PlaceholderText = "C:\SomeLocation\file.mp4"
+        CaptionsInput.Size = New Size(320, 23)
+        CaptionsInput.TabIndex = 1
+        ' 
+        ' Label11
+        ' 
+        Label11.AutoSize = True
+        Label11.Location = New Point(6, 35)
+        Label11.Name = "Label11"
+        Label11.Size = New Size(80, 15)
+        Label11.TabIndex = 0
+        Label11.Text = "Save Location"
+        ' 
+        ' CaptionsOutputBtn
+        ' 
+        CaptionsOutputBtn.Location = New Point(418, 33)
+        CaptionsOutputBtn.Margin = New Padding(3, 2, 3, 2)
+        CaptionsOutputBtn.Name = "CaptionsOutputBtn"
+        CaptionsOutputBtn.Size = New Size(35, 22)
+        CaptionsOutputBtn.TabIndex = 4
+        CaptionsOutputBtn.Text = "..."
+        CaptionsOutputBtn.UseVisualStyleBackColor = True
+        ' 
+        ' Label9
+        ' 
+        Label9.AutoSize = True
+        Label9.Location = New Point(30, 8)
+        Label9.Name = "Label9"
+        Label9.Size = New Size(56, 15)
+        Label9.TabIndex = 0
+        Label9.Text = "Input File"
+        ' 
+        ' CaptionsInputBtn
+        ' 
+        CaptionsInputBtn.Location = New Point(418, 4)
+        CaptionsInputBtn.Margin = New Padding(3, 2, 3, 2)
+        CaptionsInputBtn.Name = "CaptionsInputBtn"
+        CaptionsInputBtn.Size = New Size(35, 22)
+        CaptionsInputBtn.TabIndex = 4
+        CaptionsInputBtn.Text = "..."
+        CaptionsInputBtn.UseVisualStyleBackColor = True
+        ' 
         ' MicIDs
         ' 
         MicIDs.Location = New Point(308, 131)
@@ -736,7 +852,7 @@ Partial Class MainUI
         GroupBox5.Controls.Add(WebLinkT1)
         GroupBox5.Controls.Add(WebLinkOG)
         GroupBox5.Controls.Add(Label15)
-        GroupBox5.Location = New Point(10, 245)
+        GroupBox5.Location = New Point(10, 274)
         GroupBox5.Margin = New Padding(3, 2, 3, 2)
         GroupBox5.Name = "GroupBox5"
         GroupBox5.Padding = New Padding(3, 2, 3, 2)
@@ -744,6 +860,15 @@ Partial Class MainUI
         GroupBox5.TabIndex = 25
         GroupBox5.TabStop = False
         GroupBox5.Text = "Browser Source"
+        ' 
+        ' SubWindow
+        ' 
+        SubWindow.Location = New Point(6, 110)
+        SubWindow.Name = "SubWindow"
+        SubWindow.Size = New Size(126, 48)
+        SubWindow.TabIndex = 29
+        SubWindow.Text = "Show Sub Title Window"
+        SubWindow.UseVisualStyleBackColor = True
         ' 
         ' WebLinkT2
         ' 
@@ -820,14 +945,9 @@ Partial Class MainUI
         CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
         CheckBoxCMDBLock.UseVisualStyleBackColor = True
         ' 
-        ' SubWindow
+        ' CaptionsInputFile
         ' 
-        SubWindow.Location = New Point(6, 110)
-        SubWindow.Name = "SubWindow"
-        SubWindow.Size = New Size(126, 48)
-        SubWindow.TabIndex = 29
-        SubWindow.Text = "Show Sub Title Window"
-        SubWindow.UseVisualStyleBackColor = True
+        CaptionsInputFile.FileName = "OpenFileDialog1"
         ' 
         ' MainUI
         ' 
@@ -887,6 +1007,8 @@ Partial Class MainUI
         CType(RecordTimeout, ComponentModel.ISupportInitialize).EndInit()
         CType(MicCaliTime, ComponentModel.ISupportInitialize).EndInit()
         CType(EnThreshValue, ComponentModel.ISupportInitialize).EndInit()
+        TabPage3.ResumeLayout(False)
+        TabPage3.PerformLayout()
         GroupBox5.ResumeLayout(False)
         GroupBox5.PerformLayout()
         ResumeLayout(False)
@@ -961,5 +1083,17 @@ Partial Class MainUI
     Friend WithEvents ToolTip1 As ToolTip
     Friend WithEvents CheckBoxCMDBLock As CheckBox
     Friend WithEvents SubWindow As Button
+    Friend WithEvents CAP_RadioButton As RadioButton
+    Friend WithEvents TabPage3 As TabPage
+    Friend WithEvents CaptionsName As TextBox
+    Friend WithEvents CaptionsOutput As TextBox
+    Friend WithEvents Label12 As Label
+    Friend WithEvents CaptionsInput As TextBox
+    Friend WithEvents Label11 As Label
+    Friend WithEvents CaptionsOutputBtn As Button
+    Friend WithEvents Label9 As Label
+    Friend WithEvents CaptionsInputBtn As Button
+    Friend WithEvents FolderBrowserDialog1 As FolderBrowserDialog
+    Friend WithEvents CaptionsInputFile As OpenFileDialog
 
 End Class

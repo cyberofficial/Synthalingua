@@ -24,14 +24,17 @@ def main():
 
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
-#        if args.makecaptions:
-#            # skip if makecaptions is set
-#            pass
-#        else:
-        print("No audio source was set. Please set an audio source.")
-        reset_text = Style.RESET_ALL
-        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-        sys.exit("Exiting...")
+        if args.makecaptions:
+            # skip if makecaptions is set
+            pass
+        else:
+            print("No audio source was set. Please set an audio source.")
+            reset_text = Style.RESET_ALL
+            input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+            sys.exit("Exiting...")
+
+
+
 
     # If stream and microphone is set then exit saying you can only use one input source
     if args.stream != None and args.microphone_enabled != None:
@@ -335,9 +338,9 @@ def main():
         args.ram = hardmodel
 
     if args.target_language:
-        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language)
+        model = parser_args.set_model_by_ram(args.ram, args.language)
     else:
-        model = parser_args.set_model_by_ram(args.ram, args.language, args.target_language==None)
+        model = parser_args.set_model_by_ram(args.ram, args.language)
     print(f"Loading model {model}...")
 
     # remove .en from model if target_language is not set to English
@@ -380,12 +383,14 @@ def main():
     language_counters = {}
     last_detected_language = None
 
-#    if args.makecaptions:
-#        fileinput = args.file_input
-#        fileout = args.file_output
-#        generate_subtitles(fileinput, fileout, model)
-#        # exit after generating subtitles
-#        sys.exit(0)
+    if args.makecaptions:
+        # from modules.sub_gen import run_sub_gen
+        if args.file_output_name == None:
+            args.file_output_name = "filename"
+        run_sub_gen(args.file_input, args.file_output_name, args.file_output)
+        print("Press enter to exit...")
+        input()
+        sys.exit("Exiting...")
 
     if args.discord_webhook:
         if args.translate:
