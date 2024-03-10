@@ -8,11 +8,11 @@ Public Class MainUI
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
         End If
-        Dim unused = OpenScriptDiag.ShowDialog()
+        Dim unused = OpenScriptDiag.ShowDialog
         ScriptFileLocation.Text = OpenScriptDiag.FileName
-        PrimaryFolder = System.IO.Path.GetDirectoryName(OpenScriptDiag.FileName)
+        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
         ' Check file name as .py or .exe, if py ShortCutType is Source else ShortCutType is Portable
-        ShortCutType = If(System.IO.Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
+        ShortCutType = If(Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
     End Sub
 
     Private Sub ChunkSizeTrackBar_ValueChanged(sender As Object, e As EventArgs) Handles ChunkSizeTrackBar.ValueChanged
@@ -34,6 +34,13 @@ Public Class MainUI
         End If
 
         ConfigTextBox.Text += "--ram " & RamSize.Text & " "
+
+        If CAP_RadioButton.Checked = True Then
+            ConfigTextBox.Text += "--makecaptions "
+            ConfigTextBox.Text += "--file_input=""" & CaptionsInput.Text & """ "
+            ConfigTextBox.Text += "--file_output=""" & CaptionsOutput.Text & """ "
+            ConfigTextBox.Text += "--file_output_name=""" & CaptionsName.Text & """ "
+        End If
 
         If MIC_RadioButton.Checked = True Then
             ConfigTextBox.Text += "--microphone_enabled true "
@@ -130,6 +137,8 @@ Public Class MainUI
             ConfigTextBox.Text += "--discord_webhook """ & DiscordWebHook.Text & """" & " "
         End If
 
+        ConfigTextBox.Text += vbNewLine & "pause"
+
     End Sub
 
     Private Sub SaveConfigToFileButton_Click(sender As Object, e As EventArgs) Handles SaveConfigToFileButton.Click
@@ -221,12 +230,41 @@ Public Class MainUI
     End Sub
 
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        ' Get the current running directory
+        Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
+
+        ' Create the "cookies" folder if it doesn't exist
+        Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
+        If Not System.IO.Directory.Exists(cookiesFolderPath) Then
+            System.IO.Directory.CreateDirectory(cookiesFolderPath)
+        End If
+
+        ' Search for "transcribe_audio.exe" in the current running directory
+        Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
+
+        ' Check if the file exists
+        If System.IO.File.Exists(scriptFilePath) Then
+            ' Set the ScriptFileLocation textbox to the file location
+            ScriptFileLocation.Text = scriptFilePath
+
+            ' Get the primary folder from the script file location
+            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
+
+            ' Set the ShortCutType to "Portable" since we found the executable file
+            ShortCutType = "Portable"
+        Else
+            ' Show a message box to the user indicating that the file was not found
+            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory.")
+        End If
+
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
-        If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
-            For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
+        If Directory.Exists(cookiesFolderPath) Then
+            For Each file As String In Directory.GetFiles(cookiesFolderPath)
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
+
     End Sub
 
     Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
@@ -244,7 +282,7 @@ Public Class MainUI
         ToolTip1.SetToolTip(CookiesRefresh, "Clear the set cookie.")
     End Sub
 
-    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover
+    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover, CaptionsInputBtn.MouseHover, CaptionsOutputBtn.MouseHover
         ToolTip1.SetToolTip(Button2, "Select the propgram file.")
     End Sub
 
@@ -268,7 +306,7 @@ Public Class MainUI
         ToolTip1.SetToolTip(HSL_RadioButton, "Use HLS stream instead of microphone. HLS stream is a stream of audio from a website.")
     End Sub
 
-    Private Sub MIC_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles MIC_RadioButton.MouseHover
+    Private Sub MIC_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles MIC_RadioButton.MouseHover, CAP_RadioButton.MouseHover
         ToolTip1.SetToolTip(MIC_RadioButton, "Use microphone instead of HLS stream.")
     End Sub
 
@@ -346,5 +384,18 @@ Public Class MainUI
         Else
             Dim unused = MessageBox.Show("Please enable the web server to use this feature.")
         End If
+    End Sub
+
+    Private Sub CaptionsInputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsInputBtn.Click
+        Dim unused = CaptionsInputFile.ShowDialog
+        CaptionsInput.Text = CaptionsInputFile.FileName
+        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+        CaptionsName.Text = Path.GetFileNameWithoutExtension(CaptionsInputFile.SafeFileName)
+    End Sub
+
+    Private Sub CaptionsOutputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsOutputBtn.Click
+        Dim unused = FolderBrowserDialog1.ShowDialog
+        CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
+        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
     End Sub
 End Class

@@ -10,7 +10,7 @@ def valid_port_number(value):
         raise argparse.ArgumentTypeError(f"Invalid port number: {value}. Please choose a number between 1 and 65535.")
     return port
 
-def set_model_by_ram(ram, language, target_language):
+def set_model_by_ram(ram, language):
     ram = ram.lower()
     if ram == "1gb":
         if language == "en" or language == "English":
@@ -89,9 +89,10 @@ def parse_arguments():
     parser.add_argument("--stream_transcribe", action='store_true', help="Transcribe the stream.")
     parser.add_argument("--cookies", default=None, help="Path to cookies.txt file. In NetScape format.")
     #parser.add_argument("--is_portable", action='store_true', help="Run the program in portable mode.")
-    #parser.add_argument("--makecaptions", action='store_true', help="Make captions for the stream.")
-    #parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")
-    #parser.add_argument("--file_output", default=None, help="Path to file to save transcript to.")
+    parser.add_argument("--makecaptions", action='store_true', help="Make captions for the stream.")
+    parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")
+    parser.add_argument("--file_output", default=None, help="Path to file to save transcript to.")
+    parser.add_argument("--file_output_name", default=None, help="Path to file to save transcript to.")
     args = parser.parse_args()
     return args
 
