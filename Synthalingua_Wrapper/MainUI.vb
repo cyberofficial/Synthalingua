@@ -8,11 +8,11 @@ Public Class MainUI
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
         End If
-        Dim unused = OpenScriptDiag.ShowDialog()
+        Dim unused = OpenScriptDiag.ShowDialog
         ScriptFileLocation.Text = OpenScriptDiag.FileName
-        PrimaryFolder = System.IO.Path.GetDirectoryName(OpenScriptDiag.FileName)
+        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
         ' Check file name as .py or .exe, if py ShortCutType is Source else ShortCutType is Portable
-        ShortCutType = If(System.IO.Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
+        ShortCutType = If(Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
     End Sub
 
     Private Sub ChunkSizeTrackBar_ValueChanged(sender As Object, e As EventArgs) Handles ChunkSizeTrackBar.ValueChanged
@@ -34,6 +34,13 @@ Public Class MainUI
         End If
 
         ConfigTextBox.Text += "--ram " & RamSize.Text & " "
+
+        If CAP_RadioButton.Checked = True Then
+            ConfigTextBox.Text += "--makecaptions "
+            ConfigTextBox.Text += "--file_input=""" & CaptionsInput.Text & """ "
+            ConfigTextBox.Text += "--file_output=""" & CaptionsInput.Text & """ "
+            ConfigTextBox.Text += "--file_output_name=""" & CaptionsInput.Text & """ "
+        End If
 
         If MIC_RadioButton.Checked = True Then
             ConfigTextBox.Text += "--microphone_enabled true "
@@ -273,7 +280,7 @@ Public Class MainUI
         ToolTip1.SetToolTip(CookiesRefresh, "Clear the set cookie.")
     End Sub
 
-    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover
+    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover, CaptionsInputBtn.MouseHover, CaptionsOutputBtn.MouseHover
         ToolTip1.SetToolTip(Button2, "Select the propgram file.")
     End Sub
 
@@ -297,7 +304,7 @@ Public Class MainUI
         ToolTip1.SetToolTip(HSL_RadioButton, "Use HLS stream instead of microphone. HLS stream is a stream of audio from a website.")
     End Sub
 
-    Private Sub MIC_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles MIC_RadioButton.MouseHover
+    Private Sub MIC_RadioButton_MouseHover(sender As Object, e As EventArgs) Handles MIC_RadioButton.MouseHover, CAP_RadioButton.MouseHover
         ToolTip1.SetToolTip(MIC_RadioButton, "Use microphone instead of HLS stream.")
     End Sub
 
@@ -375,5 +382,18 @@ Public Class MainUI
         Else
             Dim unused = MessageBox.Show("Please enable the web server to use this feature.")
         End If
+    End Sub
+
+    Private Sub CaptionsInputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsInputBtn.Click
+        Dim unused = CaptionsInputFile.ShowDialog
+        CaptionsInput.Text = CaptionsInputFile.FileName
+        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+        CaptionsName.Text = Path.GetFileNameWithoutExtension(CaptionsInputFile.SafeFileName)
+    End Sub
+
+    Private Sub CaptionsOutputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsOutputBtn.Click
+        Dim unused = FolderBrowserDialog1.ShowDialog
+        CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
+        PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
     End Sub
 End Class
