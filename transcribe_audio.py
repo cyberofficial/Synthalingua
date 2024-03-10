@@ -344,9 +344,10 @@ def main():
     print(f"Loading model {model}...")
 
     # remove .en from model if target_language is not set to English
-    if args.target_language != "en" or args.target_language != "English":
-        model = model.replace(".en", "")
-    audio_model = whisper.load_model(model, device=device, download_root="models")
+    if not args.makecaptions:
+        if args.target_language != "en" or args.target_language != "English":
+            model = model.replace(".en", "")
+        audio_model = whisper.load_model(model, device=device, download_root="models")
 
     if args.microphone_enabled:
         record_timeout = args.record_timeout
