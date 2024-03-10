@@ -70,6 +70,7 @@ Example: If you use the tool in a way that violates the terms of service or poli
 |       | Localize script to other languages. (Will take place after reverse translations.) | ❌      |
 | Custom dictionary support. |                                                                                   | ❌      |
 | GUI.  |                                                                                   | ✅      |
+| Sub Title Creation | | ✅      |
 | Linux support. |                                                                                   | ✅      |
 | Improve performance. |                                                                                   | ❌      |
 |       | Compressed Model Format for lower ram users                                       | ✅      |
@@ -177,6 +178,10 @@ This script uses argparse to accept command line arguments. The following option
 | `--stream_original_text` | Show the detected original text. |
 | `--stream_chunks` | How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10. The higher the number, the more accurate, but also the slower and delayed the stream translation and transcription will be. |
 | `--cookies` | Cookies file name, just like twitch, youtube, twitchacc1, twitchacczed |
+| `--makecaptions` | Set program to captions mode, requires file_input, file_output, file_output_name |
+| `--file_input` | Location of file for the input to make captions for, almost all video/audio format supported (uses ffmpeg) |
+| `--file_output` | Location of folder to export the captions |
+| `--file_output_name` | File name to export as without any ext. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -205,6 +210,12 @@ For example:
 
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
+
+This will create captions, with the 12gb option and save to downloads.
+
+**PLEASE NOTE, CAPTIONS WILL ONLY BE IN ENGLISH (Model limitation) THOUGH YOU CAN ALWAYS USE OTHER PROGRAMS TO TRANSLATE INTO OTHER LANGUAGES**
+
+`python transcribe_audio.py --ram 12gb --makecaptions --file_input="C:\Users\username\Downloads\430796208_935901281333537_8407224487814569343_n.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="430796208_935901281333537_8407224487814569343_n" --language Japanese --device cuda` 
 
 You have a 12gb GPU and want to stream the audio from a live stream https://www.twitch.tv/somestreamerhere and want to translate it to English. You can run the following command:
 
@@ -271,6 +282,7 @@ If you encounter any issues with the tool, here are some common problems and the
     * You need to make sure you have a microphone set up. See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
 * Error: "could not find a version that satisfies the requirement torch" (See Issue [#82](https://github.com/cyberofficial/Synthalingua/issues/82)) )
   * Please make sure you have python 64bit installed. If you have 32bit installed, you will need to uninstall it and install 64bit. You can grab it here for windows. Windows Direct: https://www.python.org/ftp/python/3.10.9/python-3.10.9-amd64.exe Main: https://www.python.org/downloads/release/python-3109/
+* Error generating captions: Please make sure the file name is in english letters. If you still get an error, please make a bug report.
 
 # Additional Information
 * Models used are from OpenAI Whisper - [Whisper](https://github.com/openai/whisper)
