@@ -1,4 +1,5 @@
 ﻿' using the system file storage
+Imports System.Configuration
 Imports System.IO
 
 Public Class MainUI
@@ -144,7 +145,7 @@ Public Class MainUI
     Private Sub SaveConfigToFileButton_Click(sender As Object, e As EventArgs) Handles SaveConfigToFileButton.Click
         SaveFileDialog.Filter = "Batch File|*.bat"
         SaveFileDialog.Title = "Save Config File"
-        Dim unused = SaveFileDialog.ShowDialog()
+        Dim unused = SaveFileDialog.ShowDialog
         If SaveFileDialog.FileName <> "" Then
             My.Computer.FileSystem.WriteAllText(SaveFileDialog.FileName, ConfigTextBox.Text, False)
         End If
@@ -228,34 +229,15 @@ Public Class MainUI
         Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranscription  ")
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
-
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
         ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
+
 
         ' Create the "cookies" folder if it doesn't exist
         Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
         If Not System.IO.Directory.Exists(cookiesFolderPath) Then
             System.IO.Directory.CreateDirectory(cookiesFolderPath)
-        End If
-
-        ' Search for "transcribe_audio.exe" in the current running directory
-        Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
-
-        ' Check if the file exists
-        If System.IO.File.Exists(scriptFilePath) Then
-            ' Set the ScriptFileLocation textbox to the file location
-            ScriptFileLocation.Text = scriptFilePath
-
-            ' Get the primary folder from the script file location
-            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
-
-            ' Set the ShortCutType to "Portable" since we found the executable file
-            ShortCutType = "Portable"
-        Else
-            ' Show a message box to the user indicating that the file was not found
-            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory.")
         End If
 
         ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
@@ -265,7 +247,109 @@ Public Class MainUI
             Next
         End If
 
+        ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
+        With My.Settings
+            If .MainScriptLocation.Contains("transcribe_audio.py") Or .MainScriptLocation.Contains("transcribe_audio.exe") Then
+                ScriptFileLocation.Text = .MainScriptLocation
+            Else
+                ' Search for "transcribe_audio.exe" in the current running directory
+                Try
+                    Dim scriptExeFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
+                    ' Check if the file exists
+                    If System.IO.File.Exists(scriptExeFilePath) Then
+                        ' Set the ScriptFileLocation textbox to the file location
+                        ScriptFileLocation.Text = scriptExeFilePath
+                        ' Get the primary folder from the script file location
+                        PrimaryFolder = System.IO.Path.GetDirectoryName(scriptExeFilePath)
+                        ' Set the ShortCutType to "Portable" since we found the executable file
+                        ShortCutType = "Portable"
+                    Else
+                        Dim scriptPyFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.py")
+                        If System.IO.File.Exists(scriptPyFilePath) Then
+                            ' Set the ScriptFileLocation textbox to the file location
+                            ScriptFileLocation.Text = scriptPyFilePath
+
+                            ' Get the primary folder from the script file location
+                            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptPyFilePath)
+
+                            ' Set the ShortCutType to "Source" since we found the Python script file
+                            ShortCutType = "Source"
+                        Else
+                            ' Nag user
+                            Dim unused = MsgBox("Could not find transcribe_audio [exe] or [py] in the current running directory. Please click the ""..."" to search for it.")
+                        End If
+                    End If
+                Catch ex As Exception
+                    Dim unused = MsgBox("Seems like an error happened when searching for the program on start up. Copy this Error Code 0x01 down and make a new ticket on github or itch.")
+                End Try
+            End If
+
+            ' Load Settings
+            If .AudioSource = 1 Then
+                HSL_RadioButton.Checked = 1
+            End If
+            If .AudioSource = 2 Then
+                MIC_RadioButton.Checked = 1
+            End If
+            If .AudioSource = 3 Then
+                CAP_RadioButton.Checked = 1
+            End If
+
+            If .ProcDevice = 1 Then
+                CUDA_RadioButton.Checked = 1
+            Else
+                CPU_RadioButton.Checked = 1
+            End If
+
+            PortNumber.Value = .WebServerPort
+            If .WebServerEnabled = True Then
+                WebServerButton.Checked = 1
+            Else
+                WebServerButton.Checked = 0
+            End If
+
+            RamSize.Text = .RamSize & "gb"
+
+            If .ForceRam = True Then
+                ForceRam.Checked = True
+            Else
+                ForceRam.Checked = False
+            End If
+
+            CookiesName.Text = .CookieName
+
+            StreamLanguage.Text = .StreamLanguage
+
+            If .EnglishTranslationEnabled = True Then
+                EnglishTranslationCheckBox.Checked = 1
+            Else
+                EnglishTranslationCheckBox.Checked = 0
+            End If
+
+            SecondaryTranslationLanguage.Text = .SecondaryTranslationLang
+            If .SecondaryTranslationEnabled = True Then
+                SecondaryTranslation.Checked = True
+            Else
+                SecondaryTranslation.Checked = False
+            End If
+
+            HLS_URL.Text = .HLSurl
+            ChunkSizeTrackBar.Value = .StreamChunkSize
+            If .HLSShowOriginal = True Then
+                ShowOriginalText.Checked = True
+            Else
+                ShowOriginalText.Checked = False
+            End If
+
+
+
+
+        End With
+
+
+
     End Sub
+
 
     Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
         ' refresh the CookiesName by clearing it and then repopulating it
@@ -397,5 +481,105 @@ Public Class MainUI
         Dim unused = FolderBrowserDialog1.ShowDialog
         CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
         'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+    End Sub
+
+    Private Sub SaveConfig_Click(sender As Object, e As EventArgs) Handles SaveConfig.Click
+
+        With My.Settings
+            ' Script Location
+            .MainScriptLocation = ScriptFileLocation.Text
+
+            ' Audio Source
+            If HSL_RadioButton.Checked Then
+                .AudioSource = 1
+            ElseIf MIC_RadioButton.Checked Then
+                .AudioSource = 2
+            Else
+                .AudioSource = 3
+            End If
+
+            If CUDA_RadioButton.Checked Then
+                .ProcDevice = 1
+            Else
+                .ProcDevice = 2
+            End If
+
+            If WebServerButton.Checked Then
+                .WebServerEnabled = 1
+            Else
+                .WebServerEnabled = 0
+            End If
+
+            .WebServerPort = PortNumber.Value
+
+            .RamSize = RamSize.Text.Replace("gb", "")
+
+            If ForceRam.Checked = True Then
+                .ForceRam = True
+            Else
+                .ForceRam = False
+            End If
+
+            .CookieName = CookiesName.Text
+
+            .StreamLanguage = StreamLanguage.Text
+
+            If EnglishTranslationCheckBox.Checked Then
+                .EnglishTranslationEnabled = True
+            Else
+                .EnglishTranslationEnabled = False
+            End If
+
+            .SecondaryTranslationLang = SecondaryTranslationLanguage.Text
+            If SecondaryTranslation.Checked Then
+                .SecondaryTranslationEnabled = True
+            Else
+                .SecondaryTranslationEnabled = False
+            End If
+
+            .HLSurl = HLS_URL.Text
+            .StreamChunkSize = ChunkSizeTrackBar.Value
+            If ShowOriginalText.Checked Then
+                .HLSShowOriginal = True
+            Else
+                .HLSShowOriginal = False
+            End If
+
+            .MicrophoneEnergyThreshold = EnThreshValue.Value
+            If MicEnCheckBox.Checked = True Then
+                .MicrophoneEnergyThresholdEnabled = True
+            Else
+                .MicrophoneEnergyThresholdEnabled = False
+            End If
+
+        End With
+
+
+
+
+        ' Final lSave
+        My.Settings.Save()
+
+        '' Debug Clear Settings
+        'For Each prop As SettingsProperty In My.Settings.Properties
+        '    Try
+        '        If prop.DefaultValue IsNot Nothing Then
+        '            My.Settings(prop.Name) = prop.DefaultValue
+        '        Else
+        '            ' Handle the case where default value is not available (You can set it to Nothing or any appropriate value)
+        '            My.Settings(prop.Name) = Nothing ' Or assign any appropriate default value
+        '        End If
+        '    Catch ex As SettingsPropertyWrongTypeException
+        '        ' Handle the case where the type of the setting is not compatible
+        '        ' You might choose to skip resetting the value or handle it differently based on your application's logic
+        '        Console.WriteLine($"Skipping resetting value for setting '{prop.Name}' due to incompatible type: {ex.Message}")
+        '    End Try
+        'Next
+
+        '' Save the changes
+        'My.Settings.Save()
+
+        '' Optionally, notify the user that settings have been cleared
+        'MessageBox.Show("All settings have been cleared.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
     End Sub
 End Class

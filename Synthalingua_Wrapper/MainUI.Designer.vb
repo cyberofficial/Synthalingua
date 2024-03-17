@@ -103,6 +103,7 @@ Partial Class MainUI
         CheckBoxCMDBLock = New CheckBox()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         CaptionsInputFile = New OpenFileDialog()
+        SaveConfig = New Button()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -949,6 +950,17 @@ Partial Class MainUI
         ' 
         CaptionsInputFile.FileName = "OpenFileDialog1"
         ' 
+        ' SaveConfig
+        ' 
+        SaveConfig.Font = New Font("Segoe UI", 12F)
+        SaveConfig.Location = New Point(12, 604)
+        SaveConfig.Margin = New Padding(3, 2, 3, 2)
+        SaveConfig.Name = "SaveConfig"
+        SaveConfig.Size = New Size(130, 59)
+        SaveConfig.TabIndex = 1
+        SaveConfig.Text = "Save Current Configuration"
+        SaveConfig.UseVisualStyleBackColor = True
+        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
@@ -980,6 +992,7 @@ Partial Class MainUI
         Controls.Add(Button2)
         Controls.Add(ScriptFileLocation)
         Controls.Add(Label1)
+        Controls.Add(SaveConfig)
         Controls.Add(SaveConfigToFileButton)
         Controls.Add(GroupBox1)
         FormBorderStyle = FormBorderStyle.FixedSingle
@@ -1095,5 +1108,6 @@ Partial Class MainUI
     Friend WithEvents CaptionsInputBtn As Button
     Friend WithEvents FolderBrowserDialog1 As FolderBrowserDialog
     Friend WithEvents CaptionsInputFile As OpenFileDialog
+    Friend WithEvents SaveConfig As Button
 
 End Class
