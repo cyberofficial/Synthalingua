@@ -557,29 +557,17 @@ Public Class MainUI
 
 
 
-        ' Final lSave
+        '' Final Save
         My.Settings.Save()
 
         '' Debug Clear Settings
-        'For Each prop As SettingsProperty In My.Settings.Properties
-        '    Try
-        '        If prop.DefaultValue IsNot Nothing Then
-        '            My.Settings(prop.Name) = prop.DefaultValue
-        '        Else
-        '            ' Handle the case where default value is not available (You can set it to Nothing or any appropriate value)
-        '            My.Settings(prop.Name) = Nothing ' Or assign any appropriate default value
-        '        End If
-        '    Catch ex As SettingsPropertyWrongTypeException
-        '        ' Handle the case where the type of the setting is not compatible
-        '        ' You might choose to skip resetting the value or handle it differently based on your application's logic
-        '        Console.WriteLine($"Skipping resetting value for setting '{prop.Name}' due to incompatible type: {ex.Message}")
-        '    End Try
-        'Next
 
-        '' Save the changes
+        'My.Settings.Reset()
         'My.Settings.Save()
 
         '' Optionally, notify the user that settings have been cleared
         'MessageBox.Show("All settings have been cleared.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+
+
     End Sub
 End Class
