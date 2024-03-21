@@ -1,4 +1,5 @@
 ﻿' using the system file storage
+Imports System.Configuration
 Imports System.IO
 
 Public Class MainUI
@@ -144,7 +145,7 @@ Public Class MainUI
     Private Sub SaveConfigToFileButton_Click(sender As Object, e As EventArgs) Handles SaveConfigToFileButton.Click
         SaveFileDialog.Filter = "Batch File|*.bat"
         SaveFileDialog.Title = "Save Config File"
-        Dim unused = SaveFileDialog.ShowDialog()
+        Dim unused = SaveFileDialog.ShowDialog
         If SaveFileDialog.FileName <> "" Then
             My.Computer.FileSystem.WriteAllText(SaveFileDialog.FileName, ConfigTextBox.Text, False)
         End If
@@ -243,8 +244,8 @@ Public Class MainUI
         Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranscription  ")
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
-
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
 
         ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
@@ -255,7 +256,13 @@ Public Class MainUI
             System.IO.Directory.CreateDirectory(cookiesFolderPath)
         End If
 
-        ' Search for "transcribe_audio.exe" in the current running directory
+        ' if the folder 'cookies' exist then populate CookiesName with each file name in there excluding the file extension
+        If Directory.Exists(cookiesFolderPath) Then
+            For Each file As String In Directory.GetFiles(cookiesFolderPath)
+                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+            Next
+        End If
+
         Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
 
         ' Check if the file exists
@@ -273,14 +280,59 @@ Public Class MainUI
             Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory. Please click the ""..."" to search for it.")
         End If
 
-        ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
-        If Directory.Exists(cookiesFolderPath) Then
-            For Each file As String In Directory.GetFiles(cookiesFolderPath)
-                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
-            Next
-        End If
+        ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
+        With My.Settings
+            If Not String.IsNullOrEmpty(.MainScriptLocation) Then
+                ScriptFileLocation.Text = .MainScriptLocation
+            Else
+                ' Nag user
+                'Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
+            End If
 
+            ' Load Settings
+            Select Case .AudioSource
+                Case 1
+                    HSL_RadioButton.Checked = True
+                Case 2
+                    MIC_RadioButton.Checked = True
+                Case 3
+                    CAP_RadioButton.Checked = True
+            End Select
+
+            Select Case .ProcDevice
+                Case 1
+                    CUDA_RadioButton.Checked = True
+                Case Else
+                    CPU_RadioButton.Checked = True
+            End Select
+
+
+            PortNumber.Value = .WebServerPort
+            WebServerButton.Checked = .WebServerEnabled
+            RamSize.Text = .RamSize & "gb"
+            ForceRam.Checked = .ForceRam
+            CookiesName.Text = .CookieName
+            StreamLanguage.Text = .StreamLanguage
+            EnglishTranslationCheckBox.Checked = .EnglishTranslationEnabled
+            SecondaryTranslationLanguage.Text = .SecondaryTranslationLang
+            SecondaryTranslation.Checked = .SecondaryTranslationEnabled
+            HLS_URL.Text = .HLSurl
+            ChunkSizeTrackBar.Value = .StreamChunkSize
+            ShowOriginalText.Checked = .HLSShowOriginal
+            EnThreshValue.Value = .MicrophoneEnergyThreshold
+            MicEnCheckBox.Checked = .MicrophoneEnergyThresholdEnabled
+            MicCaliTime.Value = .MicCalTime
+            MicCaliCheckBox.Checked = .MicCalTImeEnabled
+            RecordTimeout.Value = .MicRecTimeout
+            RecordTimeOutCHeckBox.Checked = .MicRecTimeoutEnabled
+            PhraseTimeout.Value = .PhraseTimeOut
+            PhraseTimeOutCheckbox.Checked = .PhraseTimeOutEnabled
+
+
+
+        End With
     End Sub
+
 
     Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
         ' refresh the CookiesName by clearing it and then repopulating it
@@ -412,5 +464,85 @@ Public Class MainUI
         Dim unused = FolderBrowserDialog1.ShowDialog
         CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
         'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
+    End Sub
+
+    Private Sub SaveConfig_Click(sender As Object, e As EventArgs) Handles SaveConfig.Click
+        With My.Settings
+            ' Script Location
+            .MainScriptLocation = ScriptFileLocation.Text
+
+            ' Audio Source
+            .AudioSource = If(HSL_RadioButton.Checked, 1, If(MIC_RadioButton.Checked, 2, 3))
+
+            ' Processor Device
+            .ProcDevice = If(CUDA_RadioButton.Checked, 1, 2)
+
+            ' Web Server
+            .WebServerEnabled = If(WebServerButton.Checked, 1, 0)
+            .WebServerPort = PortNumber.Value
+
+            ' RAM Size
+            .RamSize = RamSize.Text.Replace("gb", "")
+
+            ' Force RAM
+            .ForceRam = ForceRam.Checked
+
+            ' Cookie Name
+            .CookieName = CookiesName.Text
+
+            ' Stream Language
+            .StreamLanguage = StreamLanguage.Text
+
+            ' English Translation
+            .EnglishTranslationEnabled = EnglishTranslationCheckBox.Checked
+
+            ' Secondary Translation
+            .SecondaryTranslationLang = SecondaryTranslationLanguage.Text
+            .SecondaryTranslationEnabled = SecondaryTranslation.Checked
+
+            ' HLS URL
+            .HLSurl = HLS_URL.Text
+
+            ' Stream Chunk Size
+            .StreamChunkSize = ChunkSizeTrackBar.Value
+
+            ' Show Original Text
+            .HLSShowOriginal = ShowOriginalText.Checked
+
+            ' Microphone Energy Threshold
+            .MicrophoneEnergyThreshold = EnThreshValue.Value
+            .MicrophoneEnergyThresholdEnabled = MicEnCheckBox.Checked
+
+            ' Microphone Calibration Time
+            .MicCalTime = MicCaliTime.Value
+            .MicCalTImeEnabled = MicCaliCheckBox.Checked
+
+            ' Microphone Record Timeout
+            .MicRecTimeout = RecordTimeout.Value
+            .MicRecTimeoutEnabled = RecordTimeOutCHeckBox.Checked
+
+            ' Phrase Timeout
+            .PhraseTimeOut = PhraseTimeout.Value
+            .PhraseTimeOutEnabled = PhraseTimeOutCheckbox.Checked
+        End With
+
+        ' Final Save
+        My.Settings.Save()
+    End Sub
+
+
+    Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
+
+        If EraseCheckBox.Checked = True Then
+            My.Settings.Reset()
+            My.Settings.Save()
+
+            ' Optionally, notify the user that settings have been cleared
+            MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Application.Exit()
+        Else
+            MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
+
     End Sub
 End Class

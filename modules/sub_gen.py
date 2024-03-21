@@ -10,11 +10,13 @@ def run_sub_gen(input_path: str, output_name: str = "", output_directory: str = 
     model_type = parser_args.set_model_by_ram(args.ram, args.language)
     print("Loading Model")
     model = whisper.load_model(model_type)
+
+    print("Setting Path")
     print("Doing the work now...")
     print("This may take a while, sit back and get a coffee or something.")
     result = model.transcribe(input_path, language=args.language, task="translate")
 
-    print("Setting writer  Up")
+    print("Setting writer Up")
     writer = get_writer("srt", str(output_directory))
 
     writer(result, output_name)
