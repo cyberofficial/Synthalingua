@@ -286,7 +286,7 @@ Public Class MainUI
                 ScriptFileLocation.Text = .MainScriptLocation
             Else
                 ' Nag user
-                Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
+                'Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
             End If
 
             ' Load Settings
