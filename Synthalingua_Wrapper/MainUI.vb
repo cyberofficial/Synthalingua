@@ -230,6 +230,8 @@ Public Class MainUI
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+
         ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
 
@@ -244,6 +246,23 @@ Public Class MainUI
             For Each file As String In Directory.GetFiles(cookiesFolderPath)
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
+        End If
+
+        Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
+
+        ' Check if the file exists
+        If System.IO.File.Exists(scriptFilePath) Then
+            ' Set the ScriptFileLocation textbox to the file location
+            ScriptFileLocation.Text = scriptFilePath
+
+            ' Get the primary folder from the script file location
+            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
+
+            ' Set the ShortCutType to "Portable" since we found the executable file
+            ShortCutType = "Portable"
+        Else
+            ' Show a message box to the user indicating that the file was not found
+            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory. Please click the ""..."" to search for it.")
         End If
 
         ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
