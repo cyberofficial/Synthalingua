@@ -156,6 +156,21 @@ Public Class MainUI
             Dim unused1 = MsgBox("Please select the program file.")
             Exit Sub
         End If
+        If CAP_RadioButton.Checked = True Then
+            If CaptionsName.Text = "" Then
+                Dim unused1 = MsgBox("Please set a file name for captions.")
+                Exit Sub
+            End If
+            If CaptionsOutput.Text = "" Then
+                Dim unused1 = MsgBox("Please set the output folder.")
+                Exit Sub
+            End If
+            If CaptionsInput.Text = "" Then
+                Dim unused1 = MsgBox("Please set the input file.")
+                Exit Sub
+            End If
+        End If
+
 
         ' save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
@@ -427,7 +442,7 @@ Public Class MainUI
     End Sub
 
     Private Sub SetMicLbl_MouseClick(sender As Object, e As MouseEventArgs) Handles SetMicLbl.MouseClick
-        Dim unused = MessageBox.Show("Set the microphone to use. This is the microphone to use. The higher the number the more time it will wait for a phrase.")
+        Dim unused = MessageBox.Show("Set the microphone to use, click Get IDs and set the ID of the microphone.")
     End Sub
 
     Private Sub SubWindow_Click(sender As Object, e As EventArgs) Handles SubWindow.Click
