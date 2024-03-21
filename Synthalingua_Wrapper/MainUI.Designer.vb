@@ -104,6 +104,8 @@ Partial Class MainUI
         FolderBrowserDialog1 = New FolderBrowserDialog()
         CaptionsInputFile = New OpenFileDialog()
         SaveConfig = New Button()
+        WipeSettings = New Button()
+        EraseCheckBox = New CheckBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -953,19 +955,39 @@ Partial Class MainUI
         ' SaveConfig
         ' 
         SaveConfig.Font = New Font("Segoe UI", 12F)
-        SaveConfig.Location = New Point(12, 604)
+        SaveConfig.Location = New Point(7, 576)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
         SaveConfig.Name = "SaveConfig"
-        SaveConfig.Size = New Size(130, 59)
+        SaveConfig.Size = New Size(140, 59)
         SaveConfig.TabIndex = 1
         SaveConfig.Text = "Save Current Configuration"
         SaveConfig.UseVisualStyleBackColor = True
+        ' 
+        ' WipeSettings
+        ' 
+        WipeSettings.Location = New Point(24, 639)
+        WipeSettings.Name = "WipeSettings"
+        WipeSettings.Size = New Size(123, 23)
+        WipeSettings.TabIndex = 29
+        WipeSettings.Text = "Wipe Settings"
+        WipeSettings.UseVisualStyleBackColor = True
+        ' 
+        ' EraseCheckBox
+        ' 
+        EraseCheckBox.AutoSize = True
+        EraseCheckBox.Location = New Point(7, 644)
+        EraseCheckBox.Name = "EraseCheckBox"
+        EraseCheckBox.Size = New Size(15, 14)
+        EraseCheckBox.TabIndex = 30
+        EraseCheckBox.UseVisualStyleBackColor = True
         ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(624, 674)
+        Controls.Add(EraseCheckBox)
+        Controls.Add(WipeSettings)
         Controls.Add(CheckBoxCMDBLock)
         Controls.Add(CookiesRefresh)
         Controls.Add(CookiesName)
@@ -1109,5 +1131,7 @@ Partial Class MainUI
     Friend WithEvents FolderBrowserDialog1 As FolderBrowserDialog
     Friend WithEvents CaptionsInputFile As OpenFileDialog
     Friend WithEvents SaveConfig As Button
+    Friend WithEvents WipeSettings As Button
+    Friend WithEvents EraseCheckBox As CheckBox
 
 End Class

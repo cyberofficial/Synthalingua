@@ -233,14 +233,13 @@ Public Class MainUI
         ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
 
-
         ' Create the "cookies" folder if it doesn't exist
         Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
         If Not System.IO.Directory.Exists(cookiesFolderPath) Then
             System.IO.Directory.CreateDirectory(cookiesFolderPath)
         End If
 
-        ' if the folder 'cookies' exist then populate CookiesName with each file name in there exclusding the file extension
+        ' if the folder 'cookies' exist then populate CookiesName with each file name in there excluding the file extension
         If Directory.Exists(cookiesFolderPath) Then
             For Each file As String In Directory.GetFiles(cookiesFolderPath)
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
@@ -249,105 +248,55 @@ Public Class MainUI
 
         ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
         With My.Settings
-            If .MainScriptLocation.Contains("transcribe_audio.py") Or .MainScriptLocation.Contains("transcribe_audio.exe") Then
+            If Not String.IsNullOrEmpty(.MainScriptLocation) Then
                 ScriptFileLocation.Text = .MainScriptLocation
             Else
-                ' Search for "transcribe_audio.exe" in the current running directory
-                Try
-                    Dim scriptExeFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
-                    ' Check if the file exists
-                    If System.IO.File.Exists(scriptExeFilePath) Then
-                        ' Set the ScriptFileLocation textbox to the file location
-                        ScriptFileLocation.Text = scriptExeFilePath
-                        ' Get the primary folder from the script file location
-                        PrimaryFolder = System.IO.Path.GetDirectoryName(scriptExeFilePath)
-                        ' Set the ShortCutType to "Portable" since we found the executable file
-                        ShortCutType = "Portable"
-                    Else
-                        Dim scriptPyFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.py")
-                        If System.IO.File.Exists(scriptPyFilePath) Then
-                            ' Set the ScriptFileLocation textbox to the file location
-                            ScriptFileLocation.Text = scriptPyFilePath
-
-                            ' Get the primary folder from the script file location
-                            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptPyFilePath)
-
-                            ' Set the ShortCutType to "Source" since we found the Python script file
-                            ShortCutType = "Source"
-                        Else
-                            ' Nag user
-                            Dim unused = MsgBox("Could not find transcribe_audio [exe] or [py] in the current running directory. Please click the ""..."" to search for it.")
-                        End If
-                    End If
-                Catch ex As Exception
-                    Dim unused = MsgBox("Seems like an error happened when searching for the program on start up. Copy this Error Code 0x01 down and make a new ticket on github or itch.")
-                End Try
+                ' Nag user
+                Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
             End If
 
             ' Load Settings
-            If .AudioSource = 1 Then
-                HSL_RadioButton.Checked = 1
-            End If
-            If .AudioSource = 2 Then
-                MIC_RadioButton.Checked = 1
-            End If
-            If .AudioSource = 3 Then
-                CAP_RadioButton.Checked = 1
-            End If
+            Select Case .AudioSource
+                Case 1
+                    HSL_RadioButton.Checked = True
+                Case 2
+                    MIC_RadioButton.Checked = True
+                Case 3
+                    CAP_RadioButton.Checked = True
+            End Select
 
-            If .ProcDevice = 1 Then
-                CUDA_RadioButton.Checked = 1
-            Else
-                CPU_RadioButton.Checked = 1
-            End If
+            Select Case .ProcDevice
+                Case 1
+                    CUDA_RadioButton.Checked = True
+                Case Else
+                    CPU_RadioButton.Checked = True
+            End Select
+
 
             PortNumber.Value = .WebServerPort
-            If .WebServerEnabled = True Then
-                WebServerButton.Checked = 1
-            Else
-                WebServerButton.Checked = 0
-            End If
-
+            WebServerButton.Checked = .WebServerEnabled
             RamSize.Text = .RamSize & "gb"
-
-            If .ForceRam = True Then
-                ForceRam.Checked = True
-            Else
-                ForceRam.Checked = False
-            End If
-
+            ForceRam.Checked = .ForceRam
             CookiesName.Text = .CookieName
-
             StreamLanguage.Text = .StreamLanguage
-
-            If .EnglishTranslationEnabled = True Then
-                EnglishTranslationCheckBox.Checked = 1
-            Else
-                EnglishTranslationCheckBox.Checked = 0
-            End If
-
+            EnglishTranslationCheckBox.Checked = .EnglishTranslationEnabled
             SecondaryTranslationLanguage.Text = .SecondaryTranslationLang
-            If .SecondaryTranslationEnabled = True Then
-                SecondaryTranslation.Checked = True
-            Else
-                SecondaryTranslation.Checked = False
-            End If
-
+            SecondaryTranslation.Checked = .SecondaryTranslationEnabled
             HLS_URL.Text = .HLSurl
             ChunkSizeTrackBar.Value = .StreamChunkSize
-            If .HLSShowOriginal = True Then
-                ShowOriginalText.Checked = True
-            Else
-                ShowOriginalText.Checked = False
-            End If
-
+            ShowOriginalText.Checked = .HLSShowOriginal
+            EnThreshValue.Value = .MicrophoneEnergyThreshold
+            MicEnCheckBox.Checked = .MicrophoneEnergyThresholdEnabled
+            MicCaliTime.Value = .MicCalTime
+            MicCaliCheckBox.Checked = .MicCalTImeEnabled
+            RecordTimeout.Value = .MicRecTimeout
+            RecordTimeOutCHeckBox.Checked = .MicRecTimeoutEnabled
+            PhraseTimeout.Value = .PhraseTimeOut
+            PhraseTimeOutCheckbox.Checked = .PhraseTimeOutEnabled
 
 
 
         End With
-
-
-
     End Sub
 
 
@@ -552,22 +501,46 @@ Public Class MainUI
                 .MicrophoneEnergyThresholdEnabled = False
             End If
 
+            .MicCalTime = MicCaliTime.Value
+            If MicCaliCheckBox.Checked = True Then
+                .MicCalTImeEnabled = True
+            Else
+                .MicCalTImeEnabled = False
+            End If
+
+            .MicRecTimeout = RecordTimeout.Value
+            If RecordTimeOutCHeckBox.Checked = True Then
+                .MicRecTimeoutEnabled = True
+            Else
+                .MicRecTimeoutEnabled = False
+            End If
+
+            .PhraseTimeOut = PhraseTimeout.Value
+            If PhraseTimeOutCheckbox.Checked = True Then
+                .PhraseTimeOutEnabled = True
+            Else
+                .PhraseTimeOutEnabled = False
+            End If
+
         End With
-
-
-
 
         '' Final Save
         My.Settings.Save()
 
-        '' Debug Clear Settings
 
-        'My.Settings.Reset()
-        'My.Settings.Save()
+    End Sub
 
-        '' Optionally, notify the user that settings have been cleared
-        'MessageBox.Show("All settings have been cleared.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
 
+        If EraseCheckBox.Checked = True Then
+            My.Settings.Reset()
+            My.Settings.Save()
+
+            ' Optionally, notify the user that settings have been cleared
+            MessageBox.Show("All settings have been cleared.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Else
+            MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        End If
 
     End Sub
 End Class
