@@ -433,102 +433,69 @@ Public Class MainUI
     End Sub
 
     Private Sub SaveConfig_Click(sender As Object, e As EventArgs) Handles SaveConfig.Click
-
         With My.Settings
             ' Script Location
             .MainScriptLocation = ScriptFileLocation.Text
 
             ' Audio Source
-            If HSL_RadioButton.Checked Then
-                .AudioSource = 1
-            ElseIf MIC_RadioButton.Checked Then
-                .AudioSource = 2
-            Else
-                .AudioSource = 3
-            End If
+            .AudioSource = If(HSL_RadioButton.Checked, 1, If(MIC_RadioButton.Checked, 2, 3))
 
-            If CUDA_RadioButton.Checked Then
-                .ProcDevice = 1
-            Else
-                .ProcDevice = 2
-            End If
+            ' Processor Device
+            .ProcDevice = If(CUDA_RadioButton.Checked, 1, 2)
 
-            If WebServerButton.Checked Then
-                .WebServerEnabled = 1
-            Else
-                .WebServerEnabled = 0
-            End If
-
+            ' Web Server
+            .WebServerEnabled = If(WebServerButton.Checked, 1, 0)
             .WebServerPort = PortNumber.Value
 
+            ' RAM Size
             .RamSize = RamSize.Text.Replace("gb", "")
 
-            If ForceRam.Checked = True Then
-                .ForceRam = True
-            Else
-                .ForceRam = False
-            End If
+            ' Force RAM
+            .ForceRam = ForceRam.Checked
 
+            ' Cookie Name
             .CookieName = CookiesName.Text
 
+            ' Stream Language
             .StreamLanguage = StreamLanguage.Text
 
-            If EnglishTranslationCheckBox.Checked Then
-                .EnglishTranslationEnabled = True
-            Else
-                .EnglishTranslationEnabled = False
-            End If
+            ' English Translation
+            .EnglishTranslationEnabled = EnglishTranslationCheckBox.Checked
 
+            ' Secondary Translation
             .SecondaryTranslationLang = SecondaryTranslationLanguage.Text
-            If SecondaryTranslation.Checked Then
-                .SecondaryTranslationEnabled = True
-            Else
-                .SecondaryTranslationEnabled = False
-            End If
+            .SecondaryTranslationEnabled = SecondaryTranslation.Checked
 
+            ' HLS URL
             .HLSurl = HLS_URL.Text
+
+            ' Stream Chunk Size
             .StreamChunkSize = ChunkSizeTrackBar.Value
-            If ShowOriginalText.Checked Then
-                .HLSShowOriginal = True
-            Else
-                .HLSShowOriginal = False
-            End If
 
+            ' Show Original Text
+            .HLSShowOriginal = ShowOriginalText.Checked
+
+            ' Microphone Energy Threshold
             .MicrophoneEnergyThreshold = EnThreshValue.Value
-            If MicEnCheckBox.Checked = True Then
-                .MicrophoneEnergyThresholdEnabled = True
-            Else
-                .MicrophoneEnergyThresholdEnabled = False
-            End If
+            .MicrophoneEnergyThresholdEnabled = MicEnCheckBox.Checked
 
+            ' Microphone Calibration Time
             .MicCalTime = MicCaliTime.Value
-            If MicCaliCheckBox.Checked = True Then
-                .MicCalTImeEnabled = True
-            Else
-                .MicCalTImeEnabled = False
-            End If
+            .MicCalTImeEnabled = MicCaliCheckBox.Checked
 
+            ' Microphone Record Timeout
             .MicRecTimeout = RecordTimeout.Value
-            If RecordTimeOutCHeckBox.Checked = True Then
-                .MicRecTimeoutEnabled = True
-            Else
-                .MicRecTimeoutEnabled = False
-            End If
+            .MicRecTimeoutEnabled = RecordTimeOutCHeckBox.Checked
 
+            ' Phrase Timeout
             .PhraseTimeOut = PhraseTimeout.Value
-            If PhraseTimeOutCheckbox.Checked = True Then
-                .PhraseTimeOutEnabled = True
-            Else
-                .PhraseTimeOutEnabled = False
-            End If
-
+            .PhraseTimeOutEnabled = PhraseTimeOutCheckbox.Checked
         End With
 
-        '' Final Save
+        ' Final Save
         My.Settings.Save()
-
-
     End Sub
+
 
     Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
 
@@ -537,7 +504,8 @@ Public Class MainUI
             My.Settings.Save()
 
             ' Optionally, notify the user that settings have been cleared
-            MessageBox.Show("All settings have been cleared.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Application.Exit()
         Else
             MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         End If
