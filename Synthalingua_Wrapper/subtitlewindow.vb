@@ -50,7 +50,7 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub subtitlewindow_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        InfoSaverTimer.Interval = 50 ' Set your timer interval to 50ms
+        InfoSaverTimer.Interval = 25 ' Set your timer interval to 50ms
         InfoSaverTimer.Start()
     End Sub
     Private Sub subtitlewindow_Resize(sender As Object, e As EventArgs) Handles MyBase.Resize
