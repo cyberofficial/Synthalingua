@@ -1,5 +1,4 @@
 ﻿' using the system file storage
-Imports System.Configuration
 Imports System.IO
 
 Public Class MainUI
@@ -26,6 +25,9 @@ Public Class MainUI
             Dim unused = MsgBox("Please select the program file.")
             Exit Sub
         End If
+        ShortCutType = If(ScriptFileLocation.Text.Contains("transcribe_audio.py"), "Source", "Portable")
+
+        PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
         If ShortCutType = "Source" Then
             ConfigTextBox.Text += "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat" & vbNewLine
@@ -88,11 +90,6 @@ Public Class MainUI
             End If
         End If
 
-        'If HSL_RadioButton.Checked = True Then
-        '    ConfigTextBox.Text += "--stream_language " & StreamLanguage.Text & " "
-        'Else
-        '    ConfigTextBox.Text += "--language " & StreamLanguage.Text & " "
-        'End If
 
         If EnglishTranslationCheckBox.Checked = True Then
             If HSL_RadioButton.Checked = True Then
@@ -245,67 +242,23 @@ Public Class MainUI
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-
-
-        ' Get the current running directory
-        Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
-
-        ' Create the "cookies" folder if it doesn't exist
-        Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
-        If Not System.IO.Directory.Exists(cookiesFolderPath) Then
-            System.IO.Directory.CreateDirectory(cookiesFolderPath)
-        End If
-
-        ' if the folder 'cookies' exist then populate CookiesName with each file name in there excluding the file extension
-        If Directory.Exists(cookiesFolderPath) Then
-            For Each file As String In Directory.GetFiles(cookiesFolderPath)
-                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
-            Next
-        End If
-
-        Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
-
-        ' Check if the file exists
-        If System.IO.File.Exists(scriptFilePath) Then
-            ' Set the ScriptFileLocation textbox to the file location
-            ScriptFileLocation.Text = scriptFilePath
-
-            ' Get the primary folder from the script file location
-            PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
-
-            ' Set the ShortCutType to "Portable" since we found the executable file
-            ShortCutType = "Portable"
-        Else
-            ' Show a message box to the user indicating that the file was not found
-            Dim unused = MsgBox("Could not find transcribe_audio.exe in the current running directory. Please click the ""..."" to search for it.")
-        End If
-
         ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
         With My.Settings
-            If Not String.IsNullOrEmpty(.MainScriptLocation) Then
-                ScriptFileLocation.Text = .MainScriptLocation
-            Else
+            ' Set Main Script Location
+            If String.IsNullOrEmpty(.MainScriptLocation) Then
                 ' Nag user
                 'Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
+            Else
+                ScriptFileLocation.Text = .MainScriptLocation
             End If
 
             ' Load Settings
-            Select Case .AudioSource
-                Case 1
-                    HSL_RadioButton.Checked = True
-                Case 2
-                    MIC_RadioButton.Checked = True
-                Case 3
-                    CAP_RadioButton.Checked = True
-            End Select
+            HSL_RadioButton.Checked = (.AudioSource = 1)
+            MIC_RadioButton.Checked = (.AudioSource = 2)
+            CAP_RadioButton.Checked = (.AudioSource = 3)
 
-            Select Case .ProcDevice
-                Case 1
-                    CUDA_RadioButton.Checked = True
-                Case Else
-                    CPU_RadioButton.Checked = True
-            End Select
-
+            CUDA_RadioButton.Checked = (.ProcDevice = 1)
+            CPU_RadioButton.Checked = Not (.ProcDevice = 1)
 
             PortNumber.Value = .WebServerPort
             WebServerButton.Checked = .WebServerEnabled
@@ -327,10 +280,44 @@ Public Class MainUI
             RecordTimeOutCHeckBox.Checked = .MicRecTimeoutEnabled
             PhraseTimeout.Value = .PhraseTimeOut
             PhraseTimeOutCheckbox.Checked = .PhraseTimeOutEnabled
-
-
-
         End With
+
+        ' Get the current running directory
+        Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
+
+        ' Create the "cookies" folder if it doesn't exist
+        Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
+        If Not System.IO.Directory.Exists(cookiesFolderPath) Then
+            Dim unused1 = System.IO.Directory.CreateDirectory(cookiesFolderPath)
+        End If
+
+        ' if the folder 'cookies' exist then populate CookiesName with each file name in there excluding the file extension
+        If Directory.Exists(cookiesFolderPath) Then
+            For Each file As String In Directory.GetFiles(cookiesFolderPath)
+                Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
+            Next
+        End If
+
+        ' Check if ScriptFileLocation is empty
+        If String.IsNullOrEmpty(ScriptFileLocation.Text) Then
+            ' Attempt to find the executable file
+            Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
+            If System.IO.File.Exists(scriptFilePath) Then
+                ScriptFileLocation.Text = scriptFilePath
+                PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
+                ShortCutType = "Portable"  ' Set to Portable if .exe found
+            Else
+                ' Check if a Python script file exists (e.g., transcribe_audio.py)
+                scriptFilePath = System.IO.Path.Combine(currentDirectory, "transcribe_audio.py")
+                If System.IO.File.Exists(scriptFilePath) Then
+                    ScriptFileLocation.Text = scriptFilePath
+                    PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
+                    ShortCutType = "Source"  ' Set to Source if .py found
+                Else
+                    Dim unused = MsgBox("Could not find transcribe_audio.exe or transcribe_audio.py in the current running directory. Please click the ""..."" to search for it.")
+                End If
+            End If
+        End If
     End Sub
 
 
@@ -538,10 +525,10 @@ Public Class MainUI
             My.Settings.Save()
 
             ' Optionally, notify the user that settings have been cleared
-            MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Dim unused1 = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
             Application.Exit()
         Else
-            MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Dim unused = MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
         End If
 
     End Sub

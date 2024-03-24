@@ -57,6 +57,7 @@ Partial Class subtitlewindow
         ' 
         ' InfoSaverTimer
         ' 
+        InfoSaverTimer.Interval = 50
         ' 
         ' headertextlbl
         ' 
