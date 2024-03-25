@@ -644,7 +644,7 @@ Partial Class MainUI
         ' 
         PhraseTimeout.Location = New Point(206, 77)
         PhraseTimeout.Margin = New Padding(3, 2, 3, 2)
-        PhraseTimeout.Maximum = New Decimal(New Integer() {10, 0, 0, 0})
+        PhraseTimeout.Maximum = New Decimal(New Integer() {120, 0, 0, 0})
         PhraseTimeout.Minimum = New Decimal(New Integer() {1, 0, 0, 0})
         PhraseTimeout.Name = "PhraseTimeout"
         PhraseTimeout.Size = New Size(76, 23)

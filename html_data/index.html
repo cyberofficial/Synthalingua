@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synthalingua</title>
-    <link rel="stylesheet" type="text/css" href="/static/styles.css?q={{q}}">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <!--- <link rel="stylesheet" type="text/css" href="/static/styles.css?q={{q}}"> --->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,7 +43,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 70%;
+            width: 100%;
             overflow: hidden;
             border-radius: 0px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
@@ -59,20 +62,21 @@
         }
 
         .hidden {
-            display: none;
+        display: none;
+        box-shadow: none; /* Remove box-shadow in the hidden class */
         }
 
         .header-item {
             position: absolute;
-            bottom: 10px;
+            bottom: 20px;
             /* Adjust this value for vertical spacing */
             left: 50%;
             transform: translateX(-50%);
             background-color: rgba(0, 0, 0, 0.5);
             padding: 3px;
-            border-radius: 5px;
+            border-radius: 10px;
             color: #ffffff;
-            font-size: 18px;
+            font-size: 28px;
             text-align: center;
             width: 50%;
         }
@@ -82,27 +86,25 @@
 <body class="dark-mode">
     <div id="nostream">
         <p>
-            <div id="header-text-1"></div>
+            <div class="hidden" id="header-text-1"></div>
         </p>
         <p>
-            <div id="translated-header-1"></div>
+            <div class="hidden" id="translated-header-1"></div>
         </p>
         <p>
-            <div id="transcribed-header-1"></div>
+            <div class="hidden" id="transcribed-header-1"></div>
         </p>
     </div>
     <div id="video-container">
         <iframe id="video-frame" frameborder="0" allowfullscreen></iframe>
         <div id="headers">
-            <p><div class="header-item" id="header-text"></div></p>
-            <p><div class="header-item" id="translated-header"></div></p>
-            <p><div class="header-item" id="transcribed-header"></div></p>
+            <p><div class="header-item hidden" id="header-text"></div></p>
+            <p><div class="header-item hidden" id="translated-header"></div></p>
+            <p><div class="header-item hidden" id="transcribed-header"></div></p>
         </div>
     </div>
 
     <script src="/static/update_header.js?q={{q}}"></script>
-    <script>
-    </script>
 </body>
 
 </html>
