@@ -91,4 +91,19 @@ document.addEventListener("DOMContentLoaded", function() {
         hideElementById("video-container");
         showElementById("nostream"); // Corrected line
     }
+
+    // Check for fontsize parameter
+   const fontSizeParam = params.get("fontsize");
+
+   if (fontSizeParam) {
+     // Validate font size (e.g., ensure it's a number)
+     const fontSize = parseFloat(fontSizeParam);
+     if (!isNaN(fontSize)) {
+       // Update font size of header items
+       const headerItems = document.querySelectorAll(".header-item");
+       headerItems.forEach(item => {
+         item.style.fontSize = fontSize + "px";
+       });
+     }
+   }
 });
