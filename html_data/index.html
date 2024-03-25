@@ -1,47 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synthalingua</title>
     <link rel="stylesheet" type="text/css" href="/static/styles.css?q={{q}}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f2f2f2;
+            padding-bottom: 20px;
+        }
+
+        /* Dark mode */
+
+        body.dark-mode {
+            background-color: #222222;
+            color: #ffffff;
+        }
+
+        /* Dark mode header text color */
+
+        body.dark-mode .header-item {
+            color: #f0f0f0;
+            /* Lighter shade of white */
+        }
+
+        #video-container {
+            position: relative;
+            /* Positioning context for headers */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 70%;
+            overflow: hidden;
+            border-radius: 0px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #video-container iframe {
+            width: 1280px;
+            height: 720px;
+            border: none;
+        }
+
+        /* Dark mode */
+
+        body.dark-mode #headers {
+            background-color: #485F6E;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .header-item {
+            position: absolute;
+            bottom: 10px;
+            /* Adjust this value for vertical spacing */
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 3px;
+            border-radius: 5px;
+            color: #ffffff;
+            font-size: 18px;
+            text-align: center;
+            width: 50%;
+        }
+    </style>
 </head>
-<body>
-    <h2 id="header-text" class="hidden"></h2>
-    <h2 id="translated-header" class="hidden"></h2>
-    <h2 id="transcribed-header" class="hidden"></h2>
-    <script src="/static/update_header.js"></script>
+
+<body class="dark-mode">
+    <div id="nostream">
+        <p>
+            <div id="header-text-1"></div>
+        </p>
+        <p>
+            <div id="translated-header-1"></div>
+        </p>
+        <p>
+            <div id="transcribed-header-1"></div>
+        </p>
+    </div>
+    <div id="video-container">
+        <iframe id="video-frame" frameborder="0" allowfullscreen></iframe>
+        <div id="headers">
+            <p><div class="header-item" id="header-text"></div></p>
+            <p><div class="header-item" id="translated-header"></div></p>
+            <p><div class="header-item" id="transcribed-header"></div></p>
+        </div>
+    </div>
+
+    <script src="/static/update_header.js?q={{q}}"></script>
     <script>
-        function showElementById(id) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.classList.remove("hidden");
-            }
-        }
-
-        function hideElementById(id) {
-            const element = document.getElementById(id);
-            if (element) {
-                element.classList.add("hidden");
-            }
-        }
-
-        document.addEventListener("DOMContentLoaded", function() {
-            const params = new URLSearchParams(window.location.search);
-            const showOriginal = params.has("showoriginal");
-            const showTranslation = params.has("showtranslation");
-            const showTranscription = params.has("showtranscription");
-
-            if (showOriginal) {
-                showElementById("header-text");
-            } 
-            
-            if (showTranslation) {
-                showElementById("translated-header");
-            }
-
-            if (showTranscription) {
-                showElementById("transcribed-header");
-            }
-        });
     </script>
 </body>
+
 </html>

@@ -2,6 +2,7 @@ import os
 import logging
 from flask import Flask, send_from_directory, url_for
 from threading import Thread
+import ssl
 
 header_text = ""
 translated_header_text = ""
@@ -88,9 +89,42 @@ def flask_server(operation, portnumber):
             return url_for(endpoint, **values)
 
         # Function to run the server
-        def run():
+        def run(use_https=False):
             try:
-                app.run(host='0.0.0.0', port=port)
+                if use_https:
+                    from OpenSSL import crypto
+
+                    # Create a key pair
+                    key = crypto.PKey()
+                    key.generate_key(crypto.TYPE_RSA, 2048)
+
+                    # Create a self-signed cert
+                    cert = crypto.X509()
+                    cert.get_subject().CN = 'localhost'
+                    cert.set_serial_number(1000)
+                    cert.gmtime_adj_notBefore(0)
+                    cert.gmtime_adj_notAfter(365 * 24 * 60 * 60)
+                    cert.set_issuer(cert.get_subject())
+                    cert.set_pubkey(key)
+                    cert.sign(key, 'sha256')
+
+                    # Write cert and key to temporary files
+                    cert_file = 'temp_cert.pem'
+                    key_file = 'temp_key.pem'
+                    with open(cert_file, 'wb') as certfile:
+                        certfile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+                    with open(key_file, 'wb') as keyfile:
+                        keyfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
+
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+                    context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+                    app.run(host='0.0.0.0', port=port, ssl_context=context)
+
+                    # Remove temporary cert and key files
+                    os.remove(cert_file)
+                    os.remove(key_file)
+                else:
+                    app.run(host='0.0.0.0', port=port)
             except Exception as e:
                 print(f"Server crashed due to {e}")
                 app.do_teardown_appcontext()
