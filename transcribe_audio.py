@@ -240,10 +240,10 @@ def main():
                 print("Error Message:\n" + str(e))
                 pass
 
-    #if args.language == "en" or args.language == "English":
-    #    model += ".en"
-    #    if model == "large" or model == "large.en":
-    #        model = "large"
+    if args.language == "en" or args.language == "English":
+        model += ".en"
+        if model == "large" or model == "large.en":
+            model = "large"
 
     if not os.path.exists("models"):
         print("Creating models folder...")
@@ -347,6 +347,7 @@ def main():
     if not args.makecaptions:
         if args.target_language != "en" or args.target_language != "English":
             model = model.replace(".en", "")
+            print(f"Loading model {model} instead since target language is not English...")
         audio_model = whisper.load_model(model, device=device, download_root="models")
 
     if args.microphone_enabled:
@@ -500,8 +501,13 @@ def main():
                 if ".en" in model:
                     detected_language = "English"
                 else:
-                    _, language_probs = audio_model.detect_language(mel)
-                    detected_language = max(language_probs, key=language_probs.get)
+                    if args.stream_language:
+                        print(f"Language Set: {args.stream_language}\n")
+                        detected_language = args.stream_language
+                    else:
+                        print(f"Detecting Language\n")
+                        _, language_probs = audio_model.detect_language(mel)
+                        detected_language = max(language_probs, key=language_probs.get)
 
                 if args.language:
                     detected_language = args.language
