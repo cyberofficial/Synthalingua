@@ -14,6 +14,8 @@ Public Class subtitlewindow
     Private URLTranscribedHeader As String
 
 
+
+
     ' P/Invoke declarations
     <DllImport("user32.dll")>
     Public Shared Function SendMessage(hWnd As IntPtr, Msg As Integer, wParam As Integer, lParam As Integer) As Integer
@@ -24,6 +26,7 @@ Public Class subtitlewindow
     End Function
 
     Public Sub New()
+        Dim CaptionsHost As String = "localhost"
         ' This call is required by the designer.
         InitializeComponent()
 
@@ -33,9 +36,9 @@ Public Class subtitlewindow
 
         ' Set the port number from MainUI and initialize URLs
         Dim SubPortNumber As String = MainUI.PortNumber.Value.ToString()
-        URLHeader = $"http://localhost:{SubPortNumber}/update-header"
-        URLTranslatedHeader = $"http://localhost:{SubPortNumber}/update-translated-header"
-        URLTranscribedHeader = $"http://localhost:{SubPortNumber}/update-transcribed-header"
+        URLHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-header"
+        URLTranslatedHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-translated-header"
+        URLTranscribedHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-transcribed-header"
 
         ' Initialize label properties for auto-wrapping
         InitializeLabelWrapping(headertextlbl)
