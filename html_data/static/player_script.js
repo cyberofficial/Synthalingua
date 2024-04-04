@@ -93,17 +93,17 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Check for fontsize parameter
-   const fontSizeParam = params.get("fontsize");
+    const fontSizeParam = params.get("fontsize");
 
-   if (fontSizeParam) {
-     // Validate font size (e.g., ensure it's a number)
-     const fontSize = parseFloat(fontSizeParam);
-     if (!isNaN(fontSize)) {
-       // Update font size of header items
-       const headerItems = document.querySelectorAll(".header-item");
-       headerItems.forEach(item => {
-         item.style.fontSize = fontSize + "px";
-       });
-     }
-   }
+    if (fontSizeParam) {
+      // Validate font size (e.g., ensure it's a number)
+      const fontSize = parseFloat(fontSizeParam);
+      if (!isNaN(fontSize)) {
+        // Update font size of header items
+        const headerItems = document.querySelectorAll(".header-item");
+        headerItems.forEach(item => {
+          item.style.fontSize = fontSize + "px"; // Corrected line: use fontSize instead of font-size
+        });
+      }
+    }
 });

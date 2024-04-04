@@ -1,52 +1,52 @@
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f2f2f2;
-            padding-bottom: 20px;
-        }
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background-color: #f2f2f2;
+    padding-bottom: 20px;
+}
 
-        /* Dark mode */
-        body.dark-mode {
-            background-color: #222222;
-            color: #ffffff;
-        }
+/* Dark mode */
+body.dark-mode {
+    background-color: #222222;
+    color: #ffffff;
+}
 
-        /* Dark mode header text color */
-        body.dark-mode .header-item {
-            color: #f0f0f0; /* Lighter shade of white */
-        }
+/* Dark mode header text color */
+body.dark-mode .header-item {
+    color: #f0f0f0; /* Lighter shade of white */
+}
 
-        #video-container {
-            position: relative; /* Positioning context for headers */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 70%;
-            overflow: hidden;
-            border-radius: 0px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-        }
+#video-container {
+    position: relative; /* Positioning context for headers */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 70%;
+    overflow: hidden;
+    border-radius: 0px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+}
 
-        #video-container iframe {
-            width: 1280px;
-            height: 720px;
-            border: none;
-        }
+#video-container iframe {
+    width: 1280px;
+    height: 720px;
+    border: none;
+}
 
-        /* Dark mode */
-        body.dark-mode #headers {
-            background-color: #485F6E;
-        }
+/* Dark mode */
+body.dark-mode #headers {
+    background-color: #485F6E;
+}
 
-        .hidden {
-            display: none;
-        }
+.hidden {
+    display: none;
+}
 
 .header-item {
     position: absolute;
@@ -59,7 +59,7 @@
     color: #ffffff;
     font-size: 18px;
     text-align: center;
-    'width: 70%;
+    width: 40%;
 }
 
 #header-text {

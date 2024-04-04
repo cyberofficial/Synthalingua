@@ -56,6 +56,13 @@ def flask_server(operation, portnumber):
                 updated_html = html_content.replace("{{ header_text }}", header_text)
             return updated_html
 
+        @app.route('/player.html')
+        def serve_player():
+            player_html_path = os.path.join(html_data_dir, 'player.html')
+            with open(player_html_path, 'r') as file:
+                player_html_content = file.read()
+            return player_html_content
+
         # Serve static files (CSS, JS, images)
         @app.route('/static/<path:filename>')
         def serve_static(filename):
