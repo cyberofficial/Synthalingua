@@ -519,17 +519,33 @@ Public Class MainUI
 
 
     Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
+        ' Confirm with the user that all settings will be cleared
+        Dim confirmResult As DialogResult = MessageBox.Show("Are you sure you want to wipe all settings? This will reset all application settings and close the application.", "Confirm Wipe", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
 
-        If EraseCheckBox.Checked = True Then
-            My.Settings.Reset()
-            My.Settings.Save()
+        If confirmResult = DialogResult.Yes Then
+            If EraseCheckBox.Checked Then
+                ' Confirm with the user one more time with a warning
+                Dim warningResult As DialogResult = MessageBox.Show("This action will clear all settings and close the application. Are you really sure?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
 
-            ' Optionally, notify the user that settings have been cleared
-            Dim unused1 = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            Application.Exit()
-        Else
-            Dim unused = MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                If warningResult = DialogResult.Yes Then
+                    My.Settings.Reset()
+
+                    ' Clear subtitle window settings
+                    ' Add your code to clear subtitle window settings here
+
+                    My.Settings.Save()
+
+                    ' Notify the user that settings have been cleared
+                    Dim finalResult As DialogResult = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+
+                    If finalResult = DialogResult.OK Then
+                        Application.Exit()
+                    End If
+                End If
+            Else
+                MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            End If
         End If
-
     End Sub
+
 End Class

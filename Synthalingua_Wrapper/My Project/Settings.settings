@@ -77,5 +77,38 @@
     <Setting Name="PhraseTimeOutEnabled" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="headertextlbl_font" Type="System.Drawing.Font" Scope="User">
+      <Value Profile="(Default)">Segoe UI, 21pt</Value>
+    </Setting>
+    <Setting Name="headertextlbl_forecolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">White</Value>
+    </Setting>
+    <Setting Name="headertextlbl_backcolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">Black</Value>
+    </Setting>
+    <Setting Name="translatedheaderlbl_font" Type="System.Drawing.Font" Scope="User">
+      <Value Profile="(Default)">Segoe UI, 21pt</Value>
+    </Setting>
+    <Setting Name="translatedheaderlbl_forecolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">White</Value>
+    </Setting>
+    <Setting Name="translatedheaderlbl_backcolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">Black</Value>
+    </Setting>
+    <Setting Name="transcribedheaderlbl_font" Type="System.Drawing.Font" Scope="User">
+      <Value Profile="(Default)">Segoe UI, 21pt</Value>
+    </Setting>
+    <Setting Name="transcribedheaderlbl_forecolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">White</Value>
+    </Setting>
+    <Setting Name="transcribedheaderlbl_backcolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">Black</Value>
+    </Setting>
+    <Setting Name="subwindow_lmode" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="subwindow_bgcolor" Type="System.Drawing.Color" Scope="User">
+      <Value Profile="(Default)">0, 177, 64</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
