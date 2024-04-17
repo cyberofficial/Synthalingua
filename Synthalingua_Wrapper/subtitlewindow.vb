@@ -110,22 +110,28 @@ Public Class subtitlewindow
         Dim transcribedHeaderText As String = String.Empty
 
         Try
-            headerText = Await FetchTextFromUrl(URLHeader, cts.Token)
-            Debug.WriteLine("Header Text: " & headerText)
+            If headertextlbl.Visible Then
+                headerText = Await FetchTextFromUrl(URLHeader, cts.Token)
+                Debug.WriteLine("Header Text: " & headerText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching header text: " & ex.Message)
         End Try
 
         Try
-            translatedHeaderText = Await FetchTextFromUrl(URLTranslatedHeader, cts.Token)
-            Debug.WriteLine("Translated Header Text: " & translatedHeaderText)
+            If translatedheaderlbl.Visible = True Then
+                translatedHeaderText = Await FetchTextFromUrl(URLTranslatedHeader, cts.Token)
+                Debug.WriteLine("Translated Header Text: " & translatedHeaderText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching translated header text: " & ex.Message)
         End Try
 
         Try
-            transcribedHeaderText = Await FetchTextFromUrl(URLTranscribedHeader, cts.Token)
-            Debug.WriteLine("Transcribed Header Text: " & transcribedHeaderText)
+            If transcribedheaderlbl.Visible = True Then
+                transcribedHeaderText = Await FetchTextFromUrl(URLTranscribedHeader, cts.Token)
+                Debug.WriteLine("Transcribed Header Text: " & transcribedHeaderText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching transcribed header text: " & ex.Message)
         End Try
