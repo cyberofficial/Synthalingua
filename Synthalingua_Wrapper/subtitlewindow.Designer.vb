@@ -132,7 +132,7 @@ Partial Class subtitlewindow
         ' 
         BG_Color.DropDownItems.AddRange(New ToolStripItem() {ResetBGColor})
         BG_Color.Name = "BG_Color"
-        BG_Color.Size = New Size(180, 22)
+        BG_Color.Size = New Size(170, 22)
         BG_Color.Text = "Background Color"
         ' 
         ' ResetBGColor
@@ -145,19 +145,19 @@ Partial Class subtitlewindow
         ' 
         SaveToolStripMenuItem2.DropDownItems.AddRange(New ToolStripItem() {SaveToolStripMenuItem3, ResetToolStripMenuItem})
         SaveToolStripMenuItem2.Name = "SaveToolStripMenuItem2"
-        SaveToolStripMenuItem2.Size = New Size(180, 22)
+        SaveToolStripMenuItem2.Size = New Size(170, 22)
         SaveToolStripMenuItem2.Text = "Save"
         ' 
         ' SaveToolStripMenuItem3
         ' 
         SaveToolStripMenuItem3.Name = "SaveToolStripMenuItem3"
-        SaveToolStripMenuItem3.Size = New Size(180, 22)
+        SaveToolStripMenuItem3.Size = New Size(102, 22)
         SaveToolStripMenuItem3.Text = "Save"
         ' 
         ' ResetToolStripMenuItem
         ' 
         ResetToolStripMenuItem.Name = "ResetToolStripMenuItem"
-        ResetToolStripMenuItem.Size = New Size(180, 22)
+        ResetToolStripMenuItem.Size = New Size(102, 22)
         ResetToolStripMenuItem.Text = "Reset"
         ' 
         ' FontSettingsToolStripMenuItem

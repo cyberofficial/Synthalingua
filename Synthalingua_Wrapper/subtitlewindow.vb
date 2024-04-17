@@ -14,6 +14,7 @@ Public Class subtitlewindow
     Private URLTranscribedHeader As String
 
     Dim RTL_Mode As Boolean = False
+    Dim Main_BG_COLOR As System.Drawing.Color = Color.FromArgb(0, 177, 64)
 
 
     ' P/Invoke declarations
@@ -204,6 +205,8 @@ Public Class subtitlewindow
     Private Sub PlantToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles PlantToolStripMenuItem.Click
         Dim unused = MessageBox.Show("Help: " + vbCrLf + "Restore: Double Click then Right click the captions." + vbCrLf + vbCrLf + "Move: Click and Drag the captions", "Help Message")
 
+        Main_BG_COLOR = Me.BackColor
+
         ' set transparency key to control
         TransparencyKey = Color.FromArgb(255, 255, 255)
         ' set background color to transparent
@@ -250,7 +253,7 @@ Public Class subtitlewindow
         TransparencyKey = Color.Empty ' or the original color
 
         ' Reset background color
-        BackColor = SystemColors.Control ' or the original color
+        BackColor = Main_BG_COLOR ' or the original color
 
         ' Reset form border style
         FormBorderStyle = FormBorderStyle.Sizable ' or the original style
