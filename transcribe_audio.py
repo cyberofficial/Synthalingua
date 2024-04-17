@@ -467,8 +467,21 @@ def main():
     else:
         print("Microphone disabled. Awaiting audio stream from stream...")
 
+   #if args.portnumber:
+   #    new_header = f"({detected_language}) {original_text}"
+   #    api_backend.update_header(new_header)
+   #    new_header = f"{translated_text}"
+   #    api_backend.update_translated_header(new_header)
+   #    new_header = f"{transcribed_text}"
+   #    api_backend.update_transcribed_header(new_header)
+
+
+    global detected_language
+    global original_text
+    global transcribed_text
 
     while True:
+
         try:
             now = datetime.utcnow()
             if not data_queue.empty():
@@ -643,6 +656,24 @@ def main():
                 else:
                     transcription[-1] = (text, translated_text if args.translate else None, transcribed_text if args.transcribe else None, detected_language)
 
+                if args.portnumber:
+                    try:
+                        new_header = f"({detected_language}) {original_text}"
+                        api_backend.update_header(new_header)
+                    except:
+                        pass
+                    try:
+                        new_header = f"{translated_text}"
+                        api_backend.update_translated_header(new_header)
+                    except:
+                        pass
+                    try:
+                        new_header = f"{transcribed_text}"
+                        api_backend.update_transcribed_header(new_header)
+                    except:
+                        pass
+
+
                 os.system('cls' if os.name=='nt' else 'clear')
 
                 if not args.no_log:
@@ -652,23 +683,15 @@ def main():
                         print("=" * shutil.get_terminal_size().columns)
                         print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                         print(f"{original_text}")
-                        if args.portnumber:
-                            new_header = f"({detected_language}) {original_text}"
-                            api_backend.update_header(new_header)
 
                         if args.translate and translated_text:
                             print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{translated_text}\n")
-                            if args.portnumber:
-                                new_header = f"{translated_text}"
-                                api_backend.update_translated_header(new_header)
+
 
                         if args.transcribe and transcribed_text:
                             print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                             print(f"{transcribed_text}\n")
-                            if args.portnumber:
-                                new_header = f"{transcribed_text}"
-                                api_backend.update_transcribed_header(new_header)
 
                 else:
                     for original_text, translated_text, transcribed_text, detected_language in transcription:
@@ -676,14 +699,10 @@ def main():
                             continue
                         if args.translate and translated_text:
                             print(f"{translated_text}")
-                            if args.portnumber:
-                                new_header = f"{translated_text}"
-                                api_backend.update_translated_header(new_header)
+
                         if args.transcribe and transcribed_text:
                             print(f"{transcribed_text}")
-                            if args.portnumber:
-                                new_header = f"{transcribed_text}"
-                                api_backend.update_transcribed_header(new_header)
+
 
                 print('', end='', flush=True)
 
