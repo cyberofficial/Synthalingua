@@ -13,7 +13,7 @@ Public Class subtitlewindow
     Private URLTranslatedHeader As String
     Private URLTranscribedHeader As String
 
-
+    Dim RTL_Mode As Boolean = False
 
 
     ' P/Invoke declarations
@@ -53,8 +53,34 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub subtitlewindow_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        InfoSaverTimer.Interval = 25 ' Set your timer interval to 50ms
+        InfoSaverTimer.Interval = 25 ' Set timer interval to 25ms
         InfoSaverTimer.Start()
+
+
+        With headertextlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+        With translatedheaderlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+        With transcribedheaderlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+
+        If My.Settings.subwindow_lmode = True Then
+            headertextlbl.RightToLeft = RightToLeft.Yes
+            translatedheaderlbl.RightToLeft = RightToLeft.Yes
+            transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+        End If
+
+        Me.BackColor = My.Settings.subwindow_bgcolor
+
     End Sub
     Private Sub subtitlewindow_Resize(sender As Object, e As EventArgs) Handles MyBase.Resize
         ' Update MaximumSize of the labels when the form is resized
@@ -69,6 +95,7 @@ Public Class subtitlewindow
         cts.Cancel() ' Cancel any ongoing operations
         httpClient.Dispose()
         cts.Dispose() ' Dispose of the CancellationTokenSource
+        Me.Dispose()
     End Sub
 
     Private Async Sub InfoSaverTimer_Tick(sender As Object, e As EventArgs) Handles InfoSaverTimer.Tick
@@ -291,11 +318,64 @@ Public Class subtitlewindow
         headertextlbl.RightToLeft = RightToLeft.No
         translatedheaderlbl.RightToLeft = RightToLeft.No
         transcribedheaderlbl.RightToLeft = RightToLeft.No
+        RTL_Mode = False
     End Sub
 
     Private Sub RightToLeftToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToLeftToolStripMenuItem.Click
         headertextlbl.RightToLeft = RightToLeft.Yes
         translatedheaderlbl.RightToLeft = RightToLeft.Yes
         transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+        RTL_Mode = True
+    End Sub
+
+
+    Private Sub BG_Color_Click(sender As Object, e As EventArgs) Handles BG_Color.Click
+        ColorDialog1.ShowDialog()
+        Me.BackColor = ColorDialog1.Color
+    End Sub
+
+    Private Sub ResetBGColor_Click(sender As Object, e As EventArgs) Handles ResetBGColor.Click
+        Me.BackColor = Color.FromArgb(0, 177, 64)
+    End Sub
+
+    Private Sub ResetCWindow_Click(sender As Object, e As EventArgs)
+
+    End Sub
+
+    Private Sub SaveToolStripMenuItem3_Click(sender As Object, e As EventArgs) Handles SaveToolStripMenuItem3.Click
+        My.Settings.headertextlbl_font = headertextlbl.Font
+        My.Settings.headertextlbl_forecolor = headertextlbl.ForeColor
+        My.Settings.headertextlbl_backcolor = headertextlbl.BackColor
+        My.Settings.subwindow_lmode = RTL_Mode
+        My.Settings.subwindow_bgcolor = Me.BackColor
+        My.Settings.Save()
+        My.Settings.Reload()
+        MessageBox.Show("Your captions window settings were saved.", "Saved")
+    End Sub
+
+    Private Sub ResetToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ResetToolStripMenuItem.Click
+        With My.Settings
+            .headertextlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("headertextlbl_font").DefaultValue.ToString())
+            .translatedheaderlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("translatedheaderlbl_font").DefaultValue.ToString())
+            .transcribedheaderlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("transcribedheaderlbl_font").DefaultValue.ToString())
+
+            ' Reset color settings
+            .headertextlbl_forecolor = Color.FromName(My.Settings.Properties("headertextlbl_forecolor").DefaultValue.ToString())
+            .headertextlbl_backcolor = Color.FromName(My.Settings.Properties("headertextlbl_backcolor").DefaultValue.ToString())
+            .translatedheaderlbl_forecolor = Color.FromName(My.Settings.Properties("translatedheaderlbl_forecolor").DefaultValue.ToString())
+            .translatedheaderlbl_backcolor = Color.FromName(My.Settings.Properties("translatedheaderlbl_backcolor").DefaultValue.ToString())
+            .transcribedheaderlbl_forecolor = Color.FromName(My.Settings.Properties("transcribedheaderlbl_forecolor").DefaultValue.ToString())
+            .transcribedheaderlbl_backcolor = Color.FromName(My.Settings.Properties("transcribedheaderlbl_backcolor").DefaultValue.ToString())
+
+            .subwindow_bgcolor = Color.FromName(My.Settings.Properties("subwindow_bgcolor").DefaultValue.ToString())
+
+            .subwindow_lmode = False
+
+            .Save()
+            .Reload()
+            Dim Cwindows As New subtitlewindow()
+            Cwindows.show()
+            Me.Close()
+        End With
     End Sub
 End Class

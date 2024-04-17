@@ -28,6 +28,12 @@ Partial Class subtitlewindow
         translatedheaderlbl = New Label()
         transcribedheaderlbl = New Label()
         MenuStrip1 = New MenuStrip()
+        WindowSettingmsToolStripMenuItem = New ToolStripMenuItem()
+        BG_Color = New ToolStripMenuItem()
+        ResetBGColor = New ToolStripMenuItem()
+        SaveToolStripMenuItem2 = New ToolStripMenuItem()
+        SaveToolStripMenuItem3 = New ToolStripMenuItem()
+        ResetToolStripMenuItem = New ToolStripMenuItem()
         FontSettingsToolStripMenuItem = New ToolStripMenuItem()
         FontFaceToolStripMenuItem = New ToolStripMenuItem()
         TextColorToolStripMenuItem = New ToolStripMenuItem()
@@ -52,6 +58,7 @@ Partial Class subtitlewindow
         RightToolStripMenuItem = New ToolStripMenuItem()
         PlantToolStripMenuItem = New ToolStripMenuItem()
         FontDialog1 = New FontDialog()
+        ColorDialog1 = New ColorDialog()
         MenuStrip1.SuspendLayout()
         SuspendLayout()
         ' 
@@ -66,8 +73,8 @@ Partial Class subtitlewindow
         headertextlbl.BackColor = SystemColors.ActiveCaptionText
         headertextlbl.Dock = DockStyle.Bottom
         headertextlbl.Font = New Font("Segoe UI", 21F)
-        headertextlbl.ForeColor = SystemColors.ButtonFace
-        headertextlbl.Location = New Point(0, 37)
+        headertextlbl.ForeColor = Color.White
+        headertextlbl.Location = New Point(0, 171)
         headertextlbl.Name = "headertextlbl"
         headertextlbl.Size = New Size(172, 38)
         headertextlbl.TabIndex = 0
@@ -82,7 +89,7 @@ Partial Class subtitlewindow
         translatedheaderlbl.Dock = DockStyle.Bottom
         translatedheaderlbl.Font = New Font("Segoe UI", 21F)
         translatedheaderlbl.ForeColor = SystemColors.ButtonFace
-        translatedheaderlbl.Location = New Point(0, 75)
+        translatedheaderlbl.Location = New Point(0, 209)
         translatedheaderlbl.Name = "translatedheaderlbl"
         translatedheaderlbl.Size = New Size(172, 38)
         translatedheaderlbl.TabIndex = 1
@@ -97,7 +104,7 @@ Partial Class subtitlewindow
         transcribedheaderlbl.Dock = DockStyle.Bottom
         transcribedheaderlbl.Font = New Font("Segoe UI", 21F)
         transcribedheaderlbl.ForeColor = SystemColors.ButtonFace
-        transcribedheaderlbl.Location = New Point(0, 113)
+        transcribedheaderlbl.Location = New Point(0, 247)
         transcribedheaderlbl.Name = "transcribedheaderlbl"
         transcribedheaderlbl.Size = New Size(172, 38)
         transcribedheaderlbl.TabIndex = 2
@@ -107,12 +114,51 @@ Partial Class subtitlewindow
         ' MenuStrip1
         ' 
         MenuStrip1.Dock = DockStyle.Bottom
-        MenuStrip1.Items.AddRange(New ToolStripItem() {FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem})
-        MenuStrip1.Location = New Point(0, 151)
+        MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem})
+        MenuStrip1.Location = New Point(0, 285)
         MenuStrip1.Name = "MenuStrip1"
-        MenuStrip1.Size = New Size(475, 24)
+        MenuStrip1.Size = New Size(723, 24)
         MenuStrip1.TabIndex = 3
         MenuStrip1.Text = "MenuStrip1"
+        ' 
+        ' WindowSettingmsToolStripMenuItem
+        ' 
+        WindowSettingmsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {BG_Color, SaveToolStripMenuItem2})
+        WindowSettingmsToolStripMenuItem.Name = "WindowSettingmsToolStripMenuItem"
+        WindowSettingmsToolStripMenuItem.Size = New Size(108, 20)
+        WindowSettingmsToolStripMenuItem.Text = "Window Settings"
+        ' 
+        ' BG_Color
+        ' 
+        BG_Color.DropDownItems.AddRange(New ToolStripItem() {ResetBGColor})
+        BG_Color.Name = "BG_Color"
+        BG_Color.Size = New Size(180, 22)
+        BG_Color.Text = "Background Color"
+        ' 
+        ' ResetBGColor
+        ' 
+        ResetBGColor.Name = "ResetBGColor"
+        ResetBGColor.Size = New Size(102, 22)
+        ResetBGColor.Text = "Reset"
+        ' 
+        ' SaveToolStripMenuItem2
+        ' 
+        SaveToolStripMenuItem2.DropDownItems.AddRange(New ToolStripItem() {SaveToolStripMenuItem3, ResetToolStripMenuItem})
+        SaveToolStripMenuItem2.Name = "SaveToolStripMenuItem2"
+        SaveToolStripMenuItem2.Size = New Size(180, 22)
+        SaveToolStripMenuItem2.Text = "Save"
+        ' 
+        ' SaveToolStripMenuItem3
+        ' 
+        SaveToolStripMenuItem3.Name = "SaveToolStripMenuItem3"
+        SaveToolStripMenuItem3.Size = New Size(180, 22)
+        SaveToolStripMenuItem3.Text = "Save"
+        ' 
+        ' ResetToolStripMenuItem
+        ' 
+        ResetToolStripMenuItem.Name = "ResetToolStripMenuItem"
+        ResetToolStripMenuItem.Size = New Size(180, 22)
+        ResetToolStripMenuItem.Text = "Reset"
         ' 
         ' FontSettingsToolStripMenuItem
         ' 
@@ -267,7 +313,8 @@ Partial Class subtitlewindow
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(475, 175)
+        BackColor = Color.FromArgb(CByte(0), CByte(177), CByte(64))
+        ClientSize = New Size(723, 309)
         Controls.Add(headertextlbl)
         Controls.Add(translatedheaderlbl)
         Controls.Add(transcribedheaderlbl)
@@ -311,4 +358,11 @@ Partial Class subtitlewindow
     Friend WithEvents LanguageModeToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents LeftToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents RightToLeftToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents WindowSettingmsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents BG_Color As ToolStripMenuItem
+    Friend WithEvents ColorDialog1 As ColorDialog
+    Friend WithEvents ResetBGColor As ToolStripMenuItem
+    Friend WithEvents SaveToolStripMenuItem2 As ToolStripMenuItem
+    Friend WithEvents SaveToolStripMenuItem3 As ToolStripMenuItem
+    Friend WithEvents ResetToolStripMenuItem As ToolStripMenuItem
 End Class
