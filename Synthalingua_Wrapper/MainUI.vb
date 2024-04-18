@@ -127,6 +127,10 @@ Public Class MainUI
             ConfigTextBox.Text += "--cookies " & CookiesName.Text & " "
         End If
 
+        If WordBlockList.Checked = True Then
+            ConfigTextBox.Text += "--ignorelist "
+        End If
+
         If WebServerButton.Checked = True Then
             ConfigTextBox.Text += "--portnumber " & PortNumber.Value & " "
         End If
@@ -547,5 +551,37 @@ Public Class MainUI
             End If
         End If
     End Sub
+
+    Private Sub EditBlockList_Click(sender As Object, e As EventArgs) Handles EditBlockList.Click
+        Try
+            ' Get the directory path from the ScriptFileLocation textbox
+            Dim directoryPath As String = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
+
+            ' Combine the directory path with the file name
+            Dim filePath As String = System.IO.Path.Combine(directoryPath, "blacklist.txt")
+
+            ' Check if the file exists
+            If Not System.IO.File.Exists(filePath) Then
+                ' Create the file if it doesn't exist
+                Try
+                    System.IO.File.Create(filePath).Close() ' Close the file stream after creation
+                Catch ex As Exception
+                    MessageBox.Show("An error occurred while creating the file: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Exit Sub ' Exit the sub if file creation fails
+                End Try
+            End If
+
+            ' Open the file with Notepad
+            Try
+                System.Diagnostics.Process.Start("notepad.exe", filePath)
+            Catch ex As Exception
+                MessageBox.Show("An error occurred while opening the file: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+
+    End Sub
+
 
 End Class

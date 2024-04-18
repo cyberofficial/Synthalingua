@@ -94,6 +94,7 @@ def parse_arguments():
     parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")
     parser.add_argument("--file_output", default=None, help="Path to file to save transcript to.")
     parser.add_argument("--file_output_name", default=None, help="Path to file to save transcript to.")
+    parser.add_argument("--ignorelist", action='store_true', help="Enable ignoring phrases from blacklist.txt")
     args = parser.parse_args()
     return args
 
