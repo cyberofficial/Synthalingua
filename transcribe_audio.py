@@ -479,6 +479,7 @@ def main():
     global detected_language
     global original_text
     global transcribed_text
+    global text
 
     while True:
 
@@ -492,6 +493,7 @@ def main():
                     last_sample = bytes()
                     phrase_complete = True
                 phrase_time = now
+
 
                 while not data_queue.empty():
                     data = data_queue.get()
@@ -674,34 +676,35 @@ def main():
                         pass
 
 
-                os.system('cls' if os.name=='nt' else 'clear')
+                #os.system('cls' if os.name=='nt' else 'clear')
 
                 if not args.no_log:
-                    for original_text, translated_text, transcribed_text, detected_language in transcription:
-                        if not original_text:
-                            continue
-                        print("=" * shutil.get_terminal_size().columns)
-                        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{original_text}")
+                    # Only print the last element of the transcription (the new segment)
+                    original_text, translated_text, transcribed_text, detected_language = transcription[-1]
+                    if not original_text:
+                        continue
+                    print("=" * shutil.get_terminal_size().columns)
+                    print(
+                        f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{original_text}")
 
-                        if args.translate and translated_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{translated_text}\n")
+                    if args.translate and translated_text:
+                        print(
+                            f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{translated_text}\n")
 
-
-                        if args.transcribe and transcribed_text:
-                            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                            print(f"{transcribed_text}\n")
+                    if args.transcribe and transcribed_text:
+                        print(
+                            f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                        print(f"{transcribed_text}\n")
 
                 else:
-                    for original_text, translated_text, transcribed_text, detected_language in transcription:
-                        if not original_text:
-                            continue
-                        if args.translate and translated_text:
-                            print(f"{translated_text}")
-
-                        if args.transcribe and transcribed_text:
-                            print(f"{transcribed_text}")
+                    # Only print the last translated or transcribed text
+                    original_text, translated_text, transcribed_text, detected_language = transcription[-1]
+                    if args.translate and translated_text:
+                        print(f"{translated_text}")
+                    if args.transcribe and transcribed_text:
+                        print(f"{transcribed_text}")
 
 
                 print('', end='', flush=True)
