@@ -110,5 +110,8 @@
     <Setting Name="subwindow_bgcolor" Type="System.Drawing.Color" Scope="User">
       <Value Profile="(Default)">0, 177, 64</Value>
     </Setting>
+    <Setting Name="WordBlockListEnabled" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
   </Settings>
 </SettingsFile>
