@@ -284,6 +284,7 @@ Public Class MainUI
             RecordTimeOutCHeckBox.Checked = .MicRecTimeoutEnabled
             PhraseTimeout.Value = .PhraseTimeOut
             PhraseTimeOutCheckbox.Checked = .PhraseTimeOutEnabled
+            WordBlockList.Checked = .WordBlockListEnabled
         End With
 
         ' Get the current running directory
@@ -515,6 +516,8 @@ Public Class MainUI
             ' Phrase Timeout
             .PhraseTimeOut = PhraseTimeout.Value
             .PhraseTimeOutEnabled = PhraseTimeOutCheckbox.Checked
+
+            .WordBlockListEnabled = WordBlockList.Checked
         End With
 
         ' Final Save
