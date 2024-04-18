@@ -184,7 +184,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--file_input` | Location of file for the input to make captions for, almost all video/audio format supported (uses ffmpeg) |
 | `--file_output` | Location of folder to export the captions |
 | `--file_output_name` | File name to export as without any ext. |
-| `--igignorelist` | Activates the `blacklist.txt` file. |
+| `--ignorelist` | Activates the `blacklist.txt` file. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
