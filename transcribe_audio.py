@@ -23,8 +23,10 @@ def main():
     args = parser_args.parse_arguments()
 
     def load_blacklist(filename="blacklist.txt"):
-        script_dir = os.path.dirname(os.path.realpath(__file__))  # Get script directory
-        blacklist_path = os.path.join(script_dir, filename)  # Construct blacklist path
+        #script_dir = os.path.dirname(os.path.realpath(__file__))  # Get script directory
+        #blacklist_path = os.path.join(script_dir, filename)  # Construct blacklist path
+
+        blacklist_path = filename
 
         blacklist = []
         try:
@@ -39,6 +41,10 @@ def main():
         blacklist = load_blacklist()
     else:
         blacklist = []
+
+    # if blacklist.txt was found say loaded
+    if len(blacklist) > 0:
+        print(f"Loaded blacklist: {blacklist}")
 
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
