@@ -184,6 +184,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--file_input` | Location of file for the input to make captions for, almost all video/audio format supported (uses ffmpeg) |
 | `--file_output` | Location of folder to export the captions |
 | `--file_output_name` | File name to export as without any ext. |
+| `--igignorelist` | Activates the `blacklist.txt` file. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -191,6 +192,9 @@ This script uses argparse to accept command line arguments. The following option
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 - When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
+
+## Word Block List
+With the flag `--igignorelist` you can now load a list of phrases or words to ignore in the api output and subtitle window. This list is already filled with common phrases the AI will think it heard. You can adjust this list as youu please or add more words or phrases to it.
 
 ## Cookies
 Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
