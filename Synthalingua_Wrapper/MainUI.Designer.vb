@@ -106,6 +106,8 @@ Partial Class MainUI
         SaveConfig = New Button()
         WipeSettings = New Button()
         EraseCheckBox = New CheckBox()
+        WordBlockList = New CheckBox()
+        EditBlockList = New Button()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -981,11 +983,32 @@ Partial Class MainUI
         EraseCheckBox.TabIndex = 30
         EraseCheckBox.UseVisualStyleBackColor = True
         ' 
+        ' WordBlockList
+        ' 
+        WordBlockList.AutoSize = True
+        WordBlockList.Location = New Point(10, 438)
+        WordBlockList.Name = "WordBlockList"
+        WordBlockList.Size = New Size(130, 19)
+        WordBlockList.TabIndex = 31
+        WordBlockList.Text = "Use Word Block List"
+        WordBlockList.UseVisualStyleBackColor = True
+        ' 
+        ' EditBlockList
+        ' 
+        EditBlockList.Location = New Point(10, 463)
+        EditBlockList.Name = "EditBlockList"
+        EditBlockList.Size = New Size(137, 24)
+        EditBlockList.TabIndex = 32
+        EditBlockList.Text = "Edit Block List"
+        EditBlockList.UseVisualStyleBackColor = True
+        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(624, 674)
+        Controls.Add(EditBlockList)
+        Controls.Add(WordBlockList)
         Controls.Add(EraseCheckBox)
         Controls.Add(WipeSettings)
         Controls.Add(CheckBoxCMDBLock)
@@ -1133,5 +1156,7 @@ Partial Class MainUI
     Friend WithEvents SaveConfig As Button
     Friend WithEvents WipeSettings As Button
     Friend WithEvents EraseCheckBox As CheckBox
+    Friend WithEvents WordBlockList As CheckBox
+    Friend WithEvents EditBlockList As Button
 
 End Class

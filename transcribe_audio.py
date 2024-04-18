@@ -22,6 +22,24 @@ def main():
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
     args = parser_args.parse_arguments()
 
+    def load_blacklist(filename="blacklist.txt"):
+        script_dir = os.path.dirname(os.path.realpath(__file__))  # Get script directory
+        blacklist_path = os.path.join(script_dir, filename)  # Construct blacklist path
+
+        blacklist = []
+        try:
+            with open(blacklist_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    blacklist.append(line.strip())
+        except FileNotFoundError:
+            print(f"Warning: Blacklist file '{blacklist_path}' not found.")
+        return blacklist
+
+    if args.ignorelist:
+        blacklist = load_blacklist()
+    else:
+        blacklist = []
+
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
         if args.makecaptions:
@@ -660,17 +678,34 @@ def main():
 
                 if args.portnumber:
                     try:
-                        new_header = f"({detected_language}) {original_text}"
+                        # Filter original_text for the header
+                        filtered_header_text = original_text.lower()
+                        for phrase in blacklist:
+                            filtered_header_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_header_text).strip()
+
+                        new_header = f"({detected_language}) {filtered_header_text}"
                         api_backend.update_header(new_header)
                     except:
                         pass
                     try:
-                        new_header = f"{translated_text}"
+                        # Filter translated_text for the header
+                        filtered_translated_text = translated_text.lower()
+                        for phrase in blacklist:
+                            filtered_translated_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                              filtered_translated_text).strip()
+
+                        new_header = f"{filtered_translated_text}"
                         api_backend.update_translated_header(new_header)
                     except:
                         pass
                     try:
-                        new_header = f"{transcribed_text}"
+                        # Filter transcribed_text for the header
+                        filtered_transcribed_text = transcribed_text.lower()
+                        for phrase in blacklist:
+                            filtered_transcribed_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                               filtered_transcribed_text).strip()
+
+                        new_header = f"{filtered_transcribed_text}"
                         api_backend.update_transcribed_header(new_header)
                     except:
                         pass
@@ -681,30 +716,63 @@ def main():
                 if not args.no_log:
                     # Only print the last element of the transcription (the new segment)
                     original_text, translated_text, transcribed_text, detected_language = transcription[-1]
-                    if not original_text:
+
+                    # Filter text based on blacklist using regex
+                    filtered_text = original_text.lower()
+                    for phrase in blacklist:
+                        filtered_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_text).strip()
+
+                    if not filtered_text:  # Check if filtered_text is empty
                         continue
+
                     print("=" * shutil.get_terminal_size().columns)
                     print(
                         f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{original_text}")
+                    print(f"{filtered_text}")  # Use filtered_text here
 
                     if args.translate and translated_text:
+                        # Filter translated_text as well
+                        filtered_translated_text = translated_text
+                        for phrase in blacklist:
+                            filtered_translated_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                              filtered_translated_text).strip()
+
                         print(
                             f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{translated_text}\n")
+                        print(f"{filtered_translated_text}\n")  # Use filtered_translated_text here
 
                     if args.transcribe and transcribed_text:
+                        # Filter transcribed_text as well
+                        filtered_transcribed_text = transcribed_text
+                        for phrase in blacklist:
+                            filtered_transcribed_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                               filtered_transcribed_text).strip()
+
                         print(
                             f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {detected_language} -> {target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                        print(f"{transcribed_text}\n")
+                        print(f"{filtered_transcribed_text}\n")  # Use filtered_transcribed_text here
 
                 else:
                     # Only print the last translated or transcribed text
                     original_text, translated_text, transcribed_text, detected_language = transcription[-1]
+
                     if args.translate and translated_text:
-                        print(f"{translated_text}")
+                        # Filter translated_text using regex
+                        filtered_translated_text = translated_text
+                        for phrase in blacklist:
+                            filtered_translated_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                              filtered_translated_text).strip()
+
+                        print(f"{filtered_translated_text}")  # Use filtered_translated_text here
+
                     if args.transcribe and transcribed_text:
-                        print(f"{transcribed_text}")
+                        # Filter transcribed_text using regex
+                        filtered_transcribed_text = transcribed_text
+                        for phrase in blacklist:
+                            filtered_transcribed_text = re.sub(rf"\b{phrase.lower()}\b", "",
+                                                               filtered_transcribed_text).strip()
+
+                        print(f"{filtered_transcribed_text}")  # Use filtered_transcribed_text here
 
 
                 print('', end='', flush=True)
