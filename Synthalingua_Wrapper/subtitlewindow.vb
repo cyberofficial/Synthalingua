@@ -1,6 +1,8 @@
-﻿Imports System.Net.Http
+﻿Imports System.IO
+Imports System.Net.Http
 Imports System.Net.Sockets
 Imports System.Runtime.InteropServices
+Imports System.Text.RegularExpressions
 Imports System.Threading
 
 
@@ -13,6 +15,9 @@ Public Class subtitlewindow
     Private URLTranslatedHeader As String
     Private URLTranscribedHeader As String
 
+    Dim RTL_Mode As Boolean = False
+    Dim Main_BG_COLOR As System.Drawing.Color = Color.FromArgb(0, 177, 64)
+
 
     ' P/Invoke declarations
     <DllImport("user32.dll")>
@@ -24,6 +29,7 @@ Public Class subtitlewindow
     End Function
 
     Public Sub New()
+        Dim CaptionsHost As String = "localhost"
         ' This call is required by the designer.
         InitializeComponent()
 
@@ -33,9 +39,9 @@ Public Class subtitlewindow
 
         ' Set the port number from MainUI and initialize URLs
         Dim SubPortNumber As String = MainUI.PortNumber.Value.ToString()
-        URLHeader = $"http://localhost:{SubPortNumber}/update-header"
-        URLTranslatedHeader = $"http://localhost:{SubPortNumber}/update-translated-header"
-        URLTranscribedHeader = $"http://localhost:{SubPortNumber}/update-transcribed-header"
+        URLHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-header"
+        URLTranslatedHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-translated-header"
+        URLTranscribedHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-transcribed-header"
 
         ' Initialize label properties for auto-wrapping
         InitializeLabelWrapping(headertextlbl)
@@ -49,9 +55,59 @@ Public Class subtitlewindow
         label.MaximumSize = New Size(ClientSize.Width, 0)
     End Sub
 
+    Private Function CountBlacklistedPhrases() As Integer
+        Dim numberOfPhrases As Integer = 0
+
+        Try
+            ' Read blacklisted phrases from file
+            Dim lines As String() = File.ReadAllLines(MainUI.WordBlockListLocation.ToString)
+
+            ' Count the number of loaded phrases
+            numberOfPhrases = lines.Length
+        Catch ex As Exception
+            Debug.WriteLine("Error counting blacklisted phrases: " & ex.Message)
+        End Try
+
+        Return numberOfPhrases
+    End Function
+
     Private Sub subtitlewindow_Load(sender As Object, e As EventArgs) Handles MyBase.Load
-        InfoSaverTimer.Interval = 25 ' Set your timer interval to 50ms
+        InfoSaverTimer.Interval = 25 ' Set timer interval to 25ms
         InfoSaverTimer.Start()
+
+        Dim numberOfPhrases As Integer = CountBlacklistedPhrases()
+
+        ' Set the form title with the number of loaded phrases
+        If MainUI.WordBlockList.Checked = True Then
+            Me.Text = $"Subtitle Window | Loaded {numberOfPhrases} phrases from word list."
+        End If
+
+
+
+        With headertextlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+        With translatedheaderlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+        With transcribedheaderlbl
+            .Font = My.Settings.headertextlbl_font
+            .ForeColor = My.Settings.headertextlbl_forecolor
+            .BackColor = My.Settings.headertextlbl_backcolor
+        End With
+
+        If My.Settings.subwindow_lmode = True Then
+            headertextlbl.RightToLeft = RightToLeft.Yes
+            translatedheaderlbl.RightToLeft = RightToLeft.Yes
+            transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+        End If
+
+        Me.BackColor = My.Settings.subwindow_bgcolor
+
     End Sub
     Private Sub subtitlewindow_Resize(sender As Object, e As EventArgs) Handles MyBase.Resize
         ' Update MaximumSize of the labels when the form is resized
@@ -66,6 +122,7 @@ Public Class subtitlewindow
         cts.Cancel() ' Cancel any ongoing operations
         httpClient.Dispose()
         cts.Dispose() ' Dispose of the CancellationTokenSource
+        Me.Dispose()
     End Sub
 
     Private Async Sub InfoSaverTimer_Tick(sender As Object, e As EventArgs) Handles InfoSaverTimer.Tick
@@ -79,25 +136,36 @@ Public Class subtitlewindow
         Dim transcribedHeaderText As String = String.Empty
 
         Try
-            headerText = Await FetchTextFromUrl(URLHeader, cts.Token)
-            Debug.WriteLine("Header Text: " & headerText)
+            If headertextlbl.Visible Then
+                headerText = Await FetchTextFromUrl(URLHeader, cts.Token)
+                Debug.WriteLine("Header Text: " & headerText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching header text: " & ex.Message)
         End Try
 
         Try
-            translatedHeaderText = Await FetchTextFromUrl(URLTranslatedHeader, cts.Token)
-            Debug.WriteLine("Translated Header Text: " & translatedHeaderText)
+            If translatedheaderlbl.Visible = True Then
+                translatedHeaderText = Await FetchTextFromUrl(URLTranslatedHeader, cts.Token)
+                Debug.WriteLine("Translated Header Text: " & translatedHeaderText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching translated header text: " & ex.Message)
         End Try
 
         Try
-            transcribedHeaderText = Await FetchTextFromUrl(URLTranscribedHeader, cts.Token)
-            Debug.WriteLine("Transcribed Header Text: " & transcribedHeaderText)
+            If transcribedheaderlbl.Visible = True Then
+                transcribedHeaderText = Await FetchTextFromUrl(URLTranscribedHeader, cts.Token)
+                Debug.WriteLine("Transcribed Header Text: " & transcribedHeaderText)
+            End If
         Catch ex As Exception
             Debug.WriteLine("Error fetching transcribed header text: " & ex.Message)
         End Try
+
+        ' Remove blacklisted phrases from each text
+        headerText = RemoveBlacklistedPhrases(headerText)
+        translatedHeaderText = RemoveBlacklistedPhrases(translatedHeaderText)
+        transcribedHeaderText = RemoveBlacklistedPhrases(transcribedHeaderText)
 
         ' Before updating the UI, check if the form is still open and its handle is created
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
@@ -136,6 +204,53 @@ Public Class subtitlewindow
         End If
     End Sub
 
+    Private Function RemoveBlacklistedPhrases(text As String) As String
+        ' Load blacklisted phrases from file
+        Dim blacklistedPhrases As List(Of String) = LoadBlacklistedPhrases()
+
+        If MainUI.WordBlockList.Checked = True Then
+            ' Split the text into words
+            Dim words As String() = text.Split(" "c)
+
+            ' Iterate through each word
+            For i As Integer = 0 To words.Length - 1
+                ' Check if the word contains any blacklisted phrase
+                For Each phrase As String In blacklistedPhrases
+                    ' If the word contains the blacklisted phrase, replace it with an empty string
+                    If words(i).IndexOf(phrase, StringComparison.OrdinalIgnoreCase) <> -1 Then
+                        words(i) = ""
+                        Exit For ' Exit loop if a blacklisted phrase is found in the word
+                    End If
+                Next
+            Next
+
+            ' Join the words back into a single string
+            text = String.Join(" ", words)
+        End If
+
+        Return text
+    End Function
+
+
+
+    Private Function LoadBlacklistedPhrases() As List(Of String)
+        Dim blacklistedPhrases As New List(Of String)()
+
+        Try
+            ' Read blacklisted phrases from file
+            Dim lines As String() = File.ReadAllLines(MainUI.WordBlockListLocation)
+
+            ' Add each line (phrase) to the list
+            For Each line As String In lines
+                blacklistedPhrases.Add(line.Trim())
+            Next
+        Catch ex As Exception
+            Debug.WriteLine("Error loading blacklisted phrases: " & ex.Message)
+        End Try
+
+        Return blacklistedPhrases
+    End Function
+
     Private Async Function FetchTextFromUrl(url As String, ct As CancellationToken) As Task(Of String)
         Try
             ' Directly returning the response string as it's just plain text
@@ -173,6 +288,8 @@ Public Class subtitlewindow
 
     Private Sub PlantToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles PlantToolStripMenuItem.Click
         Dim unused = MessageBox.Show("Help: " + vbCrLf + "Restore: Double Click then Right click the captions." + vbCrLf + vbCrLf + "Move: Click and Drag the captions", "Help Message")
+
+        Main_BG_COLOR = Me.BackColor
 
         ' set transparency key to control
         TransparencyKey = Color.FromArgb(255, 255, 255)
@@ -220,7 +337,7 @@ Public Class subtitlewindow
         TransparencyKey = Color.Empty ' or the original color
 
         ' Reset background color
-        BackColor = SystemColors.Control ' or the original color
+        BackColor = Main_BG_COLOR ' or the original color
 
         ' Reset form border style
         FormBorderStyle = FormBorderStyle.Sizable ' or the original style
@@ -288,11 +405,64 @@ Public Class subtitlewindow
         headertextlbl.RightToLeft = RightToLeft.No
         translatedheaderlbl.RightToLeft = RightToLeft.No
         transcribedheaderlbl.RightToLeft = RightToLeft.No
+        RTL_Mode = False
     End Sub
 
     Private Sub RightToLeftToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToLeftToolStripMenuItem.Click
         headertextlbl.RightToLeft = RightToLeft.Yes
         translatedheaderlbl.RightToLeft = RightToLeft.Yes
         transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+        RTL_Mode = True
+    End Sub
+
+
+    Private Sub BG_Color_Click(sender As Object, e As EventArgs) Handles BG_Color.Click
+        ColorDialog1.ShowDialog()
+        Me.BackColor = ColorDialog1.Color
+    End Sub
+
+    Private Sub ResetBGColor_Click(sender As Object, e As EventArgs) Handles ResetBGColor.Click
+        Me.BackColor = Color.FromArgb(0, 177, 64)
+    End Sub
+
+    Private Sub ResetCWindow_Click(sender As Object, e As EventArgs)
+
+    End Sub
+
+    Private Sub SaveToolStripMenuItem3_Click(sender As Object, e As EventArgs) Handles SaveToolStripMenuItem3.Click
+        My.Settings.headertextlbl_font = headertextlbl.Font
+        My.Settings.headertextlbl_forecolor = headertextlbl.ForeColor
+        My.Settings.headertextlbl_backcolor = headertextlbl.BackColor
+        My.Settings.subwindow_lmode = RTL_Mode
+        My.Settings.subwindow_bgcolor = Me.BackColor
+        My.Settings.Save()
+        My.Settings.Reload()
+        MessageBox.Show("Your captions window settings were saved.", "Saved")
+    End Sub
+
+    Private Sub ResetToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ResetToolStripMenuItem.Click
+        With My.Settings
+            .headertextlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("headertextlbl_font").DefaultValue.ToString())
+            .translatedheaderlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("translatedheaderlbl_font").DefaultValue.ToString())
+            .transcribedheaderlbl_font = New FontConverter().ConvertFromString(My.Settings.Properties("transcribedheaderlbl_font").DefaultValue.ToString())
+
+            ' Reset color settings
+            .headertextlbl_forecolor = Color.FromName(My.Settings.Properties("headertextlbl_forecolor").DefaultValue.ToString())
+            .headertextlbl_backcolor = Color.FromName(My.Settings.Properties("headertextlbl_backcolor").DefaultValue.ToString())
+            .translatedheaderlbl_forecolor = Color.FromName(My.Settings.Properties("translatedheaderlbl_forecolor").DefaultValue.ToString())
+            .translatedheaderlbl_backcolor = Color.FromName(My.Settings.Properties("translatedheaderlbl_backcolor").DefaultValue.ToString())
+            .transcribedheaderlbl_forecolor = Color.FromName(My.Settings.Properties("transcribedheaderlbl_forecolor").DefaultValue.ToString())
+            .transcribedheaderlbl_backcolor = Color.FromName(My.Settings.Properties("transcribedheaderlbl_backcolor").DefaultValue.ToString())
+
+            .subwindow_bgcolor = Color.FromName(My.Settings.Properties("subwindow_bgcolor").DefaultValue.ToString())
+
+            .subwindow_lmode = False
+
+            .Save()
+            .Reload()
+            Dim Cwindows As New subtitlewindow()
+            Cwindows.Show()
+            Me.Close()
+        End With
     End Sub
 End Class

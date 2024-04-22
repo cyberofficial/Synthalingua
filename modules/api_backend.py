@@ -2,6 +2,7 @@ import os
 import logging
 from flask import Flask, send_from_directory, url_for
 from threading import Thread
+import ssl
 
 header_text = ""
 translated_header_text = ""
@@ -55,6 +56,13 @@ def flask_server(operation, portnumber):
                 updated_html = html_content.replace("{{ header_text }}", header_text)
             return updated_html
 
+        @app.route('/player.html')
+        def serve_player():
+            player_html_path = os.path.join(html_data_dir, 'player.html')
+            with open(player_html_path, 'r') as file:
+                player_html_content = file.read()
+            return player_html_content
+
         # Serve static files (CSS, JS, images)
         @app.route('/static/<path:filename>')
         def serve_static(filename):
@@ -80,6 +88,18 @@ def flask_server(operation, portnumber):
         def override_url_for():
             return dict(url_for=dated_url_for)
 
+        @app.after_request
+        def add_header(r):
+            """
+            Add headers to both force latest IE rendering engine or Chrome Frame,
+            and also to cache the rendered page for 10 minutes.
+            """
+            r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            r.headers["Pragma"] = "no-cache"
+            r.headers["Expires"] = "0"
+            r.headers['Cache-Control'] = 'public, max-age=0'
+            return r
+
         def dated_url_for(endpoint, **values):
             filename = values.get('filename', None)
             if filename:
@@ -88,9 +108,42 @@ def flask_server(operation, portnumber):
             return url_for(endpoint, **values)
 
         # Function to run the server
-        def run():
+        def run(use_https=False):
             try:
-                app.run(host='0.0.0.0', port=port)
+                if use_https:
+                    from OpenSSL import crypto
+
+                    # Create a key pair
+                    key = crypto.PKey()
+                    key.generate_key(crypto.TYPE_RSA, 2048)
+
+                    # Create a self-signed cert
+                    cert = crypto.X509()
+                    cert.get_subject().CN = 'localhost'
+                    cert.set_serial_number(1000)
+                    cert.gmtime_adj_notBefore(0)
+                    cert.gmtime_adj_notAfter(365 * 24 * 60 * 60)
+                    cert.set_issuer(cert.get_subject())
+                    cert.set_pubkey(key)
+                    cert.sign(key, 'sha256')
+
+                    # Write cert and key to temporary files
+                    cert_file = 'temp_cert.pem'
+                    key_file = 'temp_key.pem'
+                    with open(cert_file, 'wb') as certfile:
+                        certfile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+                    with open(key_file, 'wb') as keyfile:
+                        keyfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
+
+                    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+                    context.load_cert_chain(certfile=cert_file, keyfile=key_file)
+                    app.run(host='0.0.0.0', port=port, ssl_context=context)
+
+                    # Remove temporary cert and key files
+                    os.remove(cert_file)
+                    os.remove(key_file)
+                else:
+                    app.run(host='0.0.0.0', port=port)
             except Exception as e:
                 print(f"Server crashed due to {e}")
                 app.do_teardown_appcontext()
