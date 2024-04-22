@@ -353,6 +353,210 @@ Namespace My
                 Me("PhraseTimeOutEnabled") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Segoe UI, 21pt")>  _
+        Public Property headertextlbl_font() As Global.System.Drawing.Font
+            Get
+                Return CType(Me("headertextlbl_font"),Global.System.Drawing.Font)
+            End Get
+            Set
+                Me("headertextlbl_font") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("White")>  _
+        Public Property headertextlbl_forecolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("headertextlbl_forecolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("headertextlbl_forecolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Black")>  _
+        Public Property headertextlbl_backcolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("headertextlbl_backcolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("headertextlbl_backcolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Segoe UI, 21pt")>  _
+        Public Property translatedheaderlbl_font() As Global.System.Drawing.Font
+            Get
+                Return CType(Me("translatedheaderlbl_font"),Global.System.Drawing.Font)
+            End Get
+            Set
+                Me("translatedheaderlbl_font") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("White")>  _
+        Public Property translatedheaderlbl_forecolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("translatedheaderlbl_forecolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("translatedheaderlbl_forecolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Black")>  _
+        Public Property translatedheaderlbl_backcolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("translatedheaderlbl_backcolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("translatedheaderlbl_backcolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Segoe UI, 21pt")>  _
+        Public Property transcribedheaderlbl_font() As Global.System.Drawing.Font
+            Get
+                Return CType(Me("transcribedheaderlbl_font"),Global.System.Drawing.Font)
+            End Get
+            Set
+                Me("transcribedheaderlbl_font") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("White")>  _
+        Public Property transcribedheaderlbl_forecolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("transcribedheaderlbl_forecolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("transcribedheaderlbl_forecolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Black")>  _
+        Public Property transcribedheaderlbl_backcolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("transcribedheaderlbl_backcolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("transcribedheaderlbl_backcolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("False")>  _
+        Public Property subwindow_lmode() As Boolean
+            Get
+                Return CType(Me("subwindow_lmode"),Boolean)
+            End Get
+            Set
+                Me("subwindow_lmode") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("0, 177, 64")>  _
+        Public Property subwindow_bgcolor() As Global.System.Drawing.Color
+            Get
+                Return CType(Me("subwindow_bgcolor"),Global.System.Drawing.Color)
+            End Get
+            Set
+                Me("subwindow_bgcolor") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("False")>  _
+        Public Property WordBlockListEnabled() As Boolean
+            Get
+                Return CType(Me("WordBlockListEnabled"),Boolean)
+            End Get
+            Set
+                Me("WordBlockListEnabled") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")>  _
+        Public Property RepeatProtection() As Boolean
+            Get
+                Return CType(Me("RepeatProtection"),Boolean)
+            End Get
+            Set
+                Me("RepeatProtection") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("blacklist.txt")>  _
+        Public Property WordBlockListLocation() As String
+            Get
+                Return CType(Me("WordBlockListLocation"),String)
+            End Get
+            Set
+                Me("WordBlockListLocation") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property CommandBlock() As String
+            Get
+                Return CType(Me("CommandBlock"),String)
+            End Get
+            Set
+                Me("CommandBlock") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Portable")>  _
+        Public Property ShortCutType() As String
+            Get
+                Return CType(Me("ShortCutType"),String)
+            End Get
+            Set
+                Me("ShortCutType") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property PrimaryFolder() As String
+            Get
+                Return CType(Me("PrimaryFolder"),String)
+            End Get
+            Set
+                Me("PrimaryFolder") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

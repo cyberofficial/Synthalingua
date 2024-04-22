@@ -4,6 +4,9 @@ Imports System.IO
 Public Class MainUI
     Private PrimaryFolder As String
     Private ShortCutType As String
+
+    Public WordBlockListLocation As String = "blacklist.txt"
+
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
@@ -25,12 +28,16 @@ Public Class MainUI
             Dim unused = MsgBox("Please select the program file.")
             Exit Sub
         End If
+        If StreamLanguage.Text = "" Then
+            MessageBox.Show("No Stream language was set.")
+            Exit Sub
+        End If
         ShortCutType = If(ScriptFileLocation.Text.Contains("transcribe_audio.py"), "Source", "Portable")
 
         PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
         If ShortCutType = "Source" Then
-            ConfigTextBox.Text += "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat" & vbNewLine
+            ConfigTextBox.Text += "call """ & PrimaryFolder & "\data_whisper\Scripts\activate.bat""" & vbNewLine
             ConfigTextBox.Text += "python """ & PrimaryFolder & "\transcribe_audio.py"" "
         Else
             ConfigTextBox.Text += """" & PrimaryFolder & "\transcribe_audio.exe"" "
@@ -127,8 +134,16 @@ Public Class MainUI
             ConfigTextBox.Text += "--cookies " & CookiesName.Text & " "
         End If
 
+        If WordBlockList.Checked = True Then
+            ConfigTextBox.Text += "--ignorelist """ & WordBlockListLocation.ToString & """ "
+        End If
+
         If WebServerButton.Checked = True Then
             ConfigTextBox.Text += "--portnumber " & PortNumber.Value & " "
+        End If
+
+        If RepeatProtection.Checked = True Then
+            ConfigTextBox.Text += "--condition_on_previous_text "
         End If
 
         If DiscordWebHook.Text <> "" Then
@@ -153,6 +168,9 @@ Public Class MainUI
             Dim unused1 = MsgBox("Please select the program file.")
             Exit Sub
         End If
+        If ConfigTextBox.Text = "" Then
+            MessageBox.Show("Click generate first.")
+        End If
         If CAP_RadioButton.Checked = True Then
             If CaptionsName.Text = "" Then
                 Dim unused1 = MsgBox("Please set a file name for captions.")
@@ -168,12 +186,28 @@ Public Class MainUI
             End If
         End If
 
+        ' Check and set PrimaryFolder
+        Dim PrimaryFolder As String = ""
+        Try
+            If My.Settings.PrimaryFolder IsNot Nothing AndAlso My.Settings.PrimaryFolder <> "" Then
+                PrimaryFolder = My.Settings.PrimaryFolder
+            End If
+        Catch ex As Exception
+            ' Handle the exception if necessary
+        End Try
 
-        ' save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
+        ' Check if PrimaryFolder is set
+        If PrimaryFolder = "" Then
+            MessageBox.Show("Primary folder is not set.")
+            Exit Sub
+        End If
+
+        ' Save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
         File.WriteAllText(tmpBatFile, ConfigTextBox.Text)
         Dim unused = Process.Start(tmpBatFile)
     End Sub
+
 
     <Obsolete>
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
@@ -280,6 +314,16 @@ Public Class MainUI
             RecordTimeOutCHeckBox.Checked = .MicRecTimeoutEnabled
             PhraseTimeout.Value = .PhraseTimeOut
             PhraseTimeOutCheckbox.Checked = .PhraseTimeOutEnabled
+            WordBlockListLocation = .WordBlockListLocation
+            WordBlockList.Checked = .WordBlockListEnabled
+            RepeatProtection.Checked = .RepeatProtection
+            ConfigTextBox.Text = .CommandBlock
+            ShortCutType = .ShortCutType
+            Try
+                PrimaryFolder = .PrimaryFolder
+            Catch ex As Exception
+                PrimaryFolder = ""
+            End Try
         End With
 
         ' Get the current running directory
@@ -511,6 +555,20 @@ Public Class MainUI
             ' Phrase Timeout
             .PhraseTimeOut = PhraseTimeout.Value
             .PhraseTimeOutEnabled = PhraseTimeOutCheckbox.Checked
+
+            ' Word Block List
+            .WordBlockListEnabled = WordBlockList.Checked
+            .WordBlockListLocation = WordBlockListLocation.ToString
+
+            ' Repeat Protection
+            .RepeatProtection = RepeatProtection.Checked
+
+            ' Command Block
+            .PrimaryFolder = PrimaryFolder
+            .ShortCutType = ShortCutType
+            .CommandBlock = ConfigTextBox.Text
+
+
         End With
 
         ' Final Save
@@ -519,17 +577,85 @@ Public Class MainUI
 
 
     Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
+        ' Confirm with the user that all settings will be cleared
+        Dim confirmResult As DialogResult = MessageBox.Show("Are you sure you want to wipe all settings? This will reset all application settings and close the application.", "Confirm Wipe", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
 
-        If EraseCheckBox.Checked = True Then
-            My.Settings.Reset()
-            My.Settings.Save()
+        If confirmResult = DialogResult.Yes Then
+            If EraseCheckBox.Checked Then
+                ' Confirm with the user one more time with a warning
+                Dim warningResult As DialogResult = MessageBox.Show("This action will clear all settings and close the application. Are you really sure?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
 
-            ' Optionally, notify the user that settings have been cleared
-            Dim unused1 = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            Application.Exit()
-        Else
-            Dim unused = MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                If warningResult = DialogResult.Yes Then
+                    My.Settings.Reset()
+
+                    ' Clear subtitle window settings
+                    ' Add your code to clear subtitle window settings here
+
+                    My.Settings.Save()
+
+                    ' Notify the user that settings have been cleared
+                    Dim finalResult As DialogResult = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
+
+                    If finalResult = DialogResult.OK Then
+                        Application.Exit()
+                    End If
+                End If
+            Else
+                MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            End If
         End If
+    End Sub
 
+    Private Sub EditBlockList_Click(sender As Object, e As EventArgs) Handles EditBlockList.Click
+        Try
+            ' Get the directory path from the ScriptFileLocation textbox
+            Dim directoryPath As String = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
+
+            ' Combine the directory path with the file name
+            Dim filePath As String = System.IO.Path.Combine(WordBlockListLocation)
+
+            ' Check if the file exists
+            If Not System.IO.File.Exists(filePath) Then
+                ' Create the file if it doesn't exist
+                Try
+                    System.IO.File.Create(filePath).Close() ' Close the file stream after creation
+                Catch ex As Exception
+                    MessageBox.Show("An error occurred while creating the file: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                    Exit Sub ' Exit the sub if file creation fails
+                End Try
+            End If
+
+            ' Open the file with Notepad
+            Try
+                System.Diagnostics.Process.Start("notepad.exe", filePath)
+            Catch ex As Exception
+                MessageBox.Show("An error occurred while opening the file: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End Try
+        Catch ex As Exception
+            MessageBox.Show(ex.ToString)
+        End Try
+
+    End Sub
+
+    Private Sub RepeatProtection_MouseHover(sender As Object, e As EventArgs) Handles RepeatProtection.MouseHover
+        ToolTip1.SetToolTip(RepeatProtection, "Will help the model from repeating itself, but may slow up the process.")
+    End Sub
+
+    Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
+        Dim OpenFileDiag As New OpenFileDialog With {
+            .Filter = "Text File (*.txt)|*.txt",
+            .Title = "Load a Word Block list."
+        }
+        OpenFileDiag.ShowDialog()
+        If OpenFileDiag.FileName = "" Then
+            MessageBox.Show("Word list not set", "Nothing was set.")
+            Exit Sub
+        End If
+        WordBlockListLocation = OpenFileDiag.FileName
+        MessageBox.Show($"Loaded: {WordBlockListLocation}")
+    End Sub
+
+    Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
+        WebBrowserConfig.ShowDialog()
     End Sub
 End Class

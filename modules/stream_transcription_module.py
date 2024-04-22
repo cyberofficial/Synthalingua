@@ -120,12 +120,18 @@ def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_
             transcription = None
             translation = None
             if args.stream_original_text:
-                transcription = transcribe_audio(file_path, model, language=None)
-                detected_language = detect_language(file_path, model)
+                if args.stream_language:
+                    detected_language = stream_language
+                    #print(f"Language Set By Args: {detected_language}")
+                else:
+                    #print("Testing for Language")
+                    detected_language = detect_language(file_path, model)
+                    #print(f"Language is: {detected_language}")
+                transcription = transcribe_audio(file_path, model, language=detected_language)
                 print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
                 print(transcription)
                 if args.portnumber:
-                    new_header = f"({detected_language}) {transcription}"
+                    new_header = f"{transcription}"
                     api_backend.update_header(new_header)
 
             if tasktranslate_task:

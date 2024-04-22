@@ -135,6 +135,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
 5. Run setup script
      * **On Windows**: `setup.bat`
      * **On Linux**: `setup.bash`
+          * Please ensure you have `gcc` installed and `portaudio19-dev` installed (or `portaudio-devel` for some machines`)
      * If you get an error saying "Setup.bat is not recognized as an internal or external command, operable program or batch file.", houston we have a problem. This will require you to fix your operating system.
 6. Run the newly created batch file/bash script. You can edit that file to change the settings.
      * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have  installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
@@ -183,6 +184,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--file_input` | Location of file for the input to make captions for, almost all video/audio format supported (uses ffmpeg) |
 | `--file_output` | Location of folder to export the captions |
 | `--file_output_name` | File name to export as without any ext. |
+| `--ignorelist` | Usage is "`--ignorelist "C:\quoted\path\to\wordlist.txt"`" |
+| `--condition_on_previous_text` | Will help the model from repeating itself, but may slow up the process. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -190,6 +193,9 @@ This script uses argparse to accept command line arguments. The following option
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
 - When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
+
+## Word Block List
+With the flag `--igignorelist` you can now load a list of phrases or words to ignore in the api output and subtitle window. This list is already filled with common phrases the AI will think it heard. You can adjust this list as youu please or add more words or phrases to it.
 
 ## Cookies
 Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
