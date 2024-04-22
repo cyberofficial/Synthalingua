@@ -497,6 +497,66 @@ Namespace My
                 Me("WordBlockListEnabled") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")>  _
+        Public Property RepeatProtection() As Boolean
+            Get
+                Return CType(Me("RepeatProtection"),Boolean)
+            End Get
+            Set
+                Me("RepeatProtection") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("blacklist.txt")>  _
+        Public Property WordBlockListLocation() As String
+            Get
+                Return CType(Me("WordBlockListLocation"),String)
+            End Get
+            Set
+                Me("WordBlockListLocation") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property CommandBlock() As String
+            Get
+                Return CType(Me("CommandBlock"),String)
+            End Get
+            Set
+                Me("CommandBlock") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("Portable")>  _
+        Public Property ShortCutType() As String
+            Get
+                Return CType(Me("ShortCutType"),String)
+            End Get
+            Set
+                Me("ShortCutType") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property PrimaryFolder() As String
+            Get
+                Return CType(Me("PrimaryFolder"),String)
+            End Get
+            Set
+                Me("PrimaryFolder") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

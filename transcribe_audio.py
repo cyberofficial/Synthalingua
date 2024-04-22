@@ -22,23 +22,23 @@ def main():
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
     args = parser_args.parse_arguments()
 
-    def load_blacklist(filename="blacklist.txt"):
-        #script_dir = os.path.dirname(os.path.realpath(__file__))  # Get script directory
-        #blacklist_path = os.path.join(script_dir, filename)  # Construct blacklist path
-
-        blacklist_path = filename
+    def load_blacklist(filename):
+        if not filename.endswith(".txt"):
+            raise ValueError("Blacklist file must be in .txt format.")
 
         blacklist = []
         try:
-            with open(blacklist_path, "r", encoding="utf-8") as f:
+            with open(filename, "r", encoding="utf-8") as f:
                 for line in f:
                     blacklist.append(line.strip())
         except FileNotFoundError:
-            print(f"Warning: Blacklist file '{blacklist_path}' not found.")
+            print(f"Warning: Blacklist file '{filename}' not found.")
         return blacklist
 
     if args.ignorelist:
-        blacklist = load_blacklist()
+        print(f"Loaded word filtering list from: {args.ignorelist}")
+        blacklist = load_blacklist(args.ignorelist)
+
     else:
         blacklist = []
 
@@ -587,9 +587,9 @@ def main():
                         print("Transcribing...")
 
                 if device == "cuda":
-                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
+                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                 else:
-                    result = audio_model.transcribe(temp_file)
+                    result = audio_model.transcribe(temp_file, condition_on_previous_text=args.condition_on_previous_text)
 
                 if args.no_log == False:
                     print(f"Detected Speech: {result['text']}")
@@ -600,9 +600,9 @@ def main():
                             print("Transcription failed, trying again...")
                         send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
                         if device == "cuda":
-                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language)
+                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                         else:
-                            result = audio_model.transcribe(temp_file)
+                            result = audio_model.transcribe(temp_file, condition_on_previous_text=args.condition_on_previous_text)
                         if args.no_log == False:
                             print(f"Detected Speech: {result['text']}")
                     else:
@@ -689,7 +689,8 @@ def main():
                         for phrase in blacklist:
                             filtered_header_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_header_text).strip()
 
-                        new_header = f"({detected_language}) {filtered_header_text}"
+                        #new_header = f"({detected_language}) {filtered_header_text}"
+                        new_header = f"{filtered_header_text}"
                         api_backend.update_header(new_header)
                     except:
                         pass
@@ -735,6 +736,9 @@ def main():
                     print(
                         f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} What was Heard -> {detected_language} {' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
                     print(f"{filtered_text}")  # Use filtered_text here
+                    new_header = filtered_text
+                    if args.portnumber:
+                        api_backend.update_header(new_header)
 
                     if args.translate and translated_text:
                         # Filter translated_text as well
