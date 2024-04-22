@@ -131,7 +131,7 @@ def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_
                 print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
                 print(transcription)
                 if args.portnumber:
-                    new_header = f"({detected_language}) {transcription}"
+                    new_header = f"{transcription}"
                     api_backend.update_header(new_header)
 
             if tasktranslate_task:

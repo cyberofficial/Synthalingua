@@ -13,6 +13,8 @@ function hideElementById(id) {
     }
 }
 
+document.body.style.overflow = 'hidden';
+
 document.addEventListener("DOMContentLoaded", function() {
     function updateHeaders() {
         fetch("/update-header")
@@ -76,10 +78,32 @@ document.addEventListener("DOMContentLoaded", function() {
     const videoContainer = document.getElementById("video-frame");
     const videoSource = params.get("videosource");
     const videoId = params.get("id");
+    let parent;
+
+    // Function to extract domain from URL
+    function extractDomain(url) {
+        let domain;
+        // find & remove protocol (http, ftp, etc.) and get domain
+        if (url.indexOf("://") > -1) {
+            domain = url.split("/")[2];
+        } else {
+            domain = url.split("/")[0];
+        }
+        // find & remove port number
+        domain = domain.split(":")[0];
+        // find & remove "?"
+        domain = domain.split("?")[0];
+
+        return domain;
+    }
+
+    // Get parent domain from current URL
+    const currentUrl = window.location.href;
+    parent = extractDomain(currentUrl);
 
     if (videoSource && videoId) {
         if (videoSource.toLowerCase() === "twitch") {
-            videoContainer.src = `https://player.twitch.tv/?channel=${videoId}&parent=localhost`;
+            videoContainer.src = `https://player.twitch.tv/?channel=${videoId}&parent=${parent}`;
         } else if (videoSource.toLowerCase() === "youtube") {
             videoContainer.src = `https://www.youtube.com/embed/${videoId}`;
         }

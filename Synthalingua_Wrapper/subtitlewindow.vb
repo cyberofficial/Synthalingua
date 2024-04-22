@@ -1,6 +1,8 @@
-﻿Imports System.Net.Http
+﻿Imports System.IO
+Imports System.Net.Http
 Imports System.Net.Sockets
 Imports System.Runtime.InteropServices
+Imports System.Text.RegularExpressions
 Imports System.Threading
 
 
@@ -53,9 +55,33 @@ Public Class subtitlewindow
         label.MaximumSize = New Size(ClientSize.Width, 0)
     End Sub
 
+    Private Function CountBlacklistedPhrases() As Integer
+        Dim numberOfPhrases As Integer = 0
+
+        Try
+            ' Read blacklisted phrases from file
+            Dim lines As String() = File.ReadAllLines(MainUI.WordBlockListLocation.ToString)
+
+            ' Count the number of loaded phrases
+            numberOfPhrases = lines.Length
+        Catch ex As Exception
+            Debug.WriteLine("Error counting blacklisted phrases: " & ex.Message)
+        End Try
+
+        Return numberOfPhrases
+    End Function
+
     Private Sub subtitlewindow_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         InfoSaverTimer.Interval = 25 ' Set timer interval to 25ms
         InfoSaverTimer.Start()
+
+        Dim numberOfPhrases As Integer = CountBlacklistedPhrases()
+
+        ' Set the form title with the number of loaded phrases
+        If MainUI.WordBlockList.Checked = True Then
+            Me.Text = $"Subtitle Window | Loaded {numberOfPhrases} phrases from word list."
+        End If
+
 
 
         With headertextlbl
@@ -136,6 +162,11 @@ Public Class subtitlewindow
             Debug.WriteLine("Error fetching transcribed header text: " & ex.Message)
         End Try
 
+        ' Remove blacklisted phrases from each text
+        headerText = RemoveBlacklistedPhrases(headerText)
+        translatedHeaderText = RemoveBlacklistedPhrases(translatedHeaderText)
+        transcribedHeaderText = RemoveBlacklistedPhrases(transcribedHeaderText)
+
         ' Before updating the UI, check if the form is still open and its handle is created
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
@@ -172,6 +203,53 @@ Public Class subtitlewindow
             End Try
         End If
     End Sub
+
+    Private Function RemoveBlacklistedPhrases(text As String) As String
+        ' Load blacklisted phrases from file
+        Dim blacklistedPhrases As List(Of String) = LoadBlacklistedPhrases()
+
+        If MainUI.WordBlockList.Checked = True Then
+            ' Split the text into words
+            Dim words As String() = text.Split(" "c)
+
+            ' Iterate through each word
+            For i As Integer = 0 To words.Length - 1
+                ' Check if the word contains any blacklisted phrase
+                For Each phrase As String In blacklistedPhrases
+                    ' If the word contains the blacklisted phrase, replace it with an empty string
+                    If words(i).IndexOf(phrase, StringComparison.OrdinalIgnoreCase) <> -1 Then
+                        words(i) = ""
+                        Exit For ' Exit loop if a blacklisted phrase is found in the word
+                    End If
+                Next
+            Next
+
+            ' Join the words back into a single string
+            text = String.Join(" ", words)
+        End If
+
+        Return text
+    End Function
+
+
+
+    Private Function LoadBlacklistedPhrases() As List(Of String)
+        Dim blacklistedPhrases As New List(Of String)()
+
+        Try
+            ' Read blacklisted phrases from file
+            Dim lines As String() = File.ReadAllLines(MainUI.WordBlockListLocation)
+
+            ' Add each line (phrase) to the list
+            For Each line As String In lines
+                blacklistedPhrases.Add(line.Trim())
+            Next
+        Catch ex As Exception
+            Debug.WriteLine("Error loading blacklisted phrases: " & ex.Message)
+        End Try
+
+        Return blacklistedPhrases
+    End Function
 
     Private Async Function FetchTextFromUrl(url As String, ct As CancellationToken) As Task(Of String)
         Try
@@ -383,7 +461,7 @@ Public Class subtitlewindow
             .Save()
             .Reload()
             Dim Cwindows As New subtitlewindow()
-            Cwindows.show()
+            Cwindows.Show()
             Me.Close()
         End With
     End Sub

@@ -92,11 +92,11 @@ Partial Class MainUI
         Label13 = New Label()
         DiscordWebHook = New TextBox()
         GroupBox5 = New GroupBox()
-        SubWindow = New Button()
-        WebLinkT2 = New Button()
-        WebLinkT1 = New Button()
-        WebLinkOG = New Button()
         Label15 = New Label()
+        WebLinkOG = New Button()
+        WebLinkT1 = New Button()
+        WebLinkT2 = New Button()
+        SubWindow = New Button()
         CookiesName = New ComboBox()
         CookiesRefresh = New Button()
         ToolTip1 = New ToolTip(components)
@@ -108,6 +108,10 @@ Partial Class MainUI
         EraseCheckBox = New CheckBox()
         WordBlockList = New CheckBox()
         EditBlockList = New Button()
+        GroupBox6 = New GroupBox()
+        RepeatProtection = New CheckBox()
+        Button1 = New Button()
+        Button3 = New Button()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -124,6 +128,7 @@ Partial Class MainUI
         CType(EnThreshValue, ComponentModel.ISupportInitialize).BeginInit()
         TabPage3.SuspendLayout()
         GroupBox5.SuspendLayout()
+        GroupBox6.SuspendLayout()
         SuspendLayout()
         ' 
         ' GroupBox1
@@ -327,12 +332,12 @@ Partial Class MainUI
         ' EnglishTranslationCheckBox
         ' 
         EnglishTranslationCheckBox.AutoSize = True
-        EnglishTranslationCheckBox.Location = New Point(276, 91)
+        EnglishTranslationCheckBox.Location = New Point(310, 91)
         EnglishTranslationCheckBox.Margin = New Padding(3, 2, 3, 2)
         EnglishTranslationCheckBox.Name = "EnglishTranslationCheckBox"
-        EnglishTranslationCheckBox.Size = New Size(219, 19)
+        EnglishTranslationCheckBox.Size = New Size(267, 19)
         EnglishTranslationCheckBox.TabIndex = 8
-        EnglishTranslationCheckBox.Text = "Enable | Will also do regular captions"
+        EnglishTranslationCheckBox.Text = "Enable | Use if Stream language is not english."
         EnglishTranslationCheckBox.UseVisualStyleBackColor = True
         ' 
         ' Label7
@@ -340,9 +345,9 @@ Partial Class MainUI
         Label7.AutoSize = True
         Label7.Location = New Point(153, 92)
         Label7.Name = "Label7"
-        Label7.Size = New Size(108, 15)
+        Label7.Size = New Size(151, 15)
         Label7.TabIndex = 7
-        Label7.Text = "English Translation:"
+        Label7.Text = "English Translated Captions"
         ' 
         ' SecondaryTranslation
         ' 
@@ -625,7 +630,7 @@ Partial Class MainUI
         ' SetMicLbl
         ' 
         SetMicLbl.AutoSize = True
-        SetMicLbl.Location = New Point(86, 101)
+        SetMicLbl.Location = New Point(90, 105)
         SetMicLbl.Name = "SetMicLbl"
         SetMicLbl.Size = New Size(110, 15)
         SetMicLbl.TabIndex = 3
@@ -678,7 +683,7 @@ Partial Class MainUI
         ' PhraseTimeOutlbl
         ' 
         PhraseTimeOutlbl.AutoSize = True
-        PhraseTimeOutlbl.Location = New Point(86, 79)
+        PhraseTimeOutlbl.Location = New Point(92, 79)
         PhraseTimeOutlbl.Name = "PhraseTimeOutlbl"
         PhraseTimeOutlbl.Size = New Size(111, 15)
         PhraseTimeOutlbl.TabIndex = 1
@@ -698,7 +703,7 @@ Partial Class MainUI
         ' RecordTimeoutLbl
         ' 
         RecordTimeoutLbl.AutoSize = True
-        RecordTimeoutLbl.Location = New Point(82, 54)
+        RecordTimeoutLbl.Location = New Point(90, 54)
         RecordTimeoutLbl.Name = "RecordTimeoutLbl"
         RecordTimeoutLbl.Size = New Size(113, 15)
         RecordTimeoutLbl.TabIndex = 1
@@ -707,7 +712,7 @@ Partial Class MainUI
         ' MicCaliLbl
         ' 
         MicCaliLbl.AutoSize = True
-        MicCaliLbl.Location = New Point(5, 29)
+        MicCaliLbl.Location = New Point(19, 32)
         MicCaliLbl.Name = "MicCaliLbl"
         MicCaliLbl.Size = New Size(184, 15)
         MicCaliLbl.TabIndex = 1
@@ -716,7 +721,7 @@ Partial Class MainUI
         ' Energy_Threshold
         ' 
         Energy_Threshold.AutoSize = True
-        Energy_Threshold.Location = New Point(75, 4)
+        Energy_Threshold.Location = New Point(80, 5)
         Energy_Threshold.Name = "Energy_Threshold"
         Energy_Threshold.Size = New Size(120, 15)
         Energy_Threshold.TabIndex = 1
@@ -852,67 +857,73 @@ Partial Class MainUI
         ' 
         ' GroupBox5
         ' 
-        GroupBox5.Controls.Add(SubWindow)
-        GroupBox5.Controls.Add(WebLinkT2)
-        GroupBox5.Controls.Add(WebLinkT1)
-        GroupBox5.Controls.Add(WebLinkOG)
+        GroupBox5.Controls.Add(Button3)
         GroupBox5.Controls.Add(Label15)
+        GroupBox5.Controls.Add(WebLinkOG)
+        GroupBox5.Controls.Add(WebLinkT1)
+        GroupBox5.Controls.Add(WebLinkT2)
+        GroupBox5.Controls.Add(SubWindow)
         GroupBox5.Location = New Point(10, 274)
         GroupBox5.Margin = New Padding(3, 2, 3, 2)
         GroupBox5.Name = "GroupBox5"
         GroupBox5.Padding = New Padding(3, 2, 3, 2)
-        GroupBox5.Size = New Size(137, 163)
+        GroupBox5.Size = New Size(137, 169)
         GroupBox5.TabIndex = 25
         GroupBox5.TabStop = False
         GroupBox5.Text = "Browser Source"
         ' 
-        ' SubWindow
-        ' 
-        SubWindow.Location = New Point(6, 110)
-        SubWindow.Name = "SubWindow"
-        SubWindow.Size = New Size(126, 48)
-        SubWindow.TabIndex = 29
-        SubWindow.Text = "Show Sub Title Window"
-        SubWindow.UseVisualStyleBackColor = True
-        ' 
-        ' WebLinkT2
-        ' 
-        WebLinkT2.Location = New Point(5, 85)
-        WebLinkT2.Margin = New Padding(3, 2, 3, 2)
-        WebLinkT2.Name = "WebLinkT2"
-        WebLinkT2.Size = New Size(127, 22)
-        WebLinkT2.TabIndex = 1
-        WebLinkT2.Text = "Translation 2"
-        WebLinkT2.UseVisualStyleBackColor = True
-        ' 
-        ' WebLinkT1
-        ' 
-        WebLinkT1.Location = New Point(5, 58)
-        WebLinkT1.Margin = New Padding(3, 2, 3, 2)
-        WebLinkT1.Name = "WebLinkT1"
-        WebLinkT1.Size = New Size(127, 22)
-        WebLinkT1.TabIndex = 1
-        WebLinkT1.Text = "Translation"
-        WebLinkT1.UseVisualStyleBackColor = True
-        ' 
-        ' WebLinkOG
-        ' 
-        WebLinkOG.Location = New Point(5, 34)
-        WebLinkOG.Margin = New Padding(3, 2, 3, 2)
-        WebLinkOG.Name = "WebLinkOG"
-        WebLinkOG.Size = New Size(127, 22)
-        WebLinkOG.TabIndex = 1
-        WebLinkOG.Text = "Original Text"
-        WebLinkOG.UseVisualStyleBackColor = True
-        ' 
         ' Label15
         ' 
         Label15.AutoSize = True
-        Label15.Location = New Point(5, 17)
+        Label15.Dock = DockStyle.Bottom
+        Label15.Location = New Point(3, 38)
         Label15.Name = "Label15"
         Label15.Size = New Size(78, 15)
         Label15.TabIndex = 0
         Label15.Text = "Click to Copy"
+        ' 
+        ' WebLinkOG
+        ' 
+        WebLinkOG.Dock = DockStyle.Bottom
+        WebLinkOG.Location = New Point(3, 53)
+        WebLinkOG.Margin = New Padding(3, 2, 3, 2)
+        WebLinkOG.Name = "WebLinkOG"
+        WebLinkOG.Size = New Size(131, 22)
+        WebLinkOG.TabIndex = 1
+        WebLinkOG.Text = "Original Text"
+        WebLinkOG.UseVisualStyleBackColor = True
+        ' 
+        ' WebLinkT1
+        ' 
+        WebLinkT1.Dock = DockStyle.Bottom
+        WebLinkT1.Location = New Point(3, 75)
+        WebLinkT1.Margin = New Padding(3, 2, 3, 2)
+        WebLinkT1.Name = "WebLinkT1"
+        WebLinkT1.Size = New Size(131, 22)
+        WebLinkT1.TabIndex = 1
+        WebLinkT1.Text = "Translation"
+        WebLinkT1.UseVisualStyleBackColor = True
+        ' 
+        ' WebLinkT2
+        ' 
+        WebLinkT2.Dock = DockStyle.Bottom
+        WebLinkT2.Location = New Point(3, 97)
+        WebLinkT2.Margin = New Padding(3, 2, 3, 2)
+        WebLinkT2.Name = "WebLinkT2"
+        WebLinkT2.Size = New Size(131, 22)
+        WebLinkT2.TabIndex = 1
+        WebLinkT2.Text = "Translation 2"
+        WebLinkT2.UseVisualStyleBackColor = True
+        ' 
+        ' SubWindow
+        ' 
+        SubWindow.Dock = DockStyle.Bottom
+        SubWindow.Location = New Point(3, 119)
+        SubWindow.Name = "SubWindow"
+        SubWindow.Size = New Size(131, 48)
+        SubWindow.TabIndex = 29
+        SubWindow.Text = "Show Sub Title Window"
+        SubWindow.UseVisualStyleBackColor = True
         ' 
         ' CookiesName
         ' 
@@ -986,29 +997,76 @@ Partial Class MainUI
         ' WordBlockList
         ' 
         WordBlockList.AutoSize = True
-        WordBlockList.Location = New Point(10, 438)
+        WordBlockList.Dock = DockStyle.Bottom
+        WordBlockList.Location = New Point(3, 39)
         WordBlockList.Name = "WordBlockList"
-        WordBlockList.Size = New Size(130, 19)
+        WordBlockList.Size = New Size(131, 19)
         WordBlockList.TabIndex = 31
         WordBlockList.Text = "Use Word Block List"
         WordBlockList.UseVisualStyleBackColor = True
         ' 
         ' EditBlockList
         ' 
-        EditBlockList.Location = New Point(10, 463)
+        EditBlockList.Dock = DockStyle.Bottom
+        EditBlockList.Location = New Point(3, 58)
         EditBlockList.Name = "EditBlockList"
-        EditBlockList.Size = New Size(137, 24)
+        EditBlockList.Size = New Size(131, 24)
         EditBlockList.TabIndex = 32
         EditBlockList.Text = "Edit Block List"
         EditBlockList.UseVisualStyleBackColor = True
+        ' 
+        ' GroupBox6
+        ' 
+        GroupBox6.Controls.Add(RepeatProtection)
+        GroupBox6.Controls.Add(WordBlockList)
+        GroupBox6.Controls.Add(EditBlockList)
+        GroupBox6.Controls.Add(Button1)
+        GroupBox6.Location = New Point(10, 448)
+        GroupBox6.Name = "GroupBox6"
+        GroupBox6.Size = New Size(137, 108)
+        GroupBox6.TabIndex = 33
+        GroupBox6.TabStop = False
+        GroupBox6.Text = "Features"
+        ' 
+        ' RepeatProtection
+        ' 
+        RepeatProtection.AutoSize = True
+        RepeatProtection.Checked = True
+        RepeatProtection.CheckState = CheckState.Checked
+        RepeatProtection.Dock = DockStyle.Bottom
+        RepeatProtection.Location = New Point(3, 20)
+        RepeatProtection.Name = "RepeatProtection"
+        RepeatProtection.Size = New Size(131, 19)
+        RepeatProtection.TabIndex = 33
+        RepeatProtection.Text = "Repeat Protection"
+        RepeatProtection.UseVisualStyleBackColor = True
+        ' 
+        ' Button1
+        ' 
+        Button1.Dock = DockStyle.Bottom
+        Button1.Location = New Point(3, 82)
+        Button1.Name = "Button1"
+        Button1.Size = New Size(131, 23)
+        Button1.TabIndex = 34
+        Button1.Text = "Load Word Blocklist"
+        Button1.UseVisualStyleBackColor = True
+        ' 
+        ' Button3
+        ' 
+        Button3.Dock = DockStyle.Bottom
+        Button3.Location = New Point(3, 15)
+        Button3.Name = "Button3"
+        Button3.Size = New Size(131, 23)
+        Button3.TabIndex = 30
+        Button3.Text = "Use Web Browser"
+        Button3.UseVisualStyleBackColor = True
         ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(624, 674)
-        Controls.Add(EditBlockList)
-        Controls.Add(WordBlockList)
+        Controls.Add(GroupBox6)
         Controls.Add(EraseCheckBox)
         Controls.Add(WipeSettings)
         Controls.Add(CheckBoxCMDBLock)
@@ -1069,6 +1127,8 @@ Partial Class MainUI
         TabPage3.PerformLayout()
         GroupBox5.ResumeLayout(False)
         GroupBox5.PerformLayout()
+        GroupBox6.ResumeLayout(False)
+        GroupBox6.PerformLayout()
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -1158,5 +1218,9 @@ Partial Class MainUI
     Friend WithEvents EraseCheckBox As CheckBox
     Friend WithEvents WordBlockList As CheckBox
     Friend WithEvents EditBlockList As Button
+    Friend WithEvents GroupBox6 As GroupBox
+    Friend WithEvents RepeatProtection As CheckBox
+    Friend WithEvents Button1 As Button
+    Friend WithEvents Button3 As Button
 
 End Class

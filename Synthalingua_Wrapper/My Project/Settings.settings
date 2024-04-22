@@ -113,5 +113,20 @@
     <Setting Name="WordBlockListEnabled" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="RepeatProtection" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="WordBlockListLocation" Type="System.String" Scope="User">
+      <Value Profile="(Default)">blacklist.txt</Value>
+    </Setting>
+    <Setting Name="CommandBlock" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="ShortCutType" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Portable</Value>
+    </Setting>
+    <Setting Name="PrimaryFolder" Type="System.String" Scope="User">
+      <Value Profile="(Default)" />
+    </Setting>
   </Settings>
 </SettingsFile>
