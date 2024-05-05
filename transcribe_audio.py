@@ -19,7 +19,7 @@ except:
 
 def main():
 
-    global translated_text, target_language, language_probs, webhook_url, required_vram, original_text
+    global translated_text, target_language, language_probs, webhook_url, required_vram, original_text, phrase_timeout
     args = parser_args.parse_arguments()
 
     def load_blacklist(filename):
@@ -689,9 +689,10 @@ def main():
                         for phrase in blacklist:
                             filtered_header_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_header_text).strip()
 
-                        #new_header = f"({detected_language}) {filtered_header_text}"
-                        new_header = f"{filtered_header_text}"
-                        api_backend.update_header(new_header)
+                        if filtered_header_text:
+                            #new_header = f"({detected_language}) {filtered_header_text}"
+                            new_header = f"{filtered_header_text}"
+                            api_backend.update_header(new_header)
                     except:
                         pass
                     try:
@@ -700,9 +701,9 @@ def main():
                         for phrase in blacklist:
                             filtered_translated_text = re.sub(rf"\b{phrase.lower()}\b", "",
                                                               filtered_translated_text).strip()
-
-                        new_header = f"{filtered_translated_text}"
-                        api_backend.update_translated_header(new_header)
+                        if filtered_translated_text:
+                            new_header = f"{filtered_translated_text}"
+                            api_backend.update_translated_header(new_header)
                     except:
                         pass
                     try:
@@ -711,9 +712,9 @@ def main():
                         for phrase in blacklist:
                             filtered_transcribed_text = re.sub(rf"\b{phrase.lower()}\b", "",
                                                                filtered_transcribed_text).strip()
-
-                        new_header = f"{filtered_transcribed_text}"
-                        api_backend.update_transcribed_header(new_header)
+                        if filtered_transcribed_text:
+                            new_header = f"{filtered_transcribed_text}"
+                            api_backend.update_transcribed_header(new_header)
                     except:
                         pass
 
