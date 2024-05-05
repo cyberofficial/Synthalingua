@@ -130,7 +130,7 @@ def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_
                 transcription = transcribe_audio(file_path, model, language=detected_language)
                 print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
                 print(transcription)
-                if args.portnumber:
+                if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
                     api_backend.update_header(new_header)
 
@@ -152,7 +152,7 @@ def start_stream_transcription(task_id, hls_url, model_name, temp_dir, segments_
                     print(transcription)
                     if webhook_url:
                         send_to_discord_webhook(webhook_url, f"Stream {target_language} Transcription:\n{transcription}\n")
-                    if args.portnumber:
+                    if args.portnumber and transcription.strip():
                         new_header = f"{transcription}"
                         api_backend.update_transcribed_header(new_header)
 
