@@ -4,6 +4,11 @@ from modules.imports import *
 # Global shutdown flag
 shutdown_flag = False
 args = parser_args.parse_arguments()
+kill = False
+
+# Semaphore for limiting concurrent downloads (adjust as needed)
+max_concurrent_downloads = 4
+download_semaphore = threading.Semaphore(max_concurrent_downloads)
 
 
 def load_cookies_from_file(cookie_file_path):
@@ -43,44 +48,53 @@ def start_stream_transcription(
         cookies = load_cookies_from_file(cookie_file_path)
 
     def download_segment(
-        segment_url, output_path, max_retries=3, retry_delay=5, segment_delay=1
+        segment_url, output_path, max_retries=1, retry_delay=7, segment_delay=1
     ):
-        retry_count = 0
-        while retry_count < max_retries and not shutdown_flag:
-            try:
-                print(f"\n\n\nDownloading segment: {segment_url}\n\n")
-                response = (
-                    requests.get(
-                        segment_url, stream=True, cookies=cookies, params=params
+        global kill
+        with download_semaphore:  # Acquire the semaphore before downloading
+            retry_count = 0
+            while retry_count < max_retries and not shutdown_flag:
+                try:
+                    print(f"\n\n\nDownloading segment: {segment_url}\n\n")
+                    response = (
+                        requests.get(
+                            segment_url, stream=True, cookies=cookies, params=params
+                        )
+                        if cookies
+                        else requests.get(segment_url, stream=True, params=params)
                     )
-                    if cookies
-                    else requests.get(segment_url, stream=True, params=params)
-                )
-                if response.status_code == 200:
-                    with open(output_path, "wb") as file:
-                        for chunk in response.iter_content(chunk_size=16000):
-                            file.write(chunk)
-                    # Introduce a delay after downloading each segment
-                    time.sleep(segment_delay)
-                    return True
-                else:
+                    if response.status_code == 200:
+                        with open(output_path, "wb") as file:
+                            for chunk in response.iter_content(chunk_size=16000):
+                                file.write(chunk)
+                        # Introduce a delay after downloading each segment
+                        time.sleep(segment_delay)
+                        return True
+                    else:
+                        print(
+                            f"Failed to download segment, status code: {response.status_code}"
+                        )
+                        if response.status_code == 401:
+                            print("Invalid credentials. Please check your cookies and try again.")
+                            input("Press CTRL+C to exit...")
+                            # return with kill true
+                            kill = True
+                            raise Exception("Exiting due to invalid credentials")
+                            return
+                        break
+                except requests.exceptions.RequestException as e:
                     print(
-                        f"Failed to download segment, status code: {response.status_code}"
+                        f"Network error: {e}, retrying in {retry_delay} seconds..."
                     )
+                    time.sleep(retry_delay)
+                    retry_count += 1
+                except Exception as e:
+                    print(f"Unexpected error downloading segment: {e}")
                     break
-            except requests.exceptions.RequestException as e:
-                print(
-                    f"Network error: {e}, retrying in {retry_delay} seconds..."
-                )
-                time.sleep(retry_delay)
-                retry_count += 1
-            except Exception as e:
-                print(f"Unexpected error downloading segment: {e}")
-                break
-        # Clean up partial file if exists
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        return False
+            # Clean up partial file if exists
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            return False
 
     def load_m3u8_with_retry(hls_url, retry_delay=5):
         while not shutdown_flag:
@@ -195,7 +209,7 @@ def start_stream_transcription(
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
                     api_backend.update_transcribed_header(new_header)
-
+        time.sleep(0.25)
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -231,20 +245,29 @@ def start_stream_transcription(
                 if segment.uri not in downloaded_segments:
                     segment_path = generate_segment_filename(segment.uri, counter, task_id)
                     counter += 1
-                    if download_segment(segment.absolute_uri, segment_path):
-                        downloaded_segments.add(segment.uri)
-                        accumulated_segments.append(segment_path)
+                    try:
+                        if download_segment(segment.absolute_uri, segment_path):
+                            if kill:
+                                break
+                            downloaded_segments.add(segment.uri)
+                            accumulated_segments.append(segment_path)
 
-                        if len(accumulated_segments) >= segments_max:
-                            combined_path = os.path.join(
-                                temp_dir, f"{task_id}_combined_{counter}.ts"
-                            )
-                            combine_audio_segments(accumulated_segments, combined_path)
-                            audio_queue.put(combined_path)
-                            accumulated_segments = []
+                            if len(accumulated_segments) >= segments_max:
+                                combined_path = os.path.join(
+                                    temp_dir, f"{task_id}_combined_{counter}.ts"
+                                )
+                                combine_audio_segments(accumulated_segments, combined_path)
+                                audio_queue.put(combined_path)
+                                accumulated_segments = []
+                    except Exception as e:  # Catch the raised exception
+                        print(f"Error during download: {e}")
+                        break  # Exit the loop
 
     except KeyboardInterrupt:
         shutdown_flag = True  # Signal to shut down
+
+    except Exception as e:
+        exit(0)
 
     # Cleanup
     for file in os.listdir(temp_dir):

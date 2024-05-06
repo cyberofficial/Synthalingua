@@ -9,7 +9,7 @@ import secrets
 from functools import partial
 from socketserver import ThreadingMixIn
 
-CHUNK = 1024
+CHUNK = 2048
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -35,9 +35,11 @@ def list_audio_devices():
 def get_input_device_index():
     while True:
         try:
-            print("\n\n\n\nEnter the index of the microphone input device.\n"
-                  "Remember this script may not work for all devices.\n"
-                  "The lower the index, the better the quality of the audio.\n")
+            print(
+                "\n\n\n\nEnter the index of the microphone input device.\n"
+                "Remember this script may not work for all devices.\n"
+                "The lower the index, the better the quality of the audio.\n"
+            )
             index = int(input("Enter the index of the microphone input device: "))
             return index
         except ValueError:
@@ -47,26 +49,38 @@ def get_input_device_index():
 def capture_audio(device_index):
     p = pyaudio.PyAudio()
 
-    stream = p.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK,
-                    input_device_index=device_index)
+    stream = p.open(
+        format=FORMAT,
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        frames_per_buffer=CHUNK,
+        input_device_index=device_index,
+    )
 
     print("* recording")
 
     ffmpeg_command = [
         "ffmpeg",
         "-y",
-        "-f", "s16le",
-        "-acodec", "pcm_s16le",
-        "-ac", str(CHANNELS),
-        "-ar", str(RATE),
-        "-i", "pipe:0",
-        "-f", "hls",
-        "-hls_time", "1",
-        "-hls_list_size", "1",
+        "-f",
+        "s16le",
+        "-acodec",
+        "pcm_s16le",
+        "-ac",
+        str(CHANNELS),
+        "-ar",
+        str(RATE),
+        "-i",
+        "pipe:0",
+        "-f",
+        "hls",
+        "-hls_time",
+        "1",
+        "-hls_list_size",
+        "30",
+        "-hls_flags",  # Add this line
+        "delete_segments+append_list",  # Add this line
         os.path.join(OUTPUT_DIR, PLAYLIST_NAME),
     ]
 
@@ -97,7 +111,7 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
         # Get the provided key from the URL
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
-        provided_key = params.get('key', [''])[0]  # Get the first 'key' value or ''
+        provided_key = params.get("key", [""])[0]  # Get the first 'key' value or ''
 
         if provided_key != self.stream_key:
             self.send_error(401, "Unauthorized")
@@ -136,8 +150,10 @@ if __name__ == "__main__":
 
     print(f"Selected microphone input device: {device_index}")
 
-    print(f"Choose a server port {SERVER_PORT} is default, if you don't want to change it then press enter,"
-          f"If you want to change it then enter the port number.")
+    print(
+        f"Choose a server port {SERVER_PORT} is default, if you don't want to change it then press enter,"
+        f"If you want to change it then enter the port number."
+    )
     port = input()
     if port:
         SERVER_PORT = int(port)
@@ -147,7 +163,9 @@ if __name__ == "__main__":
     stream_key = secrets.token_urlsafe(16)
     print(f"Stream Key: {stream_key}")
 
-    print(f"Access the HLS playlist at http://localhost:{SERVER_PORT}/{PLAYLIST_NAME}?key={stream_key}")
+    print(
+        f"Access the HLS playlist at http://localhost:{SERVER_PORT}/{PLAYLIST_NAME}?key={stream_key}"
+    )
     print("Press Ctrl+C to stop recording and exit. Press enter to continue.")
     input()
 
