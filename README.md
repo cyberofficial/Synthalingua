@@ -186,6 +186,8 @@ This script uses argparse to accept command line arguments. The following option
 | `--file_output_name` | File name to export as without any ext. |
 | `--ignorelist` | Usage is "`--ignorelist "C:\quoted\path\to\wordlist.txt"`" |
 | `--condition_on_previous_text` | Will help the model from repeating itself, but may slow up the process. |
+| `--remote_hls_password_id` | Password ID for the webserver. Usually like 'id', or 'key'. Key is default for the program though, so when it asks for id/password, Synthalingua will be `key=000000` - `key`=`id` - `0000000`=`password` 16 chars long. |
+| `--remote_hls_password` | Password for the hls webserver. |
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
