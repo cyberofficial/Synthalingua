@@ -323,6 +323,9 @@ Public Class MainUI
             RepeatProtection.Checked = .RepeatProtection
             ConfigTextBox.Text = .CommandBlock
             ShortCutType = .ShortCutType
+            hlspassid.Text = .hlspassid
+            hlspassword.Text = .hlspassword
+            cb_halspassword.Checked = .cb_halspassword
             Try
                 PrimaryFolder = .PrimaryFolder
             Catch ex As Exception
@@ -572,6 +575,12 @@ Public Class MainUI
             .ShortCutType = ShortCutType
             .CommandBlock = ConfigTextBox.Text
 
+            'hls info
+            .hlspassid = hlspassid.Text
+            .hlspassword = hlspassword.Text
+            .cb_halspassword = cb_halspassword.Checked
+
+
 
         End With
 
@@ -593,7 +602,6 @@ Public Class MainUI
                     My.Settings.Reset()
 
                     ' Clear subtitle window settings
-                    ' Add your code to clear subtitle window settings here
 
                     My.Settings.Save()
 
