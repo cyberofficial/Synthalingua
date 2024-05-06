@@ -23,6 +23,7 @@ Partial Class MainUI
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
         components = New ComponentModel.Container()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(MainUI))
         GroupBox1 = New GroupBox()
         CAP_RadioButton = New RadioButton()
         MIC_RadioButton = New RadioButton()
@@ -35,6 +36,10 @@ Partial Class MainUI
         RamSize = New ComboBox()
         ForceRam = New CheckBox()
         GroupBox2 = New GroupBox()
+        Label14 = New Label()
+        hlspassword = New TextBox()
+        hlspassid = New TextBox()
+        cb_halspassword = New CheckBox()
         ShowOriginalText = New CheckBox()
         ChunkSizeTrackBarValue = New Label()
         ChunkSizeTrackBar = New TrackBar()
@@ -92,6 +97,7 @@ Partial Class MainUI
         Label13 = New Label()
         DiscordWebHook = New TextBox()
         GroupBox5 = New GroupBox()
+        Button3 = New Button()
         Label15 = New Label()
         WebLinkOG = New Button()
         WebLinkT1 = New Button()
@@ -111,7 +117,6 @@ Partial Class MainUI
         GroupBox6 = New GroupBox()
         RepeatProtection = New CheckBox()
         Button1 = New Button()
-        Button3 = New Button()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -185,7 +190,7 @@ Partial Class MainUI
         ' SaveConfigToFileButton
         ' 
         SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
-        SaveConfigToFileButton.Location = New Point(513, 633)
+        SaveConfigToFileButton.Location = New Point(513, 736)
         SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
         SaveConfigToFileButton.Name = "SaveConfigToFileButton"
         SaveConfigToFileButton.Size = New Size(108, 32)
@@ -256,6 +261,10 @@ Partial Class MainUI
         ' 
         ' GroupBox2
         ' 
+        GroupBox2.Controls.Add(Label14)
+        GroupBox2.Controls.Add(hlspassword)
+        GroupBox2.Controls.Add(hlspassid)
+        GroupBox2.Controls.Add(cb_halspassword)
         GroupBox2.Controls.Add(ShowOriginalText)
         GroupBox2.Controls.Add(ChunkSizeTrackBarValue)
         GroupBox2.Controls.Add(ChunkSizeTrackBar)
@@ -266,10 +275,47 @@ Partial Class MainUI
         GroupBox2.Margin = New Padding(3, 2, 3, 2)
         GroupBox2.Name = "GroupBox2"
         GroupBox2.Padding = New Padding(3, 2, 3, 2)
-        GroupBox2.Size = New Size(450, 100)
+        GroupBox2.Size = New Size(450, 255)
         GroupBox2.TabIndex = 8
         GroupBox2.TabStop = False
         GroupBox2.Text = "HLS Info"
+        ' 
+        ' Label14
+        ' 
+        Label14.AutoSize = True
+        Label14.Font = New Font("Segoe UI", 10F)
+        Label14.Location = New Point(5, 154)
+        Label14.Name = "Label14"
+        Label14.Size = New Size(423, 95)
+        Label14.TabIndex = 27
+        Label14.Text = resources.GetString("Label14.Text")
+        ' 
+        ' hlspassword
+        ' 
+        hlspassword.Location = New Point(134, 128)
+        hlspassword.Name = "hlspassword"
+        hlspassword.PasswordChar = "*"c
+        hlspassword.PlaceholderText = "password/key"
+        hlspassword.Size = New Size(311, 23)
+        hlspassword.TabIndex = 26
+        ' 
+        ' hlspassid
+        ' 
+        hlspassid.Location = New Point(5, 128)
+        hlspassid.Name = "hlspassid"
+        hlspassid.PlaceholderText = "id type"
+        hlspassid.Size = New Size(124, 23)
+        hlspassid.TabIndex = 25
+        ' 
+        ' cb_halspassword
+        ' 
+        cb_halspassword.AutoSize = True
+        cb_halspassword.Location = New Point(6, 103)
+        cb_halspassword.Name = "cb_halspassword"
+        cb_halspassword.Size = New Size(340, 19)
+        cb_halspassword.TabIndex = 24
+        cb_halspassword.Text = "HLS Stream has Password (Check before pasting stream url)"
+        cb_halspassword.UseVisualStyleBackColor = True
         ' 
         ' ShowOriginalText
         ' 
@@ -449,20 +495,21 @@ Partial Class MainUI
         ' ConfigTextBox
         ' 
         ConfigTextBox.Font = New Font("Segoe UI", 13F)
-        ConfigTextBox.Location = New Point(153, 350)
+        ConfigTextBox.Location = New Point(153, 472)
         ConfigTextBox.Margin = New Padding(3, 2, 3, 2)
         ConfigTextBox.Multiline = True
         ConfigTextBox.Name = "ConfigTextBox"
         ConfigTextBox.ReadOnly = True
+        ConfigTextBox.RightToLeft = RightToLeft.No
         ConfigTextBox.ScrollBars = ScrollBars.Vertical
-        ConfigTextBox.Size = New Size(468, 279)
+        ConfigTextBox.Size = New Size(468, 237)
         ConfigTextBox.TabIndex = 10
         ConfigTextBox.Visible = False
         ' 
         ' GenerateConfigButton
         ' 
         GenerateConfigButton.Font = New Font("Segoe UI", 13F)
-        GenerateConfigButton.Location = New Point(153, 633)
+        GenerateConfigButton.Location = New Point(153, 736)
         GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
         GenerateConfigButton.Name = "GenerateConfigButton"
         GenerateConfigButton.Size = New Size(116, 32)
@@ -532,7 +579,7 @@ Partial Class MainUI
         TabControl1.Margin = New Padding(3, 2, 3, 2)
         TabControl1.Name = "TabControl1"
         TabControl1.SelectedIndex = 0
-        TabControl1.Size = New Size(467, 152)
+        TabControl1.Size = New Size(467, 296)
         TabControl1.TabIndex = 19
         ' 
         ' TabPage1
@@ -542,7 +589,7 @@ Partial Class MainUI
         TabPage1.Margin = New Padding(3, 2, 3, 2)
         TabPage1.Name = "TabPage1"
         TabPage1.Padding = New Padding(3, 2, 3, 2)
-        TabPage1.Size = New Size(459, 124)
+        TabPage1.Size = New Size(459, 268)
         TabPage1.TabIndex = 0
         TabPage1.Text = "HLS Settings"
         TabPage1.UseVisualStyleBackColor = True
@@ -568,7 +615,7 @@ Partial Class MainUI
         TabPage2.Margin = New Padding(3, 2, 3, 2)
         TabPage2.Name = "TabPage2"
         TabPage2.Padding = New Padding(3, 2, 3, 2)
-        TabPage2.Size = New Size(459, 124)
+        TabPage2.Size = New Size(459, 240)
         TabPage2.TabIndex = 1
         TabPage2.Text = "Microphone Settings"
         TabPage2.UseVisualStyleBackColor = True
@@ -740,7 +787,7 @@ Partial Class MainUI
         TabPage3.Location = New Point(4, 24)
         TabPage3.Name = "TabPage3"
         TabPage3.Padding = New Padding(3)
-        TabPage3.Size = New Size(459, 124)
+        TabPage3.Size = New Size(459, 240)
         TabPage3.TabIndex = 2
         TabPage3.Text = "Generate Captions"
         TabPage3.UseVisualStyleBackColor = True
@@ -828,7 +875,7 @@ Partial Class MainUI
         ' RunScript
         ' 
         RunScript.Font = New Font("Segoe UI", 15F)
-        RunScript.Location = New Point(274, 633)
+        RunScript.Location = New Point(274, 736)
         RunScript.Margin = New Padding(3, 2, 3, 2)
         RunScript.Name = "RunScript"
         RunScript.Size = New Size(234, 32)
@@ -871,6 +918,16 @@ Partial Class MainUI
         GroupBox5.TabIndex = 25
         GroupBox5.TabStop = False
         GroupBox5.Text = "Browser Source"
+        ' 
+        ' Button3
+        ' 
+        Button3.Dock = DockStyle.Bottom
+        Button3.Location = New Point(3, 15)
+        Button3.Name = "Button3"
+        Button3.Size = New Size(131, 23)
+        Button3.TabIndex = 30
+        Button3.Text = "Use Web Browser"
+        Button3.UseVisualStyleBackColor = True
         ' 
         ' Label15
         ' 
@@ -953,9 +1010,11 @@ Partial Class MainUI
         ' CheckBoxCMDBLock
         ' 
         CheckBoxCMDBLock.AutoSize = True
-        CheckBoxCMDBLock.Location = New Point(153, 328)
+        CheckBoxCMDBLock.CheckAlign = ContentAlignment.MiddleRight
+        CheckBoxCMDBLock.Location = New Point(153, 713)
         CheckBoxCMDBLock.Margin = New Padding(3, 2, 3, 2)
         CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
+        CheckBoxCMDBLock.RightToLeft = RightToLeft.No
         CheckBoxCMDBLock.Size = New Size(419, 19)
         CheckBoxCMDBLock.TabIndex = 28
         CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
@@ -968,7 +1027,7 @@ Partial Class MainUI
         ' SaveConfig
         ' 
         SaveConfig.Font = New Font("Segoe UI", 12F)
-        SaveConfig.Location = New Point(7, 576)
+        SaveConfig.Location = New Point(7, 679)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
         SaveConfig.Name = "SaveConfig"
         SaveConfig.Size = New Size(140, 59)
@@ -978,7 +1037,7 @@ Partial Class MainUI
         ' 
         ' WipeSettings
         ' 
-        WipeSettings.Location = New Point(24, 639)
+        WipeSettings.Location = New Point(24, 742)
         WipeSettings.Name = "WipeSettings"
         WipeSettings.Size = New Size(123, 23)
         WipeSettings.TabIndex = 29
@@ -988,7 +1047,7 @@ Partial Class MainUI
         ' EraseCheckBox
         ' 
         EraseCheckBox.AutoSize = True
-        EraseCheckBox.Location = New Point(7, 644)
+        EraseCheckBox.Location = New Point(7, 747)
         EraseCheckBox.Name = "EraseCheckBox"
         EraseCheckBox.Size = New Size(15, 14)
         EraseCheckBox.TabIndex = 30
@@ -1051,21 +1110,11 @@ Partial Class MainUI
         Button1.Text = "Load Word Blocklist"
         Button1.UseVisualStyleBackColor = True
         ' 
-        ' Button3
-        ' 
-        Button3.Dock = DockStyle.Bottom
-        Button3.Location = New Point(3, 15)
-        Button3.Name = "Button3"
-        Button3.Size = New Size(131, 23)
-        Button3.TabIndex = 30
-        Button3.Text = "Use Web Browser"
-        Button3.UseVisualStyleBackColor = True
-        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
-        ClientSize = New Size(624, 674)
+        ClientSize = New Size(626, 778)
         Controls.Add(GroupBox6)
         Controls.Add(EraseCheckBox)
         Controls.Add(WipeSettings)
@@ -1222,5 +1271,9 @@ Partial Class MainUI
     Friend WithEvents RepeatProtection As CheckBox
     Friend WithEvents Button1 As Button
     Friend WithEvents Button3 As Button
+    Friend WithEvents hlspassword As TextBox
+    Friend WithEvents hlspassid As TextBox
+    Friend WithEvents cb_halspassword As CheckBox
+    Friend WithEvents Label14 As Label
 
 End Class

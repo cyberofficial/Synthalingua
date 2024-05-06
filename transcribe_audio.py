@@ -478,12 +478,17 @@ def main():
         import random
         task_id = random.randint(100000, 999999)
 
+        if args.remote_hls_password_id:
+            streamkey = True
+        else:
+            streamkey = False
+
 
         # Start stream transcription
         segments_max = args.stream_chunks if hasattr(args, 'stream_chunks') else 1
         # start start_stream_transcription(hls_url, model_name, temp_dir, segments_max) in a new thread
         stream_thread = threading.Thread(target=start_stream_transcription,
-                                         args=(task_id, hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path))
+                                         args=(task_id, hls_url, model_name, temp_dir, segments_max, target_language, stream_language, tasktranslate_task, tasktranscribe_task, webhook_url, cookie_file_path, streamkey))
         stream_thread.start()
 
     if args.microphone_enabled:
@@ -689,10 +694,10 @@ def main():
                         for phrase in blacklist:
                             filtered_header_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_header_text).strip()
 
-                        if filtered_header_text:
+                        #if filtered_header_text:
                             #new_header = f"({detected_language}) {filtered_header_text}"
-                            new_header = f"{filtered_header_text}"
-                            api_backend.update_header(new_header)
+                        new_header = f"{filtered_header_text}"
+                        api_backend.update_header(new_header)
                     except:
                         pass
                     try:
@@ -701,9 +706,9 @@ def main():
                         for phrase in blacklist:
                             filtered_translated_text = re.sub(rf"\b{phrase.lower()}\b", "",
                                                               filtered_translated_text).strip()
-                        if filtered_translated_text:
-                            new_header = f"{filtered_translated_text}"
-                            api_backend.update_translated_header(new_header)
+                        #if filtered_translated_text:
+                        new_header = f"{filtered_translated_text}"
+                        api_backend.update_translated_header(new_header)
                     except:
                         pass
                     try:
@@ -712,9 +717,9 @@ def main():
                         for phrase in blacklist:
                             filtered_transcribed_text = re.sub(rf"\b{phrase.lower()}\b", "",
                                                                filtered_transcribed_text).strip()
-                        if filtered_transcribed_text:
-                            new_header = f"{filtered_transcribed_text}"
-                            api_backend.update_transcribed_header(new_header)
+                        #if filtered_transcribed_text:
+                        new_header = f"{filtered_transcribed_text}"
+                        api_backend.update_transcribed_header(new_header)
                     except:
                         pass
 
