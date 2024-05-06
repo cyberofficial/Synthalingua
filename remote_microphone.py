@@ -4,6 +4,10 @@ import os
 import threading
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 import sys
+import urllib.parse
+import secrets
+from functools import partial
+from socketserver import ThreadingMixIn
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -61,8 +65,8 @@ def capture_audio(device_index):
         "-ar", str(RATE),
         "-i", "pipe:0",
         "-f", "hls",
-        "-hls_time", "3",
-        "-hls_list_size", "6",
+        "-hls_time", "1",
+        "-hls_list_size", "1",
         os.path.join(OUTPUT_DIR, PLAYLIST_NAME),
     ]
 
@@ -85,17 +89,41 @@ def capture_audio(device_index):
 
 
 class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, stream_key, **kwargs):
+        self.stream_key = stream_key
         super().__init__(*args, directory=OUTPUT_DIR, **kwargs)
 
+    def do_GET(self):
+        # Get the provided key from the URL
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        provided_key = params.get('key', [''])[0]  # Get the first 'key' value or ''
 
-def start_server():
+        if provided_key != self.stream_key:
+            self.send_error(401, "Unauthorized")
+            return
+
+        super().do_GET()
+
+
+# Define a custom HTTP server class to limit concurrent connections
+class ThreadingSimpleServer(ThreadingMixIn, HTTPServer):
+    pass
+
+
+def start_server(stream_key):
     # Wait for the HLS playlist to be ready
     playlist_ready.wait()
 
-    httpd = HTTPServer(("0.0.0.0", SERVER_PORT), MyHTTPRequestHandler)
-    print(f"Server started at http://localhost:{SERVER_PORT}")
-    httpd.serve_forever()
+    try:
+        # Pass the key to the HTTP handler
+        handler_class = partial(MyHTTPRequestHandler, stream_key=stream_key)
+        httpd = ThreadingSimpleServer(("0.0.0.0", SERVER_PORT), handler_class)
+        print(f"Server started at http://0.0.0.0:{SERVER_PORT}")
+        # start the server with debug mode disabled
+        httpd.serve_forever(poll_interval=5)
+    except Exception as e:
+        print(f"Error starting server: {e}")
 
 
 if __name__ == "__main__":
@@ -114,12 +142,17 @@ if __name__ == "__main__":
     if port:
         SERVER_PORT = int(port)
     print(f"Selected server port: {SERVER_PORT}")
-    print(f"Access the HLS playlist at http://localhost:{SERVER_PORT}/{PLAYLIST_NAME}")
+
+    # Generate stream key
+    stream_key = secrets.token_urlsafe(16)
+    print(f"Stream Key: {stream_key}")
+
+    print(f"Access the HLS playlist at http://localhost:{SERVER_PORT}/{PLAYLIST_NAME}?key={stream_key}")
     print("Press Ctrl+C to stop recording and exit. Press enter to continue.")
     input()
 
     capture_thread = threading.Thread(target=capture_audio, args=(device_index,))
-    server_thread = threading.Thread(target=start_server)
+    server_thread = threading.Thread(target=start_server, args=(stream_key,))
 
     capture_thread.start()
     server_thread.start()

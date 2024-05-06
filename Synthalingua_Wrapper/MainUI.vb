@@ -146,6 +146,10 @@ Public Class MainUI
             ConfigTextBox.Text += "--condition_on_previous_text "
         End If
 
+        If cb_halspassword.Checked = True Then
+            ConfigTextBox.Text += "--remote_hls_password_id " & hlspassid.Text & " --remote_hls_password " & hlspassword.Text & " "
+        End If
+
         If DiscordWebHook.Text <> "" Then
             ConfigTextBox.Text += "--discord_webhook """ & DiscordWebHook.Text & """" & " "
         End If
@@ -657,5 +661,13 @@ Public Class MainUI
 
     Private Sub Button3_Click(sender As Object, e As EventArgs) Handles Button3.Click
         WebBrowserConfig.ShowDialog()
+    End Sub
+
+    Private Sub cb_halspassword_CheckedChanged(sender As Object, e As EventArgs) Handles cb_halspassword.CheckedChanged
+        If cb_halspassword.Checked Then
+            HLS_URL.PasswordChar = "*"
+        Else
+            HLS_URL.PasswordChar = ""
+        End If
     End Sub
 End Class
