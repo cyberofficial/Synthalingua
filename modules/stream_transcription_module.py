@@ -209,7 +209,6 @@ def start_stream_transcription(
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
                     api_backend.update_transcribed_header(new_header)
-        time.sleep(0.25)
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
