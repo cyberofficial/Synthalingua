@@ -1,5 +1,6 @@
 ﻿' using the system file storage
 Imports System.IO
+Imports System.Diagnostics
 
 Public Class MainUI
     Private PrimaryFolder As String
@@ -619,6 +620,8 @@ Public Class MainUI
                     If finalResult = DialogResult.OK Then
                         Application.Exit()
                     End If
+                Else
+                    EraseCheckBox.Checked = False
                 End If
             Else
                 MessageBox.Show("If you want to clear settings, click the checkbox first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -685,5 +688,16 @@ Public Class MainUI
         Else
             HLS_URL.PasswordChar = ""
         End If
+    End Sub
+    Private Sub PictureItch_MouseClick(sender As Object, e As MouseEventArgs) Handles PictureItch.MouseClick
+        Process.Start(New ProcessStartInfo("https://cyberofficial.itch.io/synthalingua") With {
+                      .UseShellExecute = True
+                      })
+    End Sub
+
+    Private Sub GitHubPicture_MouseClick(sender As Object, e As MouseEventArgs) Handles GitHubPicture.MouseClick
+        Process.Start(New ProcessStartInfo("https://github.com/cyberofficial/Synthalingua") With {
+                      .UseShellExecute = True
+                      })
     End Sub
 End Class
