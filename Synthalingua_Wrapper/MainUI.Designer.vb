@@ -106,6 +106,8 @@ Partial Class MainUI
         CookiesName = New ComboBox()
         CookiesRefresh = New Button()
         ToolTip1 = New ToolTip(components)
+        PictureItch = New PictureBox()
+        GitHubPicture = New PictureBox()
         CheckBoxCMDBLock = New CheckBox()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         CaptionsInputFile = New OpenFileDialog()
@@ -133,6 +135,8 @@ Partial Class MainUI
         CType(EnThreshValue, ComponentModel.ISupportInitialize).BeginInit()
         TabPage3.SuspendLayout()
         GroupBox5.SuspendLayout()
+        CType(PictureItch, ComponentModel.ISupportInitialize).BeginInit()
+        CType(GitHubPicture, ComponentModel.ISupportInitialize).BeginInit()
         GroupBox6.SuspendLayout()
         SuspendLayout()
         ' 
@@ -1052,6 +1056,28 @@ Partial Class MainUI
         CookiesRefresh.Text = "🔃"
         CookiesRefresh.UseVisualStyleBackColor = True
         ' 
+        ' PictureItch
+        ' 
+        PictureItch.Image = My.Resources.Resources.itch_io_icon_256x256_0aig5hor
+        PictureItch.Location = New Point(64, 562)
+        PictureItch.Name = "PictureItch"
+        PictureItch.Size = New Size(48, 48)
+        PictureItch.SizeMode = PictureBoxSizeMode.Zoom
+        PictureItch.TabIndex = 34
+        PictureItch.TabStop = False
+        ToolTip1.SetToolTip(PictureItch, "Open itch.Io Page")
+        ' 
+        ' GitHubPicture
+        ' 
+        GitHubPicture.Image = My.Resources.Resources._25231
+        GitHubPicture.Location = New Point(10, 562)
+        GitHubPicture.Name = "GitHubPicture"
+        GitHubPicture.Size = New Size(48, 48)
+        GitHubPicture.SizeMode = PictureBoxSizeMode.Zoom
+        GitHubPicture.TabIndex = 35
+        GitHubPicture.TabStop = False
+        ToolTip1.SetToolTip(GitHubPicture, "Open Github Page")
+        ' 
         ' CheckBoxCMDBLock
         ' 
         CheckBoxCMDBLock.AutoSize = True
@@ -1081,6 +1107,7 @@ Partial Class MainUI
         SaveConfig.Size = New Size(140, 59)
         SaveConfig.TabIndex = 1
         SaveConfig.Text = "Save Current Configuration"
+        ToolTip1.SetToolTip(SaveConfig, "Save's the current state of the gui." & vbCrLf)
         SaveConfig.UseVisualStyleBackColor = True
         ' 
         ' WipeSettings
@@ -1093,6 +1120,7 @@ Partial Class MainUI
         WipeSettings.Size = New Size(123, 23)
         WipeSettings.TabIndex = 29
         WipeSettings.Text = "Wipe Settings"
+        ToolTip1.SetToolTip(WipeSettings, "[DANGER] Wipes the Settings,")
         WipeSettings.UseVisualStyleBackColor = True
         ' 
         ' EraseCheckBox
@@ -1174,6 +1202,8 @@ Partial Class MainUI
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.DarkSlateBlue
         ClientSize = New Size(626, 778)
+        Controls.Add(GitHubPicture)
+        Controls.Add(PictureItch)
         Controls.Add(GroupBox6)
         Controls.Add(EraseCheckBox)
         Controls.Add(WipeSettings)
@@ -1236,6 +1266,8 @@ Partial Class MainUI
         TabPage3.PerformLayout()
         GroupBox5.ResumeLayout(False)
         GroupBox5.PerformLayout()
+        CType(PictureItch, ComponentModel.ISupportInitialize).EndInit()
+        CType(GitHubPicture, ComponentModel.ISupportInitialize).EndInit()
         GroupBox6.ResumeLayout(False)
         GroupBox6.PerformLayout()
         ResumeLayout(False)
@@ -1335,5 +1367,7 @@ Partial Class MainUI
     Friend WithEvents hlspassid As TextBox
     Friend WithEvents cb_halspassword As CheckBox
     Friend WithEvents Label14 As Label
+    Friend WithEvents PictureItch As PictureBox
+    Friend WithEvents GitHubPicture As PictureBox
 
 End Class
