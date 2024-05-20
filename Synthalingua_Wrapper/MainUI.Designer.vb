@@ -65,7 +65,7 @@ Partial Class MainUI
         WebServerButton = New CheckBox()
         Label10 = New Label()
         GroupBox4 = New GroupBox()
-        TabControl1 = New TabControl()
+        SettingsTabs = New TabControl()
         TabPage1 = New TabPage()
         TabPage2 = New TabPage()
         PhraseTimeOutCheckbox = New CheckBox()
@@ -123,7 +123,7 @@ Partial Class MainUI
         GroupBox3.SuspendLayout()
         CType(PortNumber, ComponentModel.ISupportInitialize).BeginInit()
         GroupBox4.SuspendLayout()
-        TabControl1.SuspendLayout()
+        SettingsTabs.SuspendLayout()
         TabPage1.SuspendLayout()
         TabPage2.SuspendLayout()
         CType(MicID, ComponentModel.ISupportInitialize).BeginInit()
@@ -138,9 +138,11 @@ Partial Class MainUI
         ' 
         ' GroupBox1
         ' 
+        GroupBox1.BackColor = Color.DarkSlateBlue
         GroupBox1.Controls.Add(CAP_RadioButton)
         GroupBox1.Controls.Add(MIC_RadioButton)
         GroupBox1.Controls.Add(HSL_RadioButton)
+        GroupBox1.ForeColor = Color.FloralWhite
         GroupBox1.Location = New Point(10, 9)
         GroupBox1.Margin = New Padding(3, 2, 3, 2)
         GroupBox1.Name = "GroupBox1"
@@ -189,6 +191,9 @@ Partial Class MainUI
         ' 
         ' SaveConfigToFileButton
         ' 
+        SaveConfigToFileButton.FlatAppearance.MouseDownBackColor = Color.Indigo
+        SaveConfigToFileButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        SaveConfigToFileButton.FlatStyle = FlatStyle.Popup
         SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
         SaveConfigToFileButton.Location = New Point(513, 736)
         SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
@@ -218,13 +223,17 @@ Partial Class MainUI
         ' 
         ' Button2
         ' 
+        Button2.BackColor = Color.DodgerBlue
+        Button2.FlatAppearance.MouseDownBackColor = Color.Indigo
+        Button2.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        Button2.FlatStyle = FlatStyle.Popup
         Button2.Location = New Point(585, 6)
         Button2.Margin = New Padding(3, 2, 3, 2)
         Button2.Name = "Button2"
         Button2.Size = New Size(35, 22)
         Button2.TabIndex = 4
         Button2.Text = "..."
-        Button2.UseVisualStyleBackColor = True
+        Button2.UseVisualStyleBackColor = False
         ' 
         ' Label2
         ' 
@@ -261,6 +270,7 @@ Partial Class MainUI
         ' 
         ' GroupBox2
         ' 
+        GroupBox2.BackColor = Color.DarkSlateBlue
         GroupBox2.Controls.Add(Label14)
         GroupBox2.Controls.Add(hlspassword)
         GroupBox2.Controls.Add(hlspassid)
@@ -271,6 +281,7 @@ Partial Class MainUI
         GroupBox2.Controls.Add(Label6)
         GroupBox2.Controls.Add(HLS_URL)
         GroupBox2.Controls.Add(Label3)
+        GroupBox2.ForeColor = Color.FloralWhite
         GroupBox2.Location = New Point(5, 9)
         GroupBox2.Margin = New Padding(3, 2, 3, 2)
         GroupBox2.Name = "GroupBox2"
@@ -454,6 +465,7 @@ Partial Class MainUI
         ' 
         GroupBox3.Controls.Add(CPU_RadioButton)
         GroupBox3.Controls.Add(CUDA_RadioButton)
+        GroupBox3.ForeColor = Color.FloralWhite
         GroupBox3.Location = New Point(10, 114)
         GroupBox3.Margin = New Padding(3, 2, 3, 2)
         GroupBox3.Name = "GroupBox3"
@@ -494,6 +506,8 @@ Partial Class MainUI
         ' 
         ' ConfigTextBox
         ' 
+        ConfigTextBox.BackColor = Color.SlateBlue
+        ConfigTextBox.BorderStyle = BorderStyle.FixedSingle
         ConfigTextBox.Font = New Font("Segoe UI", 13F)
         ConfigTextBox.Location = New Point(153, 472)
         ConfigTextBox.Margin = New Padding(3, 2, 3, 2)
@@ -508,6 +522,9 @@ Partial Class MainUI
         ' 
         ' GenerateConfigButton
         ' 
+        GenerateConfigButton.FlatAppearance.MouseDownBackColor = Color.Indigo
+        GenerateConfigButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        GenerateConfigButton.FlatStyle = FlatStyle.Popup
         GenerateConfigButton.Font = New Font("Segoe UI", 13F)
         GenerateConfigButton.Location = New Point(153, 736)
         GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
@@ -539,6 +556,7 @@ Partial Class MainUI
         ' WebServerButton
         ' 
         WebServerButton.AutoSize = True
+        WebServerButton.ForeColor = Color.FloralWhite
         WebServerButton.Location = New Point(5, 14)
         WebServerButton.Margin = New Padding(3, 2, 3, 2)
         WebServerButton.Name = "WebServerButton"
@@ -561,6 +579,7 @@ Partial Class MainUI
         GroupBox4.Controls.Add(Label10)
         GroupBox4.Controls.Add(PortNumber)
         GroupBox4.Controls.Add(WebServerButton)
+        GroupBox4.ForeColor = Color.FloralWhite
         GroupBox4.Location = New Point(10, 188)
         GroupBox4.Margin = New Padding(3, 2, 3, 2)
         GroupBox4.Name = "GroupBox4"
@@ -570,32 +589,35 @@ Partial Class MainUI
         GroupBox4.TabStop = False
         GroupBox4.Text = "Web Server"
         ' 
-        ' TabControl1
+        ' SettingsTabs
         ' 
-        TabControl1.Controls.Add(TabPage1)
-        TabControl1.Controls.Add(TabPage2)
-        TabControl1.Controls.Add(TabPage3)
-        TabControl1.Location = New Point(153, 176)
-        TabControl1.Margin = New Padding(3, 2, 3, 2)
-        TabControl1.Name = "TabControl1"
-        TabControl1.SelectedIndex = 0
-        TabControl1.Size = New Size(467, 296)
-        TabControl1.TabIndex = 19
+        SettingsTabs.Appearance = TabAppearance.FlatButtons
+        SettingsTabs.Controls.Add(TabPage1)
+        SettingsTabs.Controls.Add(TabPage2)
+        SettingsTabs.Controls.Add(TabPage3)
+        SettingsTabs.HotTrack = True
+        SettingsTabs.Location = New Point(153, 176)
+        SettingsTabs.Margin = New Padding(3, 2, 3, 2)
+        SettingsTabs.Name = "SettingsTabs"
+        SettingsTabs.SelectedIndex = 0
+        SettingsTabs.Size = New Size(467, 296)
+        SettingsTabs.TabIndex = 19
         ' 
         ' TabPage1
         ' 
+        TabPage1.BackColor = Color.DarkSlateBlue
         TabPage1.Controls.Add(GroupBox2)
-        TabPage1.Location = New Point(4, 24)
+        TabPage1.Location = New Point(4, 27)
         TabPage1.Margin = New Padding(3, 2, 3, 2)
         TabPage1.Name = "TabPage1"
         TabPage1.Padding = New Padding(3, 2, 3, 2)
-        TabPage1.Size = New Size(459, 268)
+        TabPage1.Size = New Size(459, 265)
         TabPage1.TabIndex = 0
         TabPage1.Text = "HLS Settings"
-        TabPage1.UseVisualStyleBackColor = True
         ' 
         ' TabPage2
         ' 
+        TabPage2.BackColor = Color.DarkSlateBlue
         TabPage2.Controls.Add(PhraseTimeOutCheckbox)
         TabPage2.Controls.Add(RecordTimeOutCHeckBox)
         TabPage2.Controls.Add(MicCaliCheckBox)
@@ -611,14 +633,13 @@ Partial Class MainUI
         TabPage2.Controls.Add(RecordTimeoutLbl)
         TabPage2.Controls.Add(MicCaliLbl)
         TabPage2.Controls.Add(Energy_Threshold)
-        TabPage2.Location = New Point(4, 24)
+        TabPage2.Location = New Point(4, 27)
         TabPage2.Margin = New Padding(3, 2, 3, 2)
         TabPage2.Name = "TabPage2"
         TabPage2.Padding = New Padding(3, 2, 3, 2)
-        TabPage2.Size = New Size(459, 240)
+        TabPage2.Size = New Size(459, 265)
         TabPage2.TabIndex = 1
         TabPage2.Text = "Microphone Settings"
-        TabPage2.UseVisualStyleBackColor = True
         ' 
         ' PhraseTimeOutCheckbox
         ' 
@@ -666,6 +687,9 @@ Partial Class MainUI
         ' 
         ' microphone_id_button
         ' 
+        microphone_id_button.FlatAppearance.MouseDownBackColor = Color.DarkSlateBlue
+        microphone_id_button.FlatAppearance.MouseOverBackColor = Color.DarkSlateBlue
+        microphone_id_button.FlatStyle = FlatStyle.Popup
         microphone_id_button.Location = New Point(287, 98)
         microphone_id_button.Margin = New Padding(3, 2, 3, 2)
         microphone_id_button.Name = "microphone_id_button"
@@ -776,6 +800,7 @@ Partial Class MainUI
         ' 
         ' TabPage3
         ' 
+        TabPage3.BackColor = Color.DarkSlateBlue
         TabPage3.Controls.Add(CaptionsName)
         TabPage3.Controls.Add(CaptionsOutput)
         TabPage3.Controls.Add(Label12)
@@ -784,13 +809,12 @@ Partial Class MainUI
         TabPage3.Controls.Add(CaptionsOutputBtn)
         TabPage3.Controls.Add(Label9)
         TabPage3.Controls.Add(CaptionsInputBtn)
-        TabPage3.Location = New Point(4, 24)
+        TabPage3.Location = New Point(4, 27)
         TabPage3.Name = "TabPage3"
         TabPage3.Padding = New Padding(3)
-        TabPage3.Size = New Size(459, 240)
+        TabPage3.Size = New Size(459, 265)
         TabPage3.TabIndex = 2
         TabPage3.Text = "Generate Captions"
-        TabPage3.UseVisualStyleBackColor = True
         ' 
         ' CaptionsName
         ' 
@@ -836,6 +860,7 @@ Partial Class MainUI
         ' 
         ' CaptionsOutputBtn
         ' 
+        CaptionsOutputBtn.FlatStyle = FlatStyle.Popup
         CaptionsOutputBtn.Location = New Point(418, 33)
         CaptionsOutputBtn.Margin = New Padding(3, 2, 3, 2)
         CaptionsOutputBtn.Name = "CaptionsOutputBtn"
@@ -855,6 +880,7 @@ Partial Class MainUI
         ' 
         ' CaptionsInputBtn
         ' 
+        CaptionsInputBtn.FlatStyle = FlatStyle.Popup
         CaptionsInputBtn.Location = New Point(418, 4)
         CaptionsInputBtn.Margin = New Padding(3, 2, 3, 2)
         CaptionsInputBtn.Name = "CaptionsInputBtn"
@@ -874,6 +900,9 @@ Partial Class MainUI
         ' 
         ' RunScript
         ' 
+        RunScript.FlatAppearance.MouseDownBackColor = Color.Indigo
+        RunScript.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        RunScript.FlatStyle = FlatStyle.Popup
         RunScript.Font = New Font("Segoe UI", 15F)
         RunScript.Location = New Point(274, 736)
         RunScript.Margin = New Padding(3, 2, 3, 2)
@@ -886,7 +915,7 @@ Partial Class MainUI
         ' Label13
         ' 
         Label13.AutoSize = True
-        Label13.Location = New Point(153, 159)
+        Label13.Location = New Point(157, 153)
         Label13.Name = "Label13"
         Label13.Size = New Size(112, 15)
         Label13.TabIndex = 21
@@ -894,7 +923,7 @@ Partial Class MainUI
         ' 
         ' DiscordWebHook
         ' 
-        DiscordWebHook.Location = New Point(274, 157)
+        DiscordWebHook.Location = New Point(274, 150)
         DiscordWebHook.Margin = New Padding(3, 2, 3, 2)
         DiscordWebHook.Name = "DiscordWebHook"
         DiscordWebHook.PasswordChar = "*"c
@@ -910,6 +939,7 @@ Partial Class MainUI
         GroupBox5.Controls.Add(WebLinkT1)
         GroupBox5.Controls.Add(WebLinkT2)
         GroupBox5.Controls.Add(SubWindow)
+        GroupBox5.ForeColor = Color.FloralWhite
         GroupBox5.Location = New Point(10, 274)
         GroupBox5.Margin = New Padding(3, 2, 3, 2)
         GroupBox5.Name = "GroupBox5"
@@ -922,6 +952,9 @@ Partial Class MainUI
         ' Button3
         ' 
         Button3.Dock = DockStyle.Bottom
+        Button3.FlatAppearance.MouseDownBackColor = Color.Indigo
+        Button3.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        Button3.FlatStyle = FlatStyle.Popup
         Button3.Location = New Point(3, 15)
         Button3.Name = "Button3"
         Button3.Size = New Size(131, 23)
@@ -942,6 +975,9 @@ Partial Class MainUI
         ' WebLinkOG
         ' 
         WebLinkOG.Dock = DockStyle.Bottom
+        WebLinkOG.FlatAppearance.MouseDownBackColor = Color.Indigo
+        WebLinkOG.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        WebLinkOG.FlatStyle = FlatStyle.Popup
         WebLinkOG.Location = New Point(3, 53)
         WebLinkOG.Margin = New Padding(3, 2, 3, 2)
         WebLinkOG.Name = "WebLinkOG"
@@ -953,6 +989,9 @@ Partial Class MainUI
         ' WebLinkT1
         ' 
         WebLinkT1.Dock = DockStyle.Bottom
+        WebLinkT1.FlatAppearance.MouseDownBackColor = Color.Indigo
+        WebLinkT1.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        WebLinkT1.FlatStyle = FlatStyle.Popup
         WebLinkT1.Location = New Point(3, 75)
         WebLinkT1.Margin = New Padding(3, 2, 3, 2)
         WebLinkT1.Name = "WebLinkT1"
@@ -964,6 +1003,9 @@ Partial Class MainUI
         ' WebLinkT2
         ' 
         WebLinkT2.Dock = DockStyle.Bottom
+        WebLinkT2.FlatAppearance.MouseDownBackColor = Color.Indigo
+        WebLinkT2.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        WebLinkT2.FlatStyle = FlatStyle.Popup
         WebLinkT2.Location = New Point(3, 97)
         WebLinkT2.Margin = New Padding(3, 2, 3, 2)
         WebLinkT2.Name = "WebLinkT2"
@@ -975,6 +1017,9 @@ Partial Class MainUI
         ' SubWindow
         ' 
         SubWindow.Dock = DockStyle.Bottom
+        SubWindow.FlatAppearance.MouseDownBackColor = Color.Indigo
+        SubWindow.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        SubWindow.FlatStyle = FlatStyle.Popup
         SubWindow.Location = New Point(3, 119)
         SubWindow.Name = "SubWindow"
         SubWindow.Size = New Size(131, 48)
@@ -1026,6 +1071,9 @@ Partial Class MainUI
         ' 
         ' SaveConfig
         ' 
+        SaveConfig.FlatAppearance.MouseDownBackColor = Color.Indigo
+        SaveConfig.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        SaveConfig.FlatStyle = FlatStyle.Popup
         SaveConfig.Font = New Font("Segoe UI", 12F)
         SaveConfig.Location = New Point(7, 679)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
@@ -1037,6 +1085,9 @@ Partial Class MainUI
         ' 
         ' WipeSettings
         ' 
+        WipeSettings.FlatAppearance.MouseDownBackColor = Color.Indigo
+        WipeSettings.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        WipeSettings.FlatStyle = FlatStyle.Popup
         WipeSettings.Location = New Point(24, 742)
         WipeSettings.Name = "WipeSettings"
         WipeSettings.Size = New Size(123, 23)
@@ -1067,6 +1118,9 @@ Partial Class MainUI
         ' EditBlockList
         ' 
         EditBlockList.Dock = DockStyle.Bottom
+        EditBlockList.FlatAppearance.MouseDownBackColor = Color.Indigo
+        EditBlockList.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        EditBlockList.FlatStyle = FlatStyle.Popup
         EditBlockList.Location = New Point(3, 58)
         EditBlockList.Name = "EditBlockList"
         EditBlockList.Size = New Size(131, 24)
@@ -1080,6 +1134,7 @@ Partial Class MainUI
         GroupBox6.Controls.Add(WordBlockList)
         GroupBox6.Controls.Add(EditBlockList)
         GroupBox6.Controls.Add(Button1)
+        GroupBox6.ForeColor = Color.FloralWhite
         GroupBox6.Location = New Point(10, 448)
         GroupBox6.Name = "GroupBox6"
         GroupBox6.Size = New Size(137, 108)
@@ -1103,6 +1158,9 @@ Partial Class MainUI
         ' Button1
         ' 
         Button1.Dock = DockStyle.Bottom
+        Button1.FlatAppearance.MouseDownBackColor = Color.Indigo
+        Button1.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        Button1.FlatStyle = FlatStyle.Popup
         Button1.Location = New Point(3, 82)
         Button1.Name = "Button1"
         Button1.Size = New Size(131, 23)
@@ -1114,6 +1172,7 @@ Partial Class MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
+        BackColor = Color.DarkSlateBlue
         ClientSize = New Size(626, 778)
         Controls.Add(GroupBox6)
         Controls.Add(EraseCheckBox)
@@ -1125,7 +1184,7 @@ Partial Class MainUI
         Controls.Add(DiscordWebHook)
         Controls.Add(Label13)
         Controls.Add(RunScript)
-        Controls.Add(TabControl1)
+        Controls.Add(SettingsTabs)
         Controls.Add(GroupBox4)
         Controls.Add(EnglishTranslationCheckBox)
         Controls.Add(Label8)
@@ -1147,6 +1206,7 @@ Partial Class MainUI
         Controls.Add(SaveConfig)
         Controls.Add(SaveConfigToFileButton)
         Controls.Add(GroupBox1)
+        ForeColor = Color.FloralWhite
         FormBorderStyle = FormBorderStyle.FixedSingle
         Margin = New Padding(3, 2, 3, 2)
         MaximizeBox = False
@@ -1163,7 +1223,7 @@ Partial Class MainUI
         CType(PortNumber, ComponentModel.ISupportInitialize).EndInit()
         GroupBox4.ResumeLayout(False)
         GroupBox4.PerformLayout()
-        TabControl1.ResumeLayout(False)
+        SettingsTabs.ResumeLayout(False)
         TabPage1.ResumeLayout(False)
         TabPage2.ResumeLayout(False)
         TabPage2.PerformLayout()
@@ -1217,7 +1277,7 @@ Partial Class MainUI
     Friend WithEvents WebServerButton As CheckBox
     Friend WithEvents Label10 As Label
     Friend WithEvents GroupBox4 As GroupBox
-    Friend WithEvents TabControl1 As TabControl
+    Friend WithEvents SettingsTabs As TabControl
     Friend WithEvents TabPage1 As TabPage
     Friend WithEvents TabPage2 As TabPage
     Friend WithEvents RunScript As Button

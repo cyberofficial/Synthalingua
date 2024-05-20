@@ -11,10 +11,17 @@ Public Class MainUI
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
         End If
-        Dim unused = OpenScriptDiag.ShowDialog
+
+        Dim result = OpenScriptDiag.ShowDialog()
+
+        If result = DialogResult.Cancel Then
+            MessageBox.Show("Action Canceled")
+            Return
+        End If
+
         ScriptFileLocation.Text = OpenScriptDiag.FileName
         PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
-        ' Check file name as .py or .exe, if py ShortCutType is Source else ShortCutType is Portable
+
         ShortCutType = If(Path.GetExtension(OpenScriptDiag.FileName) = ".py", "Source", "Portable")
     End Sub
 
@@ -36,6 +43,7 @@ Public Class MainUI
 
         PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
+        ConfigTextBox.Text += "call """ & PrimaryFolder & "\ffmpeg_path.bat""" & vbNewLine
         If ShortCutType = "Source" Then
             ConfigTextBox.Text += "call """ & PrimaryFolder & "\data_whisper\Scripts\activate.bat""" & vbNewLine
             ConfigTextBox.Text += "python """ & PrimaryFolder & "\transcribe_audio.py"" "
