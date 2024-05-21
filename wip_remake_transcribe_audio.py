@@ -30,43 +30,34 @@ def main():
     # Check For Updates
     update_check(args)
 
-    def record_callback(_, audio:sr.AudioData) -> None:
-        data = audio.get_raw_data()
-        data_queue.put(data)
+    phrase_time = None
+    last_sample = bytes()
+    data_queue = Queue()
+    recorder = sr.Recognizer()
+    recorder.energy_threshold = args.energy_threshold
+    recorder.dynamic_energy_threshold = False
+    reset_text = Style.RESET_ALL
 
-    def is_input_device(device_index):
-        pa = pyaudio.PyAudio()
-        device_info = pa.get_device_info_by_index(device_index)
-        return device_info['maxInputChannels'] > 0
 
-    def get_microphone_source(args):
-        pa = pyaudio.PyAudio()
-        available_mics = sr.Microphone.list_microphone_names()
+    try:
+        if args.microphone_enabled:
+            source, mic_name = get_microphone_source(args)
+    except ValueError as e:
+        print(
+            "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+        print("Error Message:\n" + str(e))
+        pass
 
-        def is_input_device(device_index):
-            device_info = pa.get_device_info_by_index(device_index)
-            return device_info['maxInputChannels'] > 0
-
-        if args.set_microphone:
-            mic_name = args.set_microphone
-
-            if mic_name.isdigit():
-                mic_index = int(mic_name)
-                if mic_index in range(len(available_mics)) and is_input_device(mic_index):
-                    return sr.Microphone(sample_rate=16000, device_index=mic_index), available_mics[mic_index]
-                else:
-                    print("Invalid audio source. Please choose a valid microphone.")
-                    sys.exit(0)
-            else:
-                for index, name in enumerate(available_mics):
-                    if mic_name == name and is_input_device(index):
-                        return sr.Microphone(sample_rate=16000, device_index=index), name
-
-        for index in range(pa.get_device_count()):
-            if is_input_device(index):
-                return sr.Microphone(sample_rate=16000, device_index=index), "system default"
-
-        raise ValueError("No valid input devices found.")
+    if args.microphone_enabled:
+        with source as s:
+            try:
+                recorder.adjust_for_ambient_noise(s)
+                print(f"Microphone set to: {mic_name}")
+            except AssertionError as e:
+                print(
+                    "It may look like the microphone is not working, make sure your microphone is plugged in and working, or make sure your privacy settings allow microphone access, or make sure you have a microphone selected, or make sure you have a softwaare microphone selected: ie: Voicemeeter, VB-Cable, etc.")
+                print("Error Message:\n" + str(e))
+                pass
 
 
     model = ""
@@ -76,13 +67,6 @@ def main():
     if args.ramforce:
         hardmodel = args.ram
 
-    phrase_time = None
-    last_sample = bytes()
-    data_queue = Queue()
-    recorder = sr.Recognizer()
-    recorder.energy_threshold = args.energy_threshold
-    recorder.dynamic_energy_threshold = False
-    reset_text = Style.RESET_ALL
 
 
     def mic_calibration():
