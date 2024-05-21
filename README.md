@@ -1,3 +1,5 @@
+# DO NOT USE THIS BRANCH, THIS WILL BE EXTREMELY UNSTABLE AND WILL HAVE ZERO SUPPORT
+
 ## Synthalingua 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
