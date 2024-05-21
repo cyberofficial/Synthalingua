@@ -22,42 +22,13 @@ def main():
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text, phrase_timeout
     args = parser_args.parse_arguments()
 
+    pre_checks(args)
+
     # Word BLock List
     blacklist = load_word_list(args)
 
-    # Check for Stream or Microphone is no present then exit
-    if args.stream == None and args.microphone_enabled == None:
-        if args.makecaptions:
-            # skip if makecaptions is set
-            pass
-        else:
-            print("No audio source was set. Please set an audio source.")
-            reset_text = Style.RESET_ALL
-            input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-            sys.exit("Exiting...")
-
-
-    # If stream and microphone is set then exit saying you can only use one input source
-    if args.stream != None and args.microphone_enabled != None:
-        print("You can only use one input source. Please only set one input source.")
-        reset_text = Style.RESET_ALL
-        input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-        sys.exit("Exiting...")
-
-    if args.stream_transcribe and args.stream_target_language == None:
-        print("Stream Transcribe is set but no stream target language is set. Please set a stream target language.")
-        sys.exit("Exiting...")
-
-
-    # if args.updatebranch is set as disable then skip
-    if args.updatebranch != "disable":
-        print("\nChecking for updates...")
-        try:
-            check_for_updates(args.updatebranch)
-        except Exception as e:
-            print("Error checking for updates.")
-            print("Error: " + str(e))
-            print("Continuing with script...\n\n")
+    # Check For Updates
+    update_check(args)
 
     def record_callback(_, audio:sr.AudioData) -> None:
         data = audio.get_raw_data()
@@ -97,14 +68,6 @@ def main():
 
         raise ValueError("No valid input devices found.")
 
-    if len(sys.argv) == 1:
-        print("No arguments provided. Please run the script with the --help flag to see a list of available arguments.")
-        sys.exit(1)
-
-    if args.about:
-        from modules.about import contributors
-        from modules.version_checker import ScriptCreator, GitHubRepo
-        contributors(ScriptCreator, GitHubRepo)
 
     model = ""
 

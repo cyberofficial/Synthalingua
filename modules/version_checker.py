@@ -6,6 +6,16 @@ GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"
 repo_name = "Synthalingua"
 
+def update_check(args):
+    if args.updatebranch != "disable":
+        print("\nChecking for updates...")
+        try:
+            check_for_updates(args.updatebranch)
+        except Exception as e:
+            print("Error checking for updates.")
+            print("Error: " + str(e))
+            print("Continuing with script...\n\n")
+
 def get_remote_version(repo_owner, repo_name, updatebranch, file_path):
     url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{updatebranch}/{file_path}"
     response = requests.get(url)

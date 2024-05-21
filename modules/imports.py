@@ -59,7 +59,7 @@ except Exception as e:
 
 print("Loading Extensions")
 try:
-    from modules.version_checker import check_for_updates
+    from modules.version_checker import check_for_updates, update_check
     from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
     from modules.discord import send_to_discord_webhook
     from modules.console_settings import set_window_title
@@ -70,6 +70,7 @@ try:
     from modules.stream_transcription_module import start_stream_transcription, stop_transcription
     from modules.sub_gen import run_sub_gen
     from modules.wordblocklist import load_word_list
+    from modules.pre_checks import *
 except Exception as e:
     print("Error Loading Extensions")
     print("Check the Modules folder and see if there are any missing or corrupted files.")
