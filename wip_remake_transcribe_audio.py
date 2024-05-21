@@ -22,29 +22,8 @@ def main():
     global translated_text, target_language, language_probs, webhook_url, required_vram, original_text, phrase_timeout
     args = parser_args.parse_arguments()
 
-    def load_blacklist(filename):
-        if not filename.endswith(".txt"):
-            raise ValueError("Blacklist file must be in .txt format.")
-
-        blacklist = []
-        try:
-            with open(filename, "r", encoding="utf-8") as f:
-                for line in f:
-                    blacklist.append(line.strip())
-        except FileNotFoundError:
-            print(f"Warning: Blacklist file '{filename}' not found.")
-        return blacklist
-
-    if args.ignorelist:
-        print(f"Loaded word filtering list from: {args.ignorelist}")
-        blacklist = load_blacklist(args.ignorelist)
-
-    else:
-        blacklist = []
-
-    # if blacklist.txt was found say loaded
-    if len(blacklist) > 0:
-        print(f"Loaded blacklist: {blacklist}")
+    # Word BLock List
+    blacklist = load_word_list(args)
 
     # Check for Stream or Microphone is no present then exit
     if args.stream == None and args.microphone_enabled == None:
@@ -56,8 +35,6 @@ def main():
             reset_text = Style.RESET_ALL
             input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
             sys.exit("Exiting...")
-
-
 
 
     # If stream and microphone is set then exit saying you can only use one input source
@@ -870,6 +847,9 @@ def main():
                 api_backend.kill_server()
 
             sys.exit(0)
-            
+
+
+
+
 if __name__ == "__main__":
     main()

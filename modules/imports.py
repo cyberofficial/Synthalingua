@@ -69,7 +69,7 @@ try:
     from modules import api_backend
     from modules.stream_transcription_module import start_stream_transcription, stop_transcription
     from modules.sub_gen import run_sub_gen
-    #from modules import microphone_check
+    from modules.wordblocklist import load_word_list
 except Exception as e:
     print("Error Loading Extensions")
     print("Check the Modules folder and see if there are any missing or corrupted files.")
