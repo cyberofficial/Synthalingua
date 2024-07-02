@@ -61,3 +61,6 @@ wcwidth
 websockets
 Werkzeug
 yt-dlp
+sounddevice
+soundfile
+pydub
