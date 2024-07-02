@@ -48,12 +48,12 @@ def start_stream_transcription(
         cookies = load_cookies_from_file(cookie_file_path)
 
     def download_segment(
-        segment_url, output_path, max_retries=1, retry_delay=7, segment_delay=1
+        segment_url, output_path, max_retries=3, retry_delay=0.5, segment_delay=0
     ):
+        """Downloads a segment with retry logic and improved error handling."""
         global kill
-        with download_semaphore:  # Acquire the semaphore before downloading
-            retry_count = 0
-            while retry_count < max_retries and not shutdown_flag:
+        with download_semaphore:
+            for retry_count in range(max_retries + 1):
                 try:
                     print(f"\n\n\nDownloading segment: {segment_url}\n\n")
                     response = (
@@ -63,38 +63,41 @@ def start_stream_transcription(
                         if cookies
                         else requests.get(segment_url, stream=True, params=params)
                     )
+
+                    # Check for successful response
                     if response.status_code == 200:
                         with open(output_path, "wb") as file:
                             for chunk in response.iter_content(chunk_size=16000):
                                 file.write(chunk)
-                        # Introduce a delay after downloading each segment
-                        time.sleep(segment_delay)
+                        # time.sleep(segment_delay)  # Optional delay
                         return True
+                    elif response.status_code == 401:
+                        print(
+                            "Invalid credentials. Please check your cookies/streamkey and try again."
+                        )
+                        input("Press CTRL+C to exit...")
+                        kill = True
+                        raise Exception("Exiting due to invalid credentials")
                     else:
                         print(
-                            f"Failed to download segment, status code: {response.status_code}"
+                            f"Failed to download segment, status code: {response.status_code}. Retrying {retry_count}/{max_retries}"
                         )
-                        if response.status_code == 401:
-                            print("Invalid credentials. Please check your cookies and try again.")
-                            input("Press CTRL+C to exit...")
-                            # return with kill true
-                            kill = True
-                            raise Exception("Exiting due to invalid credentials")
-                            return
-                        break
                 except requests.exceptions.RequestException as e:
                     print(
-                        f"Network error: {e}, retrying in {retry_delay} seconds..."
+                        f"Network error: {e}. Retrying {retry_count}/{max_retries} in {retry_delay} seconds..."
                     )
                     time.sleep(retry_delay)
-                    retry_count += 1
                 except Exception as e:
                     print(f"Unexpected error downloading segment: {e}")
                     break
-            # Clean up partial file if exists
-            if os.path.exists(output_path):
-                os.remove(output_path)
-            return False
+
+        print(
+            f"Failed to download segment {segment_url} after {max_retries} retries. Skipping."
+        )
+        # Clean up partial file if exists
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return False
 
     def load_m3u8_with_retry(hls_url, retry_delay=5):
         while not shutdown_flag:
@@ -106,7 +109,9 @@ def start_stream_transcription(
                 http.client.IncompleteRead,
                 requests.exceptions.RequestException,
             ) as e:
-                print(f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds...")
+                print(
+                    f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds..."
+                )
                 time.sleep(retry_delay)
             except Exception as e:
                 print(f"Unexpected error loading m3u8 file: {e}")
@@ -177,7 +182,9 @@ def start_stream_transcription(
                 # print("Testing for Language")
                 detected_language = detect_language(file_path, model)
                 # print(f"Language is: {detected_language}")
-            transcription = transcribe_audio(file_path, model, language=detected_language)
+            transcription = transcribe_audio(
+                file_path, model, language=detected_language
+            )
             print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
             print(transcription)
             if args.portnumber and transcription.strip():
@@ -198,13 +205,18 @@ def start_stream_transcription(
                     api_backend.update_translated_header(new_header)
 
         if tasktranscribe_task:
-            transcription = transcribe_audio(file_path, model, language=target_language)
+            transcription = transcribe_audio(
+                file_path, model, language=target_language
+            )
             if transcription:
-                print(f"{'-' * 50} Stream {target_language} Transcription {'-' * 50}")
+                print(
+                    f"{'-' * 50} Stream {target_language} Transcription {'-' * 50}"
+                )
                 print(transcription)
                 if webhook_url:
                     send_to_discord_webhook(
-                        webhook_url, f"Stream {target_language} Transcription:\n{transcription}\n"
+                        webhook_url,
+                        f"Stream {target_language} Transcription:\n{transcription}\n",
                     )
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
@@ -241,26 +253,32 @@ def start_stream_transcription(
                 break
 
             for segment in m3u8_obj.segments:
-                if segment.uri not in downloaded_segments:
-                    segment_path = generate_segment_filename(segment.uri, counter, task_id)
-                    counter += 1
-                    try:
-                        if download_segment(segment.absolute_uri, segment_path):
-                            if kill:
-                                break
-                            downloaded_segments.add(segment.uri)
-                            accumulated_segments.append(segment_path)
+                if segment.uri in downloaded_segments:
+                    continue  # Skip already downloaded segments
 
-                            if len(accumulated_segments) >= segments_max:
-                                combined_path = os.path.join(
-                                    temp_dir, f"{task_id}_combined_{counter}.ts"
-                                )
-                                combine_audio_segments(accumulated_segments, combined_path)
-                                audio_queue.put(combined_path)
-                                accumulated_segments = []
-                    except Exception as e:  # Catch the raised exception
-                        print(f"Error during download: {e}")
-                        break  # Exit the loop
+                segment_path = generate_segment_filename(
+                    segment.uri, counter, task_id
+                )
+                counter += 1
+                try:
+                    if download_segment(segment.absolute_uri, segment_path):
+                        if kill:
+                            break
+                        downloaded_segments.add(segment.uri)
+                        accumulated_segments.append(segment_path)
+
+                        if len(accumulated_segments) >= segments_max:
+                            combined_path = os.path.join(
+                                temp_dir, f"{task_id}_combined_{counter}.ts"
+                            )
+                            combine_audio_segments(
+                                accumulated_segments, combined_path
+                            )
+                            audio_queue.put(combined_path)
+                            accumulated_segments = []
+                except Exception as e:  # Catch the raised exception
+                    print(f"Error during download: {e}")
+                    break  # Exit the loop
 
     except KeyboardInterrupt:
         shutdown_flag = True  # Signal to shut down

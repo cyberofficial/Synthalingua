@@ -77,10 +77,8 @@ def capture_audio(device_index):
         "hls",
         "-hls_time",
         "1",
-        "-hls_list_size",
-        "30",
         "-hls_flags",  # Add this line
-        "delete_segments+append_list",  # Add this line
+        "append_list",  # Add this line
         os.path.join(OUTPUT_DIR, PLAYLIST_NAME),
     ]
 
