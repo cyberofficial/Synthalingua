@@ -59,5 +59,25 @@ Namespace My.Resources
                 resourceCulture = value
             End Set
         End Property
+        
+        '''<summary>
+        '''  Looks up a localized resource of type System.Drawing.Bitmap.
+        '''</summary>
+        Friend ReadOnly Property _25231() As System.Drawing.Bitmap
+            Get
+                Dim obj As Object = ResourceManager.GetObject("25231", resourceCulture)
+                Return CType(obj,System.Drawing.Bitmap)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized resource of type System.Drawing.Bitmap.
+        '''</summary>
+        Friend ReadOnly Property itch_io_icon_256x256_0aig5hor() As System.Drawing.Bitmap
+            Get
+                Dim obj As Object = ResourceManager.GetObject("itch-io-icon-256x256-0aig5hor", resourceCulture)
+                Return CType(obj,System.Drawing.Bitmap)
+            End Get
+        End Property
     End Module
 End Namespace
