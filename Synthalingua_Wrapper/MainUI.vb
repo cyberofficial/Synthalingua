@@ -1,12 +1,16 @@
 ﻿' using the system file storage
 Imports System.IO
 Imports System.Diagnostics
+Imports System.Threading
 
 Public Class MainUI
     Private PrimaryFolder As String
     Private ShortCutType As String
+    Private Shared appMutex As Mutex
 
     Public WordBlockListLocation As String = "blacklist.txt"
+
+
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
         If Label1.ForeColor = Color.Red Then
@@ -221,8 +225,6 @@ Public Class MainUI
         Dim unused = Process.Start(tmpBatFile)
     End Sub
 
-
-    <Obsolete>
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
         Try
             If MIC_RadioButton.Checked = True Then
@@ -232,14 +234,14 @@ Public Class MainUI
                         Exit Sub
                     End If
                     If ScriptFileLocation.Text.Contains(".py") Then
-                        Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbNewLine & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
+                        Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbCrLf & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
                         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
                         File.WriteAllText(tmpBatFile, TempCommand)
                         Dim unused6 = Process.Start(tmpBatFile)
                     Else
                         Dim unused5 = MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
                         ' add a pause to the end of the command so the user can see the output
-                        Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbNewLine & "pause"
+                        Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbCrLf & "pause"
                         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
                         File.WriteAllText(tmpBatFile, TempCommand)
                         Dim unused4 = Process.Start(tmpBatFile)
@@ -248,22 +250,6 @@ Public Class MainUI
                 Catch ex As Exception
                     Dim unused3 = MessageBox.Show("Error: " & ex.Message)
                     Dim unused2 = MessageBox.Show("Possible error is that the program path is not valid, or is missing a file. Make sure to select the program file.")
-                    ' make Label1 flash black and red
-                    Dim t As New Timer With {
-                        .Interval = 100
-                    }
-                    AddHandler t.Tick, Sub()
-                                           Label1.ForeColor = If(Label1.ForeColor = Color.Black, Color.Red, Color.Black)
-                                       End Sub
-                    t.Start()
-                    ' stop the timer after 5 seconds
-                    Dim t2 As New Timer With {
-                        .Interval = 5000
-                    }
-                    AddHandler t2.Tick, Sub()
-                                            t.Stop()
-                                        End Sub
-                    t2.Start()
                 End Try
             Else
                 Dim unused1 = MsgBox("Please select the microphone option")
@@ -271,7 +257,6 @@ Public Class MainUI
         Catch ex As Exception
             Dim unused = MessageBox.Show("Error: " & ex.Message)
         End Try
-
     End Sub
 
     Private Sub WebLinkOG_Click(sender As Object, e As EventArgs) Handles WebLinkOG.Click
@@ -289,6 +274,12 @@ Public Class MainUI
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+
+        ' Check to see if this program is running twice (or more) and remind user to change the port number
+        Dim createdNew As Boolean
+        appMutex = New Mutex(True, "Synthalingua_Wrapper", createdNew)
+
+
         ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
         With My.Settings
             ' Set Main Script Location
@@ -378,6 +369,13 @@ Public Class MainUI
                 End If
             End If
         End If
+
+        If Not createdNew Then
+            ' If a second instance is detected, show a message and exit
+            MessageBox.Show("This application is already running. Please change the port number if you plan to use multiple instances.", "Instance Already Running", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            Return
+        End If
+
     End Sub
 
 
