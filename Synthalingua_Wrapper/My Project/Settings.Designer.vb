@@ -557,6 +557,42 @@ Namespace My
                 Me("PrimaryFolder") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property hlspassid() As String
+            Get
+                Return CType(Me("hlspassid"),String)
+            End Get
+            Set
+                Me("hlspassid") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("")>  _
+        Public Property hlspassword() As String
+            Get
+                Return CType(Me("hlspassword"),String)
+            End Get
+            Set
+                Me("hlspassword") = value
+            End Set
+        End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("False")>  _
+        Public Property cb_halspassword() As Boolean
+            Get
+                Return CType(Me("cb_halspassword"),Boolean)
+            End Get
+            Set
+                Me("cb_halspassword") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

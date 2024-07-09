@@ -96,6 +96,8 @@ def parse_arguments():
     parser.add_argument("--file_output_name", default=None, help="Path to file to save transcript to.")
     parser.add_argument("--ignorelist", type=str, help="Path to the blacklist file (must be .txt format).")
     parser.add_argument("--condition_on_previous_text", action='store_true', help="If True, provide the previous output of the model as a prompt for the next window; disabling may make the text inconsistent across windows, but the model becomes less prone to getting stuck in a failure loop")
+    parser.add_argument("--remote_hls_password_id", type=str, help="Password ID for the webserver. Usually like 'id', or 'key'.")
+    parser.add_argument("--remote_hls_password", type=str, help="Password for the hls webserver.")
     args = parser.parse_args()
     return args
 

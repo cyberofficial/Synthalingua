@@ -27,7 +27,7 @@ mpmath
 mutagen
 networkx
 numba
-numpy
+numpy==1.26.4
 openai-whisper @ git+https://github.com/openai/whisper.git@ba3f3cd54b0e5b8ce1ab3de13e32122d0d5f98ab
 pyOpenSSL
 pager
@@ -61,3 +61,6 @@ wcwidth
 websockets
 Werkzeug
 yt-dlp
+sounddevice
+soundfile
+pydub
