@@ -60,6 +60,7 @@ def parse_arguments():
     parser.add_argument("--phrase_timeout", default=5, help="How much empty space between recordings before we "
                              "consider it a new line in the transcription.", type=float)
     parser.add_argument("--no_log", action='store_true', help="Only show the last line of the transcription.")
+    parser.add_argument("--debug", action='store_true', help="Debug things")
     parser.add_argument("--translate", action='store_true', help="Translate the transcriptions to English.")
     parser.add_argument("--transcribe", action='store_true', help="transcribe the text into the desired language.")
     parser.add_argument("--language", help="Language to translate from.", type=str, choices=VALID_LANGUAGES)
