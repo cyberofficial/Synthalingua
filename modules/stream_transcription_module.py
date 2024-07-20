@@ -55,7 +55,9 @@ def start_stream_transcription(
         with download_semaphore:
             for retry_count in range(max_retries + 1):
                 try:
-                    print(f"\n\n\nDownloading segment: {segment_url}\n\n")
+                    # show downloading segments if args debug is set
+                    if args.debug:
+                        print(f"\n\n\nDownloading segment: {segment_url}\n\n")
                     response = (
                         requests.get(
                             segment_url, stream=True, cookies=cookies, params=params
