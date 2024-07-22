@@ -183,9 +183,33 @@ Public Class subtitlewindow
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
                 Invoke(Sub()
-                           headertextlbl.Text = headerText + vbCrLf + translatedHeaderText + vbCrLf + transcribedHeaderText
-                           'translatedheaderlbl.Text = translatedHeaderText
-                           'transcribedheaderlbl.Text = transcribedHeaderText
+                           ' Build the text dynamically based on boolean flags
+                           Dim displayText As String = String.Empty
+
+                           If iOriginalText Then
+                               displayText &= headerText
+                           End If
+
+                           If iTranslateText Then
+                               If Not String.IsNullOrEmpty(displayText) Then
+                                   displayText &= vbCrLf
+                               End If
+                               displayText &= translatedHeaderText
+                           End If
+
+                           If iTranscribeText Then
+                               If Not String.IsNullOrEmpty(displayText) Then
+                                   displayText &= vbCrLf
+                               End If
+                               displayText &= transcribedHeaderText
+                           End If
+
+                           ' Assign the constructed string to the label's text
+                           headertextlbl.Text = displayText
+
+                           ' Optionally update other labels if needed
+                           ' translatedheaderlbl.Text = translatedHeaderText
+                           ' transcribedheaderlbl.Text = transcribedHeaderText
                        End Sub)
             Catch ex As InvalidOperationException
                 Debug.WriteLine("InvalidOperationException: " & ex.Message)
@@ -194,11 +218,36 @@ Public Class subtitlewindow
             End Try
         End If
 
+
         ' Check if the form is still valid for updating
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
                 Invoke(Sub()
-                           headertextlbl.Text = headerText + vbCrLf + translatedHeaderText + vbCrLf + transcribedHeaderText
+                           ' Build the text dynamically based on boolean flags
+                           Dim displayText As String = String.Empty
+
+                           If iOriginalText Then
+                               displayText &= headerText
+                           End If
+
+                           If iTranslateText Then
+                               If Not String.IsNullOrEmpty(displayText) Then
+                                   displayText &= vbCrLf
+                               End If
+                               displayText &= translatedHeaderText
+                           End If
+
+                           If iTranscribeText Then
+                               If Not String.IsNullOrEmpty(displayText) Then
+                                   displayText &= vbCrLf
+                               End If
+                               displayText &= transcribedHeaderText
+                           End If
+
+                           ' Assign the constructed string to the label's text
+                           headertextlbl.Text = displayText
+
+                           ' Optionally update other labels if needed
                            'translatedheaderlbl.Text = translatedHeaderText
                            'transcribedheaderlbl.Text = transcribedHeaderText
 
@@ -214,6 +263,7 @@ Public Class subtitlewindow
                 Debug.WriteLine("General Exception: " & ex.Message)
             End Try
         End If
+
     End Sub
 
     Private Function RemoveBlacklistedPhrases(text As String) As String
