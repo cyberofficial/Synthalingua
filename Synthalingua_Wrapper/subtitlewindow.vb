@@ -2,6 +2,8 @@
 Imports System.Net.Http
 Imports System.Net.Sockets
 Imports System.Runtime.InteropServices
+Imports System.Security.Cryptography.X509Certificates
+Imports System.Text
 Imports System.Text.RegularExpressions
 Imports System.Threading
 
@@ -15,8 +17,19 @@ Public Class subtitlewindow
     Private URLTranslatedHeader As String
     Private URLTranscribedHeader As String
 
+    Private iOriginalText As Boolean = False
+    Private iTranscribeText As Boolean = False
+    Private iTranslateText As Boolean = False
+
     Dim RTL_Mode As Boolean = False
     Dim Main_BG_COLOR As System.Drawing.Color = Color.FromArgb(0, 177, 64)
+
+    Dim resizing As Boolean = False
+    Dim resizableCorner As String = ""
+    Dim startPoint As Point
+    Dim startSize As Size
+    Dim startLocation As Point
+    Dim endPoint As Point
 
 
     ' P/Invoke declarations
@@ -45,12 +58,12 @@ Public Class subtitlewindow
 
         ' Initialize label properties for auto-wrapping
         InitializeLabelWrapping(headertextlbl)
-        InitializeLabelWrapping(translatedheaderlbl)
-        InitializeLabelWrapping(transcribedheaderlbl)
+        'InitializeLabelWrapping(translatedheaderlbl)
+        'InitializeLabelWrapping(transcribedheaderlbl)
     End Sub
 
     Private Sub InitializeLabelWrapping(label As Label)
-        label.AutoSize = True
+        'label.AutoSize = True
         label.AutoEllipsis = True
         label.MaximumSize = New Size(ClientSize.Width, 0)
     End Sub
@@ -78,9 +91,9 @@ Public Class subtitlewindow
         Dim numberOfPhrases As Integer = CountBlacklistedPhrases()
 
         ' Set the form title with the number of loaded phrases
-        If MainUI.WordBlockList.Checked = True Then
-            Me.Text = $"Subtitle Window | Loaded {numberOfPhrases} phrases from word list."
-        End If
+        'If MainUI.WordBlockList.Checked = True Then
+        '   Me.Text = $"Subtitle Window | Loaded {numberOfPhrases} phrases from word list."
+        'End If
 
 
 
@@ -89,21 +102,21 @@ Public Class subtitlewindow
             .ForeColor = My.Settings.headertextlbl_forecolor
             .BackColor = My.Settings.headertextlbl_backcolor
         End With
-        With translatedheaderlbl
-            .Font = My.Settings.headertextlbl_font
-            .ForeColor = My.Settings.headertextlbl_forecolor
-            .BackColor = My.Settings.headertextlbl_backcolor
-        End With
-        With transcribedheaderlbl
-            .Font = My.Settings.headertextlbl_font
-            .ForeColor = My.Settings.headertextlbl_forecolor
-            .BackColor = My.Settings.headertextlbl_backcolor
-        End With
+        'With translatedheaderlbl
+        '    .Font = My.Settings.headertextlbl_font
+        '    .ForeColor = My.Settings.headertextlbl_forecolor
+        '    .BackColor = My.Settings.headertextlbl_backcolor
+        'End With
+        'With transcribedheaderlbl
+        '    .Font = My.Settings.headertextlbl_font
+        '    .ForeColor = My.Settings.headertextlbl_forecolor
+        '    .BackColor = My.Settings.headertextlbl_backcolor
+        'End With
 
         If My.Settings.subwindow_lmode = True Then
             headertextlbl.RightToLeft = RightToLeft.Yes
-            translatedheaderlbl.RightToLeft = RightToLeft.Yes
-            transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+            'translatedheaderlbl.RightToLeft = RightToLeft.Yes
+            'transcribedheaderlbl.RightToLeft = RightToLeft.Yes
         End If
 
         Me.BackColor = My.Settings.subwindow_bgcolor
@@ -113,8 +126,8 @@ Public Class subtitlewindow
         ' Update MaximumSize of the labels when the form is resized
         Dim maxWidth = ClientSize.Width
         headertextlbl.MaximumSize = New Size(maxWidth, 0)
-        translatedheaderlbl.MaximumSize = New Size(maxWidth, 0)
-        transcribedheaderlbl.MaximumSize = New Size(maxWidth, 0)
+        'translatedheaderlbl.MaximumSize = New Size(maxWidth, 0)
+        'transcribedheaderlbl.MaximumSize = New Size(maxWidth, 0)
     End Sub
 
     Private Sub subtitlewindow_FormClosing(sender As Object, e As FormClosingEventArgs) Handles MyBase.FormClosing
@@ -134,9 +147,8 @@ Public Class subtitlewindow
         Dim headerText As String = String.Empty
         Dim translatedHeaderText As String = String.Empty
         Dim transcribedHeaderText As String = String.Empty
-
         Try
-            If headertextlbl.Visible Then
+            If iOriginalText = True Then
                 headerText = Await FetchTextFromUrl(URLHeader, cts.Token)
                 Debug.WriteLine("Header Text: " & headerText)
             End If
@@ -145,7 +157,7 @@ Public Class subtitlewindow
         End Try
 
         Try
-            If translatedheaderlbl.Visible = True Then
+            If iTranslateText = True Then
                 translatedHeaderText = Await FetchTextFromUrl(URLTranslatedHeader, cts.Token)
                 Debug.WriteLine("Translated Header Text: " & translatedHeaderText)
             End If
@@ -154,7 +166,7 @@ Public Class subtitlewindow
         End Try
 
         Try
-            If transcribedheaderlbl.Visible = True Then
+            If iTranscribeText = True Then
                 transcribedHeaderText = Await FetchTextFromUrl(URLTranscribedHeader, cts.Token)
                 Debug.WriteLine("Transcribed Header Text: " & transcribedHeaderText)
             End If
@@ -171,9 +183,9 @@ Public Class subtitlewindow
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
                 Invoke(Sub()
-                           headertextlbl.Text = headerText
-                           translatedheaderlbl.Text = translatedHeaderText
-                           transcribedheaderlbl.Text = transcribedHeaderText
+                           headertextlbl.Text = headerText + vbCrLf + translatedHeaderText + vbCrLf + transcribedHeaderText
+                           'translatedheaderlbl.Text = translatedHeaderText
+                           'transcribedheaderlbl.Text = transcribedHeaderText
                        End Sub)
             Catch ex As InvalidOperationException
                 Debug.WriteLine("InvalidOperationException: " & ex.Message)
@@ -186,14 +198,14 @@ Public Class subtitlewindow
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
                 Invoke(Sub()
-                           headertextlbl.Text = headerText
-                           translatedheaderlbl.Text = translatedHeaderText
-                           transcribedheaderlbl.Text = transcribedHeaderText
+                           headertextlbl.Text = headerText + vbCrLf + translatedHeaderText + vbCrLf + transcribedHeaderText
+                           'translatedheaderlbl.Text = translatedHeaderText
+                           'transcribedheaderlbl.Text = transcribedHeaderText
 
                            ' Force redraw
                            headertextlbl.Invalidate()
-                           translatedheaderlbl.Invalidate()
-                           transcribedheaderlbl.Invalidate()
+                           'translatedheaderlbl.Invalidate()
+                           'transcribedheaderlbl.Invalidate()
                            Refresh()
                        End Sub)
             Catch ex As InvalidOperationException
@@ -273,16 +285,16 @@ Public Class subtitlewindow
     Private Sub FontDialog1_Apply(sender As Object, e As EventArgs) Handles FontDialog1.Apply
         ' set Font, Font Style, Size, Effect, Script
         headertextlbl.Font = FontDialog1.Font
-        translatedheaderlbl.Font = FontDialog1.Font
-        transcribedheaderlbl.Font = FontDialog1.Font
+        'translatedheaderlbl.Font = FontDialog1.Font
+        'transcribedheaderlbl.Font = FontDialog1.Font
     End Sub
 
     Private Sub FontFaceToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles FontFaceToolStripMenuItem.Click
         If FontDialog1.ShowDialog() = DialogResult.OK Then
             ' Apply the selected font to the labels
             headertextlbl.Font = FontDialog1.Font
-            translatedheaderlbl.Font = FontDialog1.Font
-            transcribedheaderlbl.Font = FontDialog1.Font
+            'translatedheaderlbl.Font = FontDialog1.Font
+            'transcribedheaderlbl.Font = FontDialog1.Font
         End If
     End Sub
 
@@ -314,8 +326,8 @@ Public Class subtitlewindow
         If colorDialog.ShowDialog() = DialogResult.OK Then
             ' Apply the selected color to the labels
             headertextlbl.ForeColor = colorDialog.Color
-            translatedheaderlbl.ForeColor = colorDialog.Color
-            transcribedheaderlbl.ForeColor = colorDialog.Color
+            'translatedheaderlbl.ForeColor = colorDialog.Color
+            'transcribedheaderlbl.ForeColor = colorDialog.Color
         End If
     End Sub
 
@@ -327,12 +339,12 @@ Public Class subtitlewindow
         If colorDialog.ShowDialog() = DialogResult.OK Then
             ' Apply the selected color to the background of the labels
             headertextlbl.BackColor = colorDialog.Color
-            translatedheaderlbl.BackColor = colorDialog.Color
-            transcribedheaderlbl.BackColor = colorDialog.Color
+            'translatedheaderlbl.BackColor = colorDialog.Color
+            'transcribedheaderlbl.BackColor = colorDialog.Color
         End If
     End Sub
 
-    Private Sub headertextlbl_MouseDoubleClick(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDoubleClick, translatedheaderlbl.MouseDoubleClick, transcribedheaderlbl.MouseDoubleClick
+    Private Sub headertextlbl_MouseDoubleClick(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDoubleClick
         ' Reset transparency key
         TransparencyKey = Color.Empty ' or the original color
 
@@ -354,29 +366,35 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub ShowToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem.Click
-        headertextlbl.Visible = True
+        'headertextlbl.Visible = True
+        iOriginalText = True
     End Sub
 
     Private Sub HideToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles HideToolStripMenuItem.Click
-        headertextlbl.Visible = False
+        'headertextlbl.Visible = False
+        iOriginalText = False
     End Sub
 
     Private Sub ShowToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem1.Click
-        translatedheaderlbl.Visible = True
+        'translatedheaderlbl.Visible = True
+        iTranslateText = True
     End Sub
 
     Private Sub HideToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles HideToolStripMenuItem1.Click
-        translatedheaderlbl.Visible = False
+        'translatedheaderlbl.Visible = False
+        iTranslateText = False
     End Sub
 
     Private Sub ShowToolStripMenuItem2_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem2.Click
-        transcribedheaderlbl.Visible = True
+        'transcribedheaderlbl.Visible = True
+        iTranscribeText = True
     End Sub
     Private Sub HideToolStripMenuItem2_Click(sender As Object, e As EventArgs) Handles HideToolStripMenuItem2.Click
-        transcribedheaderlbl.Visible = False
+        'transcribedheaderlbl.Visible = False
+        iTranscribeText = False
     End Sub
 
-    Private Sub headertextlbl_MouseDown(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDown, translatedheaderlbl.MouseDown, transcribedheaderlbl.MouseDown
+    Private Sub headertextlbl_MouseDown(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDown
         If e.Button = MouseButtons.Left Then
             Dim unused1 = ReleaseCapture()
             Dim unused = SendMessage(Handle, &H112, &HF012, 0)
@@ -384,34 +402,38 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub TopTextToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TopTextToolStripMenuItem.Click
-        headertextlbl.Dock = DockStyle.Top
-        translatedheaderlbl.Dock = DockStyle.Top
-        transcribedheaderlbl.Dock = DockStyle.Top
+        'headertextlbl.Dock = DockStyle.Top
+        'translatedheaderlbl.Dock = DockStyle.Top
+        'transcribedheaderlbl.Dock = DockStyle.Top
+        headertextlbl.TextAlign = ContentAlignment.TopLeft
     End Sub
 
     Private Sub BottomTextToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles BottomTextToolStripMenuItem.Click
-        headertextlbl.Dock = DockStyle.Bottom
-        translatedheaderlbl.Dock = DockStyle.Bottom
-        transcribedheaderlbl.Dock = DockStyle.Bottom
+        'headertextlbl.Dock = DockStyle.Bottom
+        'translatedheaderlbl.Dock = DockStyle.Bottom
+        'transcribedheaderlbl.Dock = DockStyle.Bottom
+        headertextlbl.TextAlign = ContentAlignment.BottomLeft
+    End Sub
+    Private Sub RightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem.Click
+        'headertextlbl.Dock = DockStyle.Right
+        'translatedheaderlbl.Dock = DockStyle.Right
+        'transcribedheaderlbl.Dock = DockStyle.Right
+        'transcribedheaderlbl.BringToFront()
+        headertextlbl.TextAlign = ContentAlignment.TopRight
     End Sub
 
-    Private Sub RightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem.Click
-        headertextlbl.Dock = DockStyle.Right
-        translatedheaderlbl.Dock = DockStyle.Right
-        transcribedheaderlbl.Dock = DockStyle.Right
-    End Sub
 
     Private Sub LeftToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem1.Click
         headertextlbl.RightToLeft = RightToLeft.No
-        translatedheaderlbl.RightToLeft = RightToLeft.No
-        transcribedheaderlbl.RightToLeft = RightToLeft.No
+        'translatedheaderlbl.RightToLeft = RightToLeft.No
+        'transcribedheaderlbl.RightToLeft = RightToLeft.No
         RTL_Mode = False
     End Sub
 
     Private Sub RightToLeftToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToLeftToolStripMenuItem.Click
         headertextlbl.RightToLeft = RightToLeft.Yes
-        translatedheaderlbl.RightToLeft = RightToLeft.Yes
-        transcribedheaderlbl.RightToLeft = RightToLeft.Yes
+        'translatedheaderlbl.RightToLeft = RightToLeft.Yes
+        'transcribedheaderlbl.RightToLeft = RightToLeft.Yes
         RTL_Mode = True
     End Sub
 
@@ -464,5 +486,76 @@ Public Class subtitlewindow
             Cwindows.Show()
             Me.Close()
         End With
+    End Sub
+
+    Private Sub BottomRightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles BottomRightToolStripMenuItem.Click
+        headertextlbl.TextAlign = ContentAlignment.BottomRight
+    End Sub
+    Private Sub Panel1_MouseDown(sender As Object, e As MouseEventArgs) Handles Panel1.MouseDown
+        If e.Button = MouseButtons.Left Then
+            ' Determine which corner is being clicked
+            If e.X >= Panel1.Width - 10 And e.Y >= Panel1.Height - 10 Then
+                resizableCorner = "bottom-right"
+            ElseIf e.X <= 10 And e.Y >= Panel1.Height - 10 Then
+                resizableCorner = "bottom-left"
+            ElseIf e.X >= Panel1.Width - 10 And e.Y <= 10 Then
+                resizableCorner = "top-right"
+            ElseIf e.X <= 10 And e.Y <= 10 Then
+                resizableCorner = "top-left"
+            End If
+
+            If resizableCorner <> "" Then
+                resizing = True
+                startPoint = e.Location
+                startSize = Panel1.Size
+                startLocation = Panel1.Location
+            End If
+        End If
+    End Sub
+
+    Private Sub Panel1_MouseMove(sender As Object, e As MouseEventArgs) Handles Panel1.MouseMove
+        If resizing Then
+            ' Visual feedback or guidelines can be added here if necessary
+            Me.Opacity = 0.7
+        Else
+            ' Change cursor based on position
+            If e.X >= Panel1.Width - 10 And e.Y >= Panel1.Height - 10 Then
+                Panel1.Cursor = Cursors.SizeNWSE
+            ElseIf e.X <= 10 And e.Y >= Panel1.Height - 10 Then
+                Panel1.Cursor = Cursors.SizeNESW
+            ElseIf e.X >= Panel1.Width - 10 And e.Y <= 10 Then
+                Panel1.Cursor = Cursors.SizeNESW
+            ElseIf e.X <= 10 And e.Y <= 10 Then
+                Panel1.Cursor = Cursors.SizeNWSE
+            Else
+                Panel1.Cursor = Cursors.Default
+            End If
+        End If
+    End Sub
+
+    Private Sub Panel1_MouseUp(sender As Object, e As MouseEventArgs) Handles Panel1.MouseUp
+        If resizing Then
+            endPoint = Panel1.PointToClient(MousePosition)
+            Select Case resizableCorner
+                Case "bottom-right"
+                    Panel1.Size = New Size(startSize.Width + (endPoint.X - startPoint.X), startSize.Height + (endPoint.Y - startPoint.Y))
+                Case "bottom-left"
+                    Panel1.Location = New Point(startLocation.X + (endPoint.X - startPoint.X), startLocation.Y)
+                    Panel1.Size = New Size(startSize.Width - (endPoint.X - startPoint.X), startSize.Height + (endPoint.Y - startPoint.Y))
+                Case "top-right"
+                    Panel1.Location = New Point(startLocation.X, startLocation.Y + (endPoint.Y - startPoint.Y))
+                    Panel1.Size = New Size(startSize.Width + (endPoint.X - startPoint.X), startSize.Height - (endPoint.Y - startPoint.Y))
+                Case "top-left"
+                    Panel1.Location = New Point(startLocation.X + (endPoint.X - startPoint.X), startLocation.Y + (endPoint.Y - startPoint.Y))
+                    Panel1.Size = New Size(startSize.Width - (endPoint.X - startPoint.X), startSize.Height - (endPoint.Y - startPoint.Y))
+            End Select
+            resizing = False
+            resizableCorner = ""
+            Me.Opacity = 1
+        End If
+    End Sub
+
+    Private Sub MakeBackgroundInvisablToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles MakeBackgroundInvisablToolStripMenuItem.Click
+        Me.TransparencyKey = Me.BackColor
     End Sub
 End Class
