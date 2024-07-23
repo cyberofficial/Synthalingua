@@ -35,6 +35,9 @@ Public Class subtitlewindow
 
     Dim BackGroundToggle As Boolean = False
 
+    Dim Rendering As Boolean = False
+    Dim RenderingTransparency As Boolean = True
+
     ' P/Invoke declarations
     <DllImport("user32.dll")>
     Public Shared Function SendMessage(hWnd As IntPtr, Msg As Integer, wParam As Integer, lParam As Integer) As Integer
@@ -145,6 +148,11 @@ Public Class subtitlewindow
         ' Check if the form is closing. If so, do not proceed with updates.
         If IsDisposed OrElse Disposing Then
             Return
+        End If
+
+        If Rendering = False Then
+            headertextlbl.Text = "dummy text"
+            Rendering = True
         End If
 
         Dim headerText As String = String.Empty
@@ -357,9 +365,9 @@ Public Class subtitlewindow
         Main_BG_COLOR = Me.BackColor
 
         ' set transparency key to control
-        TransparencyKey = Color.FromArgb(255, 255, 255)
+        TransparencyKey = Me.BackColor
         ' set background color to transparent
-        BackColor = Color.FromArgb(255, 255, 255)
+        'BackColor = Color.FromArgb(255, 255, 255)
         ' set form boder style to none
         FormBorderStyle = FormBorderStyle.None
         ' set topmost to true
@@ -367,7 +375,9 @@ Public Class subtitlewindow
 
         MenuStrip1.Visible = False
 
-        Opacity = 0.7
+        If RenderingTransparency = True Then
+            Opacity = 0.7
+        End If
 
         Dragable = True
 
@@ -670,5 +680,13 @@ Public Class subtitlewindow
 
     Private Sub OffToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OffToolStripMenuItem.Click
         headertextlbl.AutoSize = False
+    End Sub
+
+    Private Sub OffToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles OnToolStripMenuItem1.Click
+        RenderingTransparency = False
+    End Sub
+
+    Private Sub OnToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles OffToolStripMenuItem1.Click
+        RenderingTransparency = True
     End Sub
 End Class
