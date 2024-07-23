@@ -79,17 +79,16 @@ Partial Class subtitlewindow
         headertextlbl.ForeColor = Color.White
         headertextlbl.Location = New Point(0, 0)
         headertextlbl.Name = "headertextlbl"
-        headertextlbl.Size = New Size(783, 255)
+        headertextlbl.Size = New Size(575, 116)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text - Original"
         ' 
         ' MenuStrip1
         ' 
-        MenuStrip1.Dock = DockStyle.Bottom
         MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem, MakeBackgroundInvisablToolStripMenuItem})
-        MenuStrip1.Location = New Point(0, 305)
+        MenuStrip1.Location = New Point(0, 0)
         MenuStrip1.Name = "MenuStrip1"
-        MenuStrip1.Size = New Size(827, 24)
+        MenuStrip1.Size = New Size(619, 24)
         MenuStrip1.TabIndex = 3
         MenuStrip1.Text = "MenuStrip1"
         ' 
@@ -287,20 +286,19 @@ Partial Class subtitlewindow
         ' MakeBackgroundInvisablToolStripMenuItem
         ' 
         MakeBackgroundInvisablToolStripMenuItem.Name = "MakeBackgroundInvisablToolStripMenuItem"
-        MakeBackgroundInvisablToolStripMenuItem.Size = New Size(161, 20)
-        MakeBackgroundInvisablToolStripMenuItem.Text = "Make Background Invisible"
+        MakeBackgroundInvisablToolStripMenuItem.Size = New Size(121, 20)
+        MakeBackgroundInvisablToolStripMenuItem.Text = "Background Toggle"
         ' 
         ' FontDialog1
         ' 
         ' 
         ' Panel1
         ' 
-        Panel1.Anchor = AnchorStyles.None
         Panel1.Controls.Add(Panel2)
-        Panel1.Location = New Point(12, 12)
+        Panel1.Location = New Point(12, 34)
         Panel1.Name = "Panel1"
         Panel1.Padding = New Padding(10)
-        Panel1.Size = New Size(803, 275)
+        Panel1.Size = New Size(595, 136)
         Panel1.TabIndex = 4
         ' 
         ' Panel2
@@ -309,7 +307,7 @@ Partial Class subtitlewindow
         Panel2.Dock = DockStyle.Fill
         Panel2.Location = New Point(10, 10)
         Panel2.Name = "Panel2"
-        Panel2.Size = New Size(783, 255)
+        Panel2.Size = New Size(575, 116)
         Panel2.TabIndex = 1
         ' 
         ' subtitlewindow
@@ -317,11 +315,11 @@ Partial Class subtitlewindow
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.FromArgb(CByte(0), CByte(177), CByte(64))
-        ClientSize = New Size(827, 329)
-        Controls.Add(Panel1)
+        ClientSize = New Size(619, 182)
         Controls.Add(MenuStrip1)
+        Controls.Add(Panel1)
         MainMenuStrip = MenuStrip1
-        MinimumSize = New Size(502, 183)
+        MinimumSize = New Size(635, 221)
         Name = "subtitlewindow"
         StartPosition = FormStartPosition.CenterScreen
         Text = "Synthalingua | Caption Window"
