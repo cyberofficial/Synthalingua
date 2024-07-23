@@ -31,6 +31,7 @@ Public Class subtitlewindow
     Dim startLocation As Point
     Dim endPoint As Point
 
+    Dim Dragable As Boolean = False
 
     ' P/Invoke declarations
     <DllImport("user32.dll")>
@@ -366,6 +367,8 @@ Public Class subtitlewindow
 
         Opacity = 0.7
 
+        Dragable = True
+
     End Sub
 
     Private Sub FrontToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles FrontToolStripMenuItem.Click
@@ -413,6 +416,8 @@ Public Class subtitlewindow
         MenuStrip1.Visible = True
 
         Opacity = 1
+
+        Dragable = False
     End Sub
 
     Private Sub ShowToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem.Click
@@ -445,7 +450,7 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub headertextlbl_MouseDown(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseDown
-        If e.Button = MouseButtons.Left Then
+        If e.Button = MouseButtons.Left And Dragable = True Then
             Dim unused1 = ReleaseCapture()
             Dim unused = SendMessage(Handle, &H112, &HF012, 0)
         End If
