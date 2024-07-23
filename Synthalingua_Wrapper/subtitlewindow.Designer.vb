@@ -27,6 +27,10 @@ Partial Class subtitlewindow
         headertextlbl = New Label()
         MenuStrip1 = New MenuStrip()
         WindowSettingmsToolStripMenuItem = New ToolStripMenuItem()
+        SettingsToolStripMenuItem = New ToolStripMenuItem()
+        TransparencyToolStripMenuItem = New ToolStripMenuItem()
+        OnToolStripMenuItem1 = New ToolStripMenuItem()
+        OffToolStripMenuItem1 = New ToolStripMenuItem()
         BG_Color = New ToolStripMenuItem()
         ResetBGColor = New ToolStripMenuItem()
         SaveToolStripMenuItem2 = New ToolStripMenuItem()
@@ -89,7 +93,7 @@ Partial Class subtitlewindow
         headertextlbl.ForeColor = Color.White
         headertextlbl.Location = New Point(10, 10)
         headertextlbl.Name = "headertextlbl"
-        headertextlbl.Size = New Size(575, 116)
+        headertextlbl.Size = New Size(297, 38)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text - Original"
         headertextlbl.TextAlign = ContentAlignment.MiddleCenter
@@ -99,35 +103,61 @@ Partial Class subtitlewindow
         MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem, MakeBackgroundInvisablToolStripMenuItem})
         MenuStrip1.Location = New Point(0, 0)
         MenuStrip1.Name = "MenuStrip1"
-        MenuStrip1.Size = New Size(1257, 24)
+        MenuStrip1.Size = New Size(1082, 24)
         MenuStrip1.TabIndex = 3
         MenuStrip1.Text = "MenuStrip1"
         ' 
         ' WindowSettingmsToolStripMenuItem
         ' 
-        WindowSettingmsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {BG_Color, SaveToolStripMenuItem2})
+        WindowSettingmsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {SettingsToolStripMenuItem, BG_Color, SaveToolStripMenuItem2})
         WindowSettingmsToolStripMenuItem.Name = "WindowSettingmsToolStripMenuItem"
         WindowSettingmsToolStripMenuItem.Size = New Size(108, 20)
         WindowSettingmsToolStripMenuItem.Text = "Window Settings"
+        ' 
+        ' SettingsToolStripMenuItem
+        ' 
+        SettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TransparencyToolStripMenuItem})
+        SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
+        SettingsToolStripMenuItem.Size = New Size(180, 22)
+        SettingsToolStripMenuItem.Text = "Plant Settings"
+        ' 
+        ' TransparencyToolStripMenuItem
+        ' 
+        TransparencyToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem1, OffToolStripMenuItem1})
+        TransparencyToolStripMenuItem.Name = "TransparencyToolStripMenuItem"
+        TransparencyToolStripMenuItem.Size = New Size(180, 22)
+        TransparencyToolStripMenuItem.Text = "Transparency"
+        ' 
+        ' OnToolStripMenuItem1
+        ' 
+        OnToolStripMenuItem1.Name = "OnToolStripMenuItem1"
+        OnToolStripMenuItem1.Size = New Size(180, 22)
+        OnToolStripMenuItem1.Text = "Off"
+        ' 
+        ' OffToolStripMenuItem1
+        ' 
+        OffToolStripMenuItem1.Name = "OffToolStripMenuItem1"
+        OffToolStripMenuItem1.Size = New Size(180, 22)
+        OffToolStripMenuItem1.Text = "On"
         ' 
         ' BG_Color
         ' 
         BG_Color.DropDownItems.AddRange(New ToolStripItem() {ResetBGColor})
         BG_Color.Name = "BG_Color"
-        BG_Color.Size = New Size(170, 22)
+        BG_Color.Size = New Size(180, 22)
         BG_Color.Text = "Background Color"
         ' 
         ' ResetBGColor
         ' 
         ResetBGColor.Name = "ResetBGColor"
-        ResetBGColor.Size = New Size(102, 22)
+        ResetBGColor.Size = New Size(180, 22)
         ResetBGColor.Text = "Reset"
         ' 
         ' SaveToolStripMenuItem2
         ' 
         SaveToolStripMenuItem2.DropDownItems.AddRange(New ToolStripItem() {SaveToolStripMenuItem3, ResetToolStripMenuItem})
         SaveToolStripMenuItem2.Name = "SaveToolStripMenuItem2"
-        SaveToolStripMenuItem2.Size = New Size(170, 22)
+        SaveToolStripMenuItem2.Size = New Size(180, 22)
         SaveToolStripMenuItem2.Text = "Save"
         ' 
         ' SaveToolStripMenuItem3
@@ -275,7 +305,7 @@ Partial Class subtitlewindow
         ' 
         TopTextToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem, CenterToolStripMenuItem, RightToolStripMenuItem})
         TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(180, 22)
+        TopTextToolStripMenuItem.Size = New Size(157, 22)
         TopTextToolStripMenuItem.Text = "Top"
         ' 
         ' LeftToolStripMenuItem
@@ -300,7 +330,7 @@ Partial Class subtitlewindow
         ' 
         CenterToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem2, CenterToolStripMenuItem3, RightToolStripMenuItem2})
         CenterToolStripMenuItem1.Name = "CenterToolStripMenuItem1"
-        CenterToolStripMenuItem1.Size = New Size(180, 22)
+        CenterToolStripMenuItem1.Size = New Size(157, 22)
         CenterToolStripMenuItem1.Text = "Center"
         ' 
         ' LeftToolStripMenuItem2
@@ -325,7 +355,7 @@ Partial Class subtitlewindow
         ' 
         BottomToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem3, CenterToolStripMenuItem2, RightToolStripMenuItem1})
         BottomToolStripMenuItem.Name = "BottomToolStripMenuItem"
-        BottomToolStripMenuItem.Size = New Size(180, 22)
+        BottomToolStripMenuItem.Size = New Size(157, 22)
         BottomToolStripMenuItem.Text = "Bottom"
         ' 
         ' LeftToolStripMenuItem3
@@ -350,19 +380,19 @@ Partial Class subtitlewindow
         ' 
         AutoSizeModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem, OffToolStripMenuItem})
         AutoSizeModeToolStripMenuItem.Name = "AutoSizeModeToolStripMenuItem"
-        AutoSizeModeToolStripMenuItem.Size = New Size(180, 22)
+        AutoSizeModeToolStripMenuItem.Size = New Size(157, 22)
         AutoSizeModeToolStripMenuItem.Text = "Auto Size Mode"
         ' 
         ' OnToolStripMenuItem
         ' 
         OnToolStripMenuItem.Name = "OnToolStripMenuItem"
-        OnToolStripMenuItem.Size = New Size(180, 22)
+        OnToolStripMenuItem.Size = New Size(91, 22)
         OnToolStripMenuItem.Text = "On"
         ' 
         ' OffToolStripMenuItem
         ' 
         OffToolStripMenuItem.Name = "OffToolStripMenuItem"
-        OffToolStripMenuItem.Size = New Size(180, 22)
+        OffToolStripMenuItem.Size = New Size(91, 22)
         OffToolStripMenuItem.Text = "Off"
         ' 
         ' PlantToolStripMenuItem
@@ -385,9 +415,10 @@ Partial Class subtitlewindow
         Panel1.AutoSize = True
         Panel1.Controls.Add(headertextlbl)
         Panel1.Location = New Point(12, 34)
+        Panel1.MinimumSize = New Size(317, 58)
         Panel1.Name = "Panel1"
         Panel1.Padding = New Padding(10)
-        Panel1.Size = New Size(595, 136)
+        Panel1.Size = New Size(317, 58)
         Panel1.TabIndex = 4
         ' 
         ' subtitlewindow
@@ -395,7 +426,7 @@ Partial Class subtitlewindow
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.FromArgb(CByte(0), CByte(177), CByte(64))
-        ClientSize = New Size(1257, 674)
+        ClientSize = New Size(1082, 680)
         Controls.Add(MenuStrip1)
         Controls.Add(Panel1)
         MainMenuStrip = MenuStrip1
@@ -459,4 +490,8 @@ Partial Class subtitlewindow
     Friend WithEvents AutoSizeModeToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents OnToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents OffToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents SettingsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents TransparencyToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents OnToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents OffToolStripMenuItem1 As ToolStripMenuItem
 End Class
