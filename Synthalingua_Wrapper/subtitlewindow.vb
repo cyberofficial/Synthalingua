@@ -360,7 +360,7 @@ Public Class subtitlewindow
     End Sub
 
     Private Sub PlantToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles PlantToolStripMenuItem.Click
-        Dim unused = MessageBox.Show("Help: " + vbCrLf + "Restore: Double Click then Right click the captions." + vbCrLf + vbCrLf + "Move: Click and Drag the captions", "Help Message")
+        Dim unused = MessageBox.Show("Help: " + vbCrLf + "Click the icon in the task bar (the small icons next to your system clock) to restore or right click the caption box twice.", "Help Message")
 
         Main_BG_COLOR = Me.BackColor
 
@@ -430,6 +430,8 @@ Public Class subtitlewindow
         Opacity = 1
 
         Dragable = False
+
+        BackGroundToggle = False
     End Sub
 
     Private Sub ShowToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles ShowToolStripMenuItem.Click
@@ -688,5 +690,32 @@ Public Class subtitlewindow
 
     Private Sub OnToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles OffToolStripMenuItem1.Click
         RenderingTransparency = True
+    End Sub
+
+    Private Sub NotifyIcon1_MouseClick(sender As Object, e As MouseEventArgs) Handles NotifyIcon1.MouseClick
+        If Dragable = True Then
+            ' Reset transparency key
+            TransparencyKey = Color.Empty ' or the original color
+
+            ' Reset background color
+            BackColor = Main_BG_COLOR ' or the original color
+
+            ' Reset form border style
+            FormBorderStyle = FormBorderStyle.Sizable ' or the original style
+
+            ' Reset topmost property
+            TopMost = False
+
+            ' Optionally, bring the form to the front
+            BringToFront()
+
+            MenuStrip1.Visible = True
+
+            Opacity = 1
+
+            Dragable = False
+
+            BackGroundToggle = False
+        End If
     End Sub
 End Class
