@@ -23,6 +23,7 @@ Partial Class subtitlewindow
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
         components = New ComponentModel.Container()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(subtitlewindow))
         InfoSaverTimer = New Timer(components)
         headertextlbl = New Label()
         MenuStrip1 = New MenuStrip()
@@ -76,6 +77,7 @@ Partial Class subtitlewindow
         FontDialog1 = New FontDialog()
         ColorDialog1 = New ColorDialog()
         Panel1 = New Panel()
+        NotifyIcon1 = New NotifyIcon(components)
         MenuStrip1.SuspendLayout()
         Panel1.SuspendLayout()
         SuspendLayout()
@@ -118,46 +120,46 @@ Partial Class subtitlewindow
         ' 
         SettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TransparencyToolStripMenuItem})
         SettingsToolStripMenuItem.Name = "SettingsToolStripMenuItem"
-        SettingsToolStripMenuItem.Size = New Size(180, 22)
+        SettingsToolStripMenuItem.Size = New Size(170, 22)
         SettingsToolStripMenuItem.Text = "Plant Settings"
         ' 
         ' TransparencyToolStripMenuItem
         ' 
         TransparencyToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem1, OffToolStripMenuItem1})
         TransparencyToolStripMenuItem.Name = "TransparencyToolStripMenuItem"
-        TransparencyToolStripMenuItem.Size = New Size(180, 22)
+        TransparencyToolStripMenuItem.Size = New Size(143, 22)
         TransparencyToolStripMenuItem.Text = "Transparency"
         ' 
         ' OnToolStripMenuItem1
         ' 
         OnToolStripMenuItem1.Name = "OnToolStripMenuItem1"
-        OnToolStripMenuItem1.Size = New Size(180, 22)
+        OnToolStripMenuItem1.Size = New Size(91, 22)
         OnToolStripMenuItem1.Text = "Off"
         ' 
         ' OffToolStripMenuItem1
         ' 
         OffToolStripMenuItem1.Name = "OffToolStripMenuItem1"
-        OffToolStripMenuItem1.Size = New Size(180, 22)
+        OffToolStripMenuItem1.Size = New Size(91, 22)
         OffToolStripMenuItem1.Text = "On"
         ' 
         ' BG_Color
         ' 
         BG_Color.DropDownItems.AddRange(New ToolStripItem() {ResetBGColor})
         BG_Color.Name = "BG_Color"
-        BG_Color.Size = New Size(180, 22)
+        BG_Color.Size = New Size(170, 22)
         BG_Color.Text = "Background Color"
         ' 
         ' ResetBGColor
         ' 
         ResetBGColor.Name = "ResetBGColor"
-        ResetBGColor.Size = New Size(180, 22)
+        ResetBGColor.Size = New Size(102, 22)
         ResetBGColor.Text = "Reset"
         ' 
         ' SaveToolStripMenuItem2
         ' 
         SaveToolStripMenuItem2.DropDownItems.AddRange(New ToolStripItem() {SaveToolStripMenuItem3, ResetToolStripMenuItem})
         SaveToolStripMenuItem2.Name = "SaveToolStripMenuItem2"
-        SaveToolStripMenuItem2.Size = New Size(180, 22)
+        SaveToolStripMenuItem2.Size = New Size(170, 22)
         SaveToolStripMenuItem2.Text = "Save"
         ' 
         ' SaveToolStripMenuItem3
@@ -421,6 +423,12 @@ Partial Class subtitlewindow
         Panel1.Size = New Size(317, 58)
         Panel1.TabIndex = 4
         ' 
+        ' NotifyIcon1
+        ' 
+        NotifyIcon1.Icon = CType(resources.GetObject("NotifyIcon1.Icon"), Icon)
+        NotifyIcon1.Text = "Synthalingua"
+        NotifyIcon1.Visible = True
+        ' 
         ' subtitlewindow
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
@@ -429,6 +437,7 @@ Partial Class subtitlewindow
         ClientSize = New Size(1082, 680)
         Controls.Add(MenuStrip1)
         Controls.Add(Panel1)
+        Icon = CType(resources.GetObject("$this.Icon"), Icon)
         MainMenuStrip = MenuStrip1
         MinimumSize = New Size(635, 221)
         Name = "subtitlewindow"
@@ -494,4 +503,5 @@ Partial Class subtitlewindow
     Friend WithEvents TransparencyToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents OnToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents OffToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents NotifyIcon1 As NotifyIcon
 End Class
