@@ -33,6 +33,8 @@ Public Class subtitlewindow
 
     Dim Dragable As Boolean = False
 
+    Dim BackGroundToggle As Boolean = False
+
     ' P/Invoke declarations
     <DllImport("user32.dll")>
     Public Shared Function SendMessage(hWnd As IntPtr, Msg As Integer, wParam As Integer, lParam As Integer) As Integer
@@ -454,6 +456,10 @@ Public Class subtitlewindow
             Dim unused1 = ReleaseCapture()
             Dim unused = SendMessage(Handle, &H112, &HF012, 0)
         End If
+        If e.Button = MouseButtons.Left And Dragable = False Then
+            moving = True
+            moveStartPoint = e.Location
+        End If
     End Sub
 
     Private Sub TopTextToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TopTextToolStripMenuItem.Click
@@ -572,6 +578,7 @@ Public Class subtitlewindow
         If resizing Then
             ' Visual feedback or guidelines can be added here if necessary
             Me.Opacity = 0.7
+            Panel1.Cursor = Cursors.Cross
         Else
             ' Change cursor based on position
             If e.X >= Panel1.Width - 10 And e.Y >= Panel1.Height - 10 Then
@@ -607,10 +614,38 @@ Public Class subtitlewindow
             resizing = False
             resizableCorner = ""
             Me.Opacity = 1
+            Panel1.Cursor = Cursors.Default
         End If
     End Sub
 
     Private Sub MakeBackgroundInvisablToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles MakeBackgroundInvisablToolStripMenuItem.Click
         Me.TransparencyKey = Me.BackColor
+        If BackGroundToggle = False Then
+            Me.TransparencyKey = Me.BackColor
+            BackGroundToggle = True
+        Else
+            Me.TransparencyKey = Color.Empty
+            BackGroundToggle = False
+        End If
+    End Sub
+
+    Private moving As Boolean = False
+    Private moveStartPoint As Point
+
+    ' Handle MouseMove event for the headertextlbl
+    Private Sub headertextlbl_MouseMove(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseMove
+        If moving Then
+            ' Calculate the new location of the panel
+            Dim newLocation As Point = Panel1.Location
+            newLocation.Offset(e.X - moveStartPoint.X, e.Y - moveStartPoint.Y)
+            Panel1.Location = newLocation
+        End If
+    End Sub
+
+    ' Handle MouseUp event for the headertextlbl
+    Private Sub headertextlbl_MouseUp(sender As Object, e As MouseEventArgs) Handles headertextlbl.MouseUp
+        If moving Then
+            moving = False
+        End If
     End Sub
 End Class
