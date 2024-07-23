@@ -37,6 +37,7 @@ Partial Class subtitlewindow
         TextColorToolStripMenuItem = New ToolStripMenuItem()
         FrontToolStripMenuItem = New ToolStripMenuItem()
         BackToolStripMenuItem = New ToolStripMenuItem()
+        TransparentToolStripMenuItem = New ToolStripMenuItem()
         LanguageModeToolStripMenuItem = New ToolStripMenuItem()
         LeftToolStripMenuItem1 = New ToolStripMenuItem()
         RightToLeftToolStripMenuItem = New ToolStripMenuItem()
@@ -52,18 +53,27 @@ Partial Class subtitlewindow
         HideToolStripMenuItem2 = New ToolStripMenuItem()
         FormatToolStripMenuItem = New ToolStripMenuItem()
         TopTextToolStripMenuItem = New ToolStripMenuItem()
-        BottomTextToolStripMenuItem = New ToolStripMenuItem()
+        LeftToolStripMenuItem = New ToolStripMenuItem()
+        CenterToolStripMenuItem = New ToolStripMenuItem()
         RightToolStripMenuItem = New ToolStripMenuItem()
-        BottomRightToolStripMenuItem = New ToolStripMenuItem()
+        CenterToolStripMenuItem1 = New ToolStripMenuItem()
+        LeftToolStripMenuItem2 = New ToolStripMenuItem()
+        CenterToolStripMenuItem3 = New ToolStripMenuItem()
+        RightToolStripMenuItem2 = New ToolStripMenuItem()
+        BottomToolStripMenuItem = New ToolStripMenuItem()
+        LeftToolStripMenuItem3 = New ToolStripMenuItem()
+        CenterToolStripMenuItem2 = New ToolStripMenuItem()
+        RightToolStripMenuItem1 = New ToolStripMenuItem()
+        AutoSizeModeToolStripMenuItem = New ToolStripMenuItem()
+        OnToolStripMenuItem = New ToolStripMenuItem()
+        OffToolStripMenuItem = New ToolStripMenuItem()
         PlantToolStripMenuItem = New ToolStripMenuItem()
         MakeBackgroundInvisablToolStripMenuItem = New ToolStripMenuItem()
         FontDialog1 = New FontDialog()
         ColorDialog1 = New ColorDialog()
         Panel1 = New Panel()
-        Panel2 = New Panel()
         MenuStrip1.SuspendLayout()
         Panel1.SuspendLayout()
-        Panel2.SuspendLayout()
         SuspendLayout()
         ' 
         ' InfoSaverTimer
@@ -77,18 +87,19 @@ Partial Class subtitlewindow
         headertextlbl.Dock = DockStyle.Fill
         headertextlbl.Font = New Font("Segoe UI", 21F)
         headertextlbl.ForeColor = Color.White
-        headertextlbl.Location = New Point(0, 0)
+        headertextlbl.Location = New Point(10, 10)
         headertextlbl.Name = "headertextlbl"
         headertextlbl.Size = New Size(575, 116)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text - Original"
+        headertextlbl.TextAlign = ContentAlignment.MiddleCenter
         ' 
         ' MenuStrip1
         ' 
         MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem, MakeBackgroundInvisablToolStripMenuItem})
         MenuStrip1.Location = New Point(0, 0)
         MenuStrip1.Name = "MenuStrip1"
-        MenuStrip1.Size = New Size(619, 24)
+        MenuStrip1.Size = New Size(1257, 24)
         MenuStrip1.TabIndex = 3
         MenuStrip1.Text = "MenuStrip1"
         ' 
@@ -159,9 +170,16 @@ Partial Class subtitlewindow
         ' 
         ' BackToolStripMenuItem
         ' 
+        BackToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TransparentToolStripMenuItem})
         BackToolStripMenuItem.Name = "BackToolStripMenuItem"
         BackToolStripMenuItem.Size = New Size(102, 22)
         BackToolStripMenuItem.Text = "Back"
+        ' 
+        ' TransparentToolStripMenuItem
+        ' 
+        TransparentToolStripMenuItem.Name = "TransparentToolStripMenuItem"
+        TransparentToolStripMenuItem.Size = New Size(135, 22)
+        TransparentToolStripMenuItem.Text = "Transparent"
         ' 
         ' LanguageModeToolStripMenuItem
         ' 
@@ -248,34 +266,104 @@ Partial Class subtitlewindow
         ' 
         ' FormatToolStripMenuItem
         ' 
-        FormatToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TopTextToolStripMenuItem, BottomTextToolStripMenuItem, RightToolStripMenuItem, BottomRightToolStripMenuItem})
+        FormatToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {TopTextToolStripMenuItem, CenterToolStripMenuItem1, BottomToolStripMenuItem, AutoSizeModeToolStripMenuItem})
         FormatToolStripMenuItem.Name = "FormatToolStripMenuItem"
         FormatToolStripMenuItem.Size = New Size(57, 20)
         FormatToolStripMenuItem.Text = "Format"
         ' 
         ' TopTextToolStripMenuItem
         ' 
+        TopTextToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem, CenterToolStripMenuItem, RightToolStripMenuItem})
         TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(145, 22)
-        TopTextToolStripMenuItem.Text = "Top Left"
+        TopTextToolStripMenuItem.Size = New Size(180, 22)
+        TopTextToolStripMenuItem.Text = "Top"
         ' 
-        ' BottomTextToolStripMenuItem
+        ' LeftToolStripMenuItem
         ' 
-        BottomTextToolStripMenuItem.Name = "BottomTextToolStripMenuItem"
-        BottomTextToolStripMenuItem.Size = New Size(145, 22)
-        BottomTextToolStripMenuItem.Text = "Bottom Left"
+        LeftToolStripMenuItem.Name = "LeftToolStripMenuItem"
+        LeftToolStripMenuItem.Size = New Size(109, 22)
+        LeftToolStripMenuItem.Text = "Left"
+        ' 
+        ' CenterToolStripMenuItem
+        ' 
+        CenterToolStripMenuItem.Name = "CenterToolStripMenuItem"
+        CenterToolStripMenuItem.Size = New Size(109, 22)
+        CenterToolStripMenuItem.Text = "Center"
         ' 
         ' RightToolStripMenuItem
         ' 
         RightToolStripMenuItem.Name = "RightToolStripMenuItem"
-        RightToolStripMenuItem.Size = New Size(145, 22)
-        RightToolStripMenuItem.Text = "Top Right"
+        RightToolStripMenuItem.Size = New Size(109, 22)
+        RightToolStripMenuItem.Text = "Right"
         ' 
-        ' BottomRightToolStripMenuItem
+        ' CenterToolStripMenuItem1
         ' 
-        BottomRightToolStripMenuItem.Name = "BottomRightToolStripMenuItem"
-        BottomRightToolStripMenuItem.Size = New Size(145, 22)
-        BottomRightToolStripMenuItem.Text = "Bottom Right"
+        CenterToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem2, CenterToolStripMenuItem3, RightToolStripMenuItem2})
+        CenterToolStripMenuItem1.Name = "CenterToolStripMenuItem1"
+        CenterToolStripMenuItem1.Size = New Size(180, 22)
+        CenterToolStripMenuItem1.Text = "Center"
+        ' 
+        ' LeftToolStripMenuItem2
+        ' 
+        LeftToolStripMenuItem2.Name = "LeftToolStripMenuItem2"
+        LeftToolStripMenuItem2.Size = New Size(109, 22)
+        LeftToolStripMenuItem2.Text = "Left"
+        ' 
+        ' CenterToolStripMenuItem3
+        ' 
+        CenterToolStripMenuItem3.Name = "CenterToolStripMenuItem3"
+        CenterToolStripMenuItem3.Size = New Size(109, 22)
+        CenterToolStripMenuItem3.Text = "Center"
+        ' 
+        ' RightToolStripMenuItem2
+        ' 
+        RightToolStripMenuItem2.Name = "RightToolStripMenuItem2"
+        RightToolStripMenuItem2.Size = New Size(109, 22)
+        RightToolStripMenuItem2.Text = "Right"
+        ' 
+        ' BottomToolStripMenuItem
+        ' 
+        BottomToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem3, CenterToolStripMenuItem2, RightToolStripMenuItem1})
+        BottomToolStripMenuItem.Name = "BottomToolStripMenuItem"
+        BottomToolStripMenuItem.Size = New Size(180, 22)
+        BottomToolStripMenuItem.Text = "Bottom"
+        ' 
+        ' LeftToolStripMenuItem3
+        ' 
+        LeftToolStripMenuItem3.Name = "LeftToolStripMenuItem3"
+        LeftToolStripMenuItem3.Size = New Size(109, 22)
+        LeftToolStripMenuItem3.Text = "Left"
+        ' 
+        ' CenterToolStripMenuItem2
+        ' 
+        CenterToolStripMenuItem2.Name = "CenterToolStripMenuItem2"
+        CenterToolStripMenuItem2.Size = New Size(109, 22)
+        CenterToolStripMenuItem2.Text = "Center"
+        ' 
+        ' RightToolStripMenuItem1
+        ' 
+        RightToolStripMenuItem1.Name = "RightToolStripMenuItem1"
+        RightToolStripMenuItem1.Size = New Size(109, 22)
+        RightToolStripMenuItem1.Text = "Right"
+        ' 
+        ' AutoSizeModeToolStripMenuItem
+        ' 
+        AutoSizeModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem, OffToolStripMenuItem})
+        AutoSizeModeToolStripMenuItem.Name = "AutoSizeModeToolStripMenuItem"
+        AutoSizeModeToolStripMenuItem.Size = New Size(180, 22)
+        AutoSizeModeToolStripMenuItem.Text = "Auto Size Mode"
+        ' 
+        ' OnToolStripMenuItem
+        ' 
+        OnToolStripMenuItem.Name = "OnToolStripMenuItem"
+        OnToolStripMenuItem.Size = New Size(180, 22)
+        OnToolStripMenuItem.Text = "On"
+        ' 
+        ' OffToolStripMenuItem
+        ' 
+        OffToolStripMenuItem.Name = "OffToolStripMenuItem"
+        OffToolStripMenuItem.Size = New Size(180, 22)
+        OffToolStripMenuItem.Text = "Off"
         ' 
         ' PlantToolStripMenuItem
         ' 
@@ -294,28 +382,20 @@ Partial Class subtitlewindow
         ' 
         ' Panel1
         ' 
-        Panel1.Controls.Add(Panel2)
+        Panel1.AutoSize = True
+        Panel1.Controls.Add(headertextlbl)
         Panel1.Location = New Point(12, 34)
         Panel1.Name = "Panel1"
         Panel1.Padding = New Padding(10)
         Panel1.Size = New Size(595, 136)
         Panel1.TabIndex = 4
         ' 
-        ' Panel2
-        ' 
-        Panel2.Controls.Add(headertextlbl)
-        Panel2.Dock = DockStyle.Fill
-        Panel2.Location = New Point(10, 10)
-        Panel2.Name = "Panel2"
-        Panel2.Size = New Size(575, 116)
-        Panel2.TabIndex = 1
-        ' 
         ' subtitlewindow
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.FromArgb(CByte(0), CByte(177), CByte(64))
-        ClientSize = New Size(619, 182)
+        ClientSize = New Size(1257, 674)
         Controls.Add(MenuStrip1)
         Controls.Add(Panel1)
         MainMenuStrip = MenuStrip1
@@ -326,7 +406,6 @@ Partial Class subtitlewindow
         MenuStrip1.ResumeLayout(False)
         MenuStrip1.PerformLayout()
         Panel1.ResumeLayout(False)
-        Panel2.ResumeLayout(False)
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -353,8 +432,6 @@ Partial Class subtitlewindow
     Friend WithEvents PlantToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents FormatToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents TopTextToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents BottomTextToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents RightToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents LanguageModeToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents LeftToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents RightToLeftToolStripMenuItem As ToolStripMenuItem
@@ -365,8 +442,21 @@ Partial Class subtitlewindow
     Friend WithEvents SaveToolStripMenuItem2 As ToolStripMenuItem
     Friend WithEvents SaveToolStripMenuItem3 As ToolStripMenuItem
     Friend WithEvents ResetToolStripMenuItem As ToolStripMenuItem
-    Friend WithEvents BottomRightToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents Panel1 As Panel
-    Friend WithEvents Panel2 As Panel
     Friend WithEvents MakeBackgroundInvisablToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents LeftToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents CenterToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents RightToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents CenterToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents LeftToolStripMenuItem2 As ToolStripMenuItem
+    Friend WithEvents CenterToolStripMenuItem3 As ToolStripMenuItem
+    Friend WithEvents RightToolStripMenuItem2 As ToolStripMenuItem
+    Friend WithEvents BottomToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents LeftToolStripMenuItem3 As ToolStripMenuItem
+    Friend WithEvents CenterToolStripMenuItem2 As ToolStripMenuItem
+    Friend WithEvents RightToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents TransparentToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents AutoSizeModeToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents OnToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents OffToolStripMenuItem As ToolStripMenuItem
 End Class

@@ -462,28 +462,6 @@ Public Class subtitlewindow
         End If
     End Sub
 
-    Private Sub TopTextToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TopTextToolStripMenuItem.Click
-        'headertextlbl.Dock = DockStyle.Top
-        'translatedheaderlbl.Dock = DockStyle.Top
-        'transcribedheaderlbl.Dock = DockStyle.Top
-        headertextlbl.TextAlign = ContentAlignment.TopLeft
-    End Sub
-
-    Private Sub BottomTextToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles BottomTextToolStripMenuItem.Click
-        'headertextlbl.Dock = DockStyle.Bottom
-        'translatedheaderlbl.Dock = DockStyle.Bottom
-        'transcribedheaderlbl.Dock = DockStyle.Bottom
-        headertextlbl.TextAlign = ContentAlignment.BottomLeft
-    End Sub
-    Private Sub RightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem.Click
-        'headertextlbl.Dock = DockStyle.Right
-        'translatedheaderlbl.Dock = DockStyle.Right
-        'transcribedheaderlbl.Dock = DockStyle.Right
-        'transcribedheaderlbl.BringToFront()
-        headertextlbl.TextAlign = ContentAlignment.TopRight
-    End Sub
-
-
     Private Sub LeftToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem1.Click
         headertextlbl.RightToLeft = RightToLeft.No
         'translatedheaderlbl.RightToLeft = RightToLeft.No
@@ -549,9 +527,6 @@ Public Class subtitlewindow
         End With
     End Sub
 
-    Private Sub BottomRightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles BottomRightToolStripMenuItem.Click
-        headertextlbl.TextAlign = ContentAlignment.BottomRight
-    End Sub
     Private Sub Panel1_MouseDown(sender As Object, e As MouseEventArgs) Handles Panel1.MouseDown
         If e.Button = MouseButtons.Left Then
             ' Determine which corner is being clicked
@@ -647,5 +622,53 @@ Public Class subtitlewindow
         If moving Then
             moving = False
         End If
+    End Sub
+
+    Private Sub LeftToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem.Click
+        headertextlbl.TextAlign = ContentAlignment.TopLeft
+    End Sub
+
+    Private Sub CenterToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles CenterToolStripMenuItem.Click
+        headertextlbl.TextAlign = ContentAlignment.TopCenter
+    End Sub
+
+    Private Sub RightToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem.Click
+        headertextlbl.TextAlign = ContentAlignment.TopRight
+    End Sub
+
+    Private Sub LeftToolStripMenuItem2_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem2.Click
+        headertextlbl.TextAlign = ContentAlignment.MiddleLeft
+    End Sub
+
+    Private Sub CenterToolStripMenuItem3_Click(sender As Object, e As EventArgs) Handles CenterToolStripMenuItem3.Click
+        headertextlbl.TextAlign = ContentAlignment.MiddleCenter
+    End Sub
+
+    Private Sub RightToolStripMenuItem2_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem2.Click
+        headertextlbl.TextAlign = ContentAlignment.MiddleRight
+    End Sub
+
+    Private Sub LeftToolStripMenuItem3_Click(sender As Object, e As EventArgs) Handles LeftToolStripMenuItem3.Click
+        headertextlbl.TextAlign = ContentAlignment.BottomLeft
+    End Sub
+
+    Private Sub CenterToolStripMenuItem2_Click(sender As Object, e As EventArgs) Handles CenterToolStripMenuItem2.Click
+        headertextlbl.TextAlign = ContentAlignment.BottomCenter
+    End Sub
+
+    Private Sub RightToolStripMenuItem1_Click(sender As Object, e As EventArgs) Handles RightToolStripMenuItem1.Click
+        headertextlbl.TextAlign = ContentAlignment.BottomRight
+    End Sub
+
+    Private Sub TransparentToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles TransparentToolStripMenuItem.Click
+        headertextlbl.BackColor = Color.Empty
+    End Sub
+
+    Private Sub OnToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OnToolStripMenuItem.Click
+        headertextlbl.AutoSize = True
+    End Sub
+
+    Private Sub OffToolStripMenuItem_Click(sender As Object, e As EventArgs) Handles OffToolStripMenuItem.Click
+        headertextlbl.AutoSize = False
     End Sub
 End Class
