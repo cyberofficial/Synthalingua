@@ -79,7 +79,7 @@ Partial Class subtitlewindow
         headertextlbl.ForeColor = Color.White
         headertextlbl.Location = New Point(0, 0)
         headertextlbl.Name = "headertextlbl"
-        headertextlbl.Size = New Size(793, 265)
+        headertextlbl.Size = New Size(783, 255)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text - Original"
         ' 
@@ -295,11 +295,11 @@ Partial Class subtitlewindow
         ' 
         ' Panel1
         ' 
-        Panel1.Anchor = AnchorStyles.Top Or AnchorStyles.Bottom Or AnchorStyles.Left Or AnchorStyles.Right
+        Panel1.Anchor = AnchorStyles.None
         Panel1.Controls.Add(Panel2)
         Panel1.Location = New Point(12, 12)
         Panel1.Name = "Panel1"
-        Panel1.Padding = New Padding(5)
+        Panel1.Padding = New Padding(10)
         Panel1.Size = New Size(803, 275)
         Panel1.TabIndex = 4
         ' 
@@ -307,9 +307,9 @@ Partial Class subtitlewindow
         ' 
         Panel2.Controls.Add(headertextlbl)
         Panel2.Dock = DockStyle.Fill
-        Panel2.Location = New Point(5, 5)
+        Panel2.Location = New Point(10, 10)
         Panel2.Name = "Panel2"
-        Panel2.Size = New Size(793, 265)
+        Panel2.Size = New Size(783, 255)
         Panel2.TabIndex = 1
         ' 
         ' subtitlewindow
