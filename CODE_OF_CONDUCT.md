@@ -2,39 +2,49 @@
 
 ## Our Pledge
 
-We as members, contributors, and leaders pledge to make participation in our
-community a harassment-free experience for everyone, regardless of age, body
-size, visible or invisible disability, ethnicity, sex characteristics, gender
-identity and expression, level of experience, education, socio-economic status,
-nationality, personal appearance, race, religion, or sexual identity
-and orientation.
+We, the members, contributors, and leaders of this community, commit to creating a harassment-free and inclusive experience for **everyone**. We value and celebrate diversity in all its forms, including but not limited to:
 
-We pledge to act and interact in ways that contribute to an open, welcoming,
-diverse, inclusive, and healthy community.
+* **Language, Age, Body Size, Visible or Invisible Disability, Ethnicity, Sex Characteristics, Gender Identity and Expression, Level of Experience, Education, Socio-economic Status, Nationality, Personal Appearance, Race, Religion, Sexual Identity, and Orientation.**
+
+We pledge to go beyond simply avoiding harmful behavior; we actively cultivate a welcoming and respectful environment by:
+
+* **Treating each other with kindness, empathy, and respect.**
+* **Valuing diverse perspectives, experiences, and contributions.**
+* **Communicating thoughtfully and constructively.**
+* **Assuming good intentions and approaching disagreements with a willingness to understand.**
+* **Taking responsibility for our actions and working to learn and grow together.**
+
+We believe that a diverse and inclusive community is a stronger community. This shared pledge guides our actions and interactions as we build this project together. 
 
 ## Our Standards
 
-Examples of behavior that contributes to a positive environment for our
-community include:
+We are committed to creating an inclusive and respectful environment.  We strive to:
 
-* Demonstrating empathy and kindness toward other people
-* Being respectful of differing opinions, viewpoints, and experiences
-* Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes,
-  and learning from the experience
-* Focusing on what is best not just for us as individuals, but for the
-  overall community
+**Positive Interactions:**
 
-Examples of unacceptable behavior include:
+* **Treat everyone with respect and consideration**, valuing diverse perspectives, experiences, and backgrounds.
+* **Assume good intentions** and avoid making assumptions about others.
+* **Be empathetic and understanding** in our communication, recognizing that not everyone expresses themselves in the same way.
+* **Use welcoming and inclusive language**, avoiding jargon, slang, or terminology that might be unfamiliar or offensive.
+* **Give and receive constructive feedback gracefully**, focusing on the content rather than personal attacks.
 
-* The use of sexualized language or imagery, and sexual attention or
-  advances of any kind
-* Trolling, insulting or derogatory comments, and personal or political attacks
-* Public or private harassment
-* Publishing others' private information, such as a physical or email
-  address, without their explicit permission
-* Other conduct which could reasonably be considered inappropriate in a
-  professional setting
+**Collaboration and Professionalism:**
+
+* **Focus on what is best for the community as a whole**, even if it means setting aside personal preferences.
+* **Be mindful of the time and energy of others**, keeping discussions focused and avoiding unnecessary distractions.
+* **Take responsibility for our words and actions**, acknowledging mistakes and working to learn from them.
+* **Seek to understand different viewpoints**, even if we disagree, and engage in respectful dialogue.
+
+**Unacceptable Behavior:**
+
+* **Harassment, discrimination, or exclusion** of any kind, including (but not limited to) comments or actions based on:
+    * Age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socio-economic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+* **Sexualized language or imagery**, unwanted sexual attention, or advances of any kind.
+* **Trolling, insulting, or derogatory comments**, personal or political attacks, or any form of bullying.
+* **Public or private harassment**, including stalking, intimidation, or unwanted attention.
+* **Sharing private information** of others without their explicit consent.
+* **Disrupting the community** through spamming, intentional misinformation, or harmful behavior.
+* **Any conduct that could reasonably be considered unprofessional or inappropriate** in a collaborative setting. 
 
 ## Enforcement Responsibilities
 
@@ -50,11 +60,19 @@ decisions when appropriate.
 
 ## Scope
 
-This Code of Conduct applies within all community spaces, and also applies when
-an individual is officially representing the community in public spaces.
-Examples of representing our community include using an official e-mail address,
-posting via an official social media account, or acting as an appointed
-representative at an online or offline event.
+This Code of Conduct applies to all community spaces, including but not limited to:
+
+* **Code repositories (e.g., GitHub)**: This includes pull requests, issues, discussions, code reviews, and any other interactions within the project's codebase.
+* **Communication channels:**  Such as mailing lists, forums, chat platforms (e.g., Slack, Discord), online meetings, and social media groups associated with the project. 
+* **Project-related events:** Both online and in-person events such as conferences, meetups, workshops, or hackathons.
+
+Furthermore, this Code of Conduct applies when individuals represent the community in any official capacity. Examples include:
+
+* **Using official project branding:**  Such as email addresses, social media accounts, or websites affiliated with the project.
+* **Acting as a designated representative:**  At conferences, workshops, or in interactions with external parties. 
+* **Contributing to official project documentation or resources.**
+
+**We expect anyone who interacts with our community to adhere to this Code of Conduct, regardless of their role or level of involvement.** 
 
 ## Enforcement
 
@@ -114,14 +132,11 @@ the community.
 
 ## Attribution
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage],
-version 2.0, available at
-https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
+This Code of Conduct is based on the [Contributor Covenant][homepage], version 2.0. While we drew inspiration from this widely respected template, we have made modifications to tailor it to the specific needs and values of our community. 
 
-Community Impact Guidelines were inspired by [Mozilla's code of conduct
-enforcement ladder](https://github.com/mozilla/diversity).
+[homepage]: https://www.contributor-covenant.org/version/2/0/code_of_conduct.html
 
-[homepage]: https://www.contributor-covenant.org
+You can find the original Contributor Covenant, along with answers to frequently asked questions and translations, at the link above. 
 
 For answers to common questions about this code of conduct, see the FAQ at
 https://www.contributor-covenant.org/faq. Translations are available at
