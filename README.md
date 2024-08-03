@@ -61,25 +61,26 @@ Example: If you use the tool in a way that violates the terms of service or poli
 
 
 ## TODO
-| Todo  | Sub-Task                                                                          | Status |
-|-------|-----------------------------------------------------------------------------------|--------|
-| Add support for AMD GPUs. | ROCm support - Linux Only                                                         | ✅      |
-|       | OpenCL support - Linux Only                                                       | ✅      |
-| Add support API access. |                                                                                   | ✅      |
-| Custom localhost web server. |                                                                                   | ✅      |
-| Add reverse translation. |                                                                                   | ✅      |
-|       | Localize script to other languages. (Will take place after reverse translations.) | ❌      |
-| Custom dictionary support. |                                                                                   | ❌      |
-| GUI.  |                                                                                   | ✅      |
-| Sub Title Creation | | ✅      |
-| Linux support. |                                                                                   | ✅      |
-| Improve performance. |                                                                                   | ❌      |
-|       | Compressed Model Format for lower ram users                                       | ✅      |
-|       | Better large model loading speed                                                  | ✅      |
-|          | Split model up into multiple chunks based on usage                                | ❌      |
-| Stream Audio from URL |                                                                                   | ✅      |
-| Increase model swapping accuracy. |                                                                                   | ❌      |
-| No Microphone Required | Streaming Module                                                                  | ✅      |
+| Todo  | Sub-Task                                                                                                                                                                                                                                               | Status |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
+| Add support for AMD GPUs. | ROCm support - WSL 2.0/Linux Only                                                                                                                                                                                                                      | ✅      |
+|       | OpenCL support - Linux Only                                                                                                                                                                                                                            | ✅      |
+| Add support API access. |                                                                                                                                                                                                                                                        | ✅      |
+| Custom localhost web server. |                                                                                                                                                                                                                                                        | ✅      |
+| Add reverse translation. |                                                                                                                                                                                                                                                        | ✅      |
+|       | Localize script to other languages. (Will take place after reverse translations.)                                                                                                                                                                      | ❌      |
+| Custom dictionary support. |                                                                                                                                                                                                                                                        | ❌      |
+| GUI.  |                                                                                                                                                                                                                                                        | ✅      |
+| Sub Title Creation |                                                                                                                                                                                                                                                        | ✅      |
+| Linux support. |                                                                                                                                                                                                                                                        | ✅      |
+| Improve performance. |                                                                                                                                                                                                                                                        | ❌      |
+|       | Compressed Model Format for lower ram users                                                                                                                                                                                                            | ✅      |
+|       | Better large model loading speed                                                                                                                                                                                                                       | ✅      |
+|          | Split model up into multiple chunks based on usage                                                                                                                                                                                                     | ❌      |
+| Stream Audio from URL |                                                                                                                                                                                                                                                        | ✅      |
+| Increase model swapping accuracy. |                                                                                                                                                                                                                                                        | ❌      |
+| No Microphone Required | Streaming Module                                                                                                                                                                                                                                       | ✅      |
+| Server Control Panel | Currently under work, will come out in a future release. I've want to get this out soon as possible, but I've been running into road blocks. This is a higher prio feature, please keep an eye out for a future dev blog on more details and previews! | 🚧     |
 
 
 # Contributors 
@@ -97,6 +98,11 @@ Example: If you use the tool in a way that violates the terms of service or poli
 | Intel Arc | Not Supported |
 | Intel HD | Not Supported |
 | Intel iGPU | Not Supported |
+
+### GUI Portable Version (not the CLI portable)
+* Minimum supported Windows Version is now Windows 10.0.17763
+  * Windows 7 is no longer supported due to the change of .NET builds.
+  * You may download the source code and change to Windows 7, but it's not suggested to keep using Windows 7.
 
 You can find full list of supported Nvida GPUs here:
 * [Official Nvidia List](https://developer.nvidia.com/cuda-gpus)
