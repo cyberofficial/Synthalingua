@@ -78,6 +78,10 @@ Partial Class subtitlewindow
         ColorDialog1 = New ColorDialog()
         Panel1 = New Panel()
         NotifyIcon1 = New NotifyIcon(components)
+        ToolStripMenuItem1 = New ToolStripMenuItem()
+        YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem = New ToolStripMenuItem()
+        PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem = New ToolStripMenuItem()
+        FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem = New ToolStripMenuItem()
         MenuStrip1.SuspendLayout()
         Panel1.SuspendLayout()
         SuspendLayout()
@@ -102,7 +106,7 @@ Partial Class subtitlewindow
         ' 
         ' MenuStrip1
         ' 
-        MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem, MakeBackgroundInvisablToolStripMenuItem})
+        MenuStrip1.Items.AddRange(New ToolStripItem() {WindowSettingmsToolStripMenuItem, FontSettingsToolStripMenuItem, AddRemoveSubtitleControlToolStripMenuItem, FormatToolStripMenuItem, PlantToolStripMenuItem, MakeBackgroundInvisablToolStripMenuItem, ToolStripMenuItem1})
         MenuStrip1.Location = New Point(0, 0)
         MenuStrip1.Name = "MenuStrip1"
         MenuStrip1.Size = New Size(1082, 24)
@@ -307,7 +311,7 @@ Partial Class subtitlewindow
         ' 
         TopTextToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem, CenterToolStripMenuItem, RightToolStripMenuItem})
         TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(157, 22)
+        TopTextToolStripMenuItem.Size = New Size(180, 22)
         TopTextToolStripMenuItem.Text = "Top"
         ' 
         ' LeftToolStripMenuItem
@@ -332,7 +336,7 @@ Partial Class subtitlewindow
         ' 
         CenterToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem2, CenterToolStripMenuItem3, RightToolStripMenuItem2})
         CenterToolStripMenuItem1.Name = "CenterToolStripMenuItem1"
-        CenterToolStripMenuItem1.Size = New Size(157, 22)
+        CenterToolStripMenuItem1.Size = New Size(180, 22)
         CenterToolStripMenuItem1.Text = "Center"
         ' 
         ' LeftToolStripMenuItem2
@@ -357,7 +361,7 @@ Partial Class subtitlewindow
         ' 
         BottomToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem3, CenterToolStripMenuItem2, RightToolStripMenuItem1})
         BottomToolStripMenuItem.Name = "BottomToolStripMenuItem"
-        BottomToolStripMenuItem.Size = New Size(157, 22)
+        BottomToolStripMenuItem.Size = New Size(180, 22)
         BottomToolStripMenuItem.Text = "Bottom"
         ' 
         ' LeftToolStripMenuItem3
@@ -382,7 +386,7 @@ Partial Class subtitlewindow
         ' 
         AutoSizeModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem, OffToolStripMenuItem})
         AutoSizeModeToolStripMenuItem.Name = "AutoSizeModeToolStripMenuItem"
-        AutoSizeModeToolStripMenuItem.Size = New Size(157, 22)
+        AutoSizeModeToolStripMenuItem.Size = New Size(180, 22)
         AutoSizeModeToolStripMenuItem.Text = "Auto Size Mode"
         ' 
         ' OnToolStripMenuItem
@@ -428,6 +432,31 @@ Partial Class subtitlewindow
         NotifyIcon1.Icon = CType(resources.GetObject("NotifyIcon1.Icon"), Icon)
         NotifyIcon1.Text = "Synthalingua"
         NotifyIcon1.Visible = True
+        ' 
+        ' ToolStripMenuItem1
+        ' 
+        ToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem, PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem, FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem})
+        ToolStripMenuItem1.Name = "ToolStripMenuItem1"
+        ToolStripMenuItem1.Size = New Size(24, 20)
+        ToolStripMenuItem1.Text = "?"
+        ' 
+        ' YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem
+        ' 
+        YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem.Name = "YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem"
+        YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem.Size = New Size(471, 22)
+        YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem.Text = "You can click the edges of the caption text to expand or shrink the text box."
+        ' 
+        ' PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem
+        ' 
+        PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem.Name = "PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem"
+        PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem.Size = New Size(471, 22)
+        PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem.Text = "Plant = Turn this window into floating caption box."
+        ' 
+        ' FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem
+        ' 
+        FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Name = "FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem"
+        FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Size = New Size(471, 22)
+        FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Text = "Format = Change how the text is shown in the caption box."
         ' 
         ' subtitlewindow
         ' 
@@ -504,4 +533,8 @@ Partial Class subtitlewindow
     Friend WithEvents OnToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents OffToolStripMenuItem1 As ToolStripMenuItem
     Friend WithEvents NotifyIcon1 As NotifyIcon
+    Friend WithEvents ToolStripMenuItem1 As ToolStripMenuItem
+    Friend WithEvents YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem As ToolStripMenuItem
 End Class
