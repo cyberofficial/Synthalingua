@@ -76,3 +76,4 @@ wcwidth==0.2.13
 websockets==12.0
 Werkzeug==3.0.1
 yt-dlp==2024.3.10
+tqdm==4.66.4

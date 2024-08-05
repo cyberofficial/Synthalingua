@@ -2,6 +2,15 @@
 setlocal enabledelayedexpansion
 Title Realtime Whisper Translation App Setup
 
+:prechecks
+Echo Checking for Python 3.10.x
+Running command: python -V
+python -V
+Echo Does this show python 3.10.x? If not, close this window and make sure python 3.10 is installed and set to path
+Echo. If it does show 3.10 press enter to move on.
+pause > nul
+
+
 :check_python
 echo Checking for Python installation...
 where python >nul 2>&1
