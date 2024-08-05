@@ -2,13 +2,35 @@
 setlocal enabledelayedexpansion
 Title Realtime Whisper Translation App Setup
 
-:check_python
-echo Checking for Python installation...
-where python >nul 2>&1
-if !errorlevel! neq 0 (
-    echo Python is not installed or not in the PATH. Please install Python before continuing.
-    exit /b
+:prechecks
+
+if NOT exist transcribe_audio.py goto EoF_Error
+
+Echo Checking for Python 3.10.x
+echo Running command: python -V
+python -V
+echo.
+
+rem Prompt user to verify the Python version
+set /p user_check="Does this show Python 3.10.x? (Y/N): "
+if /i "%user_check%" neq "Y" (
+    Echo It seems you do not have Python 3.10.x installed.
+    Echo Please download and install Python 3.10.14 from the following link:
+    Echo https://www.python.org/downloads/release/python-31011/
+    Echo.
+    set /p folderpath="If you have Python 3.10.x installed but not in PATH, enter the path to the folder containing python.exe (e.g., C:\path\to\folder): "
+    if not exist "%folderpath%\python.exe" (
+        echo The specified path is not valid. Please ensure the path is correct.
+        pause
+        exit /b
+    )
+    set "python=%folderpath%\python.exe"
+) else (
+    rem Set default python if user confirms Python 3.10.x is installed
+    set "python=python"
 )
+
+goto :prepare_environment
 
 :prepare_environment
 cls
@@ -25,7 +47,7 @@ if exist "data_whisper" (
 )
 
 echo Creating a new Python virtual environment...
-python -m venv data_whisper
+"%python%" -m venv data_whisper
 
 echo Activating the environment...
 call data_whisper\Scripts\activate.bat
@@ -50,7 +72,7 @@ pip install -r requirements.txt
 :cuda_patch
 echo Applying CUDA patch to install GPU versions of PyTorch packages...
 pip uninstall --yes torch torchvision torchaudio
-pip cache purge
+
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 echo Whisper translation environment setup completed!
@@ -67,6 +89,17 @@ echo Creating a shortcut batch file for the translation app...
 
 echo Shortcut 'livetranslation.bat' created in the current directory.
 echo You can edit this file with notepad if necessary.
+pause
 
+Echo Setting up Enviroment Stuff.
+"%python%" set_up_env.py
+
+exit /b
+
+:EoF_Error
+Echo can not fnd transcribe_audio.py
+Echo Did you run as admin? If so DO NOT run as admin!
+Echo. Please make sure you run setup in the same location as the source code.
+Echo. If you are using powershell, Do not. Use command prompt instead.
 pause
 exit /b

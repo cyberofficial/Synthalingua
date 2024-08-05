@@ -48,9 +48,11 @@ Public Class MainUI
 
         PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
+        ConfigTextBox.Text += "set_up_env.exe" & vbNewLine
         ConfigTextBox.Text += "call """ & PrimaryFolder & "\ffmpeg_path.bat""" & vbNewLine
         If ShortCutType = "Source" Then
             ConfigTextBox.Text += "call """ & PrimaryFolder & "\data_whisper\Scripts\activate.bat""" & vbNewLine
+
             ConfigTextBox.Text += "python """ & PrimaryFolder & "\transcribe_audio.py"" "
         Else
             ConfigTextBox.Text += """" & PrimaryFolder & "\transcribe_audio.exe"" "

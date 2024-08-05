@@ -2,6 +2,8 @@
 
 # Realtime Whisper Translation App setup script
 
+## TODO: UPDATE SCRIPT
+
 echo "Realtime Whisper Translation App"
 
 if [ -d "data_whisper" ]; then
