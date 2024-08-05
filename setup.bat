@@ -16,7 +16,7 @@ set /p user_check="Does this show Python 3.10.x? (Y/N): "
 if /i "%user_check%" neq "Y" (
     Echo It seems you do not have Python 3.10.x installed.
     Echo Please download and install Python 3.10.14 from the following link:
-    Echo https://www.python.org/downloads/release/python-31014/
+    Echo https://www.python.org/downloads/release/python-31011/
     Echo.
     set /p folderpath="If you have Python 3.10.x installed but not in PATH, enter the path to the folder containing python.exe (e.g., C:\path\to\folder): "
     if not exist "%folderpath%\python.exe" (
