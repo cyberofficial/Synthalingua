@@ -14,21 +14,20 @@ echo.
 rem Prompt user to verify the Python version
 set /p user_check="Does this show Python 3.10.x? (Y/N): "
 if /i "%user_check%" neq "Y" (
-    Echo It seems you do not have Python 3.10.x installed.
-    Echo Please download and install Python 3.10.14 from the following link:
-    Echo https://www.python.org/downloads/release/python-31011/
-    Echo.
-    set /p folderpath="If you have Python 3.10.x installed but not in PATH, enter the path to the folder containing python.exe (e.g., C:\path\to\folder): "
-    if not exist "%folderpath%\python.exe" (
-        echo The specified path is not valid. Please ensure the path is correct.
-        pause
-        exit /b
-    )
-    set "python=%folderpath%\python.exe"
+    echo It seems you do not have Python 3.10.x installed.
+    echo Please download and install Python 3.10.10 from the following link:
+    echo https://www.python.org/downloads/release/python-31010/
+    echo.
+    set /p filepath="If you have Python 3.10.x installed but not in PATH, enter the path to the file python.exe for 3.10.x (e.g., C:\path\to\python\python.exe): "
+
+    echo Using this for python: !filepath!
+    set "python=!filepath!"
 ) else (
     rem Set default python if user confirms Python 3.10.x is installed
     set "python=python"
 )
+
+pause
 
 goto :prepare_environment
 
@@ -47,7 +46,7 @@ if exist "data_whisper" (
 )
 
 echo Creating a new Python virtual environment...
-"%python%" -m venv data_whisper
+!python! -m venv data_whisper
 
 echo Activating the environment...
 call data_whisper\Scripts\activate.bat
@@ -83,6 +82,7 @@ echo Creating a shortcut batch file for the translation app...
     echo @echo off
     echo cls
     echo call "data_whisper\Scripts\activate.bat"
+    echo call ffmpeg_path.bat
     echo python "transcribe_audio.py" --ram 4gb --non_english --translate
     echo pause
 ) > "livetranslation.bat"
@@ -91,8 +91,8 @@ echo Shortcut 'livetranslation.bat' created in the current directory.
 echo You can edit this file with notepad if necessary.
 pause
 
-Echo Setting up Enviroment Stuff.
-"%python%" set_up_env.py
+Echo Setting up Environment Stuff.
+!python! set_up_env.py
 
 exit /b
 
