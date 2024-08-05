@@ -72,7 +72,7 @@ pip install -r requirements.txt
 :cuda_patch
 echo Applying CUDA patch to install GPU versions of PyTorch packages...
 pip uninstall --yes torch torchvision torchaudio
-pip cache purge
+
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 echo Whisper translation environment setup completed!
