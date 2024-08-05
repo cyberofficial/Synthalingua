@@ -108,11 +108,11 @@ Partial Class MainUI
         ToolTip1 = New ToolTip(components)
         PictureItch = New PictureBox()
         GitHubPicture = New PictureBox()
+        SaveConfig = New Button()
+        WipeSettings = New Button()
         CheckBoxCMDBLock = New CheckBox()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         CaptionsInputFile = New OpenFileDialog()
-        SaveConfig = New Button()
-        WipeSettings = New Button()
         EraseCheckBox = New CheckBox()
         WordBlockList = New CheckBox()
         EditBlockList = New Button()
@@ -1078,23 +1078,6 @@ Partial Class MainUI
         GitHubPicture.TabStop = False
         ToolTip1.SetToolTip(GitHubPicture, "Open Github Page")
         ' 
-        ' CheckBoxCMDBLock
-        ' 
-        CheckBoxCMDBLock.AutoSize = True
-        CheckBoxCMDBLock.CheckAlign = ContentAlignment.MiddleRight
-        CheckBoxCMDBLock.Location = New Point(153, 713)
-        CheckBoxCMDBLock.Margin = New Padding(3, 2, 3, 2)
-        CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
-        CheckBoxCMDBLock.RightToLeft = RightToLeft.No
-        CheckBoxCMDBLock.Size = New Size(419, 19)
-        CheckBoxCMDBLock.TabIndex = 28
-        CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
-        CheckBoxCMDBLock.UseVisualStyleBackColor = True
-        ' 
-        ' CaptionsInputFile
-        ' 
-        CaptionsInputFile.FileName = "OpenFileDialog1"
-        ' 
         ' SaveConfig
         ' 
         SaveConfig.FlatAppearance.MouseDownBackColor = Color.Indigo
@@ -1122,6 +1105,23 @@ Partial Class MainUI
         WipeSettings.Text = "Wipe Settings"
         ToolTip1.SetToolTip(WipeSettings, "[DANGER] Wipes the Settings,")
         WipeSettings.UseVisualStyleBackColor = True
+        ' 
+        ' CheckBoxCMDBLock
+        ' 
+        CheckBoxCMDBLock.AutoSize = True
+        CheckBoxCMDBLock.CheckAlign = ContentAlignment.MiddleRight
+        CheckBoxCMDBLock.Location = New Point(153, 713)
+        CheckBoxCMDBLock.Margin = New Padding(3, 2, 3, 2)
+        CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
+        CheckBoxCMDBLock.RightToLeft = RightToLeft.No
+        CheckBoxCMDBLock.Size = New Size(419, 19)
+        CheckBoxCMDBLock.TabIndex = 28
+        CheckBoxCMDBLock.Text = "Unhide command block | If you have a weebhook set, best to keep hidden."
+        CheckBoxCMDBLock.UseVisualStyleBackColor = True
+        ' 
+        ' CaptionsInputFile
+        ' 
+        CaptionsInputFile.FileName = "OpenFileDialog1"
         ' 
         ' EraseCheckBox
         ' 
@@ -1238,6 +1238,7 @@ Partial Class MainUI
         Controls.Add(GroupBox1)
         ForeColor = Color.FloralWhite
         FormBorderStyle = FormBorderStyle.FixedSingle
+        Icon = CType(resources.GetObject("$this.Icon"), Icon)
         Margin = New Padding(3, 2, 3, 2)
         MaximizeBox = False
         Name = "MainUI"
