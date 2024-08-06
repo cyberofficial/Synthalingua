@@ -1,4 +1,5 @@
 import os
+import platform
 import requests
 import subprocess
 import zipfile
@@ -167,4 +168,20 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    system = platform.system()
+
+    if system == "Windows":
+        version_info = platform.version().split('.')
+        major_version = int(version_info[0])
+
+        if major_version >= 10:
+            main()
+        else:
+            print("This script is for Windows 10 or newer only.")
+            sys.exit(1)
+    elif system == "Linux":
+        print("This script isn't compatible with Linux yet.")
+        sys.exit(1)
+    else:
+        print(f"This script is not compatible with {system}.")
+        sys.exit(1)
