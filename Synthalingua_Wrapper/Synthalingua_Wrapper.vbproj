@@ -7,14 +7,27 @@
     <UseWindowsForms>true</UseWindowsForms>
     <MyType>WindowsForms</MyType>
     <Platforms>AnyCPU;x64</Platforms>
-    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <ImportedNamespaces>System.Data=False,System.Drawing=False,System.Web=False,System.Windows.Forms=False,Microsoft.VisualBasic=True,System=True,System.Collections=True,System.Collections.Generic=True,System.Diagnostics=True,System.Linq=True,System.Xml.Linq=True,System.Threading.Tasks=True,Synthalingua_Wrapper=True</ImportedNamespaces>
-    <ApplicationIcon>684849.ico</ApplicationIcon>
-    <PackageIcon>684849.png</PackageIcon>
+    <PackageIcon>syntha.png</PackageIcon>
+    <ApplicationIcon>assets\syntha.ico</ApplicationIcon>
+    <AssemblyName>SynthalinguaGUI</AssemblyName>
+    <Copyright>Build Date: Aug 8 2024 2:50 AM EDT</Copyright>
+    <FileVersion>3</FileVersion>
+    <AssemblyVersion>1.1.4.42</AssemblyVersion>
+    <Version>1</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="684849.ico" />
+    <Content Include="assets\syntha.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -61,6 +74,10 @@
       <PackagePath>\</PackagePath>
     </None>
     <None Update="assets\684849.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Update="assets\syntha.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>

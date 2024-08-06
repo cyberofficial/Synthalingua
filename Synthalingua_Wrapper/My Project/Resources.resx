@@ -124,4 +124,10 @@
   <data name="25231" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\25231.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="syntha" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\assets\syntha.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="syntha1" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\assets\syntha.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
 </root>
