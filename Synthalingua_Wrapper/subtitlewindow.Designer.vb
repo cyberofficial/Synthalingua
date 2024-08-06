@@ -74,14 +74,14 @@ Partial Class subtitlewindow
         OffToolStripMenuItem = New ToolStripMenuItem()
         PlantToolStripMenuItem = New ToolStripMenuItem()
         MakeBackgroundInvisablToolStripMenuItem = New ToolStripMenuItem()
-        FontDialog1 = New FontDialog()
-        ColorDialog1 = New ColorDialog()
-        Panel1 = New Panel()
-        NotifyIcon1 = New NotifyIcon(components)
         ToolStripMenuItem1 = New ToolStripMenuItem()
         YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem = New ToolStripMenuItem()
         PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem = New ToolStripMenuItem()
         FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem = New ToolStripMenuItem()
+        FontDialog1 = New FontDialog()
+        ColorDialog1 = New ColorDialog()
+        Panel1 = New Panel()
+        NotifyIcon1 = New NotifyIcon(components)
         MenuStrip1.SuspendLayout()
         Panel1.SuspendLayout()
         SuspendLayout()
@@ -311,7 +311,7 @@ Partial Class subtitlewindow
         ' 
         TopTextToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem, CenterToolStripMenuItem, RightToolStripMenuItem})
         TopTextToolStripMenuItem.Name = "TopTextToolStripMenuItem"
-        TopTextToolStripMenuItem.Size = New Size(180, 22)
+        TopTextToolStripMenuItem.Size = New Size(157, 22)
         TopTextToolStripMenuItem.Text = "Top"
         ' 
         ' LeftToolStripMenuItem
@@ -336,7 +336,7 @@ Partial Class subtitlewindow
         ' 
         CenterToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem2, CenterToolStripMenuItem3, RightToolStripMenuItem2})
         CenterToolStripMenuItem1.Name = "CenterToolStripMenuItem1"
-        CenterToolStripMenuItem1.Size = New Size(180, 22)
+        CenterToolStripMenuItem1.Size = New Size(157, 22)
         CenterToolStripMenuItem1.Text = "Center"
         ' 
         ' LeftToolStripMenuItem2
@@ -361,7 +361,7 @@ Partial Class subtitlewindow
         ' 
         BottomToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem3, CenterToolStripMenuItem2, RightToolStripMenuItem1})
         BottomToolStripMenuItem.Name = "BottomToolStripMenuItem"
-        BottomToolStripMenuItem.Size = New Size(180, 22)
+        BottomToolStripMenuItem.Size = New Size(157, 22)
         BottomToolStripMenuItem.Text = "Bottom"
         ' 
         ' LeftToolStripMenuItem3
@@ -386,7 +386,7 @@ Partial Class subtitlewindow
         ' 
         AutoSizeModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {OnToolStripMenuItem, OffToolStripMenuItem})
         AutoSizeModeToolStripMenuItem.Name = "AutoSizeModeToolStripMenuItem"
-        AutoSizeModeToolStripMenuItem.Size = New Size(180, 22)
+        AutoSizeModeToolStripMenuItem.Size = New Size(157, 22)
         AutoSizeModeToolStripMenuItem.Text = "Auto Size Mode"
         ' 
         ' OnToolStripMenuItem
@@ -413,26 +413,6 @@ Partial Class subtitlewindow
         MakeBackgroundInvisablToolStripMenuItem.Size = New Size(121, 20)
         MakeBackgroundInvisablToolStripMenuItem.Text = "Background Toggle"
         ' 
-        ' FontDialog1
-        ' 
-        ' 
-        ' Panel1
-        ' 
-        Panel1.AutoSize = True
-        Panel1.Controls.Add(headertextlbl)
-        Panel1.Location = New Point(12, 34)
-        Panel1.MinimumSize = New Size(317, 58)
-        Panel1.Name = "Panel1"
-        Panel1.Padding = New Padding(10)
-        Panel1.Size = New Size(317, 58)
-        Panel1.TabIndex = 4
-        ' 
-        ' NotifyIcon1
-        ' 
-        NotifyIcon1.Icon = CType(resources.GetObject("NotifyIcon1.Icon"), Icon)
-        NotifyIcon1.Text = "Synthalingua"
-        NotifyIcon1.Visible = True
-        ' 
         ' ToolStripMenuItem1
         ' 
         ToolStripMenuItem1.DropDownItems.AddRange(New ToolStripItem() {YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem, PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem, FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem})
@@ -457,6 +437,26 @@ Partial Class subtitlewindow
         FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Name = "FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem"
         FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Size = New Size(471, 22)
         FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem.Text = "Format = Change how the text is shown in the caption box."
+        ' 
+        ' FontDialog1
+        ' 
+        ' 
+        ' Panel1
+        ' 
+        Panel1.AutoSize = True
+        Panel1.Controls.Add(headertextlbl)
+        Panel1.Location = New Point(12, 34)
+        Panel1.MinimumSize = New Size(317, 58)
+        Panel1.Name = "Panel1"
+        Panel1.Padding = New Padding(10)
+        Panel1.Size = New Size(317, 58)
+        Panel1.TabIndex = 4
+        ' 
+        ' NotifyIcon1
+        ' 
+        NotifyIcon1.Icon = CType(resources.GetObject("NotifyIcon1.Icon"), Icon)
+        NotifyIcon1.Text = "Synthalingua"
+        NotifyIcon1.Visible = True
         ' 
         ' subtitlewindow
         ' 

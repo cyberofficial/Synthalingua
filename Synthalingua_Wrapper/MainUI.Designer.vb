@@ -31,7 +31,7 @@ Partial Class MainUI
         SaveConfigToFileButton = New Button()
         Label1 = New Label()
         ScriptFileLocation = New TextBox()
-        Button2 = New Button()
+        SearchForProgramBTN = New Button()
         Label2 = New Label()
         RamSize = New ComboBox()
         ForceRam = New CheckBox()
@@ -225,19 +225,19 @@ Partial Class MainUI
         ScriptFileLocation.Size = New Size(256, 23)
         ScriptFileLocation.TabIndex = 3
         ' 
-        ' Button2
+        ' SearchForProgramBTN
         ' 
-        Button2.BackColor = Color.DodgerBlue
-        Button2.FlatAppearance.MouseDownBackColor = Color.Indigo
-        Button2.FlatAppearance.MouseOverBackColor = Color.SlateBlue
-        Button2.FlatStyle = FlatStyle.Popup
-        Button2.Location = New Point(585, 6)
-        Button2.Margin = New Padding(3, 2, 3, 2)
-        Button2.Name = "Button2"
-        Button2.Size = New Size(35, 22)
-        Button2.TabIndex = 4
-        Button2.Text = "..."
-        Button2.UseVisualStyleBackColor = False
+        SearchForProgramBTN.BackColor = Color.DodgerBlue
+        SearchForProgramBTN.FlatAppearance.MouseDownBackColor = Color.Indigo
+        SearchForProgramBTN.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        SearchForProgramBTN.FlatStyle = FlatStyle.Popup
+        SearchForProgramBTN.Location = New Point(585, 6)
+        SearchForProgramBTN.Margin = New Padding(3, 2, 3, 2)
+        SearchForProgramBTN.Name = "SearchForProgramBTN"
+        SearchForProgramBTN.Size = New Size(35, 22)
+        SearchForProgramBTN.TabIndex = 4
+        SearchForProgramBTN.Text = "..."
+        SearchForProgramBTN.UseVisualStyleBackColor = False
         ' 
         ' Label2
         ' 
@@ -1230,7 +1230,7 @@ Partial Class MainUI
         Controls.Add(RamSize)
         Controls.Add(Label4)
         Controls.Add(Label2)
-        Controls.Add(Button2)
+        Controls.Add(SearchForProgramBTN)
         Controls.Add(ScriptFileLocation)
         Controls.Add(Label1)
         Controls.Add(SaveConfig)
@@ -1243,7 +1243,7 @@ Partial Class MainUI
         MaximizeBox = False
         Name = "MainUI"
         StartPosition = FormStartPosition.CenterScreen
-        Text = "Synthalingua - Shortcut Maker"
+        Text = "Synthalingua GUI"
         GroupBox1.ResumeLayout(False)
         GroupBox1.PerformLayout()
         GroupBox2.ResumeLayout(False)
@@ -1281,7 +1281,7 @@ Partial Class MainUI
     Friend WithEvents SaveConfigToFileButton As Button
     Friend WithEvents Label1 As Label
     Friend WithEvents ScriptFileLocation As TextBox
-    Friend WithEvents Button2 As Button
+    Friend WithEvents SearchForProgramBTN As Button
     Friend WithEvents Label2 As Label
     Friend WithEvents RamSize As ComboBox
     Friend WithEvents ForceRam As CheckBox

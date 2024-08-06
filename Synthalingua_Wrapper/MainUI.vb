@@ -12,12 +12,12 @@ Public Class MainUI
 
 
 
-    Private Sub Button2_Click(sender As Object, e As EventArgs) Handles Button2.Click
+    Private Sub Button2_Click(sender As Object, e As EventArgs) Handles SearchForProgramBTN.Click
         If Label1.ForeColor = Color.Red Then
             Label1.ForeColor = Color.Black
         End If
 
-        Dim result = OpenScriptDiag.ShowDialog()
+        Dim result = OpenScriptDiag.ShowDialog
 
         If result = DialogResult.Cancel Then
             MessageBox.Show("Action Canceled")
@@ -47,6 +47,7 @@ Public Class MainUI
         ShortCutType = If(ScriptFileLocation.Text.Contains("transcribe_audio.py"), "Source", "Portable")
 
         PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
+
         ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
         ConfigTextBox.Text += """" & PrimaryFolder & "\set_up_env.exe""" & vbNewLine
         ConfigTextBox.Text += "call """ & PrimaryFolder & "\ffmpeg_path.bat""" & vbNewLine
@@ -205,8 +206,7 @@ Public Class MainUI
             End If
         End If
 
-        ' Check and set PrimaryFolder
-        Dim PrimaryFolder As String = ""
+        ' Check and set PrimaryFolder (removed local declaration)
         Try
             If My.Settings.PrimaryFolder IsNot Nothing AndAlso My.Settings.PrimaryFolder <> "" Then
                 PrimaryFolder = My.Settings.PrimaryFolder
@@ -367,7 +367,8 @@ Public Class MainUI
                     PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
                     ShortCutType = "Source"  ' Set to Source if .py found
                 Else
-                    Dim unused = MsgBox("Could not find transcribe_audio.exe or transcribe_audio.py in the current running directory. Please click the ""..."" to search for it.")
+                    'Loading_Screen.Hide()
+                    'Dim unused = MsgBox("Could not find transcribe_audio.exe or transcribe_audio.py in the current running directory. Please click the ""..."" to search for it.")
                 End If
             End If
         End If
@@ -396,8 +397,8 @@ Public Class MainUI
         ToolTip1.SetToolTip(CookiesRefresh, "Clear the set cookie.")
     End Sub
 
-    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles Button2.MouseHover, CaptionsInputBtn.MouseHover, CaptionsOutputBtn.MouseHover
-        ToolTip1.SetToolTip(Button2, "Select the propgram file.")
+    Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles SearchForProgramBTN.MouseHover, CaptionsInputBtn.MouseHover, CaptionsOutputBtn.MouseHover
+        ToolTip1.SetToolTip(SearchForProgramBTN, "Select the propgram file.")
     End Sub
 
     Private Sub WebLinkOG_MouseHover(sender As Object, e As EventArgs) Handles WebLinkOG.MouseHover
@@ -699,5 +700,9 @@ Public Class MainUI
         Process.Start(New ProcessStartInfo("https://github.com/cyberofficial/Synthalingua") With {
                       .UseShellExecute = True
                       })
+    End Sub
+
+    Private Sub DownloadBTN_FFMPEG_YTDLP_Click(sender As Object, e As EventArgs)
+
     End Sub
 End Class
