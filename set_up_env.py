@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # URLs for downloading files
 FFMPEG_URL = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
-YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2024.07.16/yt-dlp_win.zip'
+YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2024.08.06/yt-dlp_win.zip'
 SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
 
 # Paths
@@ -55,47 +55,27 @@ def extract_zip(file_path, extract_to):
     print(f"{file_path} extracted successfully.")
 
 
-def write_config_bat(ffmpeg_bin_path):
-    """Write the configuration to a ffmpeg_path file."""
-    config_content = f'''
-@echo off
-:: Set Global Path Temporary
-set "PATH={ffmpeg_bin_path};{YTDLP_PATH};%PATH%"
-echo PATH updated in this session.
-'''
-    with open('ffmpeg_path.bat', 'w') as file:
-        file.write(config_content)
-    print("ffmpeg_path file created with path settings.")
-
-
-def find_most_recent_ffmpeg_folder(root_path):
-    """Find the most recent FFmpeg build directory."""
+def find_ffmpeg_bin_path(root_path):
+    """Find the bin directory containing ffmpeg.exe."""
+    print("Finding path for ffmpeg...")
     try:
-        dirs = [
-            d
-            for d in os.listdir(root_path)
-            if os.path.isdir(os.path.join(root_path, d)) and d.startswith("ffmpeg-")
-        ]
-        if not dirs:
-            raise FileNotFoundError("No FFmpeg directories found in the specified path.")
-        dirs.sort(reverse=True)  # Sort in descending order
-        most_recent_folder = dirs[0]
-        return os.path.join(root_path, most_recent_folder)
+        for root, dirs, files in os.walk(root_path):
+            if 'ffmpeg.exe' in files:
+                bin_path = os.path.join(root, 'ffmpeg.exe')
+                print(f"Found ffmpeg.exe at: {bin_path}")
+                return os.path.dirname(bin_path)
+        raise FileNotFoundError("No ffmpeg.exe found in the specified path.")
     except Exception as e:
-        print(f"Error finding the most recent FFmpeg folder: {e}")
+        print(f"Error finding ffmpeg.exe: {e}")
         return None
 
 
 def main():
-    if os.path.exists("ffmpeg_path.bat"):
-        print("ffmpeg_path already exists. Exiting.")
-        sys.exit()
 
-    print("This script will manage the following tools:")
+    print("This script will download the following tools:")
     print("1. FFmpeg: A multimedia framework for processing audio and video files.")
     print("2. yt-dlp: A video downloader for YouTube and other sites.")
     print("3. 7zr: A tool for extracting .7z files.")
-
 
     # Ask if user wants to provide their own 7zr
     use_own_7zr = input("Do you want to provide your own version of 7zr.exe? (yes/no): ").strip().lower()
@@ -114,61 +94,78 @@ def main():
         print("7zr.exe already exists, skipping download.")
 
     # Ask if user wants to provide their own FFmpeg
-    use_own_ffmpeg = input("Do you want to provide your own version of FFmpeg? (yes/no): ").strip().lower()
+    use_own_ffmpeg = input("Do you already have FFmpeg? (yes/no): ").strip().lower()
     if use_own_ffmpeg == 'yes':
-        ffmpeg_path = input("Please enter the path to your FFmpeg folder: ").strip()
-        if os.path.isdir(ffmpeg_path):
-            global FFMPEG_ROOT_PATH
-            FFMPEG_ROOT_PATH = ffmpeg_path
-            print(f"Using provided FFmpeg path at {FFMPEG_ROOT_PATH}.")
+        use_system_ffmpeg = input("Do you want to use the system default FFmpeg? (yes/no): ").strip().lower()
+        if use_system_ffmpeg == 'yes':
+            ffmpeg_path_to_use = None  # Indicate using system default
         else:
-            print("The specified FFmpeg folder does not exist.")
-            return
+            ffmpeg_path = input("Please enter the path to your FFmpeg bin folder: ").strip()
+            if os.path.isdir(ffmpeg_path):
+                global FFMPEG_ROOT_PATH
+                FFMPEG_ROOT_PATH = ffmpeg_path
+                ffmpeg_path_to_use = find_ffmpeg_bin_path(FFMPEG_ROOT_PATH)
+            else:
+                print("The specified FFmpeg folder does not exist.")
+                return
     elif not os.path.isdir(FFMPEG_ROOT_PATH):
         download_file(FFMPEG_URL, FFMPEG_ARCHIVE)
         extract_7z(FFMPEG_ARCHIVE, FFMPEG_ROOT_PATH)
         os.remove(FFMPEG_ARCHIVE)
+        ffmpeg_path_to_use = find_ffmpeg_bin_path(FFMPEG_ROOT_PATH)
     else:
-        print("FFmpeg already exists, skipping download.")
+        print("FFmpeg folder already exists, skipping download.")
+        ffmpeg_path_to_use = find_ffmpeg_bin_path(FFMPEG_ROOT_PATH)
 
     # Ask if user wants to provide their own yt-dlp
-    use_own_ytdlp = input("Do you want to provide your own version of yt-dlp? (yes/no): ").strip().lower()
+    use_own_ytdlp = input("Do you already have yt-dlp? (yes/no): ").strip().lower()
     if use_own_ytdlp == 'yes':
-        ytdlp_path = input("Please enter the path to your yt-dlp folder: ").strip()
-        if os.path.isdir(ytdlp_path):
-            global YTDLP_PATH
-            YTDLP_PATH = ytdlp_path
-            print(f"Using provided yt-dlp path at {YTDLP_PATH}.")
+        use_system_ytdlp = input("Do you want to use the system default yt-dlp? (yes/no): ").strip().lower()
+        if use_system_ytdlp == 'yes':
+            ytdlp_path_to_use = None  # Indicate using system default
         else:
-            print("The specified yt-dlp folder does not exist.")
-            return
+            ytdlp_path = input("Please enter the path to your yt-dlp folder: ").strip()
+            if os.path.isdir(ytdlp_path):
+                global YTDLP_PATH
+                YTDLP_PATH = ytdlp_path
+                ytdlp_path_to_use = YTDLP_PATH  # Assuming yt-dlp.exe is directly in the folder
+            else:
+                print("The specified yt-dlp folder does not exist.")
+                return
     elif not os.path.isdir(YTDLP_PATH):
         download_file(YTDLP_URL, YTDLP_ARCHIVE)
         extract_zip(YTDLP_ARCHIVE, YTDLP_PATH)
         os.remove(YTDLP_ARCHIVE)
+        ytdlp_path_to_use = YTDLP_PATH
     else:
-        print("yt-dlp already exists, skipping download.")
+        print("yt-dlp folder already exists, skipping download.")
+        ytdlp_path_to_use = YTDLP_PATH
 
-    # Find FFmpeg build path (only if not user-supplied)
-    if not use_own_ffmpeg:
-        ffmpeg_build_path = find_most_recent_ffmpeg_folder(FFMPEG_ROOT_PATH)
-        if not ffmpeg_build_path:
-            print("Error: FFmpeg build directory not found.")
-            return
-        ffmpeg_build_path = os.path.join(ffmpeg_build_path, 'bin')
-    else:
-        # Use the user-provided path directly
-        ffmpeg_build_path = os.path.join(FFMPEG_ROOT_PATH, 'bin')
+    # Construct the PATH string
+    path_string = ""
+    if ffmpeg_path_to_use:
+        path_string += f"{ffmpeg_path_to_use};"
+    if ytdlp_path_to_use:
+        path_string += f"{ytdlp_path_to_use};"
 
-    print(f"FFmpeg Path: {ffmpeg_build_path}")
-    print(f"yt-dlp Path: {YTDLP_PATH}")
-
-    # Write the configuration to a batch file
-    write_config_bat(ffmpeg_build_path)
+    config_content = f'''
+@echo off
+:: Set Global Path Temporary
+set "PATH={path_string}%PATH%"
+echo PATH updated in this session.
+'''
+    with open('ffmpeg_path.bat', 'w') as file:
+        file.write(config_content)
+    print("ffmpeg_path file created with path settings.")
 
 
 if __name__ == "__main__":
+    print("Version 0.0.33")  # Updated version number
     system = platform.system()
+
+    if os.path.exists("ffmpeg_path.bat"):
+        print("Config file already exists. Exiting...")
+        sys.exit()
 
     if system == "Windows":
         version_info = platform.version().split('.')
