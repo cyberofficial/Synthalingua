@@ -12,9 +12,9 @@
     <PackageIcon>syntha.png</PackageIcon>
     <ApplicationIcon>assets\syntha.ico</ApplicationIcon>
     <AssemblyName>SynthalinguaGUI</AssemblyName>
-    <Copyright>Build Date: Aug 8 2024 2:50 AM EDT</Copyright>
+    <Copyright>Build Date: Sep 18 2024 3:02 AM EDT</Copyright>
     <FileVersion>3</FileVersion>
-    <AssemblyVersion>1.1.4.42</AssemblyVersion>
+    <AssemblyVersion>1.1.4.43</AssemblyVersion>
     <Version>1</Version>
   </PropertyGroup>
 
