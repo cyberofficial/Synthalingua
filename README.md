@@ -169,6 +169,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--set_microphone` | Set the default microphone to use. You can set the name or its ID number from the list. |
 | `--microphone_enabled` | Enables microphone usage. Add `true` after the flag. |
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
+| `--model_dir` | Default location is "model" folder. You can use this argument to change location. |
 | `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing** and **bleeding-under-work**. To turn off update checks use **disable**. **bleeding-under-work** is basically latest changes and can break at any time. |
