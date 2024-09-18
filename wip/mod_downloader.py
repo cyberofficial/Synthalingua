@@ -40,3 +40,5 @@ if os.path.exists(audio_file):
     print(f"Generated SRT file for: {audio_file}")
 else:
     print(f"File not found: {audio_file}")
+
+print("Loaded the module Mod Downloader.")

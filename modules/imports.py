@@ -60,7 +60,7 @@ except Exception as e:
 print("Loading Extensions")
 try:
     from modules.version_checker import check_for_updates
-    from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
+    #from modules.model_downloader import fine_tune_model_dl, fine_tune_model_dl_compressed
     from modules.discord import send_to_discord_webhook
     from modules.console_settings import set_window_title
     from modules.warnings import print_warning
