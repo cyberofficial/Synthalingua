@@ -92,6 +92,10 @@ Partial Class MainUI
         CaptionsOutputBtn = New Button()
         Label9 = New Label()
         CaptionsInputBtn = New Button()
+        TabPage4 = New TabPage()
+        Label16 = New Label()
+        modelDIr = New TextBox()
+        modelDirPicker = New Button()
         MicIDs = New Button()
         RunScript = New Button()
         Label13 = New Label()
@@ -119,6 +123,7 @@ Partial Class MainUI
         GroupBox6 = New GroupBox()
         RepeatProtection = New CheckBox()
         Button1 = New Button()
+        FolderBrowserDialog2 = New FolderBrowserDialog()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -134,6 +139,7 @@ Partial Class MainUI
         CType(MicCaliTime, ComponentModel.ISupportInitialize).BeginInit()
         CType(EnThreshValue, ComponentModel.ISupportInitialize).BeginInit()
         TabPage3.SuspendLayout()
+        TabPage4.SuspendLayout()
         GroupBox5.SuspendLayout()
         CType(PictureItch, ComponentModel.ISupportInitialize).BeginInit()
         CType(GitHubPicture, ComponentModel.ISupportInitialize).BeginInit()
@@ -242,7 +248,8 @@ Partial Class MainUI
         ' Label2
         ' 
         Label2.AutoSize = True
-        Label2.Location = New Point(153, 43)
+        Label2.BackColor = Color.DarkSlateBlue
+        Label2.Location = New Point(6, 8)
         Label2.Name = "Label2"
         Label2.Size = New Size(59, 15)
         Label2.TabIndex = 5
@@ -255,7 +262,7 @@ Partial Class MainUI
         RamSize.DropDownStyle = ComboBoxStyle.DropDownList
         RamSize.FormattingEnabled = True
         RamSize.Items.AddRange(New Object() {"1gb", "2gb", "4gb", "6gb", "12gb"})
-        RamSize.Location = New Point(224, 40)
+        RamSize.Location = New Point(71, 5)
         RamSize.Margin = New Padding(3, 2, 3, 2)
         RamSize.Name = "RamSize"
         RamSize.Size = New Size(72, 23)
@@ -264,7 +271,7 @@ Partial Class MainUI
         ' ForceRam
         ' 
         ForceRam.AutoSize = True
-        ForceRam.Location = New Point(301, 42)
+        ForceRam.Location = New Point(153, 7)
         ForceRam.Margin = New Padding(3, 2, 3, 2)
         ForceRam.Name = "ForceRam"
         ForceRam.Size = New Size(82, 19)
@@ -452,7 +459,7 @@ Partial Class MainUI
         StreamLanguage.Location = New Point(274, 65)
         StreamLanguage.Margin = New Padding(3, 2, 3, 2)
         StreamLanguage.Name = "StreamLanguage"
-        StreamLanguage.Size = New Size(347, 23)
+        StreamLanguage.Size = New Size(307, 23)
         StreamLanguage.Sorted = True
         StreamLanguage.TabIndex = 3
         ' 
@@ -541,7 +548,7 @@ Partial Class MainUI
         ' Label8
         ' 
         Label8.AutoSize = True
-        Label8.Location = New Point(395, 43)
+        Label8.Location = New Point(200, 37)
         Label8.Name = "Label8"
         Label8.Size = New Size(103, 15)
         Label8.TabIndex = 12
@@ -599,6 +606,7 @@ Partial Class MainUI
         SettingsTabs.Controls.Add(TabPage1)
         SettingsTabs.Controls.Add(TabPage2)
         SettingsTabs.Controls.Add(TabPage3)
+        SettingsTabs.Controls.Add(TabPage4)
         SettingsTabs.HotTrack = True
         SettingsTabs.Location = New Point(153, 176)
         SettingsTabs.Margin = New Padding(3, 2, 3, 2)
@@ -893,6 +901,55 @@ Partial Class MainUI
         CaptionsInputBtn.Text = "..."
         CaptionsInputBtn.UseVisualStyleBackColor = True
         ' 
+        ' TabPage4
+        ' 
+        TabPage4.BackColor = Color.DarkSlateBlue
+        TabPage4.Controls.Add(Label16)
+        TabPage4.Controls.Add(Label2)
+        TabPage4.Controls.Add(RamSize)
+        TabPage4.Controls.Add(ForceRam)
+        TabPage4.Controls.Add(modelDIr)
+        TabPage4.Controls.Add(modelDirPicker)
+        TabPage4.Location = New Point(4, 27)
+        TabPage4.Name = "TabPage4"
+        TabPage4.Padding = New Padding(3)
+        TabPage4.Size = New Size(459, 265)
+        TabPage4.TabIndex = 3
+        TabPage4.Text = "Model Settings"
+        ' 
+        ' Label16
+        ' 
+        Label16.AutoSize = True
+        Label16.BackColor = Color.DarkSlateBlue
+        Label16.Location = New Point(6, 47)
+        Label16.Name = "Label16"
+        Label16.Size = New Size(59, 15)
+        Label16.TabIndex = 5
+        Label16.Text = "Model Dir"
+        ' 
+        ' modelDIr
+        ' 
+        modelDIr.Location = New Point(71, 44)
+        modelDIr.Margin = New Padding(3, 2, 3, 2)
+        modelDIr.Name = "modelDIr"
+        modelDIr.PlaceholderText = "C:\Somelocation"
+        modelDIr.Size = New Size(341, 23)
+        modelDIr.TabIndex = 3
+        ' 
+        ' modelDirPicker
+        ' 
+        modelDirPicker.BackColor = Color.DodgerBlue
+        modelDirPicker.FlatAppearance.MouseDownBackColor = Color.Indigo
+        modelDirPicker.FlatAppearance.MouseOverBackColor = Color.SlateBlue
+        modelDirPicker.FlatStyle = FlatStyle.Popup
+        modelDirPicker.Location = New Point(418, 43)
+        modelDirPicker.Margin = New Padding(3, 2, 3, 2)
+        modelDirPicker.Name = "modelDirPicker"
+        modelDirPicker.Size = New Size(35, 22)
+        modelDirPicker.TabIndex = 4
+        modelDirPicker.Text = "..."
+        modelDirPicker.UseVisualStyleBackColor = False
+        ' 
         ' MicIDs
         ' 
         MicIDs.Location = New Point(308, 131)
@@ -1037,10 +1094,10 @@ Partial Class MainUI
         CookiesName.AutoCompleteSource = AutoCompleteSource.ListItems
         CookiesName.DropDownStyle = ComboBoxStyle.DropDownList
         CookiesName.FormattingEnabled = True
-        CookiesName.Location = New Point(507, 40)
+        CookiesName.Location = New Point(323, 34)
         CookiesName.Margin = New Padding(3, 2, 3, 2)
         CookiesName.Name = "CookiesName"
-        CookiesName.Size = New Size(86, 23)
+        CookiesName.Size = New Size(256, 23)
         CookiesName.TabIndex = 26
         ' 
         ' CookiesRefresh
@@ -1048,7 +1105,7 @@ Partial Class MainUI
         CookiesRefresh.FlatStyle = FlatStyle.Flat
         CookiesRefresh.Font = New Font("Segoe UI", 8F)
         CookiesRefresh.ImageAlign = ContentAlignment.TopLeft
-        CookiesRefresh.Location = New Point(598, 40)
+        CookiesRefresh.Location = New Point(585, 34)
         CookiesRefresh.Margin = New Padding(3, 2, 3, 2)
         CookiesRefresh.Name = "CookiesRefresh"
         CookiesRefresh.Size = New Size(22, 21)
@@ -1225,11 +1282,8 @@ Partial Class MainUI
         Controls.Add(Label5)
         Controls.Add(GroupBox3)
         Controls.Add(SecondaryTranslationLanguage)
-        Controls.Add(ForceRam)
         Controls.Add(StreamLanguage)
-        Controls.Add(RamSize)
         Controls.Add(Label4)
-        Controls.Add(Label2)
         Controls.Add(SearchForProgramBTN)
         Controls.Add(ScriptFileLocation)
         Controls.Add(Label1)
@@ -1265,6 +1319,8 @@ Partial Class MainUI
         CType(EnThreshValue, ComponentModel.ISupportInitialize).EndInit()
         TabPage3.ResumeLayout(False)
         TabPage3.PerformLayout()
+        TabPage4.ResumeLayout(False)
+        TabPage4.PerformLayout()
         GroupBox5.ResumeLayout(False)
         GroupBox5.PerformLayout()
         CType(PictureItch, ComponentModel.ISupportInitialize).EndInit()
@@ -1370,5 +1426,10 @@ Partial Class MainUI
     Friend WithEvents Label14 As Label
     Friend WithEvents PictureItch As PictureBox
     Friend WithEvents GitHubPicture As PictureBox
+    Friend WithEvents TabPage4 As TabPage
+    Friend WithEvents modelDIr As TextBox
+    Friend WithEvents Label16 As Label
+    Friend WithEvents modelDirPicker As Button
+    Friend WithEvents FolderBrowserDialog2 As FolderBrowserDialog
 
 End Class
