@@ -1,6 +1,6 @@
 from modules.imports import *
 
-version = "1.0.99997"
+version = "1.0.99998"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"
@@ -27,12 +27,29 @@ def get_remote_version(repo_owner, repo_name, updatebranch, file_path):
         else:
             print(f"{Fore.RED}Error: Version not found in the remote file.{Style.RESET_ALL}")
             return None
+    if response.status_code == 404:
+        print(f"{Fore.RED}Error: The file was not found on the remote repository.{Style.RESET_ALL}")
+        return None
+    if response.status_code == 503:
+        print(f"{Fore.RED}Error: The server is temporarily unavailable.{Style.RESET_ALL}")
+        return None
+    if response.status_code == 502:
+        print(f"{Fore.RED}Error: Bad gateway.{Style.RESET_ALL}")
+        return None
+    if response.status_code == 504:
+        print(f"{Fore.RED}Error: Gateway timeout.{Style.RESET_ALL}")
+        return None
+    if response.status_code == 500:
+        print(f"{Fore.RED}Error: Internal server error.{Style.RESET_ALL}")
+        return None
     else:
         print(f"{Fore.RED}An error occurred when checking for updates. Status code: {response.status_code}{Style.RESET_ALL}")
         print(f"Could not fetch remote version from: {Fore.YELLOW}{url}{Style.RESET_ALL}")
         print(f"Please check your internet connection and try again.")
         print("\n\n")
+        # return with None to indicate an error
         return None
+        
 
 def check_for_updates(updatebranch):
     local_version = version

@@ -310,7 +310,7 @@ def main():
             fine_tune_model_dl_compressed()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -322,7 +322,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -337,7 +337,7 @@ def main():
             fine_tune_model_dl()
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
                     print("Fine-tuned model loaded into memory.")
                     if device.type == "cuda":
                         max_split_size_mb = 128
@@ -349,7 +349,7 @@ def main():
         else:
             try:
                 if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root="models")
+                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
                     print("Fine-tuned model loaded into memory.")
             except Exception as e:
                 print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
@@ -372,7 +372,7 @@ def main():
         if args.target_language != "en" or args.target_language != "English":
             model = model.replace(".en", "")
             print(f"Loading model {model} instead since target language is not English...")
-        audio_model = whisper.load_model(model, device=device, download_root="models")
+        audio_model = whisper.load_model(model, device=device, download_root=f"{args.model_dir}")
 
     if args.microphone_enabled:
         record_timeout = args.record_timeout
