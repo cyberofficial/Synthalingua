@@ -269,9 +269,9 @@ def main():
         if model == "large" or model == "large.en":
             model = "large"
 
-    if not os.path.exists("models"):
+    if not os.path.exists(f"{args.model_dir}"):
         print("Creating models folder...")
-        os.makedirs("models")
+        os.makedirs(f"{args.model_dir}")
 
     if device.type == "cuda":
         cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
@@ -302,60 +302,76 @@ def main():
 
     print("Now using ram flag: " + args.ram)
 
-    if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
-        red_text = Style.BRIGHT + Fore.RED
-        if not os.path.exists("models/fine_tuned_model_compressed_v2.pt"):
-            print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
-            print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
-            fine_tune_model_dl_compressed()
-            try:
-                if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
-                    print("Fine-tuned model loaded into memory.")
-                    if device.type == "cuda":
-                        max_split_size_mb = 128
-            except Exception as e:
-                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
-                red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}{reset_text}")
-                pass
-        else:
-            try:
-                if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
-                    print("Fine-tuned model loaded into memory.")
-                    if device.type == "cuda":
-                        max_split_size_mb = 128
-            except Exception as e:
-                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
-                red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}{reset_text}")
-                pass
-    else:
-        if not os.path.exists("models/fine_tuned_model-v2.pt"):
-            print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
-            fine_tune_model_dl()
-            try:
-                if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
-                    print("Fine-tuned model loaded into memory.")
-                    if device.type == "cuda":
-                        max_split_size_mb = 128
-            except Exception as e:
-                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
-                red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}{reset_text}")
-                pass
-        else:
-            try:
-                if args.use_finetune == True:
-                    whisper.load_model("models/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
-                    print("Fine-tuned model loaded into memory.")
-            except Exception as e:
-                print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
-                red_text = Fore.RED + Back.BLACK
-                print(f"{red_text}Error: {e}{reset_text}")
-                pass
+    # Obsolete -- Will Adjust in future
+    #if args.ram == "1gb" or args.ram == "2gb" or args.ram == "4gb":
+    #    red_text = Style.BRIGHT + Fore.RED
+    #    if not os.path.exists(f"{args.model_dir}/fine_tuned_model_compressed_v2.pt"):
+    #        print("Warning - Since you have chosen a low amount of RAM, the fine-tuned model will be downloaded in a compressed format.\nThis will result in a some what faster startup time and a slower inference time, but will also result in slight reduction in accuracy.")
+    #        print("Compressed Fine-tuned model not found. Downloading Compressed fine-tuned model... [Via OneDrive (Public)]")
+    #        #fine_tune_model_dl_compressed(args.model_dir)
+    #        try:
+    #            if args.use_finetune == True:
+    #                whisper.load_model(f"{args.model_dir}/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
+    #                print("Fine-tuned model loaded into memory.")
+    #                if device.type == "cuda":
+    #                    max_split_size_mb = 128
+    #        except Exception as e:
+    #            red_text = Fore.RED + Back.BLACK
+    #            print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+    #            print(f"{red_text}Sometimes Microsoft Onedrive will block the download, please download manually from here https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ")
+    #            print(f"{red_text}Error: {e}{reset_text}")
+    #            print("Press Enter to continue...")
+    #            input()
+    #            pass
+    #    else:
+    #        try:
+    #            if args.use_finetune == True:
+    #                whisper.load_model(f"{args.model_dir}/fine_tuned_model_compressed_v2.pt", device=device, download_root=f"{args.model_dir}")
+    #                print("Fine-tuned model loaded into memory.")
+    #                if device.type == "cuda":
+    #                    max_split_size_mb = 128
+    #        except Exception as e:
+    #            red_text = Fore.RED + Back.BLACK
+    #            print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+    #            print(
+    #                f"{red_text}Sometimes Microsoft Onedrive will block the download, please download manually from here https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456433&authkey=AOTrQ949dOFhdxQ")
+    #            print(f"{red_text}Error: {e}{reset_text}")
+    #            print("Press Enter to continue...")
+    #            input()
+    #            pass
+    #else:
+    #    if not os.path.exists(f"{args.model_dir}/fine_tuned_model-v2.pt"):
+    #        print("Fine-tuned model not found. Downloading Fine-tuned model... [Via OneDrive (Public)]")
+    #        fine_tune_model_dl(args.model_dir)
+    #        try:
+    #            if args.use_finetune == True:
+    #                whisper.load_model(f"{args.model_dir}/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
+    #                print("Fine-tuned model loaded into memory.")
+    #                if device.type == "cuda":
+    #                    max_split_size_mb = 128
+    #        except Exception as e:
+    #            red_text = Fore.RED + Back.BLACK
+    #            print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+    #            print(
+    #                f"{red_text}Sometimes Microsoft Onedrive will block the download, please download manually from here https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs")
+    #            print(f"{red_text}Error: {e}{reset_text}")
+    #            print("Press Enter to continue...")
+    #            input()
+    #            pass
+    #    else:
+    #        try:
+    #            if args.use_finetune == True:
+    #                whisper.load_model(f"{args.model_dir}/fine_tuned_model-v2.pt", device=device, download_root=f"{args.model_dir}")
+    #                print("Fine-tuned model loaded into memory.")
+    #        except Exception as e:
+    #            red_text = Fore.RED + Back.BLACK
+    #            print("Failed to load fine-tuned model. Results may be inaccurate. If you experience issues, please delete the fine-tuned model from the models folder and restart the program. If you still experience issues, please open an issue on GitHub.")
+    #            print(
+    #                f"{red_text}Sometimes Microsoft Onedrive will block the download, please download manually from here https://onedrive.live.com/download?cid=22FB8D582DCFA12B&resid=22FB8D582DCFA12B%21456432&authkey=AIRKZih0go6iUTs")
+    #            print(f"{red_text}Error: {e}{reset_text}")
+    #            print("Press Enter to continue...")
+    #            input()
+    #            pass
 
     if args.ramforce:
         print("Hardmodel parameter detected. Setting ram flag to hardmodel parameter.")
