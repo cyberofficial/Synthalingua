@@ -170,6 +170,10 @@ Public Class MainUI
             ConfigTextBox.Text += "--discord_webhook """ & DiscordWebHook.Text & """" & " "
         End If
 
+        If modelDIr.Text <> "" Then
+            ConfigTextBox.Text += "--model_dir """ & modelDIr.Text & """" & " "
+        End If
+
         ConfigTextBox.Text += vbNewLine & "pause"
 
     End Sub
@@ -328,6 +332,7 @@ Public Class MainUI
             hlspassid.Text = .hlspassid
             hlspassword.Text = .hlspassword
             cb_halspassword.Checked = .cb_halspassword
+            modelDIr.Text = .modelDIr
             Try
                 PrimaryFolder = .PrimaryFolder
             Catch ex As Exception
@@ -532,6 +537,9 @@ Public Class MainUI
             ' RAM Size
             .RamSize = RamSize.Text.Replace("gb", "")
 
+            ' Model Location
+            .modelDIr = modelDIr.Text
+
             ' Force RAM
             .ForceRam = ForceRam.Checked
 
@@ -704,5 +712,13 @@ Public Class MainUI
 
     Private Sub DownloadBTN_FFMPEG_YTDLP_Click(sender As Object, e As EventArgs)
 
+    End Sub
+
+    Private Sub modelDirPicker_Click(sender As Object, e As EventArgs) Handles modelDirPicker.Click
+        Using folderBrowserDialog As New FolderBrowserDialog()
+            If folderBrowserDialog.ShowDialog() = DialogResult.OK Then
+                modelDIr.Text = folderBrowserDialog.SelectedPath
+            End If
+        End Using
     End Sub
 End Class

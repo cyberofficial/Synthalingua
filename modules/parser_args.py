@@ -73,6 +73,7 @@ def parse_arguments():
     parser.add_argument("--set_microphone", default=None, help="Set default microphone to use.", type=str)
     parser.add_argument("--microphone_enabled", default=None, help="Enable microphone by name.", type=str)
     parser.add_argument("--auto_language_lock", action='store_true', help="Automatically locks the language based on the detected language after set ammount of transcriptions.")
+    parser.add_argument("--model_dir", default="models", help="Location where to store downloaded models.")
     parser.add_argument("--retry", action='store_true', help="Retries the transcription if it fails. May increase output time.")
     parser.add_argument("--use_finetune", action='store_true', help="Use finetuned model.")
     parser.add_argument("--updatebranch", default="master", help="Check which branch from the repo to check for updates. Default is master, choices are master and dev-testing and bleeding-under-work. To turn off update checks use disable. bleeding-under-work is basically latest changes and can break at any time.", choices=["master", "dev-testing", "disable", "bleeding-under-work"])
