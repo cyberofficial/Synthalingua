@@ -30,16 +30,20 @@
             const showTranslation = params.has("showtranslation");
             const showTranscription = params.has("showtranscription");
 
-            if (showOriginal) {
+            if (!showOriginal && !showTranslation && !showTranscription) {
                 showElementById("header-text");
-            } 
-            
-            if (showTranslation) {
                 showElementById("translated-header");
-            }
-
-            if (showTranscription) {
                 showElementById("transcribed-header");
+            } else {
+                if (showOriginal) {
+                    showElementById("header-text");
+                }
+                if (showTranslation) {
+                    showElementById("translated-header");
+                }
+                if (showTranscription) {
+                    showElementById("transcribed-header");
+                }
             }
         });
     </script>
