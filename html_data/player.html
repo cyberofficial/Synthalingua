@@ -8,7 +8,6 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <!--- <link rel="stylesheet" type="text/css" href="/static/styles.css?q={{q}}"> --->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -24,22 +23,13 @@
         }
 
         /* Dark mode */
-
         body.dark-mode {
             background-color: #222222;
             color: #ffffff;
         }
 
-        /* Dark mode header text color */
-
-        body.dark-mode .header-item {
-            color: #f0f0f0;
-            /* Lighter shade of white */
-        }
-
         #video-container {
             position: relative;
-            /* Positioning context for headers */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -55,21 +45,13 @@
             border: none;
         }
 
-        /* Dark mode */
-
-        body.dark-mode #headers {
-            background-color: #485F6E;
-        }
-
         .hidden {
-        display: none;
-        box-shadow: none; /* Remove box-shadow in the hidden class */
+            display: none;
         }
 
         .header-item {
             position: absolute;
             bottom: 125px;
-            /* Adjust this value for vertical spacing */
             left: 50%;
             transform: translateX(-50%);
             background-color: rgba(0, 0, 0, 0.70);
@@ -78,7 +60,56 @@
             color: #ffffff;
             font-size: 28px;
             text-align: center;
-            'width: 50%;
+            width: 50%;
+        }
+
+        /* Gear icon */
+        #settings-icon {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            cursor: pointer;
+            z-index: 10;
+            font-size: 10px;
+            color: rgb(184, 184, 184);
+        }
+
+        /* Modal (popup) window */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgb(39, 30, 30);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+            width: 300px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+        }
+
+        .modal-close {
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        .customization-controls label {
+            margin-right: 10px;
+        }
+
+        .customization-controls input {
+            margin-right: 10px;
         }
     </style>
 </head>
@@ -97,14 +128,107 @@
     </div>
     <div id="video-container">
         <iframe id="video-frame" frameborder="0" allowfullscreen></iframe>
+
+        <!-- Gear Icon -->
+        <div id="settings-icon">Customize Captions</div>
+
         <div id="headers">
-            <p><div class="header-item hidden" id="header-text"></div></p>
-            <p><div class="header-item hidden" id="translated-header"></div></p>
-            <p><div class="header-item hidden" id="transcribed-header"></div></p>
+            <p><div class="header-item hidden" id="header-text">Caption 1</div></p>
+            <p><div class="header-item hidden" id="translated-header">Caption 2</div></p>
+            <p><div class="header-item hidden" id="transcribed-header">Caption 3</div></p>
+        </div>
+    </div>
+
+    <!-- Modal for customization controls -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-header">
+            <h3>Customize Captions</h3>
+            <span class="modal-close" id="close-modal">X</span>
+        </div>
+        <div class="customization-controls">
+            <div>
+                <label for="bg-color">Background Color:</label>
+                <input type="color" id="bg-color" name="bg-color">
+            </div>
+            <div>
+                <label for="text-color">Text Color:</label>
+                <input type="color" id="text-color" name="text-color">
+            </div>
+            <div>
+                <label for="font-size">Font Size:</label>
+                <input type="range" id="font-size" name="font-size" min="10" max="50" value="28">
+            </div>
+            <div>
+                <label for="caption-position">Position (Bottom):</label>
+                <input type="range" id="caption-position" name="caption-position" min="0" max="720" value="125">
+            </div>
+            <div>
+                <label for="opacity">Opacity:</label>
+                <input type="range" id="opacity" name="opacity" min="0" max="100" value="70">
+            </div>
+            <div>
+                <label for="width">Width:</label>
+                <input type="range" id="caption-width" name="width" min="10" max="90" value="50">
+            </div>
         </div>
     </div>
 
     <script src="/static/player_script.js?q={{q}}"></script>
+
+    <script>
+        const settingsIcon = document.getElementById("settings-icon");
+        const settingsModal = document.getElementById("settings-modal");
+        const closeModal = document.getElementById("close-modal");
+
+        const headerText = document.getElementById("header-text");
+        const translatedHeader = document.getElementById("translated-header");
+        const transcribedHeader = document.getElementById("transcribed-header");
+
+        const bgColorInput = document.getElementById("bg-color");
+        const textColorInput = document.getElementById("text-color");
+        const fontSizeInput = document.getElementById("font-size");
+        const captionPositionInput = document.getElementById("caption-position");
+        const opacityInput = document.getElementById("opacity");
+        const captionWidthInput = document.getElementById("caption-width");
+
+        // Open modal
+        settingsIcon.addEventListener("click", () => {
+            settingsModal.style.display = "block";
+        });
+
+        // Close modal
+        closeModal.addEventListener("click", () => {
+            settingsModal.style.display = "none";
+        });
+
+        // Real-time updates
+        const updateCaptions = () => {
+            const bgColor = bgColorInput.value;
+            const textColor = textColorInput.value;
+            const fontSize = fontSizeInput.value + "px";
+            const captionPosition = captionPositionInput.value + "px";
+            const opacity = opacityInput.value / 100; // Opacity slider from 0 to 1
+            const captionWidth = captionWidthInput.value + "%"; // Width percentage
+
+            // Apply styles to all headers
+            [headerText, translatedHeader, transcribedHeader].forEach(header => {
+                header.style.backgroundColor = bgColor;
+                header.style.color = textColor;
+                header.style.fontSize = fontSize;
+                header.style.bottom = captionPosition;
+                header.style.opacity = opacity;
+                header.style.width = captionWidth; // Set width based on input
+            });
+        };
+
+        // Add event listeners for real-time updates
+        bgColorInput.addEventListener("input", updateCaptions);
+        textColorInput.addEventListener("input", updateCaptions);
+        fontSizeInput.addEventListener("input", updateCaptions);
+        captionPositionInput.addEventListener("input", updateCaptions);
+        opacityInput.addEventListener("input", updateCaptions);
+        captionWidthInput.addEventListener("input", updateCaptions);
+    </script>
 </body>
 
 </html>

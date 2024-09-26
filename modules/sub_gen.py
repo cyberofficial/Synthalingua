@@ -14,7 +14,7 @@ def run_sub_gen(input_path: str, output_name: str = "", output_directory: str = 
     print("Setting Path")
     print("Doing the work now...")
     print("This may take a while, sit back and get a coffee or something.")
-    result = model.transcribe(input_path, language=args.language, task="translate")
+    result = model.transcribe(input_path, fp16=args.fp16, language=args.language, task="translate", condition_on_previous_text=args.condition_on_previous_text)
 
     print("Setting writer Up")
     writer = get_writer("srt", str(output_directory))

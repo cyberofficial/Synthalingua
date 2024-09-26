@@ -12,20 +12,20 @@
     <PackageIcon>syntha.png</PackageIcon>
     <ApplicationIcon>assets\syntha.ico</ApplicationIcon>
     <AssemblyName>SynthalinguaGUI</AssemblyName>
-    <Copyright>Build Date: Sep 26 2024 3:07 PM EDT</Copyright>
+    <Copyright>Build Date: Sep 26 2024 6:50 PM EDT</Copyright>
     <FileVersion>4</FileVersion>
-    <AssemblyVersion>1.1.4.44</AssemblyVersion>
+    <AssemblyVersion>1.1.4.45</AssemblyVersion>
     <Version>1</Version>
     <RepositoryUrl>https://github.com/cyberofficial/Synthalingua</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>

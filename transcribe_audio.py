@@ -277,7 +277,7 @@ def main():
         cuda_vram = torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024
         overhead_buffer = 200
 
-        ram_options = [("12gb", 12000), ("6gb", 6144), ("4gb", 4096), ("2gb", 2048), ("1gb", 1024)]
+        ram_options = [("12gb-v2", 12000), ("6gb", 6144), ("4gb", 4096), ("2gb", 2048), ("1gb", 1024)]
 
         found = False
         old_ram_flag = args.ram
@@ -553,7 +553,9 @@ def main():
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
                 # if ram is set to 12 use n_mels=128 else use n_mels=80
-                if args.ram == "12gb":
+                if args.ram == "12gb-v2":
+                    mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
+                elif args.ram == "12gb-v3":
                     mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
                 else:
                     mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
@@ -608,9 +610,9 @@ def main():
                         print("Transcribing...")
 
                 if device == "cuda":
-                    result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
+                    result = audio_model.transcribe(temp_file, fp16=args.fp16, language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                 else:
-                    result = audio_model.transcribe(temp_file, condition_on_previous_text=args.condition_on_previous_text)
+                    result = audio_model.transcribe(temp_file, language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
 
                 if args.no_log == False:
                     print(f"Detected Speech: {result['text']}")
@@ -621,9 +623,9 @@ def main():
                             print("Transcription failed, trying again...")
                         send_to_discord_webhook(webhook_url, "Transcription failed, trying again...")
                         if device == "cuda":
-                            result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
+                            result = audio_model.transcribe(temp_file, fp16=args.fp16, language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                         else:
-                            result = audio_model.transcribe(temp_file, condition_on_previous_text=args.condition_on_previous_text)
+                            result = audio_model.transcribe(temp_file, language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                         if args.no_log == False:
                             print(f"Detected Speech: {result['text']}")
                     else:
@@ -638,9 +640,9 @@ def main():
                         if args.no_log == False:
                             print("Translating...")
                         if device == "cuda":
-                            translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
+                            translated_result = audio_model.transcribe(temp_file, fp16=args.fp16, task="translate", language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                         else:
-                            translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
+                            translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                         translated_text = translated_result['text'].strip()
                         if translated_text == "":
                             if args.retry:
@@ -648,9 +650,9 @@ def main():
                                     print("Translation failed, trying again...")
                                 send_to_discord_webhook(webhook_url, "Translation failed, trying again...")
                                 if device == "cuda":
-                                    translated_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="translate", language=detected_language)
+                                    translated_result = audio_model.transcribe(temp_file, fp16=args.fp16, task="translate", language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                                 else:
-                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language)
+                                    translated_result = audio_model.transcribe(temp_file, task="translate", language=detected_language, condition_on_previous_text=args.condition_on_previous_text)
                             translated_text = translated_result['text'].strip()
                         if args.discord_webhook:
                             if translated_text == "":
@@ -669,9 +671,9 @@ def main():
                     if args.no_log == False:
                         print(f"Transcribing to {target_language}...")
                     if device == "cuda":
-                        transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
+                        transcribed_result = audio_model.transcribe(temp_file, fp16=args.fp16, task="transcribe", language=target_language, condition_on_previous_text=args.condition_on_previous_text)
                     else:
-                        transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                        transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language, condition_on_previous_text=args.condition_on_previous_text)
                     transcribed_text = transcribed_result['text'].strip()
                     if transcribed_text == "":
                         if args.retry:
@@ -679,9 +681,9 @@ def main():
                                 print("transcribe failed, trying again...")
                             send_to_discord_webhook(webhook_url, "transcribe failed, trying again...")
                             if device == "cuda":
-                                transcribed_result = audio_model.transcribe(temp_file, fp16=torch.cuda.is_available(), task="transcribe", language=target_language)
+                                transcribed_result = audio_model.transcribe(temp_file, fp16=args.fp16, task="transcribe", language=target_language, condition_on_previous_text=args.condition_on_previous_text)
                             else:
-                                transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language)
+                                transcribed_result = audio_model.transcribe(temp_file, task="transcribe", language=target_language, condition_on_previous_text=args.condition_on_previous_text)
                         transcribed_text = transcribed_result['text'].strip()
                     if args.discord_webhook:
                         if transcribed_text == "":
