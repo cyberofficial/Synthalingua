@@ -9,7 +9,6 @@ Public Class WebBrowserConfig
         URL_LINK_TXT_BOX.Text += If(Caption_Orig.Checked, "showoriginal&", "")
         URL_LINK_TXT_BOX.Text += If(Caption_EngTrans.Checked, "showtranslation&", "")
         URL_LINK_TXT_BOX.Text += If(Caption_SecTrans.Checked, "showtranscription&", "")
-
     End Sub
 
     Private Sub WebBrowserConfig_Load(sender As Object, e As EventArgs) Handles MyBase.Load
@@ -24,6 +23,5 @@ Public Class WebBrowserConfig
             End If
         Next
         LanIPListBox.Text = lowestIp.ToString()
-
     End Sub
 End Class

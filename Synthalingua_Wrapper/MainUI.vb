@@ -1,5 +1,4 @@
-﻿' using the system file storage
-Imports System.IO
+﻿Imports System.IO
 Imports System.Diagnostics
 Imports System.Threading
 
@@ -9,8 +8,6 @@ Public Class MainUI
     Private Shared appMutex As Mutex
 
     Public WordBlockListLocation As String = "blacklist.txt"
-
-
 
     Private Sub Button2_Click(sender As Object, e As EventArgs) Handles SearchForProgramBTN.Click
         If Label1.ForeColor = Color.Red Then
@@ -186,7 +183,6 @@ Public Class MainUI
             My.Computer.FileSystem.WriteAllText(SaveFileDialog.FileName, ConfigTextBox.Text, False)
         End If
     End Sub
-
     Private Sub RunScript_Click(sender As Object, e As EventArgs) Handles RunScript.Click
         If ScriptFileLocation.Text = "" Then
             Dim unused1 = MsgBox("Please select the program file.")
@@ -210,22 +206,16 @@ Public Class MainUI
             End If
         End If
 
-        ' Check and set PrimaryFolder (removed local declaration)
         Try
             If My.Settings.PrimaryFolder IsNot Nothing AndAlso My.Settings.PrimaryFolder <> "" Then
                 PrimaryFolder = My.Settings.PrimaryFolder
             End If
         Catch ex As Exception
-            ' Handle the exception if necessary
         End Try
-
-        ' Check if PrimaryFolder is set
         If PrimaryFolder = "" Then
             MessageBox.Show("Primary folder is not set.")
             Exit Sub
         End If
-
-        ' Save ConfigTextBox.Text to a tmp bat file in the primary folder then run it
         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
         File.WriteAllText(tmpBatFile, ConfigTextBox.Text)
         Dim unused = Process.Start(tmpBatFile)
@@ -246,7 +236,6 @@ Public Class MainUI
                         Dim unused6 = Process.Start(tmpBatFile)
                     Else
                         Dim unused5 = MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
-                        ' add a pause to the end of the command so the user can see the output
                         Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbCrLf & "pause"
                         Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
                         File.WriteAllText(tmpBatFile, TempCommand)
@@ -281,14 +270,9 @@ Public Class MainUI
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
 
-        ' Check to see if this program is running twice (or more) and remind user to change the port number
         Dim createdNew As Boolean
         appMutex = New Mutex(True, "Synthalingua_Wrapper", createdNew)
-
-
-        ' Load Main Script from file if in settings, if there is nothing then load from current directory, still nothing then nag user to find it.
         With My.Settings
-            ' Set Main Script Location
             If String.IsNullOrEmpty(.MainScriptLocation) Then
                 ' Nag user
                 'Dim unused = MsgBox("Could not find MainScriptLocation in settings. Please click the ""..."" to search for it.")
@@ -296,7 +280,6 @@ Public Class MainUI
                 ScriptFileLocation.Text = .MainScriptLocation
             End If
 
-            ' Load Settings
             HSL_RadioButton.Checked = (.AudioSource = 1)
             MIC_RadioButton.Checked = (.AudioSource = 2)
             CAP_RadioButton.Checked = (.AudioSource = 3)
@@ -340,46 +323,36 @@ Public Class MainUI
             End Try
         End With
 
-        ' Get the current running directory
         Dim currentDirectory As String = System.IO.Directory.GetCurrentDirectory()
 
-        ' Create the "cookies" folder if it doesn't exist
         Dim cookiesFolderPath As String = System.IO.Path.Combine(currentDirectory, "cookies")
         If Not System.IO.Directory.Exists(cookiesFolderPath) Then
             Dim unused1 = System.IO.Directory.CreateDirectory(cookiesFolderPath)
         End If
 
-        ' if the folder 'cookies' exist then populate CookiesName with each file name in there excluding the file extension
         If Directory.Exists(cookiesFolderPath) Then
             For Each file As String In Directory.GetFiles(cookiesFolderPath)
                 Dim unused = CookiesName.Items.Add(Path.GetFileNameWithoutExtension(file))
             Next
         End If
 
-        ' Check if ScriptFileLocation is empty
         If String.IsNullOrEmpty(ScriptFileLocation.Text) Then
-            ' Attempt to find the executable file
             Dim scriptFilePath As String = System.IO.Path.Combine(currentDirectory, "transcribe_audio.exe")
             If System.IO.File.Exists(scriptFilePath) Then
                 ScriptFileLocation.Text = scriptFilePath
                 PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
-                ShortCutType = "Portable"  ' Set to Portable if .exe found
+                ShortCutType = "Portable"
             Else
-                ' Check if a Python script file exists (e.g., transcribe_audio.py)
                 scriptFilePath = System.IO.Path.Combine(currentDirectory, "transcribe_audio.py")
                 If System.IO.File.Exists(scriptFilePath) Then
                     ScriptFileLocation.Text = scriptFilePath
                     PrimaryFolder = System.IO.Path.GetDirectoryName(scriptFilePath)
-                    ShortCutType = "Source"  ' Set to Source if .py found
-                Else
-                    'Loading_Screen.Hide()
-                    'Dim unused = MsgBox("Could not find transcribe_audio.exe or transcribe_audio.py in the current running directory. Please click the ""..."" to search for it.")
+                    ShortCutType = "Source"
                 End If
             End If
         End If
 
         If Not createdNew Then
-            ' If a second instance is detected, show a message and exit
             MessageBox.Show("This application is already running. Please change the port number if you plan to use multiple instances.", "Instance Already Running", MessageBoxButtons.OK, MessageBoxIcon.Warning)
             Return
         End If
@@ -388,7 +361,6 @@ Public Class MainUI
 
 
     Private Sub CookiesRefresh_Click(sender As Object, e As EventArgs) Handles CookiesRefresh.Click
-        ' refresh the CookiesName by clearing it and then repopulating it
         CookiesName.Items.Clear()
         If Directory.Exists(Path.Combine(Application.StartupPath, "cookies")) Then
             For Each file As String In Directory.GetFiles(Path.Combine(Application.StartupPath, "cookies"))
@@ -398,7 +370,6 @@ Public Class MainUI
     End Sub
 
     Private Sub CookiesRefresh_MouseHover(sender As Object, e As EventArgs) Handles CookiesRefresh.MouseHover
-        ' shows a little tooltip when you hover over the button that says "Refresh Cookies"
         ToolTip1.SetToolTip(CookiesRefresh, "Clear the set cookie.")
     End Sub
 
@@ -509,14 +480,12 @@ Public Class MainUI
     Private Sub CaptionsInputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsInputBtn.Click
         Dim unused = CaptionsInputFile.ShowDialog
         CaptionsInput.Text = CaptionsInputFile.FileName
-        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
         CaptionsName.Text = Path.GetFileNameWithoutExtension(CaptionsInputFile.SafeFileName)
     End Sub
 
     Private Sub CaptionsOutputBtn_Click(sender As Object, e As EventArgs) Handles CaptionsOutputBtn.Click
         Dim unused = FolderBrowserDialog1.ShowDialog
         CaptionsOutput.Text = FolderBrowserDialog1.SelectedPath
-        'PrimaryFolder = Path.GetDirectoryName(OpenScriptDiag.FileName)
     End Sub
 
     Private Sub SaveConfig_Click(sender As Object, e As EventArgs) Handles SaveConfig.Click
@@ -598,32 +567,19 @@ Public Class MainUI
             .hlspassword = hlspassword.Text
             .cb_halspassword = cb_halspassword.Checked
 
-
-
         End With
-
-        ' Final Save
         My.Settings.Save()
     End Sub
 
 
     Private Sub WipeSettings_Click(sender As Object, e As EventArgs) Handles WipeSettings.Click
-        ' Confirm with the user that all settings will be cleared
         Dim confirmResult As DialogResult = MessageBox.Show("Are you sure you want to wipe all settings? This will reset all application settings and close the application.", "Confirm Wipe", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
-
         If confirmResult = DialogResult.Yes Then
             If EraseCheckBox.Checked Then
-                ' Confirm with the user one more time with a warning
                 Dim warningResult As DialogResult = MessageBox.Show("This action will clear all settings and close the application. Are you really sure?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
-
                 If warningResult = DialogResult.Yes Then
                     My.Settings.Reset()
-
-                    ' Clear subtitle window settings
-
                     My.Settings.Save()
-
-                    ' Notify the user that settings have been cleared
                     Dim finalResult As DialogResult = MessageBox.Show("All settings have been cleared. Application will close now.", "Settings Cleared", MessageBoxButtons.OK, MessageBoxIcon.Information)
 
                     If finalResult = DialogResult.OK Then
@@ -640,24 +596,16 @@ Public Class MainUI
 
     Private Sub EditBlockList_Click(sender As Object, e As EventArgs) Handles EditBlockList.Click
         Try
-            ' Get the directory path from the ScriptFileLocation textbox
             Dim directoryPath As String = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
-
-            ' Combine the directory path with the file name
             Dim filePath As String = System.IO.Path.Combine(WordBlockListLocation)
-
-            ' Check if the file exists
             If Not System.IO.File.Exists(filePath) Then
-                ' Create the file if it doesn't exist
                 Try
-                    System.IO.File.Create(filePath).Close() ' Close the file stream after creation
+                    System.IO.File.Create(filePath).Close()
                 Catch ex As Exception
                     MessageBox.Show("An error occurred while creating the file: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                    Exit Sub ' Exit the sub if file creation fails
+                    Exit Sub
                 End Try
             End If
-
-            ' Open the file with Notepad
             Try
                 System.Diagnostics.Process.Start("notepad.exe", filePath)
             Catch ex As Exception
@@ -666,13 +614,11 @@ Public Class MainUI
         Catch ex As Exception
             MessageBox.Show(ex.ToString)
         End Try
-
     End Sub
 
     Private Sub RepeatProtection_MouseHover(sender As Object, e As EventArgs) Handles RepeatProtection.MouseHover
         ToolTip1.SetToolTip(RepeatProtection, "Will help the model from repeating itself, but may slow up the process.")
     End Sub
-
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
         Dim OpenFileDiag As New OpenFileDialog With {
             .Filter = "Text File (*.txt)|*.txt",
@@ -708,10 +654,6 @@ Public Class MainUI
         Process.Start(New ProcessStartInfo("https://github.com/cyberofficial/Synthalingua") With {
                       .UseShellExecute = True
                       })
-    End Sub
-
-    Private Sub DownloadBTN_FFMPEG_YTDLP_Click(sender As Object, e As EventArgs)
-
     End Sub
 
     Private Sub modelDirPicker_Click(sender As Object, e As EventArgs) Handles modelDirPicker.Click

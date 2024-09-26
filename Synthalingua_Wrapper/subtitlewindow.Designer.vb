@@ -99,7 +99,7 @@ Partial Class subtitlewindow
         headertextlbl.ForeColor = Color.White
         headertextlbl.Location = New Point(10, 10)
         headertextlbl.Name = "headertextlbl"
-        headertextlbl.Size = New Size(297, 38)
+        headertextlbl.Size = New Size(297, 48)
         headertextlbl.TabIndex = 0
         headertextlbl.Text = "Dummy Text - Original"
         headertextlbl.TextAlign = ContentAlignment.MiddleCenter
@@ -444,12 +444,13 @@ Partial Class subtitlewindow
         ' Panel1
         ' 
         Panel1.AutoSize = True
+        Panel1.BackColor = Color.Blue
         Panel1.Controls.Add(headertextlbl)
-        Panel1.Location = New Point(12, 34)
+        Panel1.Location = New Point(12, 37)
         Panel1.MinimumSize = New Size(317, 58)
         Panel1.Name = "Panel1"
         Panel1.Padding = New Padding(10)
-        Panel1.Size = New Size(317, 58)
+        Panel1.Size = New Size(317, 68)
         Panel1.TabIndex = 4
         ' 
         ' NotifyIcon1
