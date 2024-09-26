@@ -39,6 +39,8 @@ Partial Class WebBrowserConfig
         GenerateLink = New Button()
         URL_LINK_TXT_BOX = New TextBox()
         Label3 = New Label()
+        LanIpLabel = New Label()
+        LanIPListBox = New ComboBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         GroupBox3.SuspendLayout()
@@ -223,11 +225,30 @@ Partial Class WebBrowserConfig
         Label3.TabIndex = 7
         Label3.Text = "⚠️ When sharing with twitch with others, the domain" & vbCrLf & "name must use HTTPS It also must not be a ip address." & vbCrLf & vbCrLf & "This is Twitch's ruling, not mine."
         ' 
+        ' LanIpLabel
+        ' 
+        LanIpLabel.AutoSize = True
+        LanIpLabel.Location = New Point(207, 382)
+        LanIpLabel.Name = "LanIpLabel"
+        LanIpLabel.Size = New Size(70, 25)
+        LanIpLabel.TabIndex = 8
+        LanIpLabel.Text = "LAN IP:"
+        ' 
+        ' LanIPListBox
+        ' 
+        LanIPListBox.FormattingEnabled = True
+        LanIPListBox.Location = New Point(285, 379)
+        LanIPListBox.Name = "LanIPListBox"
+        LanIPListBox.Size = New Size(446, 31)
+        LanIPListBox.TabIndex = 9
+        ' 
         ' WebBrowserConfig
         ' 
         AutoScaleDimensions = New SizeF(9F, 23F)
         AutoScaleMode = AutoScaleMode.Font
         ClientSize = New Size(746, 468)
+        Controls.Add(LanIPListBox)
+        Controls.Add(LanIpLabel)
         Controls.Add(Label3)
         Controls.Add(URL_LINK_TXT_BOX)
         Controls.Add(GenerateLink)
@@ -272,4 +293,6 @@ Partial Class WebBrowserConfig
     Friend WithEvents GenerateLink As Button
     Friend WithEvents URL_LINK_TXT_BOX As TextBox
     Friend WithEvents Label3 As Label
+    Friend WithEvents LanIpLabel As Label
+    Friend WithEvents LanIPListBox As ComboBox
 End Class
