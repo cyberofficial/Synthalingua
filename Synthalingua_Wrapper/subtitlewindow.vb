@@ -207,10 +207,18 @@ Public Class subtitlewindow
         Dim blacklistedPhrases As List(Of String) = LoadBlacklistedPhrases()
         If MainUI.WordBlockList.Checked = True Then
             Dim words As String() = text.Split(" "c)
+
+            Dim convertToStars As Boolean = convert_text_to_stars.Checked
+            Dim convertToEmpty As Boolean = convert_text_to_empty.Checked
+
             For i As Integer = 0 To words.Length - 1
                 For Each phrase As String In blacklistedPhrases
                     If words(i).IndexOf(phrase, StringComparison.OrdinalIgnoreCase) <> -1 Then
-                        words(i) = ""
+                        If convertToStars Then
+                            words(i) = "*"
+                        ElseIf convertToEmpty Then
+                            words(i) = " "
+                        End If
                         Exit For
                     End If
                 Next
@@ -220,6 +228,7 @@ Public Class subtitlewindow
 
         Return text
     End Function
+
 
     Private Function LoadBlacklistedPhrases() As List(Of String)
         Dim blacklistedPhrases As New List(Of String)()

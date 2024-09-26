@@ -46,6 +46,10 @@ Partial Class subtitlewindow
         LanguageModeToolStripMenuItem = New ToolStripMenuItem()
         LeftToolStripMenuItem1 = New ToolStripMenuItem()
         RightToLeftToolStripMenuItem = New ToolStripMenuItem()
+        WordListSettingsToolStripMenuItem = New ToolStripMenuItem()
+        WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem = New ToolStripMenuItem()
+        convert_text_to_stars = New ToolStripMenuItem()
+        convert_text_to_empty = New ToolStripMenuItem()
         AddRemoveSubtitleControlToolStripMenuItem = New ToolStripMenuItem()
         OriginalToolStripMenuItem = New ToolStripMenuItem()
         ShowToolStripMenuItem = New ToolStripMenuItem()
@@ -180,22 +184,22 @@ Partial Class subtitlewindow
         ' 
         ' FontSettingsToolStripMenuItem
         ' 
-        FontSettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FontFaceToolStripMenuItem, TextColorToolStripMenuItem, LanguageModeToolStripMenuItem})
+        FontSettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FontFaceToolStripMenuItem, TextColorToolStripMenuItem, LanguageModeToolStripMenuItem, WordListSettingsToolStripMenuItem})
         FontSettingsToolStripMenuItem.Name = "FontSettingsToolStripMenuItem"
-        FontSettingsToolStripMenuItem.Size = New Size(88, 20)
-        FontSettingsToolStripMenuItem.Text = "Font Settings"
+        FontSettingsToolStripMenuItem.Size = New Size(85, 20)
+        FontSettingsToolStripMenuItem.Text = "Text Settings"
         ' 
         ' FontFaceToolStripMenuItem
         ' 
         FontFaceToolStripMenuItem.Name = "FontFaceToolStripMenuItem"
-        FontFaceToolStripMenuItem.Size = New Size(160, 22)
+        FontFaceToolStripMenuItem.Size = New Size(180, 22)
         FontFaceToolStripMenuItem.Text = "Font Face"
         ' 
         ' TextColorToolStripMenuItem
         ' 
         TextColorToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {FrontToolStripMenuItem, BackToolStripMenuItem})
         TextColorToolStripMenuItem.Name = "TextColorToolStripMenuItem"
-        TextColorToolStripMenuItem.Size = New Size(160, 22)
+        TextColorToolStripMenuItem.Size = New Size(180, 22)
         TextColorToolStripMenuItem.Text = "Text Color"
         ' 
         ' FrontToolStripMenuItem
@@ -221,7 +225,7 @@ Partial Class subtitlewindow
         ' 
         LanguageModeToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {LeftToolStripMenuItem1, RightToLeftToolStripMenuItem})
         LanguageModeToolStripMenuItem.Name = "LanguageModeToolStripMenuItem"
-        LanguageModeToolStripMenuItem.Size = New Size(160, 22)
+        LanguageModeToolStripMenuItem.Size = New Size(180, 22)
         LanguageModeToolStripMenuItem.Text = "Language Mode"
         ' 
         ' LeftToolStripMenuItem1
@@ -235,6 +239,33 @@ Partial Class subtitlewindow
         RightToLeftToolStripMenuItem.Name = "RightToLeftToolStripMenuItem"
         RightToLeftToolStripMenuItem.Size = New Size(140, 22)
         RightToLeftToolStripMenuItem.Text = "Right To Left"
+        ' 
+        ' WordListSettingsToolStripMenuItem
+        ' 
+        WordListSettingsToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem})
+        WordListSettingsToolStripMenuItem.Name = "WordListSettingsToolStripMenuItem"
+        WordListSettingsToolStripMenuItem.Size = New Size(180, 22)
+        WordListSettingsToolStripMenuItem.Text = "Word List Settings"
+        ' 
+        ' WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem
+        ' 
+        WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem.DropDownItems.AddRange(New ToolStripItem() {convert_text_to_stars, convert_text_to_empty})
+        WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem.Name = "WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem"
+        WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem.Size = New Size(388, 22)
+        WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem.Text = "When a phrase is found from the word list the program will "
+        ' 
+        ' convert_text_to_stars
+        ' 
+        convert_text_to_stars.CheckOnClick = True
+        convert_text_to_stars.Name = "convert_text_to_stars"
+        convert_text_to_stars.Size = New Size(180, 22)
+        convert_text_to_stars.Text = "convert themt to *."
+        ' 
+        ' convert_text_to_empty
+        ' 
+        convert_text_to_empty.Name = "convert_text_to_empty"
+        convert_text_to_empty.Size = New Size(180, 22)
+        convert_text_to_empty.Text = "not show them."
         ' 
         ' AddRemoveSubtitleControlToolStripMenuItem
         ' 
@@ -538,4 +569,8 @@ Partial Class subtitlewindow
     Friend WithEvents YouCanClickTheEdgesOfTheCaptionTextToExpandOrShrinkTheTextBoxToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents PlantTurnThisWindowIntoFloatingCaptionBoxToolStripMenuItem As ToolStripMenuItem
     Friend WithEvents FormatChangeHowTheTextIsShownInTheCaptionBoxToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents WordListSettingsToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents WhenAPhraseIsFoundFromTheWordListTheProgramWillToolStripMenuItem As ToolStripMenuItem
+    Friend WithEvents convert_text_to_stars As ToolStripMenuItem
+    Friend WithEvents convert_text_to_empty As ToolStripMenuItem
 End Class
