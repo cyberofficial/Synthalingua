@@ -93,6 +93,8 @@ Partial Class MainUI
         Label9 = New Label()
         CaptionsInputBtn = New Button()
         TabPage4 = New TabPage()
+        Label17 = New Label()
+        PrecisionCheckBox = New CheckBox()
         Label16 = New Label()
         modelDIr = New TextBox()
         modelDirPicker = New Button()
@@ -261,7 +263,7 @@ Partial Class MainUI
         RamSize.AutoCompleteSource = AutoCompleteSource.ListItems
         RamSize.DropDownStyle = ComboBoxStyle.DropDownList
         RamSize.FormattingEnabled = True
-        RamSize.Items.AddRange(New Object() {"1gb", "2gb", "4gb", "6gb", "12gb"})
+        RamSize.Items.AddRange(New Object() {"1gb", "2gb", "4gb", "6gb", "12gb-v2", "12gb-v3"})
         RamSize.Location = New Point(71, 5)
         RamSize.Margin = New Padding(3, 2, 3, 2)
         RamSize.Name = "RamSize"
@@ -904,6 +906,8 @@ Partial Class MainUI
         ' TabPage4
         ' 
         TabPage4.BackColor = Color.DarkSlateBlue
+        TabPage4.Controls.Add(Label17)
+        TabPage4.Controls.Add(PrecisionCheckBox)
         TabPage4.Controls.Add(Label16)
         TabPage4.Controls.Add(Label2)
         TabPage4.Controls.Add(RamSize)
@@ -916,6 +920,26 @@ Partial Class MainUI
         TabPage4.Size = New Size(459, 265)
         TabPage4.TabIndex = 3
         TabPage4.Text = "Model Settings"
+        ' 
+        ' Label17
+        ' 
+        Label17.AutoSize = True
+        Label17.Font = New Font("Segoe UI", 12F)
+        Label17.Location = New Point(6, 88)
+        Label17.Name = "Label17"
+        Label17.Size = New Size(443, 147)
+        Label17.TabIndex = 9
+        Label17.Text = resources.GetString("Label17.Text")
+        ' 
+        ' PrecisionCheckBox
+        ' 
+        PrecisionCheckBox.AutoSize = True
+        PrecisionCheckBox.Location = New Point(241, 7)
+        PrecisionCheckBox.Name = "PrecisionCheckBox"
+        PrecisionCheckBox.Size = New Size(108, 19)
+        PrecisionCheckBox.TabIndex = 8
+        PrecisionCheckBox.Text = "Precision Mode"
+        PrecisionCheckBox.UseVisualStyleBackColor = True
         ' 
         ' Label16
         ' 
@@ -1431,5 +1455,7 @@ Partial Class MainUI
     Friend WithEvents Label16 As Label
     Friend WithEvents modelDirPicker As Button
     Friend WithEvents FolderBrowserDialog2 As FolderBrowserDialog
+    Friend WithEvents PrecisionCheckBox As CheckBox
+    Friend WithEvents Label17 As Label
 
 End Class

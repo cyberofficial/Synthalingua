@@ -171,6 +171,10 @@ Public Class MainUI
             ConfigTextBox.Text += "--model_dir """ & modelDIr.Text & """" & " "
         End If
 
+        If PrecisionCheckBox.Checked Then
+            ConfigTextBox.Text += "--fp16"
+        End If
+
         ConfigTextBox.Text += vbNewLine & "pause"
 
     End Sub
@@ -290,7 +294,7 @@ Public Class MainUI
 
             PortNumber.Value = .WebServerPort
             WebServerButton.Checked = .WebServerEnabled
-            RamSize.Text = .RamSize & "gb"
+            RamSize.Text = .RamSize
             ForceRam.Checked = .ForceRam
             CookiesName.Text = .CookieName
             StreamLanguage.Text = .StreamLanguage
@@ -317,6 +321,7 @@ Public Class MainUI
             hlspassword.Text = .hlspassword
             cb_halspassword.Checked = .cb_halspassword
             modelDIr.Text = .modelDIr
+            PrecisionCheckBox.Checked = .fp16
             Try
                 PrimaryFolder = .PrimaryFolder
             Catch ex As Exception
@@ -505,7 +510,7 @@ Public Class MainUI
             .WebServerPort = PortNumber.Value
 
             ' RAM Size
-            .RamSize = RamSize.Text.Replace("gb", "")
+            .RamSize = RamSize.Text
 
             ' Model Location
             .modelDIr = modelDIr.Text
@@ -567,6 +572,9 @@ Public Class MainUI
             .hlspassid = hlspassid.Text
             .hlspassword = hlspassword.Text
             .cb_halspassword = cb_halspassword.Checked
+
+            'Precision Mode
+            .fp16 = PrecisionCheckBox.Checked
 
         End With
         My.Settings.Save()
