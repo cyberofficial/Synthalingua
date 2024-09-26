@@ -269,6 +269,7 @@ Public Class MainUI
         Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        Me.Text = Me.Text & " v" & My.Application.Info.Version.ToString()
 
         Dim createdNew As Boolean
         appMutex = New Mutex(True, "Synthalingua_Wrapper", createdNew)
