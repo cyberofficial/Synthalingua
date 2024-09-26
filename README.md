@@ -170,7 +170,7 @@ This script uses argparse to accept command line arguments. The following option
 | `--microphone_enabled` | Enables microphone usage. Add `true` after the flag. |
 | `--auto_language_lock` | Automatically lock the language based on the detected language after 5 detections. Enables automatic language locking. Will help reduce latency. Use this flag if you are using non-English and if you do not know the current spoken language. |
 | `--model_dir` | Default location is "model" folder. You can use this argument to change location. |
-| `--use_finetune` | Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required. |
+| ~~`--use_finetune`~~ | ~~Use fine-tuned model. This will increase accuracy, but will also increase latency. Additional VRAM/RAM usage is required.~~ ⚠️ Fine Tune model is being retrained. Command flag is useless in current code. |
 | `--no_log` | Makes it so only the last thing translated/transcribed is shown rather log style list. |
 | `--updatebranch` | Check which branch from the repo to check for updates. Default is **master**, choices are **master** and **dev-testing** and **bleeding-under-work**. To turn off update checks use **disable**. **bleeding-under-work** is basically latest changes and can break at any time. |
 | `--keep_temp` | Keeps audio files in the **out** folder. This will take up space over time though. |
@@ -200,11 +200,11 @@ This script uses argparse to accept command line arguments. The following option
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
 - When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
-- The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure
+- ~~The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure~~ [ ⚠️ Finetune Model download is Disabled, Model is being retrained. ]
 - When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
 
 ## Word Block List
-With the flag `--igignorelist` you can now load a list of phrases or words to ignore in the api output and subtitle window. This list is already filled with common phrases the AI will think it heard. You can adjust this list as youu please or add more words or phrases to it.
+With the flag `--ignorelist` you can now load a list of phrases or words to ignore in the api output and subtitle window. This list is already filled with common phrases the AI will think it heard. You can adjust this list as youu please or add more words or phrases to it.
 
 ## Cookies
 Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
