@@ -139,7 +139,7 @@ def start_stream_transcription(
 
     def translate_audio(file_path, model):
         try:
-            result = model.transcribe(file_path, task="translate", language=stream_language)
+            result = model.transcribe(file_path, task="translate", fp16=args.fp16, language=stream_language, condition_on_previous_text=args.condition_on_previous_text)
             return result["text"]
         except RuntimeError as e:
             print(f"Error transcribing audio: {e}")
@@ -147,7 +147,7 @@ def start_stream_transcription(
 
     def transcribe_audio(file_path, model, language):
         try:
-            result = model.transcribe(file_path, language=language)
+            result = model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text)
             return result["text"]
         except RuntimeError as e:
             print(f"Error transcribing audio: {e}")
@@ -157,10 +157,15 @@ def start_stream_transcription(
         try:
             audio = whisper.load_audio(file_path)
             audio = whisper.pad_or_trim(audio)
-            if args.ram == "12gb":
+            
+            # Handle both "12gb-v2" and "12gb-v3"
+            if args.ram == "12gb-v2":
+                mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
+            elif args.ram == "12gb-v3":
                 mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
             else:
                 mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
+
             _, language_probs = model.detect_language(mel)
             detected_language = max(language_probs, key=language_probs.get)
             return detected_language
@@ -168,6 +173,7 @@ def start_stream_transcription(
             print(f"Error detecting language: {e}")
             detected_language = "n/a"
             return detected_language
+
 
     def process_audio(file_path, model):
         if not os.path.exists(file_path):

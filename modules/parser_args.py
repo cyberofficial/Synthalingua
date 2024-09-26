@@ -30,30 +30,45 @@ def set_model_by_ram(ram, language):
     elif ram == "6gb":
         if language == "en" or language == "English":
             model = "medium.en"
-
         else:
             model = "medium"
-    elif ram == "12gb":
-        model = "large-v3"
+    elif ram == "12gb-v2" or ram == "12gb-v3":
+        # Determine the model based on the version
+        if ram == "12gb-v2":
+            model = "large-v2"
+            version = "Version 2"
+        else:  # ram == "12gb-v3"
+            model = "large-v3"
+            version = "Version 3"
+        
+        # Warning for English language
         if language == "en" or language == "English":
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
             yellow_text = Fore.YELLOW + Back.BLACK
             reset_text = Style.RESET_ALL
-            print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. Do you want to swap to {green_text}6gb{reset_text} model? If you are transcribing a language other than English, you can ignore this warning and press {green_text}n{reset_text}.")
+            
+            print(f"{red_text}WARNING{reset_text}: {yellow_text}12gb{reset_text} is overkill for English. "
+                  f"Do you want to swap to the {green_text}6gb{reset_text} model? "
+                  f"If you are transcribing a language other than English, you can ignore this warning and press {green_text}n{reset_text}.")
+            
             if input("y/n: ").lower() == "y":
                 model = "medium.en"
             else:
-                model = "large-v3"
+                print(f"Using 12GB {version}")
+                ram = "12gb"  # Normalize ram to "12gb" for both v2 and v3
+
     else:
         raise ValueError("Invalid RAM setting provided")
 
     return model
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ram", default="4gb", help="Model to use", choices=["1gb", "2gb", "4gb", "6gb", "12gb"])
+    parser.add_argument("--ram", default="4gb", help="Model to use", choices=["1gb", "2gb", "4gb", "6gb", "12gb-v2", "12gb-v3"])
     parser.add_argument("--ramforce", action='store_true', help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
+    parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, Heavy on Usage, but more accurate")
     parser.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
     parser.add_argument("--mic_calibration_time", help="How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds.", type=int)
     parser.add_argument("--record_timeout", default=1, help="How real time the recording is in seconds.", type=float)
