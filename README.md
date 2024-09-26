@@ -153,6 +153,7 @@ This script uses argparse to accept command line arguments. The following option
 | ---- | ----------- |
 | `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
+| `--fp16` | This allows for more accurate information being passed to the process. This will grant the AL the ability to process more information at the cost of speed. You will not see heavy impact on stronger hardware. Combine 12gb-v3 + fp16 Flags (Precision Mode on the GUI) for the ultimate experience. | 
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
 | `--mic_calibration_time` | How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds. |
 | `--record_timeout` | Set the time in seconds for real-time recording. Default is 2 seconds. |

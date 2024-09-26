@@ -17,8 +17,8 @@
     <Setting Name="WebServerEnabled" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
-    <Setting Name="RamSize" Type="System.Int32" Scope="User">
-      <Value Profile="(Default)">1</Value>
+    <Setting Name="RamSize" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1gb</Value>
     </Setting>
     <Setting Name="ForceRam" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
@@ -139,6 +139,9 @@
     </Setting>
     <Setting Name="modelDIr" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
+    </Setting>
+    <Setting Name="fp16" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>
