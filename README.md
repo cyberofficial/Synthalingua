@@ -19,8 +19,7 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
 
-## You can grab the GUI from the Releases section on github.
-## Grab the portable version on itch!
+## Grab the portable version on itch! It include the GUI.
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 ### Badges
@@ -151,7 +150,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
 This script uses argparse to accept command line arguments. The following options are available:
 | Flag | Description |
 | ---- | ----------- |
-| `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
+| `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB-v2", "12GB-v3". |
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
 | `--fp16` | This allows for more accurate information being passed to the process. This will grant the AL the ability to process more information at the cost of speed. You will not see heavy impact on stronger hardware. Combine 12gb-v3 + fp16 Flags (Precision Mode on the GUI) for the ultimate experience. | 
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
