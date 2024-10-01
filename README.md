@@ -41,23 +41,21 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 | [Extra Notes](#things-to-note) | Extra notes about the tool. |
 
 ## Things to know/Disclaimers/Warnings/etc
-- This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
-Example: The tool might occasionally provide inaccurate translations or encounter bugs that are being actively worked on by the developers.
-- Translations are more accurate when the speaker speaks clearly and slowly. If the speaker is fast or unclear, the translation will be less accurate, though it will still provide some level of translation.
-Example: If the speaker speaks slowly and enunciates clearly, the tool is likely to provide more accurate translations compared to when the speaker speaks quickly or mumbles.
-- The tool is not intended for professional use. It's meant for fun, language learning, and enjoying content at a reasonable pace. You may need to try to understand the content on your own before using this tool.
-Example: This tool can be used for casual conversations, language practice with friends, or enjoying audio content in different languages.
-- You agree not to use the tool to produce or spread misinformation or hate speech. If there is a discrepancy between the tool's output and the speaker's words, you must conduct your own research to determine the truth.
-Example: If the tool translates a statement into something false or misleading, it is your responsibility to verify the accuracy of the information before sharing it. Avoid using the tool to spread false information or engage in hate speech.
-- You assume your own risk and liability. The repository owner will not be held responsible for any damages caused by the tool. You are responsible for your own actions and cannot hold the repository owner accountable if you encounter issues or face consequences due to your usage of the tool.
-Example: If the tool encounters technical issues, fails to provide accurate translations, or if you face any negative consequences resulting from its usage, the repository owner cannot be held liable.
-- The tool is not meant to replace human translators. It is designed for fun, language learning, and enjoying content at a reasonable pace. You may need to make an effort to understand the content on your own before using this tool.
-Example: When dealing with complex or highly specialized content, it is advisable to consult professional human translators for accurate translations.
-- Your hardware can affect the tool's performance. A weak CPU or GPU may hinder its functionality. However, a weak internet connection or microphone will not significantly impact the tool.
-Example: If you have a powerful computer with a fast processor, the tool is likely to perform better and provide translations more efficiently compared to using it on a slower or older system.
-- This is a tool, not a service. You are responsible for your own actions and cannot hold the repository owner accountable if the tool violates terms of service or end-user license agreements, or if you encounter any issues while using the tool.
-Example: If you use the tool in a way that violates the terms of service or policies of the platform you're using it with, the repository owner cannot be held responsible for any resulting consequences.
+This AI-powered translation tool is currently a work in progress and is actively being developed to improve its accuracy and functionality over time. Users should be aware that while the tool works effectively in many scenarios, it is not perfect and may occasionally produce translation errors or bugs. These issues are continuously being addressed where possible, and updates will be rolled out to enhance the tool's performance. For instance, you may encounter situations where the translation is slightly off or where technical glitches occur, but these are expected to diminish as improvements are made.
 
+The accuracy of translations is significantly higher when the input speech is clear and slow. If the speaker talks too fast or mumbles, the tool might struggle to provide an accurate translation, although it will still attempt to offer a useful output. For example, when using the tool in a quiet environment with clear, deliberate speech, the results are generally more precise. However, in noisy settings or when the speech is rushed, you might see a drop in accuracy. Background noise, like loud music, can also interfere with the tool’s ability to translate effectively.
+
+It’s important to note that this tool is designed for casual, non-professional use. It is ideal for purposes such as language learning, engaging in informal conversations, or understanding foreign content for entertainment. However, it is not intended for high-stakes or professional translations, such as legal documents, medical texts, or official communications. For example, while the tool can be fun and educational for learning a new language or watching foreign media, it should not be relied on for specialized or critical tasks where accuracy is paramount.
+
+As a user, you are responsible for ensuring that the tool is used ethically and not for purposes like spreading misinformation or hate speech. If there is a discrepancy between the translation and the original speech, it's crucial that you verify the output before sharing it with others. For instance, if the tool produces a misleading translation, it is your responsibility to double-check the content before using it or distributing it further.
+
+Users should also be aware that they are using the tool at their own risk. The repository owner cannot be held accountable for any damages, issues, or unintended consequences that arise from the use of this tool. For example, if the tool malfunctions or provides an inaccurate translation that leads to a misunderstanding, the developer(s)\contributors are not liable for any outcomes that occur as a result of this. You, as the user, assume all responsibility for your actions while using the tool.
+
+This tool is not intended to replace human translators, particularly for complex or specialized content. While it may be helpful for casual and everyday use, a professional translator should be consulted for more intricate tasks, such as translating legal agreements or technical manuals. For example, if you need a precise translation of a business contract, it is recommended to seek assistance from a qualified human translator rather than relying solely on this tool.
+
+In terms of performance, the tool’s effectiveness may vary depending on your hardware setup. A faster CPU or GPU will lead to better results, while slower systems may experience delays or reduced performance. However, other factors, such as internet connection speed or microphone quality, have a minimal effect on its functionality. For instance, if you're running the tool on a high-performance computer, you’ll likely experience smoother translations compared to using it on an older, slower machine.
+
+Lastly, it's important to remember that this is a __tool__, **not a service**. If using it violates any platform’s terms of service or causes any issues, the responsibility falls solely on the user. For example, if the tool's use results in violating rules on a platform—such as using the tool to translate inappropriate language—you are accountable for any penalties or restrictions imposed as a result.
 
 ## TODO
 | Todo  | Sub-Task                                                                                                                                                                                                                                               | Status |
@@ -113,7 +111,7 @@ You can find full list of supported Nvida GPUs here:
 | CPU Clock Speed (GHz) | 2.5 or higher | 3.0 or higher | 3.5 or higher | 4.0 or higher |
 | RAM (GB) | 4 or higher | 8 or higher | 16 or higher | 16 or higher |
 | GPU VRAM (GB) | 2 or higher | 6 or higher | 8 or higher | 12 or higher |
-| Free Disk Space (GB) | 10 or higher | 10 or higher | 10 or higher | 10 or higher |
+| Free Disk Space (GB) | 15 or higher | 15 or higher | 15 or higher | 15 or higher |
 | GPU (suggested) As long as the gpu you have is within vram spec, it should work fine. | Nvidia GTX 1050 or higher | Nvidia GTX 1660 or higher | Nvidia RTX 3070 or higher | Nvidia RTX 3090 or higher |
 
 Note:
