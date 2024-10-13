@@ -225,15 +225,15 @@ For example:
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
 
-This will create captions, with the 12gb option and save to downloads.
+This will create captions, with the 12GB-v3 option and save to downloads.
 
 **PLEASE NOTE, CAPTIONS WILL ONLY BE IN ENGLISH (Model limitation) THOUGH YOU CAN ALWAYS USE OTHER PROGRAMS TO TRANSLATE INTO OTHER LANGUAGES**
 
-`python transcribe_audio.py --ram 12gb --makecaptions --file_input="C:\Users\username\Downloads\430796208_935901281333537_8407224487814569343_n.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="430796208_935901281333537_8407224487814569343_n" --language Japanese --device cuda` 
+`python transcribe_audio.py --ram 12GB-v3 --makecaptions --file_input="C:\Users\username\Downloads\430796208_935901281333537_8407224487814569343_n.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="430796208_935901281333537_8407224487814569343_n" --language Japanese --device cuda` 
 
 You have a 12gb GPU and want to stream the audio from a live stream https://www.twitch.tv/somestreamerhere and want to translate it to English. You can run the following command:
 
-`python transcribe_audio.py --ram 12gb --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere`
+`python transcribe_audio.py --ram 12GB-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere`
 
 Stream Sources from YouTube and Twitch are supported. You can also use any other stream source that supports HLS/m3u8.
 
@@ -242,11 +242,11 @@ You have a GPU with 6GB of memory and you want to use the Japanese model. You al
 
 `python transcribe_audio.py --ram 6gb --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
-When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
+When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12GB-v2, 12GB-v3. There are no in-betweens.
 
-You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command:
+You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command for v3 replace v3 with v2 if you prefer the original:
 
-`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --language en`
+`python transcribe_audio.py --ram 12GB-v3 --transcribe --target_language Spanish --language en`
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`
@@ -306,5 +306,5 @@ If you encounter any issues with the tool, here are some common problems and the
 Command line arguments used. `--ram 6gb --record_timeout 2 --language ja --energy_threshold 500`
 [<img src="https://i.imgur.com/sXTWr76.jpg" width="50%">](https://streamable.com/m9mhfr)
 
-Command line arguments used. `--ram 12gb --record_timeout 5 --language id --energy_threshold 500`
+Command line arguments used. `--ram 12GB-v2 --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
