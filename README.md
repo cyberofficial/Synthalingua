@@ -19,8 +19,7 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
 
-## You can grab the GUI from the Releases section on github.
-## Grab the portable version on itch!
+## Grab the portable version on itch! It include the GUI.
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 ### Badges
@@ -42,23 +41,21 @@ Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceS
 | [Extra Notes](#things-to-note) | Extra notes about the tool. |
 
 ## Things to know/Disclaimers/Warnings/etc
-- This tool is not perfect. It's still in beta and is a work in progress. It will be updated in a reasonable amount of time.
-Example: The tool might occasionally provide inaccurate translations or encounter bugs that are being actively worked on by the developers.
-- Translations are more accurate when the speaker speaks clearly and slowly. If the speaker is fast or unclear, the translation will be less accurate, though it will still provide some level of translation.
-Example: If the speaker speaks slowly and enunciates clearly, the tool is likely to provide more accurate translations compared to when the speaker speaks quickly or mumbles.
-- The tool is not intended for professional use. It's meant for fun, language learning, and enjoying content at a reasonable pace. You may need to try to understand the content on your own before using this tool.
-Example: This tool can be used for casual conversations, language practice with friends, or enjoying audio content in different languages.
-- You agree not to use the tool to produce or spread misinformation or hate speech. If there is a discrepancy between the tool's output and the speaker's words, you must conduct your own research to determine the truth.
-Example: If the tool translates a statement into something false or misleading, it is your responsibility to verify the accuracy of the information before sharing it. Avoid using the tool to spread false information or engage in hate speech.
-- You assume your own risk and liability. The repository owner will not be held responsible for any damages caused by the tool. You are responsible for your own actions and cannot hold the repository owner accountable if you encounter issues or face consequences due to your usage of the tool.
-Example: If the tool encounters technical issues, fails to provide accurate translations, or if you face any negative consequences resulting from its usage, the repository owner cannot be held liable.
-- The tool is not meant to replace human translators. It is designed for fun, language learning, and enjoying content at a reasonable pace. You may need to make an effort to understand the content on your own before using this tool.
-Example: When dealing with complex or highly specialized content, it is advisable to consult professional human translators for accurate translations.
-- Your hardware can affect the tool's performance. A weak CPU or GPU may hinder its functionality. However, a weak internet connection or microphone will not significantly impact the tool.
-Example: If you have a powerful computer with a fast processor, the tool is likely to perform better and provide translations more efficiently compared to using it on a slower or older system.
-- This is a tool, not a service. You are responsible for your own actions and cannot hold the repository owner accountable if the tool violates terms of service or end-user license agreements, or if you encounter any issues while using the tool.
-Example: If you use the tool in a way that violates the terms of service or policies of the platform you're using it with, the repository owner cannot be held responsible for any resulting consequences.
+This AI-powered translation tool is currently a work in progress and is actively being developed to improve its accuracy and functionality over time. Users should be aware that while the tool works effectively in many scenarios, it is not perfect and may occasionally produce translation errors or bugs. These issues are continuously being addressed where possible, and updates will be rolled out to enhance the tool's performance. For instance, you may encounter situations where the translation is slightly off or where technical glitches occur, but these are expected to diminish as improvements are made.
 
+The accuracy of translations is significantly higher when the input speech is clear and slow. If the speaker talks too fast or mumbles, the tool might struggle to provide an accurate translation, although it will still attempt to offer a useful output. For example, when using the tool in a quiet environment with clear, deliberate speech, the results are generally more precise. However, in noisy settings or when the speech is rushed, you might see a drop in accuracy. Background noise, like loud music, can also interfere with the tool’s ability to translate effectively.
+
+It’s important to note that this tool is designed for casual, non-professional use. It is ideal for purposes such as language learning, engaging in informal conversations, or understanding foreign content for entertainment. However, it is not intended for high-stakes or professional translations, such as legal documents, medical texts, or official communications. For example, while the tool can be fun and educational for learning a new language or watching foreign media, it should not be relied on for specialized or critical tasks where accuracy is paramount.
+
+As a user, you are responsible for ensuring that the tool is used ethically and not for purposes like spreading misinformation or hate speech. If there is a discrepancy between the translation and the original speech, it's crucial that you verify the output before sharing it with others. For instance, if the tool produces a misleading translation, it is your responsibility to double-check the content before using it or distributing it further.
+
+Users should also be aware that they are using the tool at their own risk. The repository owner cannot be held accountable for any damages, issues, or unintended consequences that arise from the use of this tool. For example, if the tool malfunctions or provides an inaccurate translation that leads to a misunderstanding, the developer(s)\contributors are not liable for any outcomes that occur as a result of this. You, as the user, assume all responsibility for your actions while using the tool.
+
+This tool is not intended to replace human translators, particularly for complex or specialized content. While it may be helpful for casual and everyday use, a professional translator should be consulted for more intricate tasks, such as translating legal agreements or technical manuals. For example, if you need a precise translation of a business contract, it is recommended to seek assistance from a qualified human translator rather than relying solely on this tool.
+
+In terms of performance, the tool’s effectiveness may vary depending on your hardware setup. A faster CPU or GPU will lead to better results, while slower systems may experience delays or reduced performance. However, other factors, such as internet connection speed or microphone quality, have a minimal effect on its functionality. For instance, if you're running the tool on a high-performance computer, you’ll likely experience smoother translations compared to using it on an older, slower machine.
+
+Lastly, it's important to remember that this is a __tool__, **not a service**. If using it violates any platform’s terms of service or causes any issues, the responsibility falls solely on the user. For example, if the tool's use results in violating rules on a platform—such as using the tool to translate inappropriate language—you are accountable for any penalties or restrictions imposed as a result.
 
 ## TODO
 | Todo  | Sub-Task                                                                                                                                                                                                                                               | Status |
@@ -114,7 +111,7 @@ You can find full list of supported Nvida GPUs here:
 | CPU Clock Speed (GHz) | 2.5 or higher | 3.0 or higher | 3.5 or higher | 4.0 or higher |
 | RAM (GB) | 4 or higher | 8 or higher | 16 or higher | 16 or higher |
 | GPU VRAM (GB) | 2 or higher | 6 or higher | 8 or higher | 12 or higher |
-| Free Disk Space (GB) | 10 or higher | 10 or higher | 10 or higher | 10 or higher |
+| Free Disk Space (GB) | 15 or higher | 15 or higher | 15 or higher | 15 or higher |
 | GPU (suggested) As long as the gpu you have is within vram spec, it should work fine. | Nvidia GTX 1050 or higher | Nvidia GTX 1660 or higher | Nvidia RTX 3070 or higher | Nvidia RTX 3090 or higher |
 
 Note:
@@ -151,7 +148,7 @@ The tool will work on any system that meets the minimum requirements. The tool w
 This script uses argparse to accept command line arguments. The following options are available:
 | Flag | Description |
 | ---- | ----------- |
-| `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB". |
+| `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB-v2", "12GB-v3". |
 | `--ramforce` | Use this flag to force the script to use desired VRAM. May cause the script to crash if there is not enough VRAM available. |
 | `--fp16` | This allows for more accurate information being passed to the process. This will grant the AL the ability to process more information at the cost of speed. You will not see heavy impact on stronger hardware. Combine 12gb-v3 + fp16 Flags (Precision Mode on the GUI) for the ultimate experience. | 
 | `--energy_threshold` | Set the energy level for microphone to detect. Default is 100. Choose from 1 to 1000; anything higher will be harder to trigger the audio detection. |
@@ -228,15 +225,15 @@ For example:
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
 
-This will create captions, with the 12gb option and save to downloads.
+This will create captions, with the 12GB-v3 option and save to downloads.
 
 **PLEASE NOTE, CAPTIONS WILL ONLY BE IN ENGLISH (Model limitation) THOUGH YOU CAN ALWAYS USE OTHER PROGRAMS TO TRANSLATE INTO OTHER LANGUAGES**
 
-`python transcribe_audio.py --ram 12gb --makecaptions --file_input="C:\Users\username\Downloads\430796208_935901281333537_8407224487814569343_n.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="430796208_935901281333537_8407224487814569343_n" --language Japanese --device cuda` 
+`python transcribe_audio.py --ram 12GB-v3 --makecaptions --file_input="C:\Users\username\Downloads\430796208_935901281333537_8407224487814569343_n.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="430796208_935901281333537_8407224487814569343_n" --language Japanese --device cuda` 
 
 You have a 12gb GPU and want to stream the audio from a live stream https://www.twitch.tv/somestreamerhere and want to translate it to English. You can run the following command:
 
-`python transcribe_audio.py --ram 12gb --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere`
+`python transcribe_audio.py --ram 12GB-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere`
 
 Stream Sources from YouTube and Twitch are supported. You can also use any other stream source that supports HLS/m3u8.
 
@@ -245,11 +242,11 @@ You have a GPU with 6GB of memory and you want to use the Japanese model. You al
 
 `python transcribe_audio.py --ram 6gb --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300`
 
-When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12gb. There are no in-betweens.
+When choosing ram, you can only choose 1gb, 2gb, 4gb, 6gb, 12GB-v2, 12GB-v3. There are no in-betweens.
 
-You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command:
+You have a 12gb GPU and you want to translate to Spanish from English, you can run the following command for v3 replace v3 with v2 if you prefer the original:
 
-`python transcribe_audio.py --ram 12gb --transcribe --target_language Spanish --language en`
+`python transcribe_audio.py --ram 12GB-v3 --transcribe --target_language Spanish --language en`
 
 Lets say you have multiple audio devices and you want to use the one that is not the default. You can run the following command:
 `python transcribe_audio.py --list_microphones`
@@ -309,5 +306,5 @@ If you encounter any issues with the tool, here are some common problems and the
 Command line arguments used. `--ram 6gb --record_timeout 2 --language ja --energy_threshold 500`
 [<img src="https://i.imgur.com/sXTWr76.jpg" width="50%">](https://streamable.com/m9mhfr)
 
-Command line arguments used. `--ram 12gb --record_timeout 5 --language id --energy_threshold 500`
+Command line arguments used. `--ram 12GB-v2 --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
