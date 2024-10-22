@@ -13,6 +13,9 @@
     <Compile Update="subtitlewindow.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Update="UserMode.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="WebBrowserConfig.vb">
       <SubType>Form</SubType>
     </Compile>
