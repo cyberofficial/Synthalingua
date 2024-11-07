@@ -552,10 +552,7 @@ def main():
 
                 audio = whisper.load_audio(temp_file)
                 audio = whisper.pad_or_trim(audio)
-                # if ram is set to 12 use n_mels=128 else use n_mels=80
-                if args.ram == "12gb-v2":
-                    mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
-                elif args.ram == "12gb-v3":
+                if args.ram == "12gb-v3":
                     mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
                 else:
                     mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
