@@ -118,7 +118,12 @@ def start_stream_transcription(
     def load_m3u8_with_retry(hls_url, retry_delay=5):
         while not shutdown_flag:
             try:
-                m3u8_obj = m3u8.load(hls_url)
+                # Split and take first URL if multiple URLs are provided
+                cleaned_url = hls_url.strip().split('\n')[0]
+                if args.debug:
+                    print(f"\n[DEBUG] Loading m3u8 from URL: {cleaned_url}")
+                
+                m3u8_obj = m3u8.load(cleaned_url)
                 return m3u8_obj
             except (
                 http.client.RemoteDisconnected,
