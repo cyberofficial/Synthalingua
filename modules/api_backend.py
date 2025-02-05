@@ -1,3 +1,22 @@
+"""
+Flask-based web server module for handling real-time subtitle display and updates.
+
+This module implements a web server that serves HTML pages and manages state for
+displaying subtitles, translations, and transcriptions through a web interface.
+It supports both HTTP and HTTPS protocols, with automatic certificate generation
+for HTTPS connections.
+
+The server provides endpoints for:
+- Serving the main index page and player page
+- Serving static files
+- Updating header text for subtitles, translations, and transcriptions
+
+Key Components:
+- HeaderState: Class for managing subtitle text state
+- FlaskServerThread: Thread-based Flask server implementation
+- API Blueprint: Routes for handling web requests
+"""
+
 import os
 import logging
 from flask import Flask, send_from_directory, url_for, Blueprint
@@ -9,18 +28,29 @@ from werkzeug.serving import make_server
 
 # State management class
 class HeaderState:
+    """
+    Manages the state of header texts for subtitles, translations, and transcriptions.
+    
+    Attributes:
+        header_text (str): Current subtitle text
+        translated_header_text (str): Current translated text
+        transcribed_header_text (str): Current transcribed text
+    """
     def __init__(self):
         self.header_text = ""
         self.translated_header_text = ""
         self.transcribed_header_text = ""
 
     def update_header(self, new_header):
+        """Updates the main subtitle text."""
         self.header_text = new_header
 
     def update_translated_header(self, new_header):
+        """Updates the translated text."""
         self.translated_header_text = new_header
 
     def update_transcribed_header(self, new_header):
+        """Updates the transcribed text."""
         self.transcribed_header_text = new_header
 
 # Global state instance
@@ -32,47 +62,86 @@ api = Blueprint('api', __name__)
 # Cache static file reading
 @lru_cache(maxsize=32)
 def read_cached_file(file_path):
+    """
+    Reads and caches file content to improve performance.
+    
+    Args:
+        file_path (str): Path to the file to be read
+        
+    Returns:
+        str: Content of the file
+    """
     with open(file_path, 'r') as file:
         return file.read()
 
 # Routes
 @api.route('/')
 def serve_index():
+    """Serves the main index page with current subtitle text."""
     index_html_path = os.path.join(get_html_data_dir(), 'index.html')
     html_content = read_cached_file(index_html_path)
     return html_content.replace("{{ header_text }}", state.header_text)
 
 @api.route('/player.html')
 def serve_player():
+    """Serves the player page."""
     player_html_path = os.path.join(get_html_data_dir(), 'player.html')
     return read_cached_file(player_html_path)
 
 @api.route('/static/<path:filename>')
 def serve_static(filename):
+    """
+    Serves static files (CSS, JS, images, etc.).
+    
+    Args:
+        filename (str): Name of the static file to serve
+    """
     return send_from_directory(get_static_dir(), filename)
 
 @api.route('/update-header')
 def update_header_route():
+    """Returns current subtitle text."""
     return state.header_text
 
 @api.route('/update-translated-header')
 def update_translated_header_route():
+    """Returns current translated text."""
     return state.translated_header_text
 
 @api.route('/update-transcribed-header')
 def update_transcribed_header_route():
+    """Returns current transcribed text."""
     return state.transcribed_header_text
 
 # Helper functions
 def get_html_data_dir():
+    """
+    Gets the path to the HTML data directory.
+    
+    Returns:
+        str: Path to the HTML data directory
+    """
     script_dir = os.path.dirname(os.path.realpath(__file__))
     project_root = os.path.dirname(script_dir)
     return os.path.join(project_root, 'html_data')
 
 def get_static_dir():
+    """
+    Gets the path to the static files directory.
+    
+    Returns:
+        str: Path to the static files directory
+    """
     return os.path.join(get_html_data_dir(), 'static')
 
 class FlaskServerThread(Thread):
+    """
+    Thread-based Flask server implementation supporting both HTTP and HTTPS.
+    
+    Args:
+        port (int): Port number for the server
+        use_https (bool): Whether to use HTTPS protocol
+    """
     def __init__(self, port, use_https=False):
         super().__init__()
         self.port = port
@@ -82,6 +151,7 @@ class FlaskServerThread(Thread):
         self.shutdown_event = Event()
 
     def create_app(self):
+        """Creates and configures the Flask application."""
         app = Flask(__name__, static_folder=get_static_dir(), static_url_path='/static')
         app.config["DEBUG"] = False
         
@@ -107,6 +177,12 @@ class FlaskServerThread(Thread):
         return app
 
     def setup_https(self):
+        """
+        Sets up HTTPS with a self-signed certificate.
+        
+        Returns:
+            tuple: (SSLContext, temporary directory path) or (None, temporary directory path) if setup fails
+        """
         # Create temporary directory for SSL files
         ssl_dir = tempfile.mkdtemp()
         cert_file = os.path.join(ssl_dir, 'temp_cert.pem')
@@ -141,6 +217,7 @@ class FlaskServerThread(Thread):
             return None, ssl_dir
 
     def run(self):
+        """Runs the server and handles requests until shutdown."""
         ssl_context = None
         ssl_dir = None
         
@@ -166,6 +243,7 @@ class FlaskServerThread(Thread):
                 shutil.rmtree(ssl_dir, ignore_errors=True)
 
     def shutdown(self):
+        """Gracefully shuts down the server."""
         self.shutdown_event.set()
         if self.server:
             self.server.shutdown()
@@ -174,6 +252,13 @@ class FlaskServerThread(Thread):
 server_thread = None
 
 def flask_server(operation, portnumber):
+    """
+    Controls the Flask server operation.
+    
+    Args:
+        operation (str): "start" to start the server
+        portnumber (int): Port number for the server
+    """
     global server_thread
     if operation == "start":
         server_thread = FlaskServerThread(portnumber)
@@ -181,6 +266,7 @@ def flask_server(operation, portnumber):
         server_thread.start()
 
 def kill_server():
+    """Gracefully shuts down the server if it's running."""
     global server_thread
     if server_thread:
         print("Shutting down server gracefully...")
@@ -189,12 +275,15 @@ def kill_server():
     
 # Public interface functions
 def update_header(new_header):
+    """Updates the main subtitle text."""
     state.update_header(new_header)
 
 def update_translated_header(new_header):
+    """Updates the translated text."""
     state.update_translated_header(new_header)
 
 def update_transcribed_header(new_header):
+    """Updates the transcribed text."""
     state.update_transcribed_header(new_header)
 
 print("Web Server Module Loaded")

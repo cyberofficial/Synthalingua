@@ -1,3 +1,26 @@
+"""
+Subtitle Generator Module
+
+This module provides functionality to generate subtitles from audio files using the Whisper ASR model.
+It supports both transcription (in original language) and translation (to English) tasks.
+
+Key features:
+- Automatic language detection
+- RAM-aware model selection
+- Confidence scoring with color-coded output
+- Progress tracking during generation
+- SRT format subtitle generation
+- Chunked processing for memory efficiency
+- Support for custom model directories
+
+The module uses a streaming approach to process long audio files in chunks,
+providing real-time feedback with confidence scores for each segment.
+Output is color-coded based on confidence levels:
+- Green: High confidence (≥90%)
+- Yellow: Medium confidence (≥75%)
+- Red: Low confidence (<75%)
+"""
+
 import logging
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List

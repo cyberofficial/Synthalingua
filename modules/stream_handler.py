@@ -1,10 +1,43 @@
+"""
+Stream handling module for processing audio/video streams.
+
+This module provides functionality for setting up and managing stream processing,
+including:
+- URL extraction from various streaming platforms
+- Cookie handling for authenticated streams
+- Stream transcription thread management
+- Support for translation and transcription tasks
+
+The module uses yt-dlp for URL extraction and handles both direct and HLS streams.
+"""
+
 import os
 import subprocess
 from modules.stream_transcription_module import start_stream_transcription, stop_transcription
 import threading
 
 def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
-    """Set up and initialize stream processing."""
+    """Set up and initialize stream processing.
+    
+    This function handles the complete setup process for stream transcription:
+    1. Extracts stream parameters from arguments
+    2. Handles cookie-based authentication if needed
+    3. Extracts the HLS stream URL using yt-dlp
+    4. Initializes and starts the stream transcription thread
+    
+    Args:
+        args: Command line arguments containing stream configuration
+        audio_model: Loaded Whisper model instance for transcription
+        temp_dir: Directory for temporary files
+        webhook_url (str, optional): URL for webhook notifications
+        
+    Returns:
+        threading.Thread: The started stream processing thread
+        
+    Raises:
+        subprocess.CalledProcessError: If stream URL extraction fails
+        Exception: For other unexpected errors during setup
+    """
     
     # Get stream parameters
     stream_language = args.stream_language
