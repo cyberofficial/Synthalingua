@@ -2,7 +2,7 @@ import requests
 import re
 from colorama import Fore, Style
 
-version = "1.0.99999"
+version = "1.1.0"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"
