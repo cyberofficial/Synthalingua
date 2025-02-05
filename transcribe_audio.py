@@ -23,10 +23,6 @@ from modules.sub_gen import run_sub_gen
 
 init()
 
-try:
-    cuda_available = torch.cuda.is_available()
-except:
-    cuda_available = False
 
 def main():
     args = parser_args.parse_arguments()
