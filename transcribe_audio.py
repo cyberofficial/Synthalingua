@@ -88,11 +88,12 @@ def main():
     device = setup_device(args)
 
     # Set up audio source
-    source = None
+    source_calibration = None
+    source_listening = None
     if args.microphone_enabled:
         try:
-            source, mic_name = get_microphone_source(args)
-            handle_mic_calibration(recorder, source, args)
+            source_calibration, source_listening, mic_name = get_microphone_source(args)
+            handle_mic_calibration(recorder, source_calibration, args)
         except ValueError as e:
             print("Error: Unable to initialize microphone. Check your microphone settings and permissions.")
             print(f"Error details: {str(e)}")
@@ -163,16 +164,15 @@ def main():
     
     # Start microphone listening if enabled
     if args.microphone_enabled:
-        with source as s:
-            try:
-                recorder.adjust_for_ambient_noise(s)
-                print(f"Microphone set to: {mic_name}")
-                recorder.listen_in_background(s, lambda r, a: record_callback(r, a, data_queue), 
-                                        phrase_time_limit=args.record_timeout)
-            except AssertionError as e:
-                print("Error: Unable to initialize microphone. Check your microphone settings and permissions.")
-                print(f"Error details: {str(e)}")
-                sys.exit(1)
+        try:
+            print(f"Microphone set to: {mic_name}")
+            # Set up background listening without context manager
+            recorder.listen_in_background(source_listening, lambda r, a: record_callback(r, a, data_queue),
+                                    phrase_time_limit=args.record_timeout)
+        except AssertionError as e:
+            print("Error: Unable to initialize microphone. Check your microphone settings and permissions.")
+            print(f"Error details: {str(e)}")
+            sys.exit(1)
 
     print("Model loaded.\n")
     print(f"Using {model} model.")
@@ -181,12 +181,13 @@ def main():
         print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")
 
     # Initialize transcription core
+    args.model = model  # Add the model name to args
     transcription_core = TranscriptionCore(args, device, audio_model, blacklist)
 
     try:
         # Main processing loop
         while True:
-            if not transcription_core.process_audio(data_queue, source, temp_file):
+            if not transcription_core.process_audio(data_queue, source_listening, temp_file):
                 break
 
     except KeyboardInterrupt:
