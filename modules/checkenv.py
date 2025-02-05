@@ -1,4 +1,7 @@
-from modules.imports import *
+import os
+import sys
+from modules import parser_args
+
 def get_base_prefix_compat():
     """Get base/real prefix, or sys.prefix if there is none."""
     return (
@@ -25,7 +28,6 @@ def check_os():
 
 def env_message():
     print("Not in Virtual Environment, please make sure you are in a virtual environment before running this script.")
-    import os
     current_os = check_os()
     if current_os == 'windows':
         print("Since you are on windows, run livetranslation.bat")
@@ -33,7 +35,6 @@ def env_message():
         print("Since you are on linux, run livetranslation.sh")
     else:
         print("Since you are on an unknown OS, activate the virtual environment and run livetranslation.py")
-    import sys
     sys.exit(1)
 
 current_os = check_os()

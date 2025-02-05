@@ -33,149 +33,86 @@ Public Class MainUI
 
     <Obsolete>
     Private Sub GenerateConfigButton_Click(sender As Object, e As EventArgs) Handles GenerateConfigButton.Click
-        If ScriptFileLocation.Text = "" Then
-            Dim unused = MsgBox("Please select the program file.")
+        If String.IsNullOrEmpty(ScriptFileLocation.Text) Then
+            MessageBox.Show("Please select the program file.")
             Exit Sub
         End If
-        If StreamLanguage.Text = "" Then
+        If String.IsNullOrEmpty(StreamLanguage.Text) Then
             MessageBox.Show("No Stream language was set.")
             Exit Sub
         End If
+
         ShortCutType = If(ScriptFileLocation.Text.Contains("transcribe_audio.py"), "Source", "Portable")
+        PrimaryFolder = Path.GetDirectoryName(ScriptFileLocation.Text)
 
-        PrimaryFolder = System.IO.Path.GetDirectoryName(ScriptFileLocation.Text)
+        Dim config As New Text.StringBuilder
+        ' Basic setup
+        config.AppendLine().AppendLine("cls").AppendLine("@echo off").AppendLine("Echo Loading Script")
+        config.AppendLine($"""{PrimaryFolder}\set_up_env.exe""")
+        config.AppendLine($"call ""{PrimaryFolder}\ffmpeg_path.bat""")
 
-        ConfigTextBox.Text = "" & vbNewLine & "cls" & vbNewLine & "@echo off" & vbNewLine & "Echo Loading Script" & vbNewLine
-        ConfigTextBox.Text += """" & PrimaryFolder & "\set_up_env.exe""" & vbNewLine
-        ConfigTextBox.Text += "call """ & PrimaryFolder & "\ffmpeg_path.bat""" & vbNewLine
+        ' Script execution command
         If ShortCutType = "Source" Then
-            ConfigTextBox.Text += "call """ & PrimaryFolder & "\data_whisper\Scripts\activate.bat""" & vbNewLine
-
-            ConfigTextBox.Text += "python """ & PrimaryFolder & "\transcribe_audio.py"" "
+            config.AppendLine($"call ""{PrimaryFolder}\data_whisper\Scripts\activate.bat""")
+            config.Append($"python ""{PrimaryFolder}\transcribe_audio.py"" ")
         Else
-            ConfigTextBox.Text += """" & PrimaryFolder & "\transcribe_audio.exe"" "
+            config.Append($"""{PrimaryFolder}\transcribe_audio.exe"" ")
         End If
 
-        ConfigTextBox.Text += "--ram " & RamSize.Text & " "
+        ' RAM settings
+        config.Append($"--ram {RamSize.Text} ")
+        If ForceRam.Checked Then config.Append("--ramforce ")
 
-        If CAP_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--makecaptions "
-            ConfigTextBox.Text += "--file_input=""" & CaptionsInput.Text & """ "
-            ConfigTextBox.Text += "--file_output=""" & CaptionsOutput.Text & """ "
-            ConfigTextBox.Text += "--file_output_name=""" & CaptionsName.Text & """ "
+        ' Audio source specific settings
+        If CAP_RadioButton.Checked Then
+            config.Append($"--makecaptions --file_input=""{CaptionsInput.Text}"" --file_output=""{CaptionsOutput.Text}"" --file_output_name=""{CaptionsName.Text}"" ")
+        ElseIf MIC_RadioButton.Checked Then
+            config.Append("--microphone_enabled true ")
+            If MicEnCheckBox.Checked Then config.Append($"--energy_threshold {EnThreshValue.Value} ")
+            If MicCaliCheckBox.Checked Then config.Append($"--mic_calibration_time {MicCaliTime.Value} ")
+            If RecordTimeOutCHeckBox.Checked Then config.Append($"--record_timeout {RecordTimeout.Value} ")
+            If PhraseTimeOutCheckbox.Checked Then config.Append($"--phrase_timeout {PhraseTimeout.Value} ")
+            config.Append($"--set_microphone {MicID.Value} ")
+        ElseIf HSL_RadioButton.Checked Then
+            If ShowOriginalText.Checked Then config.Append("--stream_original_text ")
+            config.Append($"--stream ""{HLS_URL.Text}"" ")
+            config.Append($"--stream_chunks {ChunkSizeTrackBar.Value} ")
         End If
 
-        If MIC_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--microphone_enabled true "
-            If MicEnCheckBox.Checked = True Then
-                ConfigTextBox.Text += "--energy_threshold " & EnThreshValue.Value & " "
-            End If
-            If MicCaliCheckBox.Checked = True Then
-                ConfigTextBox.Text += "--mic_calibration_time " & MicCaliTime.Value & " "
-            End If
-            If RecordTimeOutCHeckBox.Checked = True Then
-                ConfigTextBox.Text += "--record_timeout " & RecordTimeout.Value & " "
-            End If
-            If PhraseTimeOutCheckbox.Checked = True Then
-                ConfigTextBox.Text += "--phrase_timeout " & PhraseTimeout.Value & " "
-            End If
-            ConfigTextBox.Text += "--set_microphone " & MicID.Value & " "
+        ' Language settings
+        Dim prefix = If(HSL_RadioButton.Checked, "stream_", "")
+        If StreamLanguage.Text <> "--Auto Detect--" Then
+            config.Append($"--{prefix}language {StreamLanguage.Text} ")
         End If
 
-        If HSL_RadioButton.Checked = True Then
-            If ShowOriginalText.Checked = True Then
-                ConfigTextBox.Text += "--stream_original_text "
-            End If
+        ' Translation settings
+        If EnglishTranslationCheckBox.Checked Then
+            config.Append($"--{prefix}translate ")
+        End If
+        If SecondaryTranslation.Checked Then
+            config.Append($"--{prefix}transcribe ")
+            config.Append($"--{prefix}target_language {SecondaryTranslationLanguage.Text} ")
         End If
 
-        If ForceRam.Checked = True Then
-            ConfigTextBox.Text += "--ramforce " & " "
+        ' Device settings
+        If CUDA_RadioButton.Checked Then
+            config.Append("--device cuda ")
+        ElseIf CPU_RadioButton.Checked Then
+            config.Append("--device cpu ")
         End If
 
-        If HSL_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--stream """ & HLS_URL.Text & """ "
-        End If
+        ' Additional settings
+        If Not String.IsNullOrEmpty(CookiesName.Text) Then config.Append($"--cookies {CookiesName.Text} ")
+        If WordBlockList.Checked Then config.Append($"--ignorelist ""{WordBlockListLocation}"" ")
+        If WebServerButton.Checked Then config.Append($"--portnumber {PortNumber.Value} ")
+        If RepeatProtection.Checked Then config.Append("--condition_on_previous_text ")
+        If cb_halspassword.Checked Then config.Append($"--remote_hls_password_id {hlspassid.Text} --remote_hls_password {hlspassword.Text} ")
+        If Not String.IsNullOrEmpty(DiscordWebHook.Text) Then config.Append($"--discord_webhook ""{DiscordWebHook.Text}"" ")
+        If Not String.IsNullOrEmpty(modelDIr.Text) Then config.Append($"--model_dir ""{modelDIr.Text}"" ")
+        If PrecisionCheckBox.Checked Then config.Append("--fp16")
 
-        If HSL_RadioButton.Checked = True Then
-            If StreamLanguage.Text = "--Auto Detect--" Then
-                ' do nothing for now
-            Else
-                ConfigTextBox.Text += "--stream_language " & StreamLanguage.Text & " "
-            End If
-        Else
-            If StreamLanguage.Text = "--Auto Detect--" Then
-                ' do nothing for now
-            Else
-                ConfigTextBox.Text += "--language " & StreamLanguage.Text & " "
-            End If
-        End If
-
-
-        If EnglishTranslationCheckBox.Checked = True Then
-            If HSL_RadioButton.Checked = True Then
-                ConfigTextBox.Text += "--stream_translate "
-            Else
-                ConfigTextBox.Text += "--translate "
-            End If
-        End If
-
-        If HSL_RadioButton.Checked = True Then
-            If SecondaryTranslation.Checked = True Then
-                ConfigTextBox.Text += "--stream_transcribe "
-                ConfigTextBox.Text += "--stream_target_language " & SecondaryTranslationLanguage.Text & " "
-            End If
-        Else
-            If SecondaryTranslation.Checked = True Then
-                ConfigTextBox.Text += "--transcribe "
-                ConfigTextBox.Text += "--target_language " & SecondaryTranslationLanguage.Text & " "
-            End If
-        End If
-
-        If HSL_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--stream_chunks " & ChunkSizeTrackBar.Value & " "
-        End If
-
-        If CUDA_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--device cuda "
-        End If
-
-        If CPU_RadioButton.Checked = True Then
-            ConfigTextBox.Text += "--device cpu "
-        End If
-
-        If CookiesName.Text <> "" Then
-            ConfigTextBox.Text += "--cookies " & CookiesName.Text & " "
-        End If
-
-        If WordBlockList.Checked = True Then
-            ConfigTextBox.Text += "--ignorelist """ & WordBlockListLocation.ToString & """ "
-        End If
-
-        If WebServerButton.Checked = True Then
-            ConfigTextBox.Text += "--portnumber " & PortNumber.Value & " "
-        End If
-
-        If RepeatProtection.Checked = True Then
-            ConfigTextBox.Text += "--condition_on_previous_text "
-        End If
-
-        If cb_halspassword.Checked = True Then
-            ConfigTextBox.Text += "--remote_hls_password_id " & hlspassid.Text & " --remote_hls_password " & hlspassword.Text & " "
-        End If
-
-        If DiscordWebHook.Text <> "" Then
-            ConfigTextBox.Text += "--discord_webhook """ & DiscordWebHook.Text & """" & " "
-        End If
-
-        If modelDIr.Text <> "" Then
-            ConfigTextBox.Text += "--model_dir """ & modelDIr.Text & """" & " "
-        End If
-
-        If PrecisionCheckBox.Checked Then
-            ConfigTextBox.Text += "--fp16"
-        End If
-
-        ConfigTextBox.Text += vbNewLine & "pause"
+        config.AppendLine().AppendLine("pause")
+        ConfigTextBox.Text = config.ToString()
 
     End Sub
 
@@ -226,51 +163,56 @@ Public Class MainUI
     End Sub
 
     Private Sub microphone_id_button_Click(sender As Object, e As EventArgs) Handles microphone_id_button.Click
-        Try
-            If MIC_RadioButton.Checked = True Then
-                Try
-                    If ScriptFileLocation.Text.Contains(" ") Then
-                        Dim unused7 = MsgBox("Please select a program file that does not have spaces in the file path.")
-                        Exit Sub
-                    End If
-                    If ScriptFileLocation.Text.Contains(".py") Then
-                        Dim TempCommand As String = "call " & PrimaryFolder & "\data_whisper\Scripts\activate.bat"" " & vbCrLf & "python """ & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones"
-                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
-                        File.WriteAllText(tmpBatFile, TempCommand)
-                        Dim unused6 = Process.Start(tmpBatFile)
-                    Else
-                        Dim unused5 = MessageBox.Show("Running command: " & ScriptFileLocation.Text & " --microphone_enabled true --list_microphones")
-                        Dim TempCommand As String = """" & ScriptFileLocation.Text & """ --microphone_enabled true --list_microphones" & vbCrLf & "pause"
-                        Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
-                        File.WriteAllText(tmpBatFile, TempCommand)
-                        Dim unused4 = Process.Start(tmpBatFile)
-                    End If
+        If Not MIC_RadioButton.Checked Then
+            MessageBox.Show("Please select the microphone option")
+            Return
+        End If
 
-                Catch ex As Exception
-                    Dim unused3 = MessageBox.Show("Error: " & ex.Message)
-                    Dim unused2 = MessageBox.Show("Possible error is that the program path is not valid, or is missing a file. Make sure to select the program file.")
-                End Try
+        If String.IsNullOrEmpty(ScriptFileLocation.Text) Then
+            MessageBox.Show("Please select the program file.")
+            Return
+        End If
+
+        If ScriptFileLocation.Text.Contains(" ") Then
+            MessageBox.Show("Please select a program file that does not have spaces in the file path.")
+            Return
+        End If
+
+        Try
+            Dim tmpBatFile As String = Path.Combine(PrimaryFolder, "tmp.bat")
+            Dim TempCommand As String
+
+            If ScriptFileLocation.Text.Contains(".py") Then
+                TempCommand = $"call ""{PrimaryFolder}\data_whisper\Scripts\activate.bat"" {vbCrLf}python ""{ScriptFileLocation.Text}"" --microphone_enabled true --list_microphones"
             Else
-                Dim unused1 = MsgBox("Please select the microphone option")
+                MessageBox.Show($"Running command: {ScriptFileLocation.Text} --microphone_enabled true --list_microphones")
+                TempCommand = $"""{ScriptFileLocation.Text}"" --microphone_enabled true --list_microphones{vbCrLf}pause"
             End If
+
+            File.WriteAllText(tmpBatFile, TempCommand)
+            Process.Start(tmpBatFile)
+
         Catch ex As Exception
-            Dim unused = MessageBox.Show("Error: " & ex.Message)
+            MessageBox.Show($"Error: {ex.Message}{vbCrLf}Make sure the program path is valid and all required files are present.")
         End Try
     End Sub
 
+    Private Sub CopyWebLink(linkType As String)
+        Dim url As String = $"http://localhost:{PortNumber.Value}?show{linkType}"
+        Clipboard.SetText(url)
+        MessageBox.Show($"Copied {url} to clipboard")
+    End Sub
+
     Private Sub WebLinkOG_Click(sender As Object, e As EventArgs) Handles WebLinkOG.Click
-        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showoriginal")
-        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showoriginal to clipboard")
+        CopyWebLink("original")
     End Sub
 
     Private Sub WebLinkT1_Click(sender As Object, e As EventArgs) Handles WebLinkT1.Click
-        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranslation ")
-        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranslation to clipboard")
+        CopyWebLink("translation")
     End Sub
 
     Private Sub WebLinkT2_Click(sender As Object, e As EventArgs) Handles WebLinkT2.Click
-        Clipboard.SetText("http://localhost:" & PortNumber.Value & "?showtranscription  ")
-        Dim unused = MessageBox.Show("Copied http://localhost:" & PortNumber.Value & "?showtranscription to clipboard")
+        CopyWebLink("transcription")
     End Sub
     Private Sub MainUI_Load(sender As Object, e As EventArgs) Handles MyBase.Load
         Me.Text = Me.Text & " v" & My.Application.Info.Version.ToString()
@@ -380,19 +322,23 @@ Public Class MainUI
     End Sub
 
     Private Sub Button2_MouseHover(sender As Object, e As EventArgs) Handles SearchForProgramBTN.MouseHover, CaptionsInputBtn.MouseHover, CaptionsOutputBtn.MouseHover
-        ToolTip1.SetToolTip(SearchForProgramBTN, "Select the propgram file.")
+        ToolTip1.SetToolTip(SearchForProgramBTN, "Select the program file.")
+    End Sub
+
+    Private Sub SetWebLinkToolTip(control As Control, linkType As String)
+        ToolTip1.SetToolTip(control, $"Copy the link to the clipboard. Will copy http://localhost:{PortNumber.Value}?show{linkType}")
     End Sub
 
     Private Sub WebLinkOG_MouseHover(sender As Object, e As EventArgs) Handles WebLinkOG.MouseHover
-        ToolTip1.SetToolTip(WebLinkOG, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showoriginal")
+        SetWebLinkToolTip(WebLinkOG, "original")
     End Sub
 
     Private Sub WebLinkT1_MouseHover(sender As Object, e As EventArgs) Handles WebLinkT1.MouseHover
-        ToolTip1.SetToolTip(WebLinkT1, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showtranslation")
+        SetWebLinkToolTip(WebLinkT1, "translation")
     End Sub
 
     Private Sub WebLinkT2_MouseHover(sender As Object, e As EventArgs) Handles WebLinkT2.MouseHover
-        ToolTip1.SetToolTip(WebLinkT2, "Copy the link to the clipboard. Will copy http://localhost:" & PortNumber.Value & "?showtranscription")
+        SetWebLinkToolTip(WebLinkT2, "transcription")
     End Sub
 
     Private Sub CheckBoxCMDBLock_CheckedChanged(sender As Object, e As EventArgs) Handles CheckBoxCMDBLock.CheckedChanged
@@ -653,18 +599,21 @@ Public Class MainUI
             HLS_URL.PasswordChar = ""
         End If
     End Sub
+    Private Sub OpenSocialLink(url As String)
+        Process.Start(New ProcessStartInfo(url) With {.UseShellExecute = True})
+    End Sub
+
     Private Sub PictureItch_MouseClick(sender As Object, e As MouseEventArgs) Handles PictureItch.MouseClick
-        Process.Start(New ProcessStartInfo("https://cyberofficial.itch.io/synthalingua") With {
-                      .UseShellExecute = True
-                      })
+        OpenSocialLink("https://cyberofficial.itch.io/synthalingua")
     End Sub
 
     Private Sub GitHubPicture_MouseClick(sender As Object, e As MouseEventArgs) Handles GitHubPicture.MouseClick
-        Process.Start(New ProcessStartInfo("https://github.com/cyberofficial/Synthalingua") With {
-                      .UseShellExecute = True
-                      })
+        OpenSocialLink("https://github.com/cyberofficial/Synthalingua")
     End Sub
 
+    Private Sub KoFiPicture_MouseClick(sender As Object, e As MouseEventArgs) Handles KoFiPicture.MouseClick
+        OpenSocialLink("https://ko-fi.com/cyberofficial")
+    End Sub
     Private Sub modelDirPicker_Click(sender As Object, e As EventArgs) Handles modelDirPicker.Click
         Using folderBrowserDialog As New FolderBrowserDialog()
             If folderBrowserDialog.ShowDialog() = DialogResult.OK Then

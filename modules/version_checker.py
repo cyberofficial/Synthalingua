@@ -1,4 +1,6 @@
-from modules.imports import *
+import requests
+import re
+from colorama import Fore, Style
 
 version = "1.0.99999"
 ScriptCreator = "cyberofficial"

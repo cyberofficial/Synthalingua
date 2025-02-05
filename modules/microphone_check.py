@@ -1,6 +1,5 @@
+import speech_recognition as sr
 from speech_recognition.__main__ import r
-
-from modules.imports import *
 
 print("Microphone Check Module Loaded")
 def microphone_check():
@@ -12,4 +11,3 @@ def microphone_check():
     print("Microphone check complete.")
     print("\n\n")
     return True
-
