@@ -1,5 +1,16 @@
-# stream_transcription_module.py
-from modules.imports import *
+import threading
+import queue
+import time
+import requests
+import hashlib
+import os
+import m3u8
+import http.client
+import http.cookiejar
+import whisper
+from modules import parser_args
+from modules.discord import send_to_discord_webhook
+from modules import api_backend
 
 # Global shutdown flag
 shutdown_flag = False
