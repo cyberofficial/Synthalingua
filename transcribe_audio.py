@@ -1,18 +1,25 @@
-try:
-    print("Loading Primary Imports")
-    from modules.imports import *
-    print("\n\n")
-except Exception as e:
-    print("Error Loading Primary Imports")
-    print("Check the Modules folder for the imports.py file and make sure it is not missing or corrupted.")
-    print(e)
-    sys.exit(1)
+import sys
+import os
+import torch
+import speech_recognition as sr
+import whisper
+from queue import Queue
+from tempfile import NamedTemporaryFile
+from colorama import Fore, Style, init
 
 from modules.audio_handlers import record_callback, handle_mic_calibration
 from modules.device_manager import get_microphone_source, list_microphones, setup_device
 from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error
 from modules.transcription_core import TranscriptionCore
 from modules.stream_handler import handle_stream_setup
+from modules.stream_transcription_module import stop_transcription
+from modules import parser_args
+from modules.languages import get_valid_languages
+from modules import api_backend
+from modules.version_checker import check_for_updates
+from modules.discord import send_to_discord_webhook
+from modules.about import contributors
+from modules.sub_gen import run_sub_gen
 
 init()
 
@@ -30,7 +37,6 @@ def main():
         sys.exit(1)
 
     if args.about:
-        from modules.about import contributors
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
@@ -162,7 +168,7 @@ def main():
                 recorder.adjust_for_ambient_noise(s)
                 print(f"Microphone set to: {mic_name}")
                 recorder.listen_in_background(s, lambda r, a: record_callback(r, a, data_queue), 
-                                           phrase_time_limit=args.record_timeout)
+                                        phrase_time_limit=args.record_timeout)
             except AssertionError as e:
                 print("Error: Unable to initialize microphone. Check your microphone settings and permissions.")
                 print(f"Error details: {str(e)}")

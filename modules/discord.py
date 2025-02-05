@@ -1,4 +1,5 @@
-from modules.imports import *
+import requests
+import json
 
 def send_to_discord_webhook(webhook_url, text):
     data = {

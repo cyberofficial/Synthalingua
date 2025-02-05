@@ -1,11 +1,10 @@
-# Import necessary modules. Ensure 'modules.imports' contains all required imports.
-from modules.imports import *
-# Parse command-line arguments. Make sure 'parser_args.parse_arguments()' is properly set up in your project.
+import whisper
+from whisper.utils import get_writer
+from modules import parser_args
+
+# Parse command-line arguments
 args = parser_args.parse_arguments()
 
-
-
-# Function to detect language from an audio file.
 def run_sub_gen(input_path: str, output_name: str = "", output_directory: str = "./"):
     model_type = parser_args.set_model_by_ram(args.ram, args.language)
     print("Loading Model")

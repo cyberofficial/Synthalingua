@@ -126,6 +126,7 @@ Partial Class MainUI
         RepeatProtection = New CheckBox()
         Button1 = New Button()
         FolderBrowserDialog2 = New FolderBrowserDialog()
+        KoFiPicture = New PictureBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -146,6 +147,7 @@ Partial Class MainUI
         CType(PictureItch, ComponentModel.ISupportInitialize).BeginInit()
         CType(GitHubPicture, ComponentModel.ISupportInitialize).BeginInit()
         GroupBox6.SuspendLayout()
+        CType(KoFiPicture, ComponentModel.ISupportInitialize).BeginInit()
         SuspendLayout()
         ' 
         ' GroupBox1
@@ -207,10 +209,10 @@ Partial Class MainUI
         SaveConfigToFileButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfigToFileButton.FlatStyle = FlatStyle.Popup
         SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
-        SaveConfigToFileButton.Location = New Point(988, 585)
+        SaveConfigToFileButton.Location = New Point(627, 378)
         SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
         SaveConfigToFileButton.Name = "SaveConfigToFileButton"
-        SaveConfigToFileButton.Size = New Size(108, 32)
+        SaveConfigToFileButton.Size = New Size(467, 32)
         SaveConfigToFileButton.TabIndex = 1
         SaveConfigToFileButton.Text = "Save to File"
         SaveConfigToFileButton.UseVisualStyleBackColor = True
@@ -522,14 +524,14 @@ Partial Class MainUI
         ConfigTextBox.BackColor = Color.SlateBlue
         ConfigTextBox.BorderStyle = BorderStyle.FixedSingle
         ConfigTextBox.Font = New Font("Segoe UI", 13F)
-        ConfigTextBox.Location = New Point(626, 312)
+        ConfigTextBox.Location = New Point(157, 196)
         ConfigTextBox.Margin = New Padding(3, 2, 3, 2)
         ConfigTextBox.Multiline = True
         ConfigTextBox.Name = "ConfigTextBox"
         ConfigTextBox.ReadOnly = True
         ConfigTextBox.RightToLeft = RightToLeft.No
         ConfigTextBox.ScrollBars = ScrollBars.Vertical
-        ConfigTextBox.Size = New Size(468, 237)
+        ConfigTextBox.Size = New Size(463, 414)
         ConfigTextBox.TabIndex = 10
         ConfigTextBox.Visible = False
         ' 
@@ -539,10 +541,10 @@ Partial Class MainUI
         GenerateConfigButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         GenerateConfigButton.FlatStyle = FlatStyle.Popup
         GenerateConfigButton.Font = New Font("Segoe UI", 13F)
-        GenerateConfigButton.Location = New Point(626, 585)
+        GenerateConfigButton.Location = New Point(627, 306)
         GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
         GenerateConfigButton.Name = "GenerateConfigButton"
-        GenerateConfigButton.Size = New Size(116, 32)
+        GenerateConfigButton.Size = New Size(467, 32)
         GenerateConfigButton.TabIndex = 11
         GenerateConfigButton.Text = "Generate Config"
         GenerateConfigButton.UseVisualStyleBackColor = True
@@ -989,10 +991,10 @@ Partial Class MainUI
         RunScript.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         RunScript.FlatStyle = FlatStyle.Popup
         RunScript.Font = New Font("Segoe UI", 15F)
-        RunScript.Location = New Point(748, 585)
+        RunScript.Location = New Point(627, 414)
         RunScript.Margin = New Padding(3, 2, 3, 2)
         RunScript.Name = "RunScript"
-        RunScript.Size = New Size(234, 32)
+        RunScript.Size = New Size(467, 32)
         RunScript.TabIndex = 20
         RunScript.Text = "Run"
         RunScript.UseVisualStyleBackColor = True
@@ -1140,7 +1142,7 @@ Partial Class MainUI
         ' PictureItch
         ' 
         PictureItch.Image = My.Resources.Resources.itch_io_icon_256x256_0aig5hor
-        PictureItch.Location = New Point(64, 562)
+        PictureItch.Location = New Point(1046, 587)
         PictureItch.Name = "PictureItch"
         PictureItch.Size = New Size(48, 48)
         PictureItch.SizeMode = PictureBoxSizeMode.Zoom
@@ -1151,7 +1153,7 @@ Partial Class MainUI
         ' GitHubPicture
         ' 
         GitHubPicture.Image = My.Resources.Resources._25231
-        GitHubPicture.Location = New Point(10, 562)
+        GitHubPicture.Location = New Point(992, 587)
         GitHubPicture.Name = "GitHubPicture"
         GitHubPicture.Size = New Size(48, 48)
         GitHubPicture.SizeMode = PictureBoxSizeMode.Zoom
@@ -1165,10 +1167,10 @@ Partial Class MainUI
         SaveConfig.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfig.FlatStyle = FlatStyle.Popup
         SaveConfig.Font = New Font("Segoe UI", 12F)
-        SaveConfig.Location = New Point(625, 621)
+        SaveConfig.Location = New Point(627, 342)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
         SaveConfig.Name = "SaveConfig"
-        SaveConfig.Size = New Size(140, 59)
+        SaveConfig.Size = New Size(467, 32)
         SaveConfig.TabIndex = 1
         SaveConfig.Text = "Save Current Configuration"
         ToolTip1.SetToolTip(SaveConfig, "Save's the current state of the gui." & vbCrLf)
@@ -1179,7 +1181,7 @@ Partial Class MainUI
         WipeSettings.FlatAppearance.MouseDownBackColor = Color.Indigo
         WipeSettings.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         WipeSettings.FlatStyle = FlatStyle.Popup
-        WipeSettings.Location = New Point(310, 727)
+        WipeSettings.Location = New Point(24, 616)
         WipeSettings.Name = "WipeSettings"
         WipeSettings.Size = New Size(123, 23)
         WipeSettings.TabIndex = 29
@@ -1191,7 +1193,7 @@ Partial Class MainUI
         ' 
         CheckBoxCMDBLock.AutoSize = True
         CheckBoxCMDBLock.CheckAlign = ContentAlignment.MiddleRight
-        CheckBoxCMDBLock.Location = New Point(626, 562)
+        CheckBoxCMDBLock.Location = New Point(162, 616)
         CheckBoxCMDBLock.Margin = New Padding(3, 2, 3, 2)
         CheckBoxCMDBLock.Name = "CheckBoxCMDBLock"
         CheckBoxCMDBLock.RightToLeft = RightToLeft.No
@@ -1207,7 +1209,7 @@ Partial Class MainUI
         ' EraseCheckBox
         ' 
         EraseCheckBox.AutoSize = True
-        EraseCheckBox.Location = New Point(288, 732)
+        EraseCheckBox.Location = New Point(10, 621)
         EraseCheckBox.Name = "EraseCheckBox"
         EraseCheckBox.Size = New Size(15, 14)
         EraseCheckBox.TabIndex = 30
@@ -1277,12 +1279,24 @@ Partial Class MainUI
         Button1.Text = "Load Word Blocklist"
         Button1.UseVisualStyleBackColor = True
         ' 
+        ' KoFiPicture
+        ' 
+        KoFiPicture.Image = CType(resources.GetObject("KoFiPicture.Image"), Image)
+        KoFiPicture.Location = New Point(938, 587)
+        KoFiPicture.Name = "KoFiPicture"
+        KoFiPicture.Size = New Size(48, 48)
+        KoFiPicture.SizeMode = PictureBoxSizeMode.Zoom
+        KoFiPicture.TabIndex = 35
+        KoFiPicture.TabStop = False
+        ToolTip1.SetToolTip(KoFiPicture, "Open K-Fi Support Page")
+        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.DarkSlateBlue
-        ClientSize = New Size(1597, 950)
+        ClientSize = New Size(1102, 647)
+        Controls.Add(KoFiPicture)
         Controls.Add(GitHubPicture)
         Controls.Add(PictureItch)
         Controls.Add(GroupBox6)
@@ -1351,6 +1365,7 @@ Partial Class MainUI
         CType(GitHubPicture, ComponentModel.ISupportInitialize).EndInit()
         GroupBox6.ResumeLayout(False)
         GroupBox6.PerformLayout()
+        CType(KoFiPicture, ComponentModel.ISupportInitialize).EndInit()
         ResumeLayout(False)
         PerformLayout()
     End Sub
@@ -1457,5 +1472,6 @@ Partial Class MainUI
     Friend WithEvents FolderBrowserDialog2 As FolderBrowserDialog
     Friend WithEvents PrecisionCheckBox As CheckBox
     Friend WithEvents Label17 As Label
+    Friend WithEvents KoFiPicture As PictureBox
 
 End Class
