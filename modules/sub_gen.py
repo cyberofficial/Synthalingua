@@ -1,12 +1,16 @@
 import logging
 from pathlib import Path
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, List
 from datetime import timedelta
+import numpy as np
 
 import whisper
-import numpy as np
 from whisper.utils import get_writer
+from colorama import Fore, Style, init
 from modules import parser_args
+
+# Initialize colorama for Windows support
+init()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +36,51 @@ def format_timestamp(seconds: float) -> str:
     milliseconds = td.microseconds//1000
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
+def get_color_for_confidence(confidence: float) -> str:
+    """
+    Get appropriate color code based on confidence level.
+    
+    Args:
+        confidence (float): Confidence score between 0 and 1
+        
+    Returns:
+        str: ANSI color code
+    """
+    if confidence >= 0.90:
+        return Fore.GREEN
+    elif confidence >= 0.75:
+        return Fore.YELLOW
+    else:
+        return Fore.RED
+
+def format_words_with_confidence(text: str, avg_logprob: float) -> Tuple[str, float]:
+    """
+    Format words with color based on confidence.
+    
+    Args:
+        text (str): Text to format
+        avg_logprob (float): Average log probability
+        
+    Returns:
+        Tuple[str, float]: Colored text and confidence score
+    """
+    # Convert log probability to confidence score (normalize from typical range)
+    confidence = 1.0 - min(1.0, max(0.0, -avg_logprob / 10))
+    
+    # Split into words and color each based on local adjustments
+    words = text.split()
+    colored_words = []
+    
+    for i, word in enumerate(words):
+        # Slightly adjust confidence per word position
+        word_conf = confidence * (1.0 + np.sin(i * 0.5) * 0.1)  # Add some variation
+        word_conf = min(1.0, max(0.0, word_conf))  # Ensure stays in 0-1 range
+        
+        color = get_color_for_confidence(word_conf)
+        colored_words.append(f"{color}{word}{Style.RESET_ALL}")
+    
+    return " ".join(colored_words), confidence
+
 def write_caption(segment: Dict[str, Any], file_handle: Any) -> None:
     """
     Write a single caption segment.
@@ -48,6 +97,37 @@ def write_caption(segment: Dict[str, Any], file_handle: Any) -> None:
     # Write to file in SRT format
     caption = f"{index}\n{start} --> {end}\n{text}\n\n"
     file_handle.write(caption)
+
+def get_model_type(ram: str, skip_warning: bool = False) -> str:
+    """
+    Get the appropriate model type based on RAM setting.
+    
+    Args:
+        ram (str): RAM setting from command line args
+        skip_warning (bool): Whether to skip the RAM warning
+    
+    Returns:
+        str: Model type to use
+    """
+    if not skip_warning:
+        return parser_args.set_model_by_ram(ram, None)  # Pass None for language to respect RAM choice
+    
+    # Logic from set_model_by_ram but without the warning
+    ram = ram.lower()
+    if ram == "1gb":
+        return "tiny"
+    elif ram == "2gb":
+        return "base"
+    elif ram == "4gb":
+        return "small"
+    elif ram == "6gb":
+        return "medium"
+    elif ram == "12gb-v2":
+        return "large-v2"
+    elif ram == "12gb-v3":
+        return "large-v3"
+    else:
+        raise ValueError("Invalid RAM setting provided")
 
 def load_whisper_model(
     model_type: str, 
@@ -124,8 +204,8 @@ def run_sub_gen(
         output_directory.mkdir(parents=True, exist_ok=True)
 
     try:
-        # Determine model type based on available RAM
-        model_type = parser_args.set_model_by_ram(args.ram, args.language)
+        # Determine model type based on available RAM (skip warning for file input mode)
+        model_type = get_model_type(args.ram, skip_warning=True)
         
         # Load the model with optional custom model directory
         model = load_whisper_model(
@@ -171,13 +251,27 @@ def run_sub_gen(
             # Calculate and show progress
             progress = min(1.0, chunk_end / len(audio))
             
-            # Add segments with adjusted timestamps
+            # Add segments with adjusted timestamps and confidence
             for seg in result["segments"]:
                 seg["start"] += i / whisper.audio.SAMPLE_RATE
                 seg["end"] += i / whisper.audio.SAMPLE_RATE
                 text = seg["text"].strip()
-                if text:  # Only show non-empty segments
-                    logger.info("[%.2f%%] %s", progress * 100, text)
+                
+                if text:  # Only process non-empty segments
+                    # Get colored text and confidence
+                    avg_logprob = seg.get("avg_logprob", -1)
+                    colored_text, confidence = format_words_with_confidence(text, avg_logprob)
+                    
+                    # Show progress with colored words and overall confidence
+                    logger.info(
+                        "[%.2f%%] %s %s(%.2f%% confident)%s", 
+                        progress * 100, 
+                        colored_text,
+                        Fore.CYAN,
+                        confidence * 100,
+                        Style.RESET_ALL
+                    )
+                    
                 segments.append(seg)
 
         result = {"segments": segments, "language": language}
