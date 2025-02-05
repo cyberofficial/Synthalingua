@@ -17,6 +17,9 @@ shutdown_flag = False
 args = parser_args.parse_arguments()
 kill = False
 
+# Set debug to true
+args.debug = True
+
 # Semaphore for limiting concurrent downloads (adjust as needed)
 max_concurrent_downloads = 4
 download_semaphore = threading.Semaphore(max_concurrent_downloads)
@@ -269,7 +272,33 @@ def start_stream_transcription(
                 print("Failed to load m3u8 after retries, stopping.")
                 break
 
-            for segment in m3u8_obj.segments:
+            # Get total segments and calculate starting point
+            total_segments = len(m3u8_obj.segments)
+            if total_segments == 0:
+                if args.debug:
+                    print("\n[DEBUG] Playlist is empty, waiting for segments...")
+                time.sleep(1)  # Wait if playlist is empty
+                continue
+
+            # Start from the most recent segments on first run
+            if len(downloaded_segments) == 0:
+                start_idx = max(0, total_segments - segments_max)
+                if args.debug:
+                    print(f"\n[DEBUG] First run:")
+                    print(f"[DEBUG] Total segments in playlist: {total_segments}")
+                    print(f"[DEBUG] Starting from segment index: {start_idx}")
+                    print(f"[DEBUG] Will process {total_segments - start_idx} segments")
+            else:
+                start_idx = 0
+                if args.debug:
+                    print(f"\n[DEBUG] Continuing run:")
+                    print(f"[DEBUG] Total segments in playlist: {total_segments}")
+                    print(f"[DEBUG] Previously downloaded segments: {len(downloaded_segments)}")
+                    print(f"[DEBUG] Starting from beginning to check for new segments")
+
+            # Process segments from the calculated starting point
+            for idx in range(start_idx, total_segments):
+                segment = m3u8_obj.segments[idx]
                 if segment.uri in downloaded_segments:
                     continue  # Skip already downloaded segments
 
@@ -278,13 +307,23 @@ def start_stream_transcription(
                 )
                 counter += 1
                 try:
+                    if args.debug:
+                        print(f"\n[DEBUG] Attempting to download segment {counter}:")
+                        print(f"[DEBUG] Segment URI: {segment.uri}")
+
                     if download_segment(segment.absolute_uri, segment_path):
                         if kill:
                             break
                         downloaded_segments.add(segment.uri)
                         accumulated_segments.append(segment_path)
 
+                        if args.debug:
+                            print(f"[DEBUG] Successfully downloaded segment {counter}")
+                            print(f"[DEBUG] Accumulated segments: {len(accumulated_segments)}/{segments_max}")
+
                         if len(accumulated_segments) >= segments_max:
+                            if args.debug:
+                                print(f"[DEBUG] Reached max segments ({segments_max}), processing batch...")
                             combined_path = os.path.join(
                                 temp_dir, f"{task_id}_combined_{counter}.ts"
                             )
