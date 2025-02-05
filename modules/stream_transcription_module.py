@@ -18,7 +18,7 @@ args = parser_args.parse_arguments()
 kill = False
 
 # Set debug to true
-args.debug = True
+# args.debug = True
 
 # Semaphore for limiting concurrent downloads (adjust as needed)
 max_concurrent_downloads = 4
