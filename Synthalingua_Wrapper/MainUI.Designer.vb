@@ -116,6 +116,7 @@ Partial Class MainUI
         GitHubPicture = New PictureBox()
         SaveConfig = New Button()
         WipeSettings = New Button()
+        KoFiPicture = New PictureBox()
         CheckBoxCMDBLock = New CheckBox()
         FolderBrowserDialog1 = New FolderBrowserDialog()
         CaptionsInputFile = New OpenFileDialog()
@@ -126,7 +127,6 @@ Partial Class MainUI
         RepeatProtection = New CheckBox()
         Button1 = New Button()
         FolderBrowserDialog2 = New FolderBrowserDialog()
-        KoFiPicture = New PictureBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -146,8 +146,8 @@ Partial Class MainUI
         GroupBox5.SuspendLayout()
         CType(PictureItch, ComponentModel.ISupportInitialize).BeginInit()
         CType(GitHubPicture, ComponentModel.ISupportInitialize).BeginInit()
-        GroupBox6.SuspendLayout()
         CType(KoFiPicture, ComponentModel.ISupportInitialize).BeginInit()
+        GroupBox6.SuspendLayout()
         SuspendLayout()
         ' 
         ' GroupBox1
@@ -209,10 +209,10 @@ Partial Class MainUI
         SaveConfigToFileButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfigToFileButton.FlatStyle = FlatStyle.Popup
         SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
-        SaveConfigToFileButton.Location = New Point(627, 378)
+        SaveConfigToFileButton.Location = New Point(631, 578)
         SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
         SaveConfigToFileButton.Name = "SaveConfigToFileButton"
-        SaveConfigToFileButton.Size = New Size(467, 32)
+        SaveConfigToFileButton.Size = New Size(113, 32)
         SaveConfigToFileButton.TabIndex = 1
         SaveConfigToFileButton.Text = "Save to File"
         SaveConfigToFileButton.UseVisualStyleBackColor = True
@@ -265,7 +265,7 @@ Partial Class MainUI
         RamSize.AutoCompleteSource = AutoCompleteSource.ListItems
         RamSize.DropDownStyle = ComboBoxStyle.DropDownList
         RamSize.FormattingEnabled = True
-        RamSize.Items.AddRange(New Object() {"1gb", "2gb", "4gb", "6gb", "12gb-v2", "12gb-v3"})
+        RamSize.Items.AddRange(New Object() {"1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"})
         RamSize.Location = New Point(71, 5)
         RamSize.Margin = New Padding(3, 2, 3, 2)
         RamSize.Name = "RamSize"
@@ -541,7 +541,7 @@ Partial Class MainUI
         GenerateConfigButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         GenerateConfigButton.FlatStyle = FlatStyle.Popup
         GenerateConfigButton.Font = New Font("Segoe UI", 13F)
-        GenerateConfigButton.Location = New Point(627, 306)
+        GenerateConfigButton.Location = New Point(631, 371)
         GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
         GenerateConfigButton.Name = "GenerateConfigButton"
         GenerateConfigButton.Size = New Size(467, 32)
@@ -616,7 +616,7 @@ Partial Class MainUI
         SettingsTabs.Margin = New Padding(3, 2, 3, 2)
         SettingsTabs.Name = "SettingsTabs"
         SettingsTabs.SelectedIndex = 0
-        SettingsTabs.Size = New Size(467, 296)
+        SettingsTabs.Size = New Size(467, 343)
         SettingsTabs.TabIndex = 19
         ' 
         ' TabPage1
@@ -627,7 +627,7 @@ Partial Class MainUI
         TabPage1.Margin = New Padding(3, 2, 3, 2)
         TabPage1.Name = "TabPage1"
         TabPage1.Padding = New Padding(3, 2, 3, 2)
-        TabPage1.Size = New Size(459, 265)
+        TabPage1.Size = New Size(459, 312)
         TabPage1.TabIndex = 0
         TabPage1.Text = "HLS Settings"
         ' 
@@ -653,7 +653,7 @@ Partial Class MainUI
         TabPage2.Margin = New Padding(3, 2, 3, 2)
         TabPage2.Name = "TabPage2"
         TabPage2.Padding = New Padding(3, 2, 3, 2)
-        TabPage2.Size = New Size(459, 265)
+        TabPage2.Size = New Size(459, 312)
         TabPage2.TabIndex = 1
         TabPage2.Text = "Microphone Settings"
         ' 
@@ -828,7 +828,7 @@ Partial Class MainUI
         TabPage3.Location = New Point(4, 27)
         TabPage3.Name = "TabPage3"
         TabPage3.Padding = New Padding(3)
-        TabPage3.Size = New Size(459, 265)
+        TabPage3.Size = New Size(459, 312)
         TabPage3.TabIndex = 2
         TabPage3.Text = "Generate Captions"
         ' 
@@ -919,7 +919,7 @@ Partial Class MainUI
         TabPage4.Location = New Point(4, 27)
         TabPage4.Name = "TabPage4"
         TabPage4.Padding = New Padding(3)
-        TabPage4.Size = New Size(459, 265)
+        TabPage4.Size = New Size(459, 312)
         TabPage4.TabIndex = 3
         TabPage4.Text = "Model Settings"
         ' 
@@ -929,7 +929,7 @@ Partial Class MainUI
         Label17.Font = New Font("Segoe UI", 12F)
         Label17.Location = New Point(6, 88)
         Label17.Name = "Label17"
-        Label17.Size = New Size(443, 147)
+        Label17.Size = New Size(443, 210)
         Label17.TabIndex = 9
         Label17.Text = resources.GetString("Label17.Text")
         ' 
@@ -991,7 +991,7 @@ Partial Class MainUI
         RunScript.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         RunScript.FlatStyle = FlatStyle.Popup
         RunScript.Font = New Font("Segoe UI", 15F)
-        RunScript.Location = New Point(627, 414)
+        RunScript.Location = New Point(631, 443)
         RunScript.Margin = New Padding(3, 2, 3, 2)
         RunScript.Name = "RunScript"
         RunScript.Size = New Size(467, 32)
@@ -1167,12 +1167,12 @@ Partial Class MainUI
         SaveConfig.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfig.FlatStyle = FlatStyle.Popup
         SaveConfig.Font = New Font("Segoe UI", 12F)
-        SaveConfig.Location = New Point(627, 342)
+        SaveConfig.Location = New Point(631, 407)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
         SaveConfig.Name = "SaveConfig"
         SaveConfig.Size = New Size(467, 32)
         SaveConfig.TabIndex = 1
-        SaveConfig.Text = "Save Current Configuration"
+        SaveConfig.Text = "Quick Save"
         ToolTip1.SetToolTip(SaveConfig, "Save's the current state of the gui." & vbCrLf)
         SaveConfig.UseVisualStyleBackColor = True
         ' 
@@ -1188,6 +1188,17 @@ Partial Class MainUI
         WipeSettings.Text = "Wipe Settings"
         ToolTip1.SetToolTip(WipeSettings, "[DANGER] Wipes the Settings,")
         WipeSettings.UseVisualStyleBackColor = True
+        ' 
+        ' KoFiPicture
+        ' 
+        KoFiPicture.Image = CType(resources.GetObject("KoFiPicture.Image"), Image)
+        KoFiPicture.Location = New Point(938, 587)
+        KoFiPicture.Name = "KoFiPicture"
+        KoFiPicture.Size = New Size(48, 48)
+        KoFiPicture.SizeMode = PictureBoxSizeMode.Zoom
+        KoFiPicture.TabIndex = 35
+        KoFiPicture.TabStop = False
+        ToolTip1.SetToolTip(KoFiPicture, "Open K-Fi Support Page")
         ' 
         ' CheckBoxCMDBLock
         ' 
@@ -1279,17 +1290,6 @@ Partial Class MainUI
         Button1.Text = "Load Word Blocklist"
         Button1.UseVisualStyleBackColor = True
         ' 
-        ' KoFiPicture
-        ' 
-        KoFiPicture.Image = CType(resources.GetObject("KoFiPicture.Image"), Image)
-        KoFiPicture.Location = New Point(938, 587)
-        KoFiPicture.Name = "KoFiPicture"
-        KoFiPicture.Size = New Size(48, 48)
-        KoFiPicture.SizeMode = PictureBoxSizeMode.Zoom
-        KoFiPicture.TabIndex = 35
-        KoFiPicture.TabStop = False
-        ToolTip1.SetToolTip(KoFiPicture, "Open K-Fi Support Page")
-        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
@@ -1363,9 +1363,9 @@ Partial Class MainUI
         GroupBox5.PerformLayout()
         CType(PictureItch, ComponentModel.ISupportInitialize).EndInit()
         CType(GitHubPicture, ComponentModel.ISupportInitialize).EndInit()
+        CType(KoFiPicture, ComponentModel.ISupportInitialize).EndInit()
         GroupBox6.ResumeLayout(False)
         GroupBox6.PerformLayout()
-        CType(KoFiPicture, ComponentModel.ISupportInitialize).EndInit()
         ResumeLayout(False)
         PerformLayout()
     End Sub

@@ -200,7 +200,7 @@ class TranscriptionCore:
         audio = whisper.pad_or_trim(audio)
         mel = whisper.log_mel_spectrogram(
             audio,
-            n_mels=128 if self.args.ram == "12gb-v3" else 80
+            n_mels=128 if self.args.ram == "11gb-v3" else 80
         ).to(self.device)
 
         self._detect_language(mel)

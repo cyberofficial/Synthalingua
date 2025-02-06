@@ -325,8 +325,8 @@ def start_stream_transcription(
             audio = whisper.load_audio(file_path)
             audio = whisper.pad_or_trim(audio)
             
-            # Handle "12gb-v3"
-            if args.ram == "12gb-v3":
+            # Use 128 mel bands for large-v3 model
+            if args.ram == "11gb-v3":
                 mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
             else:
                 mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
