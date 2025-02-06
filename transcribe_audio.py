@@ -123,8 +123,6 @@ def main():
     # Configure model
     model = parser_args.set_model_by_ram(args.ram, args.language)
     if not args.makecaptions:
-        if args.target_language != "en" and args.target_language != "English":
-            model = model.replace(".en", "")
         audio_model = whisper.load_model(model, device=device, download_root=args.model_dir)
 
     # Set up API backend if needed
