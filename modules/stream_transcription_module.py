@@ -277,7 +277,7 @@ def start_stream_transcription(
         Includes fp16 optimization and previous text conditioning based on arguments.
         """
         try:
-            result = model.transcribe(file_path, task="translate", fp16=args.fp16, language=stream_language, condition_on_previous_text=args.condition_on_previous_text)
+            result = model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
             return result["text"]
         except RuntimeError as e:
             print(f"Error transcribing audio: {e}")
