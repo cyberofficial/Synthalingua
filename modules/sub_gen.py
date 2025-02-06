@@ -141,13 +141,15 @@ def get_model_type(ram: str, skip_warning: bool = False) -> str:
         return "tiny"
     elif ram == "2gb":
         return "base"
-    elif ram == "4gb":
+    elif ram == "3gb":
         return "small"
     elif ram == "6gb":
         return "medium"
-    elif ram == "12gb-v2":
+    elif ram == "7gb":
+        return "turbo"
+    elif ram == "11gb-v2":
         return "large-v2"
-    elif ram == "12gb-v3":
+    elif ram == "11gb-v3":
         return "large-v3"
     else:
         raise ValueError("Invalid RAM setting provided")
