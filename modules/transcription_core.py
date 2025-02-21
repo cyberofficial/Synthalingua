@@ -268,12 +268,20 @@ class TranscriptionCore:
         Note:
             Will retry transcription once if result is empty and retry flag is set
         """
+        # Handle FP16 settings properly
+        dtype = torch.float16 if self.args.fp16 else torch.float32
+        if self.device == torch.device("cpu"):
+            if torch.cuda.is_available():
+                print("Warning: Performing inference on CPU when CUDA is available")
+            if dtype == torch.float16:
+                print("Warning: FP16 is not supported on CPU; using FP32 instead")
+                dtype = torch.float32
+
         kwargs = {
             'language': self.detected_language,
-            'condition_on_previous_text': self.args.condition_on_previous_text
+            'condition_on_previous_text': self.args.condition_on_previous_text,
+            'fp16': dtype == torch.float16
         }
-        if self.device.type == "cuda":
-            kwargs['fp16'] = self.args.fp16
             
         result = self.audio_model.transcribe(temp_file, **kwargs)
         
@@ -304,13 +312,21 @@ class TranscriptionCore:
         if self.detected_language != 'en':
             if not self.args.no_log:
                 print("Translating...")
+            # Handle FP16 settings properly
+            dtype = torch.float16 if self.args.fp16 else torch.float32
+            if self.device == torch.device("cpu"):
+                if torch.cuda.is_available():
+                    print("Warning: Performing inference on CPU when CUDA is available")
+                if dtype == torch.float16:
+                    print("Warning: FP16 is not supported on CPU; using FP32 instead")
+                    dtype = torch.float32
+
             kwargs = {
                 'task': 'translate',
                 'language': self.detected_language,
-                'condition_on_previous_text': self.args.condition_on_previous_text
+                'condition_on_previous_text': self.args.condition_on_previous_text,
+                'fp16': dtype == torch.float16
             }
-            if self.device.type == "cuda":
-                kwargs['fp16'] = self.args.fp16
                 
             translated_result = self.audio_model.transcribe(temp_file, **kwargs)
             self.translated_text = translated_result['text'].strip()
@@ -334,13 +350,21 @@ class TranscriptionCore:
         if not self.args.no_log:
             print(f"Transcribing to {self.args.target_language}...")
             
+        # Handle FP16 settings properly
+        dtype = torch.float16 if self.args.fp16 else torch.float32
+        if self.device == torch.device("cpu"):
+            if torch.cuda.is_available():
+                print("Warning: Performing inference on CPU when CUDA is available")
+            if dtype == torch.float16:
+                print("Warning: FP16 is not supported on CPU; using FP32 instead")
+                dtype = torch.float32
+
         kwargs = {
             'task': 'transcribe',
             'language': self.args.target_language,
-            'condition_on_previous_text': self.args.condition_on_previous_text
+            'condition_on_previous_text': self.args.condition_on_previous_text,
+            'fp16': dtype == torch.float16
         }
-        if self.device.type == "cuda":
-            kwargs['fp16'] = self.args.fp16
             
         transcribed_result = self.audio_model.transcribe(temp_file, **kwargs)
         self.transcribed_text = transcribed_result['text'].strip()

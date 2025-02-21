@@ -72,7 +72,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ram", default="2gb", help="Model to use", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
     parser.add_argument("--ramforce", action='store_true', help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
-    parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, Heavy on Usage, but more accurate")
+    parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, increases speed with a light decrease in accuracy.")
     parser.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
     parser.add_argument("--mic_calibration_time", help="How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds.", type=int)
     parser.add_argument("--record_timeout", default=1, help="How real time the recording is in seconds.", type=float)
