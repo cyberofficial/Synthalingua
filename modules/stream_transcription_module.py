@@ -39,6 +39,10 @@ kill = False
 max_concurrent_downloads = 4
 download_semaphore = threading.Semaphore(max_concurrent_downloads)
 
+# Track combined files in queue
+combined_files_in_queue = []
+MAX_COMBINED_FILES = 5
+
 def load_cookies_from_file(cookie_file_path):
     """
     Load cookies from a Mozilla format cookies file.
@@ -360,9 +364,18 @@ def start_stream_transcription(
         
         The audio file is automatically cleaned up after processing.
         """
+        global combined_files_in_queue
+        
         if not os.path.exists(file_path):
             print(f"Warning: File {file_path} does not exist, skipping.")
             return
+
+        # Remove from tracking if it's a combined file
+        if "_combined_" in file_path:
+            try:
+                combined_files_in_queue.remove(file_path)
+            except ValueError:
+                pass  # File might not be in list if tracking started after file was created
 
         transcription = None
         translation = None
@@ -513,6 +526,14 @@ def start_stream_transcription(
                             combine_audio_segments(
                                 accumulated_segments, combined_path
                             )
+                            
+                            # Track combined file and check queue size
+                            combined_files_in_queue.append(combined_path)
+                            if len(combined_files_in_queue) > MAX_COMBINED_FILES:
+                                print("\nWARNING: More than 5 combined files are waiting to be processed.")
+                                print("This may indicate that your GPU cannot keep up with the transcription load.")
+                                print("Consider using a smaller model or increasing processing power.\n")
+                            
                             audio_queue.put(combined_path)
                             accumulated_segments = []
                 except Exception as e:  # Catch the raised exception
@@ -526,6 +547,7 @@ def start_stream_transcription(
         exit(0)
 
     # Cleanup
+    combined_files_in_queue.clear()  # Clear the tracking list
     for file in os.listdir(temp_dir):
         os.remove(os.path.join(temp_dir, file))
     audio_queue.put(None)  # Signal processing thread to stop
