@@ -43,6 +43,36 @@ download_semaphore = threading.Semaphore(max_concurrent_downloads)
 combined_files_in_queue = []
 MAX_COMBINED_FILES = 5
 
+def check_and_clean_temp(temp_dir):
+    """
+    Check if temp directory has leftover files and ask user if they want to clean it.
+    
+    Args:
+        temp_dir (str): Path to the temporary directory
+        
+    This function checks for any leftover files from improper program termination
+    and offers to clean them, reminding users about proper shutdown procedure.
+    """
+    if not os.path.exists(temp_dir):
+        return
+        
+    files = os.listdir(temp_dir)
+    if files:
+        print("\nWARNING: Leftover files found in temp directory.")
+        print("This usually happens if the program didn't close properly.")
+        print("Remember to use 'Ctrl+C' in the console to close the program properly.")
+        user_input = input("\nWould you like to clean the temp directory? (y/n): ").lower()
+        
+        if user_input == 'y':
+            for file in files:
+                try:
+                    os.remove(os.path.join(temp_dir, file))
+                except Exception as e:
+                    print(f"Error removing {file}: {e}")
+            print("Temp directory cleaned.")
+        else:
+            print("Keeping existing temp files.")
+
 def load_cookies_from_file(cookie_file_path):
     """
     Load cookies from a Mozilla format cookies file.
@@ -99,6 +129,9 @@ def start_stream_transcription(
     includes retry logic for robust operation.
     """
 
+    # Check and clean temp directory before starting
+    check_and_clean_temp(temp_dir)
+    
     if streamkey:
         keyid = args.remote_hls_password_id
         key = args.remote_hls_password
