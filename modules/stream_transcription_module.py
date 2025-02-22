@@ -129,8 +129,9 @@ def start_stream_transcription(
     includes retry logic for robust operation.
     """
 
-    # Check and clean temp directory before starting
-    check_and_clean_temp(temp_dir)
+    # Check and clean temp directory before starting when using debug mode.
+    if args.debug:
+        check_and_clean_temp(temp_dir)
     
     if streamkey:
         keyid = args.remote_hls_password_id
