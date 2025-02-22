@@ -208,7 +208,7 @@ Partial Class MainUI
         SaveConfigToFileButton.FlatAppearance.MouseDownBackColor = Color.Indigo
         SaveConfigToFileButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfigToFileButton.FlatStyle = FlatStyle.Popup
-        SaveConfigToFileButton.Font = New Font("Segoe UI", 12.0F)
+        SaveConfigToFileButton.Font = New Font("Segoe UI", 12F)
         SaveConfigToFileButton.Location = New Point(631, 578)
         SaveConfigToFileButton.Margin = New Padding(3, 2, 3, 2)
         SaveConfigToFileButton.Name = "SaveConfigToFileButton"
@@ -309,7 +309,7 @@ Partial Class MainUI
         ' Label14
         ' 
         Label14.AutoSize = True
-        Label14.Font = New Font("Segoe UI", 10.0F)
+        Label14.Font = New Font("Segoe UI", 10F)
         Label14.Location = New Point(5, 154)
         Label14.Name = "Label14"
         Label14.Size = New Size(423, 95)
@@ -523,7 +523,7 @@ Partial Class MainUI
         ' 
         ConfigTextBox.BackColor = Color.SlateBlue
         ConfigTextBox.BorderStyle = BorderStyle.FixedSingle
-        ConfigTextBox.Font = New Font("Segoe UI", 13.0F)
+        ConfigTextBox.Font = New Font("Segoe UI", 13F)
         ConfigTextBox.Location = New Point(157, 196)
         ConfigTextBox.Margin = New Padding(3, 2, 3, 2)
         ConfigTextBox.Multiline = True
@@ -540,7 +540,7 @@ Partial Class MainUI
         GenerateConfigButton.FlatAppearance.MouseDownBackColor = Color.Indigo
         GenerateConfigButton.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         GenerateConfigButton.FlatStyle = FlatStyle.Popup
-        GenerateConfigButton.Font = New Font("Segoe UI", 13.0F)
+        GenerateConfigButton.Font = New Font("Segoe UI", 13F)
         GenerateConfigButton.Location = New Point(631, 371)
         GenerateConfigButton.Margin = New Padding(3, 2, 3, 2)
         GenerateConfigButton.Name = "GenerateConfigButton"
@@ -926,10 +926,10 @@ Partial Class MainUI
         ' Label17
         ' 
         Label17.AutoSize = True
-        Label17.Font = New Font("Segoe UI", 12.0F)
+        Label17.Font = New Font("Segoe UI", 12F)
         Label17.Location = New Point(6, 88)
         Label17.Name = "Label17"
-        Label17.Size = New Size(443, 210)
+        Label17.Size = New Size(443, 189)
         Label17.TabIndex = 9
         Label17.Text = resources.GetString("Label17.Text")
         ' 
@@ -938,9 +938,9 @@ Partial Class MainUI
         PrecisionCheckBox.AutoSize = True
         PrecisionCheckBox.Location = New Point(241, 7)
         PrecisionCheckBox.Name = "PrecisionCheckBox"
-        PrecisionCheckBox.Size = New Size(108, 19)
+        PrecisionCheckBox.Size = New Size(82, 19)
         PrecisionCheckBox.TabIndex = 8
-        PrecisionCheckBox.Text = "Precision Mode"
+        PrecisionCheckBox.Text = "Half Mode"
         PrecisionCheckBox.UseVisualStyleBackColor = True
         ' 
         ' Label16
@@ -990,7 +990,7 @@ Partial Class MainUI
         RunScript.FlatAppearance.MouseDownBackColor = Color.Indigo
         RunScript.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         RunScript.FlatStyle = FlatStyle.Popup
-        RunScript.Font = New Font("Segoe UI", 15.0F)
+        RunScript.Font = New Font("Segoe UI", 15F)
         RunScript.Location = New Point(631, 443)
         RunScript.Margin = New Padding(3, 2, 3, 2)
         RunScript.Name = "RunScript"
@@ -1129,7 +1129,7 @@ Partial Class MainUI
         ' CookiesRefresh
         ' 
         CookiesRefresh.FlatStyle = FlatStyle.Flat
-        CookiesRefresh.Font = New Font("Segoe UI", 8.0F)
+        CookiesRefresh.Font = New Font("Segoe UI", 8F)
         CookiesRefresh.ImageAlign = ContentAlignment.TopLeft
         CookiesRefresh.Location = New Point(585, 34)
         CookiesRefresh.Margin = New Padding(3, 2, 3, 2)
@@ -1166,7 +1166,7 @@ Partial Class MainUI
         SaveConfig.FlatAppearance.MouseDownBackColor = Color.Indigo
         SaveConfig.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         SaveConfig.FlatStyle = FlatStyle.Popup
-        SaveConfig.Font = New Font("Segoe UI", 12.0F)
+        SaveConfig.Font = New Font("Segoe UI", 12F)
         SaveConfig.Location = New Point(631, 407)
         SaveConfig.Margin = New Padding(3, 2, 3, 2)
         SaveConfig.Name = "SaveConfig"
@@ -1292,7 +1292,7 @@ Partial Class MainUI
         ' 
         ' MainUI
         ' 
-        AutoScaleDimensions = New SizeF(7.0F, 15.0F)
+        AutoScaleDimensions = New SizeF(7F, 15F)
         AutoScaleMode = AutoScaleMode.Font
         BackColor = Color.DarkSlateBlue
         ClientSize = New Size(1102, 647)
