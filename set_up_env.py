@@ -24,7 +24,7 @@ from tqdm import tqdm
 class Config:
     """Configuration settings for the environment setup."""
     FFMPEG_URL: str = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
-    YTDLP_URL: str = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.02.19/yt-dlp_win.zip'
+    YTDLP_URL: str = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.03.31/yt-dlp_win.zip'
     SEVEN_ZIP_URL: str = 'https://www.7-zip.org/a/7zr.exe'
     
     def __post_init__(self) -> None:
