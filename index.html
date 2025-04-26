@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthalingua Command Generator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #483D8B;
+            color: white;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        h2 {
+            margin-top: 0;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"], select, input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #6A5ACD;
+            border: 1px solid #8A2BE2;
+            color: white;
+            border-radius: 4px;
+        }
+        input[type="text"]::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+        select {
+            width: 100%;
+        }
+        .radio-group {
+            margin: 10px 0;
+        }
+        .radio-group label {
+            display: inline;
+            margin-right: 15px;
+        }
+        button {
+            background: #6A5ACD;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #483D8B;
+        }
+        .command-output {
+            background: #6A5ACD;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+        }
+        .command-output pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            font-family: monospace;
+        }
+        .copy-button {
+            float: right;
+            margin-top: -40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Audio Source</h2>
+        <div class="radio-group">
+            <input type="radio" id="hls" name="audioSource" value="hls" checked> <label for="hls">HLS Stream</label>
+            <input type="radio" id="microphone" name="audioSource" value="microphone"> <label for="microphone">Microphone</label>
+            <input type="radio" id="captions" name="audioSource" value="captions"> <label for="captions">Generate Captions</label>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Basic Settings</h2>
+        <div class="section">
+            <label>Operating System:</label>
+            <select id="osType" onchange="updateCommandPlaceholder()">
+                <option value="windows">Windows (PowerShell)</option>
+                <option value="linux">Linux (Bash)</option>
+            </select>
+        </div>
+
+        <div class="section">
+            <label>Execution Type:</label>
+            <select id="execType" onchange="togglePythonEnv()">
+                <option value="portable">Portable (exe/binary)</option>
+                <option value="source">Source (Python)</option>
+            </select>
+        </div>
+
+        <div id="pythonEnvSection" style="display: none;">
+            <label for="pythonEnvPath">Python Environment Path:</label>
+            <input type="text" id="pythonEnvPath" placeholder="/path/to/python/environment">
+        </div>
+
+        <label for="scriptLocation">Script Location:</label>
+        <input type="text" id="scriptLocation" placeholder="Path to transcribe_audio.exe or .py">
+        
+        <div class="radio-group">
+            <label>Processing Device:</label>
+            <input type="radio" id="cuda" name="processingDevice" value="cuda" checked> <label for="cuda">CUDA</label>
+            <input type="radio" id="cpu" name="processingDevice" value="cpu"> <label for="cpu">CPU</label>
+        </div>
+
+        <label for="ramSize">RAM Size:</label>
+        <select id="ramSize">
+            <option value="1gb">1GB</option>
+            <option value="2gb">2GB</option>
+            <option value="3gb">3GB</option>
+            <option value="6gb">6GB</option>
+            <option value="7gb">7GB</option>
+            <option value="11gb-v2">11GB-v2</option>
+            <option value="11gb-v3">11GB-v3</option>
+        </select>
+        
+        <input type="checkbox" id="forceRam">
+        <label for="forceRam" style="display: inline;">Force RAM</label>
+    </div>
+
+    <div id="microphoneSettings" class="container" style="display: none;">
+        <h2>Microphone Settings</h2>
+        <div>
+            <label for="microphoneId">Microphone ID:</label>
+            <input type="number" id="microphoneId" value="1" min="1">
+            <button onclick="listMicrophones()" style="width: auto;">List Microphones</button>
+            <textarea id="micListCommand" readonly style="width: 100%; margin-top: 10px; height: 60px; resize: none; font-family: monospace;"></textarea>
+        </div>
+
+        <div>
+            <label for="energyThreshold">Energy Threshold:</label>
+            <input type="number" id="energyThreshold" value="1" min="1" max="1000">
+            <input type="checkbox" id="enableEnergyThreshold">
+            <label for="enableEnergyThreshold" style="display: inline;">Enable</label>
+        </div>
+
+        <div>
+            <label for="micCalibrationTime">Microphone Calibration Time:</label>
+            <input type="number" id="micCalibrationTime" value="5" min="1" max="10">
+            <input type="checkbox" id="enableMicCalibration">
+            <label for="enableMicCalibration" style="display: inline;">Enable</label>
+        </div>
+
+        <div>
+            <label for="recordTimeout">Record Timeout:</label>
+            <input type="number" id="recordTimeout" value="5" min="1" max="10">
+            <input type="checkbox" id="enableRecordTimeout">
+            <label for="enableRecordTimeout" style="display: inline;">Enable</label>
+        </div>
+
+        <div>
+            <label for="phraseTimeout">Phrase Timeout:</label>
+            <input type="number" id="phraseTimeout" value="5" min="1" max="120">
+            <input type="checkbox" id="enablePhraseTimeout">
+            <label for="enablePhraseTimeout" style="display: inline;">Enable</label>
+        </div>
+    </div>
+
+    <div id="captionsSettings" class="container" style="display: none;">
+        <h2>Generate Captions Settings</h2>
+        <div>
+            <label for="captionsInput">Input File:</label>
+            <input type="text" id="captionsInput" placeholder="Path to video/audio file">
+        </div>
+
+        <div>
+            <label for="captionsOutput">Save Location:</label>
+            <input type="text" id="captionsOutput" placeholder="Path to output directory">
+        </div>
+
+        <div>
+            <label for="captionsName">Export Name:</label>
+            <input type="text" id="captionsName" placeholder="Caption file name (without extension)">
+        </div>
+    </div>
+
+    <div id="hlsSettings" class="container">
+        <h2>HLS Stream Settings</h2>
+        <label for="streamUrl">Stream URL:</label>
+        <input type="text" id="streamUrl" placeholder="Stream URL">
+
+        <label for="chunkSize">Stream Chunk Size:</label>
+        <input type="range" id="chunkSize" min="1" max="30" value="5">
+        <span id="chunkSizeValue">5</span>
+
+        <input type="checkbox" id="showOriginalText">
+        <label for="showOriginalText" style="display: inline;">Show Original Text</label>
+    </div>
+
+    <div class="container">
+        <h2>Language Settings</h2>
+        <label for="streamLanguage">Stream Language:</label>
+        <input type="text" id="streamLanguage" placeholder="Auto detect (leave blank) or enter language name">
+        <small style="color: #ADD8E6; display: block; margin: -5px 0 10px 0;">Make sure language starts with a capital letter (e.g., "English" not "english")</small>
+
+        <div>
+            <input type="checkbox" id="englishTranslation">
+            <label for="englishTranslation" style="display: inline;">Enable English Translation</label>
+        </div>
+
+        <div>
+            <input type="checkbox" id="secondaryTranslation">
+            <label for="secondaryTranslation" style="display: inline;">Enable Secondary Translation</label>
+        </div>
+
+        <label for="secondaryLanguage">Secondary Translation Language:</label>
+        <input type="text" id="secondaryLanguage" placeholder="Enter language name" disabled>
+        <small style="color: #ADD8E6; display: block; margin: -5px 0 10px 0;">Make sure language starts with a capital letter (e.g., "English" not "english")</small>
+    </div>
+
+    <div class="container">
+        <button onclick="generateCommand()">Generate Command</button>
+        <div id="commandOutput" class="command-output" style="display: none;">
+            <button class="copy-button" onclick="copyCommand()">Copy</button>
+            <pre id="command"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Update chunk size display
+        document.getElementById('chunkSize').addEventListener('input', function() {
+            document.getElementById('chunkSizeValue').textContent = this.value;
+        });
+
+        // Toggle secondary language dropdown
+        document.getElementById('secondaryTranslation').addEventListener('change', function() {
+            document.getElementById('secondaryLanguage').disabled = !this.checked;
+        });
+
+        // Show/hide settings based on audio source
+        document.getElementsByName('audioSource').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('hlsSettings').style.display =
+                    this.value === 'hls' ? 'block' : 'none';
+                document.getElementById('microphoneSettings').style.display =
+                    this.value === 'microphone' ? 'block' : 'none';
+                document.getElementById('captionsSettings').style.display =
+                    this.value === 'captions' ? 'block' : 'none';
+            });
+        });
+
+        function listMicrophones() {
+            const scriptLocation = document.getElementById('scriptLocation').value;
+            const osType = document.getElementById('osType').value;
+            const execType = document.getElementById('execType').value;
+            
+            let cmd = '';
+            
+            if (execType === 'source') {
+                const pythonEnvPath = document.getElementById('pythonEnvPath').value;
+                if (osType === 'windows') {
+                    cmd = `powershell.exe -Command "& '${pythonEnvPath}\\Scripts\\activate.bat' ; python '${scriptLocation}' `;
+                } else {
+                    cmd = `source ${pythonEnvPath}/bin/activate && python '${scriptLocation}' `;
+                }
+            } else {
+                if (osType === 'windows') {
+                    cmd = `powershell.exe -Command "& '${scriptLocation}' `;
+                } else {
+                    cmd = `'${scriptLocation}' `;
+                }
+            }
+            
+            cmd += '--microphone_enabled true --list_microphones';
+            
+            if (osType === 'windows') {
+                cmd += '"';
+            }
+            
+            document.getElementById('micListCommand').value = cmd;
+            document.getElementById('micListCommand').style.display = 'block';
+        }
+
+        function updateCommandPlaceholder() {
+            const osType = document.getElementById('osType').value;
+            const scriptLocation = document.getElementById('scriptLocation');
+            scriptLocation.placeholder = osType === 'windows' ?
+                'C:\\Program Files\\Synthalingua\\transcribe_audio.exe' :
+                '/usr/local/bin/transcribe_audio';
+        }
+
+        function togglePythonEnv() {
+            const execType = document.getElementById('execType').value;
+            const pythonEnvSection = document.getElementById('pythonEnvSection');
+            pythonEnvSection.style.display = execType === 'source' ? 'block' : 'none';
+        }
+
+        function generateCommand() {
+            const scriptLocation = document.getElementById('scriptLocation').value;
+            const processingDevice = document.querySelector('input[name="processingDevice"]:checked').value;
+            const audioSource = document.querySelector('input[name="audioSource"]:checked').value;
+            const ramSize = document.getElementById('ramSize').value;
+            const forceRam = document.getElementById('forceRam').checked;
+            const osType = document.getElementById('osType').value;
+            const execType = document.getElementById('execType').value;
+            
+            let cmd = '';
+            
+            if (execType === 'source') {
+                const pythonEnvPath = document.getElementById('pythonEnvPath').value;
+                if (osType === 'windows') {
+                    cmd = `powershell.exe -Command "& '${pythonEnvPath}\\Scripts\\activate.bat' ; python '${scriptLocation}' `;
+                } else {
+                    cmd = `source ${pythonEnvPath}/bin/activate && python '${scriptLocation}' `;
+                }
+            } else {
+                if (osType === 'windows') {
+                    cmd = `powershell.exe -Command "& '${scriptLocation}' `;
+                } else {
+                    cmd = `'${scriptLocation}' `;
+                }
+            }
+            cmd += `--device ${processingDevice} `;
+            cmd += `--model_size ${ramSize} `;
+            
+            if (forceRam) {
+                cmd += '--force_ram ';
+            }
+
+            if (audioSource === 'hls') {
+                const streamUrl = document.getElementById('streamUrl').value;
+                const chunkSize = document.getElementById('chunkSize').value;
+                const showOriginalText = document.getElementById('showOriginalText').checked;
+
+                cmd += `--hls_enabled true `;
+                cmd += `--hls_url '${streamUrl}' `;
+                cmd += `--hls_chunks ${chunkSize} `;
+                if (showOriginalText) {
+                    cmd += '--show_original true ';
+                }
+            } else if (audioSource === 'captions') {
+                const inputFile = document.getElementById('captionsInput').value;
+                const outputDir = document.getElementById('captionsOutput').value;
+                const captionName = document.getElementById('captionsName').value;
+
+                cmd += `--generate_captions true `;
+                cmd += `--input_file '${inputFile}' `;
+                cmd += `--output_directory '${outputDir}' `;
+                if (captionName) {
+                    cmd += `--output_name '${captionName}' `;
+                }
+            } else if (audioSource === 'microphone') {
+                cmd += '--microphone_enabled true ';
+                
+                const micId = document.getElementById('microphoneId').value;
+                cmd += `--microphone_id ${micId} `;
+
+                if (document.getElementById('enableEnergyThreshold').checked) {
+                    const energyThreshold = document.getElementById('energyThreshold').value;
+                    cmd += `--energy_threshold ${energyThreshold} `;
+                }
+
+                if (document.getElementById('enableMicCalibration').checked) {
+                    const calibTime = document.getElementById('micCalibrationTime').value;
+                    cmd += `--mic_calibration_time ${calibTime} `;
+                }
+
+                if (document.getElementById('enableRecordTimeout').checked) {
+                    const recordTimeout = document.getElementById('recordTimeout').value;
+                    cmd += `--record_timeout ${recordTimeout} `;
+                }
+
+                if (document.getElementById('enablePhraseTimeout').checked) {
+                    const phraseTimeout = document.getElementById('phraseTimeout').value;
+                    cmd += `--phrase_timeout ${phraseTimeout} `;
+                }
+            }
+
+            const streamLanguage = document.getElementById('streamLanguage').value.trim();
+            if (streamLanguage) {
+                cmd += `--stream_language '${streamLanguage}' `;
+            }
+
+            if (document.getElementById('englishTranslation').checked) {
+                cmd += '--english_translation true ';
+            }
+
+            if (document.getElementById('secondaryTranslation').checked) {
+                const secondaryLanguage = document.getElementById('secondaryLanguage').value;
+                cmd += `--secondary_translation true `;
+                cmd += `--secondary_language '${secondaryLanguage}' `;
+            }
+
+            cmd += '"';
+
+            document.getElementById('command').textContent = cmd;
+            document.getElementById('commandOutput').style.display = 'block';
+        }
+
+        function copyCommand() {
+            const command = document.getElementById('command').textContent;
+            navigator.clipboard.writeText(command).then(() => {
+                alert('Command copied to clipboard!');
+            });
+        }
+    </script>
+</body>
+</html>
