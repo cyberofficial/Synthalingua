@@ -204,7 +204,10 @@ Below is a categorized list of all command-line arguments supported by Synthalin
 | `--file_input` | Path to input file for captioning. |
 | `--file_output` | Output folder for captions. |
 | `--file_output_name` | Output file name (without extension). |
-| `--ignorelist` | Path to blacklist file for filtering words/phrases. |
+| `--ignorelist` | Path to blacklist file for filtering words/phrases. Also used for auto-blocklist. |
+| `--auto_blocklist` | Enable auto-adding frequently blocked phrases to the blocklist file. Requires `--ignorelist`. |
+| `--condition_on_previous_text` | Enables similarity/repetition suppression (suppresses repeated or highly similar messages in all modes). |
+| `--debug` | Print debug output for blocked/suppressed messages. |
 
 ### Web Server & Integration
 | Flag | Description |
@@ -269,7 +272,7 @@ Synthalingua uses argparse to accept command-line arguments. Below are the main 
 | `--condition_on_previous_text` | Will help the model from repeating itself, but may slow up the process. |
 | `--remote_hls_password_id` | Password ID for the webserver. Usually like 'id', or 'key'. Key is default for the program though, so when it asks for id/password, Synthalingua will be `key=000000` - `key`=`id` - `0000000`=`password` 16 chars long. |
 | `--remote_hls_password` | Password for the hls webserver.|
-| `--auto_hls` | Auto-adjust HLS chunk batching: samples the stream to detect segment duration, then prompts you to set the optimal chunk size (number of segments per batch) before starting stream transcription. Useful for reducing latency and tuning live stream performance. |
+| `--auto_hls` | Auto-adjust HLS chunk batching: samples the stream to detect segment duration, then prompts you to set the optimal chunk size (number of segments per batch) before starting stream transcription. Useful for reducing latency and tuning live stream performance.|
 
 ### Word Block List
 Use the `--ignorelist` flag to load a blacklist file containing words or phrases to filter from output. The file should be a `.txt` file with one word or phrase per line (empty lines are ignored). This helps remove unwanted or misheard words from transcriptions and subtitles.
