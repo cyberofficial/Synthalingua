@@ -26,11 +26,19 @@ import whisper
 from modules import parser_args
 from modules.discord import send_to_discord_webhook
 from modules import api_backend
+import difflib
+from modules.similarity_utils import is_similar
 
 # Global shutdown flag
 shutdown_flag = False
 args = parser_args.parse_arguments()
 kill = False
+
+# Toggle debug output for similar message blocking
+DEBUG_BLOCK_SIMILAR = True  # Set to False to hide debug output
+
+# Enable similar message protection if --condition_on_previous_text is used
+ENABLE_SIMILAR_PROTECTION = args.condition_on_previous_text
 
 # Set debug to true
 # args.debug = True
@@ -399,7 +407,16 @@ def start_stream_transcription(
         The audio file is automatically cleaned up after processing.
         """
         global combined_files_in_queue
-        
+        global DEBUG_BLOCK_SIMILAR
+
+        # Store last messages for each type
+        if not hasattr(process_audio, "last_transcription"):
+            process_audio.last_transcription = None
+        if not hasattr(process_audio, "last_translation"):
+            process_audio.last_translation = None
+        if not hasattr(process_audio, "last_target_transcription"):
+            process_audio.last_target_transcription = None
+
         if not os.path.exists(file_path):
             print(f"Warning: File {file_path} does not exist, skipping.")
             return
@@ -416,25 +433,37 @@ def start_stream_transcription(
         if args.stream_original_text:
             if args.stream_language:
                 detected_language = stream_language
-                # print(f"Language Set By Args: {detected_language}")
             else:
-                # print("Testing for Language")
                 detected_language = detect_language(file_path, model)
-                # print(f"Language is: {detected_language}")
             transcription = transcribe_audio(
                 file_path, model, language=detected_language
             )
-            print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
-            print(transcription)
-            if args.portnumber and transcription.strip():
-                new_header = f"{transcription}"
-                api_backend.update_header(new_header)
+            if ENABLE_SIMILAR_PROTECTION:
+                is_new = transcription and not is_similar(transcription, process_audio.last_transcription)
+            else:
+                is_new = bool(transcription)
+            if is_new:
+                print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
+                print(transcription)
+                process_audio.last_transcription = transcription
+                if args.portnumber and transcription.strip():
+                    new_header = f"{transcription}"
+                    api_backend.update_header(new_header)
+            else:
+                if DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar original message: {transcription}")
+                pass
 
         if tasktranslate_task:
             translation = translate_audio(file_path, model)
-            if translation:
+            if ENABLE_SIMILAR_PROTECTION:
+                is_new = translation and not is_similar(translation, process_audio.last_translation)
+            else:
+                is_new = bool(translation)
+            if is_new:
                 print(f"{'-' * 50} Stream EN Translation {'-' * 50}")
                 print(translation)
+                process_audio.last_translation = translation
                 if webhook_url:
                     send_to_discord_webhook(
                         webhook_url, f"Stream EN Translation:\n{translation}\n"
@@ -442,16 +471,25 @@ def start_stream_transcription(
                 if args.portnumber:
                     new_header = f"{translation}"
                     api_backend.update_translated_header(new_header)
+            else:
+                if DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar translation message: {translation}")
+                pass
 
         if tasktranscribe_task:
             transcription = transcribe_audio(
                 file_path, model, language=target_language
             )
-            if transcription:
+            if ENABLE_SIMILAR_PROTECTION:
+                is_new = transcription and not is_similar(transcription, process_audio.last_target_transcription)
+            else:
+                is_new = bool(transcription)
+            if is_new:
                 print(
                     f"{'-' * 50} Stream {target_language} Transcription {'-' * 50}"
                 )
                 print(transcription)
+                process_audio.last_target_transcription = transcription
                 if webhook_url:
                     send_to_discord_webhook(
                         webhook_url,
@@ -460,6 +498,10 @@ def start_stream_transcription(
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
                     api_backend.update_transcribed_header(new_header)
+            else:
+                if DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar target transcription message: {transcription}")
+                pass
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
