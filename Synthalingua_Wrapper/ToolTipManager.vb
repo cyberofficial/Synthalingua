@@ -46,6 +46,7 @@ Public Class ToolTipManager
         toolTip.SetToolTip(form.ShowOriginalText, "Show the original text of the stream. This will show the original text of the stream. So if the speaker is speaking Japanese it will show the Japanese text.")
         toolTip.SetToolTip(form.RepeatProtection, "Will help the model from repeating itself, but may slow up the process.")
         toolTip.SetToolTip(form.AutoHLS_Checkbox, "Enable automatic HLS stream detection and configuration.")
+        toolTip.SetToolTip(form.auto_blocklist, "Enable automatic blocklist detection and configuration.")
     End Sub
 
     Public Sub ShowMicrophoneSettingsHelp(control As String)

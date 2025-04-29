@@ -629,6 +629,18 @@ Namespace My
                 Me("auto_hls") = value
             End Set
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(),  _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(),  _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")>  _
+        Public Property auto_blocklist() As Boolean
+            Get
+                Return CType(Me("auto_blocklist"),Boolean)
+            End Get
+            Set
+                Me("auto_blocklist") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

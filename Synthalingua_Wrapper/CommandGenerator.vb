@@ -100,5 +100,6 @@ Public Class CommandGenerator
         If Not String.IsNullOrEmpty(settings.modelDIr.Text) Then builder.Append($"--model_dir ""{settings.modelDIr.Text}"" ")
         If settings.PrecisionCheckBox.Checked Then builder.Append("--fp16")
         If settings.AutoHLS_Checkbox.Checked Then builder.Append("--auto_hls ")
+        If settings.auto_blocklist.Checked Then builder.Append("--auto_blocklist ")
     End Sub
 End Class

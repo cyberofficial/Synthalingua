@@ -86,6 +86,9 @@ Public Class ConfigManager
 
                 ' Auto HLS
                 .auto_hls = settings.AutoHLS_Checkbox.Checked
+
+                ' Auto Blocklist
+                .auto_blocklist = settings.auto_blocklist.Checked
             End With
             My.Settings.Save()
             Return True
@@ -141,6 +144,7 @@ Public Class ConfigManager
                 form.modelDIr.Text = .modelDIr
                 form.PrecisionCheckBox.Checked = .fp16
                 form.AutoHLS_Checkbox.Checked = .auto_hls
+                form.auto_blocklist.Checked = .auto_blocklist
 
                 Try
                     form.PrimaryFolder = .PrimaryFolder

@@ -36,6 +36,7 @@ Partial Class MainUI
         RamSize = New ComboBox()
         ForceRam = New CheckBox()
         GroupBox2 = New GroupBox()
+        AutoHLS_Checkbox = New CheckBox()
         Label14 = New Label()
         hlspassword = New TextBox()
         hlspassid = New TextBox()
@@ -127,7 +128,7 @@ Partial Class MainUI
         RepeatProtection = New CheckBox()
         Button1 = New Button()
         FolderBrowserDialog2 = New FolderBrowserDialog()
-        AutoHLS_Checkbox = New CheckBox()
+        auto_blocklist = New CheckBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -307,6 +308,16 @@ Partial Class MainUI
         GroupBox2.TabIndex = 8
         GroupBox2.TabStop = False
         GroupBox2.Text = "HLS Info"
+        ' 
+        ' AutoHLS_Checkbox
+        ' 
+        AutoHLS_Checkbox.AutoSize = True
+        AutoHLS_Checkbox.Location = New Point(128, 70)
+        AutoHLS_Checkbox.Name = "AutoHLS_Checkbox"
+        AutoHLS_Checkbox.Size = New Size(124, 19)
+        AutoHLS_Checkbox.TabIndex = 28
+        AutoHLS_Checkbox.Text = "Detect HLS Length"
+        AutoHLS_Checkbox.UseVisualStyleBackColor = True
         ' 
         ' Label14
         ' 
@@ -1232,7 +1243,7 @@ Partial Class MainUI
         ' 
         WordBlockList.AutoSize = True
         WordBlockList.Dock = DockStyle.Bottom
-        WordBlockList.Location = New Point(3, 39)
+        WordBlockList.Location = New Point(3, 55)
         WordBlockList.Name = "WordBlockList"
         WordBlockList.Size = New Size(131, 19)
         WordBlockList.TabIndex = 31
@@ -1245,7 +1256,7 @@ Partial Class MainUI
         EditBlockList.FlatAppearance.MouseDownBackColor = Color.Indigo
         EditBlockList.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         EditBlockList.FlatStyle = FlatStyle.Popup
-        EditBlockList.Location = New Point(3, 58)
+        EditBlockList.Location = New Point(3, 74)
         EditBlockList.Name = "EditBlockList"
         EditBlockList.Size = New Size(131, 24)
         EditBlockList.TabIndex = 32
@@ -1254,6 +1265,7 @@ Partial Class MainUI
         ' 
         ' GroupBox6
         ' 
+        GroupBox6.Controls.Add(auto_blocklist)
         GroupBox6.Controls.Add(RepeatProtection)
         GroupBox6.Controls.Add(WordBlockList)
         GroupBox6.Controls.Add(EditBlockList)
@@ -1261,7 +1273,7 @@ Partial Class MainUI
         GroupBox6.ForeColor = Color.FloralWhite
         GroupBox6.Location = New Point(10, 448)
         GroupBox6.Name = "GroupBox6"
-        GroupBox6.Size = New Size(137, 108)
+        GroupBox6.Size = New Size(137, 124)
         GroupBox6.TabIndex = 33
         GroupBox6.TabStop = False
         GroupBox6.Text = "Features"
@@ -1272,7 +1284,7 @@ Partial Class MainUI
         RepeatProtection.Checked = True
         RepeatProtection.CheckState = CheckState.Checked
         RepeatProtection.Dock = DockStyle.Bottom
-        RepeatProtection.Location = New Point(3, 20)
+        RepeatProtection.Location = New Point(3, 36)
         RepeatProtection.Name = "RepeatProtection"
         RepeatProtection.Size = New Size(131, 19)
         RepeatProtection.TabIndex = 33
@@ -1285,22 +1297,23 @@ Partial Class MainUI
         Button1.FlatAppearance.MouseDownBackColor = Color.Indigo
         Button1.FlatAppearance.MouseOverBackColor = Color.SlateBlue
         Button1.FlatStyle = FlatStyle.Popup
-        Button1.Location = New Point(3, 82)
+        Button1.Location = New Point(3, 98)
         Button1.Name = "Button1"
         Button1.Size = New Size(131, 23)
         Button1.TabIndex = 34
         Button1.Text = "Load Word Blocklist"
         Button1.UseVisualStyleBackColor = True
         ' 
-        ' AutoHLS_Checkbox
+        ' auto_blocklist
         ' 
-        AutoHLS_Checkbox.AutoSize = True
-        AutoHLS_Checkbox.Location = New Point(128, 70)
-        AutoHLS_Checkbox.Name = "AutoHLS_Checkbox"
-        AutoHLS_Checkbox.Size = New Size(124, 19)
-        AutoHLS_Checkbox.TabIndex = 28
-        AutoHLS_Checkbox.Text = "Detect HLS Length"
-        AutoHLS_Checkbox.UseVisualStyleBackColor = True
+        auto_blocklist.AutoSize = True
+        auto_blocklist.Dock = DockStyle.Bottom
+        auto_blocklist.Location = New Point(3, 17)
+        auto_blocklist.Name = "auto_blocklist"
+        auto_blocklist.Size = New Size(131, 19)
+        auto_blocklist.TabIndex = 35
+        auto_blocklist.Text = "Auto Blocklist"
+        auto_blocklist.UseVisualStyleBackColor = True
         ' 
         ' MainUI
         ' 
@@ -1486,5 +1499,6 @@ Partial Class MainUI
     Friend WithEvents Label17 As Label
     Friend WithEvents KoFiPicture As PictureBox
     Friend WithEvents AutoHLS_Checkbox As CheckBox
+    Friend WithEvents auto_blocklist As CheckBox
 
 End Class
