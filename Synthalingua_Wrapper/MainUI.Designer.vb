@@ -127,6 +127,7 @@ Partial Class MainUI
         RepeatProtection = New CheckBox()
         Button1 = New Button()
         FolderBrowserDialog2 = New FolderBrowserDialog()
+        AutoHLS_Checkbox = New CheckBox()
         GroupBox1.SuspendLayout()
         GroupBox2.SuspendLayout()
         CType(ChunkSizeTrackBar, ComponentModel.ISupportInitialize).BeginInit()
@@ -286,6 +287,7 @@ Partial Class MainUI
         ' GroupBox2
         ' 
         GroupBox2.BackColor = Color.DarkSlateBlue
+        GroupBox2.Controls.Add(AutoHLS_Checkbox)
         GroupBox2.Controls.Add(Label14)
         GroupBox2.Controls.Add(hlspassword)
         GroupBox2.Controls.Add(hlspassid)
@@ -1290,6 +1292,16 @@ Partial Class MainUI
         Button1.Text = "Load Word Blocklist"
         Button1.UseVisualStyleBackColor = True
         ' 
+        ' AutoHLS_Checkbox
+        ' 
+        AutoHLS_Checkbox.AutoSize = True
+        AutoHLS_Checkbox.Location = New Point(128, 70)
+        AutoHLS_Checkbox.Name = "AutoHLS_Checkbox"
+        AutoHLS_Checkbox.Size = New Size(124, 19)
+        AutoHLS_Checkbox.TabIndex = 28
+        AutoHLS_Checkbox.Text = "Detect HLS Length"
+        AutoHLS_Checkbox.UseVisualStyleBackColor = True
+        ' 
         ' MainUI
         ' 
         AutoScaleDimensions = New SizeF(7F, 15F)
@@ -1473,5 +1485,6 @@ Partial Class MainUI
     Friend WithEvents PrecisionCheckBox As CheckBox
     Friend WithEvents Label17 As Label
     Friend WithEvents KoFiPicture As PictureBox
+    Friend WithEvents AutoHLS_Checkbox As CheckBox
 
 End Class

@@ -37,6 +37,7 @@ Public Class MainUI
 
     <Obsolete>
     Private Sub GenerateConfigButton_Click(sender As Object, e As EventArgs) Handles GenerateConfigButton.Click
+        ' AutoHLS_Checkbox is now handled in config and command generation
         Try
             Dim generator As New CommandGenerator(Me)
             ConfigTextBox.Text = generator.Generate()
