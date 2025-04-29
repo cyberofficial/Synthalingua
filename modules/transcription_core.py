@@ -17,6 +17,16 @@ from modules.discord import send_to_discord_webhook
 from modules.console_settings import set_window_title
 from modules import api_backend
 from modules.languages import get_valid_languages
+from collections import deque
+from modules.similarity_utils import is_similar
+try:
+    from modules.stream_transcription_module import add_phrase_to_blocklist, is_phrase_in_blocklist
+except ImportError:
+    # Fallback if not available (for testing)
+    def add_phrase_to_blocklist(phrase, blocklist_path):
+        return False
+    def is_phrase_in_blocklist(phrase, blocklist_path):
+        return False
 
 class TranscriptionCore:
     """Core class for handling audio transcription, translation, and processing.
@@ -63,6 +73,20 @@ class TranscriptionCore:
         self.original_text: Optional[str] = None
         self.translated_text: Optional[str] = None
         self.transcribed_text: Optional[str] = None
+        self._blocked_phrase_history = {
+            'original': deque(maxlen=10),
+            'translation': deque(maxlen=10),
+            'target': deque(maxlen=10),
+        }
+        self._last_output = {
+            'original': None,
+            'translation': None,
+            'target': None,
+        }
+        self._DEBUG_BLOCK_SIMILAR = True  # Set to False to hide debug output
+        self._ENABLE_SIMILAR_PROTECTION = getattr(self.args, 'condition_on_previous_text', False)
+        self._AUTO_BLOCKLIST_ENABLED = getattr(self.args, 'auto_blocklist', False)
+        self._BLOCKLIST_PATH = getattr(self.args, 'ignorelist', None)
 
     def process_audio(self, data_queue: Queue, source: sr.AudioSource,
                      temp_file: str) -> bool:
@@ -421,71 +445,66 @@ class TranscriptionCore:
         return filtered_text
 
     def _display_results(self) -> None:
-        """Display the current transcription results.
-        
-        This method handles the display logic by:
-        1. Filtering the original text
-        2. Choosing between full or simple display format based on no_log flag
-        3. Displaying the results in the chosen format
-        
-        Note:
-            Will not display anything if filtered text is empty
-        """
+        """Display the current transcription results with suppression/blocklist logic."""
+        # Original
         filtered_text = self._filter_text(self.original_text)
-        
         if filtered_text:
-            if not self.args.no_log:
-                self._display_full_results(filtered_text)
+            if not self._should_block_output(filtered_text, 'original'):
+                if not self.args.no_log:
+                    self._display_full_results(filtered_text)
+                else:
+                    self._display_simple_results(filtered_text)
             else:
-                self._display_simple_results(filtered_text)
-
-    def _display_full_results(self, filtered_text: str) -> None:
-        """Display detailed results with formatted layout.
-        
-        Displays the original transcription, translation (if available),
-        and target language transcription (if available) with visual separators
-        and proper formatting.
-        
-        Args:
-            filtered_text: Filtered transcription text to display
-        """
-        print("=" * shutil.get_terminal_size().columns)
-        print(f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)} "
-              f"What was Heard -> {self.detected_language} "
-              f"{' ' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-        print(filtered_text)
-
+                if self._DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar or blocklisted original message: {filtered_text}")
+        # Translation
         if self.args.translate and self.translated_text:
             filtered_translated = self._filter_text(self.translated_text)
-            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} "
-                  f"EN Translation "
-                  f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-            print(f"{filtered_translated}\n")
-
+            if filtered_translated and not self._should_block_output(filtered_translated, 'translation'):
+                if not self.args.no_log:
+                    print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{filtered_translated}\n")
+                else:
+                    print(f"[Translation (EN)]: {filtered_translated}\n")
+            else:
+                if self._DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar or blocklisted translation message: {filtered_translated}")
+        # Target transcription
         if self.args.transcribe and self.transcribed_text:
             filtered_transcribed = self._filter_text(self.transcribed_text)
-            print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} "
-                  f"{self.detected_language} -> {self.args.target_language} "
-                  f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-            print(f"{filtered_transcribed}\n")
+            if filtered_transcribed and not self._should_block_output(filtered_transcribed, 'target'):
+                if not self.args.no_log:
+                    print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {self.detected_language} -> {self.args.target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
+                    print(f"{filtered_transcribed}\n")
+                else:
+                    print(f"[Transcription ({self.detected_language} -> {self.args.target_language})]: {filtered_transcribed}\n")
+            else:
+                if self._DEBUG_BLOCK_SIMILAR:
+                    print(f"[DEBUG] Blocked similar or blocklisted target transcription message: {filtered_transcribed}")
 
-    def _display_simple_results(self, filtered_text: str) -> None:
-        """Display simplified one-line results for each component.
-        
-        Displays each available component (original text, translation,
-        and target language transcription) on separate lines with
-        minimal formatting.
-        
-        Args:
-            filtered_text: Filtered transcription text to display
-        """
-        print(f"[Input ({self.detected_language})]: {filtered_text}\n")
-        
-        if self.args.transcribe and self.transcribed_text:
-            filtered_transcribed = self._filter_text(self.transcribed_text)
-            print(f"[Transcription ({self.detected_language} -> "
-                  f"{self.args.target_language})]: {filtered_transcribed}\n")
-            
-        if self.args.translate and self.translated_text:
-            filtered_translated = self._filter_text(self.translated_text)
-            print(f"[Translation (EN)]: {filtered_translated}\n")
+    def _should_block_output(self, text, key):
+        """Return True if text should be suppressed due to similarity or blocklist, and handle auto-blocklist."""
+        if not text:
+            return False
+        # Block if in blocklist
+        if is_phrase_in_blocklist(text, self._BLOCKLIST_PATH):
+            return True
+        # Block if similar to last output
+        if self._ENABLE_SIMILAR_PROTECTION:
+            last = self._last_output.get(key)
+            if last and is_similar(text, last):
+                self._handle_blocked_phrase(text, key)
+                return True
+        self._last_output[key] = text
+        return False
+
+    def _handle_blocked_phrase(self, text, key):
+        """Track blocked phrases and auto-add to blocklist if needed."""
+        if not text:
+            return
+        self._blocked_phrase_history[key].append(text)
+        if self._AUTO_BLOCKLIST_ENABLED and self._BLOCKLIST_PATH:
+            if self._blocked_phrase_history[key].count(text) >= 3:
+                already_blocked = add_phrase_to_blocklist(text, self._BLOCKLIST_PATH)
+                if not already_blocked:
+                    print(f"[INFO] Auto-added phrase to blocklist: {text}")
