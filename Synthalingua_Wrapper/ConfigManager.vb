@@ -83,6 +83,9 @@ Public Class ConfigManager
 
                 'Precision Mode
                 .fp16 = settings.PrecisionCheckBox.Checked
+
+                ' Auto HLS
+                .auto_hls = settings.AutoHLS_Checkbox.Checked
             End With
             My.Settings.Save()
             Return True
@@ -137,6 +140,7 @@ Public Class ConfigManager
                 form.cb_halspassword.Checked = .cb_halspassword
                 form.modelDIr.Text = .modelDIr
                 form.PrecisionCheckBox.Checked = .fp16
+                form.AutoHLS_Checkbox.Checked = .auto_hls
 
                 Try
                     form.PrimaryFolder = .PrimaryFolder

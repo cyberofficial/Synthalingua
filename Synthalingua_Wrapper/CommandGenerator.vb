@@ -99,5 +99,6 @@ Public Class CommandGenerator
         If Not String.IsNullOrEmpty(settings.DiscordWebHook.Text) Then builder.Append($"--discord_webhook ""{settings.DiscordWebHook.Text}"" ")
         If Not String.IsNullOrEmpty(settings.modelDIr.Text) Then builder.Append($"--model_dir ""{settings.modelDIr.Text}"" ")
         If settings.PrecisionCheckBox.Checked Then builder.Append("--fp16")
+        If settings.AutoHLS_Checkbox.Checked Then builder.Append("--auto_hls ")
     End Sub
 End Class
