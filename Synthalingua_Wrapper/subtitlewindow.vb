@@ -9,8 +9,8 @@ Imports System.Threading
 
 
 Public Class subtitlewindow
-    Private httpClient As HttpClient
     Private cts As CancellationTokenSource
+    Private httpClient As HttpClient
 
     Private URLHeader As String
     Private URLTranslatedHeader As String
@@ -45,10 +45,17 @@ Public Class subtitlewindow
     Public Shared Function ReleaseCapture() As Boolean
     End Function
 
+    ' Shared static HttpClient for all instances
+    Private Shared ReadOnly sharedHttpClient As New Lazy(Of HttpClient)(Function() New HttpClient())
+
+    ' Cache for blacklisted phrases
+    Private cachedBlacklistedPhrases As List(Of String) = Nothing
+    Private blacklistLastModified As DateTime = DateTime.MinValue
+
     Public Sub New()
         Dim CaptionsHost As String = "localhost"
         InitializeComponent()
-        httpClient = New HttpClient()
+        httpClient = sharedHttpClient.Value
         cts = New CancellationTokenSource()
         Dim SubPortNumber As String = MainUI.PortNumber.Value.ToString()
         URLHeader = $"http://{CaptionsHost}:{SubPortNumber}/update-header"
@@ -86,9 +93,7 @@ Public Class subtitlewindow
         If My.Settings.subwindow_lmode = True Then
             headertextlbl.RightToLeft = RightToLeft.Yes
         End If
-
         Me.BackColor = My.Settings.subwindow_bgcolor
-
     End Sub
     Private Sub subtitlewindow_Resize(sender As Object, e As EventArgs) Handles MyBase.Resize
         Dim maxWidth = ClientSize.Width
@@ -145,53 +150,19 @@ Public Class subtitlewindow
         If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
             Try
                 Invoke(Sub()
-                           Dim displayText As String = String.Empty
-
+                           Dim displayTextBuilder As New StringBuilder()
                            If iOriginalText Then
-                               displayText &= headerText
-                           End If
-
-                           If iTranslateText Then
-                               If Not String.IsNullOrEmpty(displayText) Then
-                                   displayText &= vbCrLf
-                               End If
-                               displayText &= translatedHeaderText
-                           End If
-                           If iTranscribeText Then
-                               If Not String.IsNullOrEmpty(displayText) Then
-                                   displayText &= vbCrLf
-                               End If
-                               displayText &= transcribedHeaderText
-                           End If
-                           headertextlbl.Text = displayText
-                       End Sub)
-            Catch ex As InvalidOperationException
-                Debug.WriteLine("InvalidOperationException: " & ex.Message)
-            Catch ex As Exception
-                Debug.WriteLine("General Exception: " & ex.Message)
-            End Try
-        End If
-
-        If Not IsDisposed AndAlso Not Disposing AndAlso IsHandleCreated Then
-            Try
-                Invoke(Sub()
-                           Dim displayText As String = String.Empty
-                           If iOriginalText Then
-                               displayText &= headerText
+                               displayTextBuilder.Append(headerText)
                            End If
                            If iTranslateText Then
-                               If Not String.IsNullOrEmpty(displayText) Then
-                                   displayText &= vbCrLf
-                               End If
-                               displayText &= translatedHeaderText
+                               If displayTextBuilder.Length > 0 Then displayTextBuilder.AppendLine()
+                               displayTextBuilder.Append(translatedHeaderText)
                            End If
                            If iTranscribeText Then
-                               If Not String.IsNullOrEmpty(displayText) Then
-                                   displayText &= vbCrLf
-                               End If
-                               displayText &= transcribedHeaderText
+                               If displayTextBuilder.Length > 0 Then displayTextBuilder.AppendLine()
+                               displayTextBuilder.Append(transcribedHeaderText)
                            End If
-                           headertextlbl.Text = displayText
+                           headertextlbl.Text = displayTextBuilder.ToString()
                            headertextlbl.Invalidate()
                            Refresh()
                        End Sub)
@@ -231,17 +202,21 @@ Public Class subtitlewindow
 
 
     Private Function LoadBlacklistedPhrases() As List(Of String)
-        Dim blacklistedPhrases As New List(Of String)()
         Try
-            Dim lines As String() = File.ReadAllLines(MainUI.WordBlockListLocation)
-            For Each line As String In lines
-                blacklistedPhrases.Add(line.Trim())
-            Next
+            Dim filePath As String = MainUI.WordBlockListLocation
+            Dim currentLastModified As DateTime = File.GetLastWriteTime(filePath)
+            If cachedBlacklistedPhrases Is Nothing OrElse currentLastModified <> blacklistLastModified Then
+                cachedBlacklistedPhrases = File.ReadAllLines(filePath).
+                                      Select(Function(line) line.Trim()).
+                                      ToList()
+                blacklistLastModified = currentLastModified
+                Debug.WriteLine("Reloaded blacklist phrases")
+            End If
+            Return cachedBlacklistedPhrases
         Catch ex As Exception
             Debug.WriteLine("Error loading blacklisted phrases: " & ex.Message)
+            Return New List(Of String)()
         End Try
-
-        Return blacklistedPhrases
     End Function
 
     Private Async Function FetchTextFromUrl(url As String, ct As CancellationToken) As Task(Of String)
