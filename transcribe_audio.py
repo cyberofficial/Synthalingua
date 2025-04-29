@@ -36,6 +36,11 @@ def main():
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
+    # Handle microphone listing and exit if requested
+    if args.list_microphones:
+        list_microphones()
+        sys.exit(0)
+
     # Check input sources
     if args.stream is None and args.microphone_enabled is None and not args.makecaptions:
         print("No audio source was set. Please set an audio source.")
@@ -53,11 +58,11 @@ def main():
         print("Stream Transcribe is set but no stream target language is set. Please set a stream target language.")
         sys.exit("Exiting...")
 
-    # Load blacklist
+    # Load blacklist (skip empty lines)
     blacklist = []
     if args.ignorelist:
         print(f"Loaded word filtering list from: {args.ignorelist}")
-        blacklist = load_blacklist(args.ignorelist)
+        blacklist = [word for word in load_blacklist(args.ignorelist) if word]
         if blacklist:
             print(f"Loaded blacklist: {blacklist}")
 
@@ -76,10 +81,6 @@ def main():
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
 
-    # Handle microphone listing
-    if args.list_microphones:
-        list_microphones()
-
     # Set up device (CPU/CUDA)
     device = setup_device(args)
 
@@ -95,9 +96,9 @@ def main():
             print(f"Error details: {str(e)}")
             sys.exit(1)
 
-    # Validate languages
-    valid_languages = get_valid_languages()
-    if args.language and args.language not in valid_languages:
+    # Validate languages (normalize to lowercase)
+    valid_languages = [lang.lower() for lang in get_valid_languages()]
+    if args.language and args.language.lower() not in valid_languages:
         print("Invalid language. Please choose a valid language from the list below:")
         print(valid_languages)
         return
@@ -105,7 +106,7 @@ def main():
     if args.transcribe and not args.target_language:
         print("Transcribe is set but no target language is set. Please set a target language.")
         return
-    elif args.transcribe and args.target_language not in valid_languages:
+    elif args.transcribe and args.target_language and args.target_language.lower() not in valid_languages:
         print("Invalid target language. Please choose a valid language from the list below:")
         print(valid_languages)
         return
@@ -198,7 +199,7 @@ def main():
             
         if args.portnumber:
             api_backend.kill_server()
-            
+        
         sys.exit(0)
 
     except Exception as e:
