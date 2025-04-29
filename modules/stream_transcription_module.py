@@ -490,6 +490,45 @@ def start_stream_transcription(
     processing_thread.daemon = True
     processing_thread.start()
 
+    # --- Auto HLS Adjustment Feature ---
+    if getattr(args, 'auto_hls', False):
+        print("\n[Auto HLS Adjustment] Sampling the stream to determine segment duration...")
+        m3u8_obj = load_m3u8_with_retry(hls_url)
+        if m3u8_obj and m3u8_obj.segments:
+            first_segment = m3u8_obj.segments[0]
+            segment_duration = getattr(first_segment, 'duration', None)
+            if segment_duration is not None:
+                print(f"[Auto HLS Adjustment] Detected segment duration: {segment_duration:.2f} seconds.")
+                print(f"Current chunk size (segments per batch): {segments_max}")
+                print(f"This means each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio.")
+                user_input = input("Would you like to set a new chunk size? (y/n): ").strip().lower()
+                if user_input == 'y':
+                    while True:
+                        try:
+                            new_chunk = int(input("Enter new chunk size (number of segments per batch): ").strip())
+                            if new_chunk > 0:
+                                est_time = new_chunk * segment_duration
+                                print(f"[Auto HLS Adjustment] If you set chunk size to {new_chunk}, each batch will cover ~{est_time:.2f} seconds of audio.")
+                                confirm = input(f"Confirm this chunk size? (y to confirm, n to set again, c to cancel and keep previous): ").strip().lower()
+                                if confirm == 'y':
+                                    segments_max = new_chunk
+                                    print(f"[Auto HLS Adjustment] Chunk size set to {segments_max} (covers ~{segments_max * segment_duration:.2f} seconds per batch).\n")
+                                    break
+                                elif confirm == 'c':
+                                    print("[Auto HLS Adjustment] Keeping existing chunk size.")
+                                    break
+                                # else loop again for new input
+                            else:
+                                print("Please enter a positive integer.")
+                        except ValueError:
+                            print("Invalid input. Please enter a number.")
+                else:
+                    print("[Auto HLS Adjustment] Keeping existing chunk size.")
+            else:
+                print("[Auto HLS Adjustment] Could not determine segment duration. Proceeding with default chunk size.")
+        else:
+            print("[Auto HLS Adjustment] Could not load playlist or no segments found. Proceeding with default chunk size.")
+
     # Main loop for downloading and combining segments
     try:
         downloaded_segments = set()
