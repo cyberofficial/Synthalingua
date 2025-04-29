@@ -104,6 +104,11 @@ def parse_arguments():
         action="store_true",
         help="Auto-adjust HLS chunk batching: sample segment duration and prompt for optimal chunk size before starting stream transcription."
     )
+    parser.add_argument(
+        "--auto_blocklist",
+        action='store_true',
+        help="Automatically add phrases that are blocked 3 times to the blocklist file. Requires --ignorelist to be set."
+    )
     return parser.parse_args()
 
 
