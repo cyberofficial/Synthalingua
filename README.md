@@ -1,7 +1,26 @@
 # Synthalingua
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
+---
+
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
+
+## Table of Contents
+- [About](#about)
+- [Quick Start](#quick-start)
+- [Feature Highlights](#feature-highlights)
+- [System Requirements](#system-requirements)
+- [Installation](#installation)
+- [Command-Line Arguments](#command-line-arguments)
+- [Usage Examples](#usage-examples)
+- [Blocklist & Filtering](#blocklist--filtering)
+- [Web & Discord Integration](#web--discord-integration)
+- [Troubleshooting](#troubleshooting)
+- [Contributors](#contributors)
+- [Video Demonstration](#video-demonstration)
+
+---
+
 
 ## About
 Synthalingua is a self-hosted AI tool for real-time audio translation and transcription. It supports multilingual input and output, streaming, microphone, and file modes, and is optimized for both GPU and CPU. The project is in active development and open source.
@@ -61,33 +80,27 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 
 ---
 
-## Table of Contents
-- [About](#about)
-- [Quick Start](#quick-start)
-- [Feature Highlights](#feature-highlights)
-- [System Requirements](#system-requirements)
-- [Installation](#installation)
-- [Command-Line Arguments](#command-line-arguments)
-- [Usage Examples](#usage-examples)
-- [Blocklist & Filtering](#blocklist--filtering)
-- [Web & Discord Integration](#web--discord-integration)
-- [Troubleshooting](#troubleshooting)
-- [Contributors](#contributors)
-- [Video Demonstration](#video-demonstration)
-
----
-
 ## System Requirements
-| Component | Minimum | Recommended | Best |
-|-----------|---------|-------------|------|
-| CPU Cores | 2       | 8           | 16   |
-| RAM (GB)  | 4       | 16          | 16+  |
-| GPU VRAM  | 2GB     | 8GB         | 12GB |
-| OS        | Win 10+, Linux | Win 10+, Linux | Win 10+, Linux |
+| Requirement      | Minimum                | Moderate                | Recommended           | Best Performance      |
+|------------------|------------------------|-------------------------|-----------------------|----------------------|
+| CPU              | 2 cores, 2.0 GHz+      | 4 cores, 3.0 GHz+       | 8 cores, 3.5 GHz+     | 16+ cores, 4.0 GHz+  |
+| RAM              | 4 GB                   | 8 GB                    | 16 GB                 | 32+ GB               |
+| GPU (Nvidia)     | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
+| GPU (AMD/Linux)  | 4GB VRAM (experimental) | 8GB VRAM                | 12GB+ VRAM            | 16GB+ VRAM           |
+| OS               | Windows 10+, Linux     | Windows 10+, Linux      | Windows 10+, Linux    | Windows 10+, Linux   |
+| Storage          | 2 GB free              | 10 GB free              | 20 GB+ free           | SSD/NVMe recommended |
 
-- Nvidia GPU recommended (Linux/Windows)
-- AMD GPU supported on Linux (experimental)
-- Microphone optional (use `--stream` for HLS input)
+**Supported GPUs:**
+- Nvidia: Most CUDA-capable cards (Kepler, Maxwell, Pascal, Turing, Ampere, Ada; e.g. GTX 750 Ti, 1050 Ti, 1660, RTX 2060/2070/2080/3060/3070/3080/3090/40xx, A6000, etc.)
+- AMD: ROCm-compatible cards (Linux only, experimental)
+- CPU: Supported (slower, but works for small models)
+
+**Notes:**
+- Nvidia GPU with CUDA is strongly recommended for best performance.
+- AMD GPU support is experimental and Linux-only (see [ROCm docs](https://rocmdocs.amd.com/en/latest/)).
+- CPU-only mode is available for testing or low-resource systems.
+- Microphone is optional (use `--stream` for HLS input).
+- For a full list of supported Nvidia GPUs, see the [Official Nvidia List](https://developer.nvidia.com/cuda-gpus) or [Simple Nvidia List](https://gist.github.com/standaloneSA/99788f30466516dbcc00338b36ad5acf).
 
 ---
 
