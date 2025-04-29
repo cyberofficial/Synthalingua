@@ -17,7 +17,7 @@ def load_blacklist(filename):
     Load and parse the blacklist file.
 
     Reads a text file containing blacklisted terms or phrases, with each entry
-    on a new line.
+    on a new line. Skips empty lines.
 
     Args:
         filename (str): Path to the blacklist file (.txt format)
@@ -35,7 +35,9 @@ def load_blacklist(filename):
     try:
         with open(filename, "r", encoding="utf-8") as f:
             for line in f:
-                blacklist.append(line.strip())
+                word = line.strip()
+                if word:
+                    blacklist.append(word)
     except FileNotFoundError:
         print(f"Warning: Blacklist file '{filename}' not found.")
     return blacklist

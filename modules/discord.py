@@ -29,25 +29,19 @@ def send_to_discord_webhook(webhook_url, text):
     Example:
         send_to_discord_webhook("https://discord.com/api/webhooks/...", "Hello World!")
     """
-    data = {
-        "content": text
-    }
-    headers = {
-        "Content-Type": "application/json"
-    }
+    data = {"content": None}
+    headers = {"Content-Type": "application/json"}
     try:
-        if len(text) > 1800:
-            for i in range(0, len(text), 1800):
-                data["content"] = text[i:i+1800]
-                response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
-                if response.status_code == 429:
-                    print("Discord webhook is being rate limited.")
-        else:
+        chunks = [text[i:i+1800] for i in range(0, len(text), 1800)]
+        for chunk in chunks:
+            data["content"] = chunk
             response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
             if response.status_code == 429:
                 print("Discord webhook is being rate limited.")
-    except:
-        print("Failed to send message to Discord webhook.")
+            elif not response.ok:
+                print(f"Failed to send message to Discord webhook: {response.status_code} {response.text}")
+    except Exception as ex:
+        print(f"Failed to send message to Discord webhook. Error: {ex}")
         pass
 
 print("Discord Module Loaded")

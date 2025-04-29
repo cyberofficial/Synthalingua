@@ -13,58 +13,40 @@ def valid_port_number(value):
 
 def set_model_by_ram(ram, language):
     ram = ram.lower()
+    language = language.lower() if language else ""
     if ram == "1gb":
-        if language == "en" or language == "English":
-            model = "tiny.en"
-        else:
-            model = "tiny"
+        model = "tiny.en" if language in ("en", "english") else "tiny"
     elif ram == "2gb":
-        if language == "en" or language == "English":
-            model = "base.en"
-        else:
-            model = "base"
+        model = "base.en" if language in ("en", "english") else "base"
     elif ram == "3gb":
-        if language == "en" or language == "English":
-            model = "small.en"
-        else:
-            model = "small"
+        model = "small.en" if language in ("en", "english") else "small"
     elif ram == "6gb":
-        if language == "en" or language == "English":
-            model = "medium.en"
-        else:
-            model = "medium"
+        model = "medium.en" if language in ("en", "english") else "medium"
     elif ram == "7gb":
         model = "turbo"
-        if language == "en" or language == "English":
+        if language in ("en", "english"):
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: The turbo model is multilingual and works for all languages.")
-    elif ram == "11gb-v2" or ram == "11gb-v3":
-        # Determine the model based on the version
+    elif ram in ("11gb-v2", "11gb-v3"):
         if ram == "11gb-v2":
             model = "large-v2"
             version = "Version 2"
-        else:  # ram == "11gb-v3"
+        else:
             model = "large-v3"
             version = "Version 3"
-        
-        # Warning for English language
-        if language == "en" or language == "English":
+        if language in ("en", "english"):
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
             yellow_text = Fore.YELLOW + Back.BLACK
             reset_text = Style.RESET_ALL
-            
             print(f"{red_text}WARNING{reset_text}: {yellow_text}11gb{reset_text} is overkill for English. "
                   f"Do you want to swap to the {green_text}7gb{reset_text} turbo model? "
                   f"If you are transcribing a language other than English, you can ignore this warning and press {green_text}n{reset_text}.")
-            
             if input("y/n: ").lower() == "y":
                 model = "turbo"
             else:
                 print(f"Using 11GB {version}")
-
     else:
         raise ValueError("Invalid RAM setting provided")
-
     return model
 
 
