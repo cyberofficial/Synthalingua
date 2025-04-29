@@ -143,6 +143,89 @@ The tool will work on any system that meets the minimum requirements. The tool w
 6. Run the newly created batch file/bash script. You can edit that file to change the settings.
      * If you get an error saying it is "not recognized as an internal or external command, operable program or batch file.", make sure you have  installed and added to your PATH, and make sure you have git installed. If you have python and git installed and added to your PATH, then create a new issue on the repo and I will try to help you fix the issue.
 
+## Command-Line Arguments by Category
+
+Below is a categorized list of all command-line arguments supported by Synthalingua, organized for clarity and ease of use.
+
+### General Operation
+| Flag | Description |
+| ---- | ----------- |
+| `--about` | Show information about the app and contributors. |
+| `--updatebranch` | Choose which branch to check for updates (`master`, `dev-testing`, `bleeding-under-work`, `disable`). |
+| `--no_log` | Only show the last line of the transcription (not a running log). |
+| `--keep_temp` | Keep temporary audio files (may use more disk space over time). |
+| `--save_transcript` | Save the transcript to a text file. |
+| `--save_folder` | Set the folder to save the transcript to. |
+
+### Model & Device Selection
+| Flag | Description |
+| ---- | ----------- |
+| `--ram` | Set the model size based on RAM/VRAM (choices: `1gb`, `2gb`, `3gb`, `6gb`, `7gb`, `11gb-v2`, `11gb-v3`). |
+| `--ramforce` | Force the script to use the selected RAM/VRAM model. |
+| `--fp16` | Enable FP16 mode for faster inference (may reduce accuracy slightly). |
+| `--device` | Select device for inference (`cpu` or `cuda`). |
+| `--cuda_device` | Select CUDA device index (default: 0). |
+| `--model_dir` | Directory to store/download models. |
+| `--use_finetune` | Use a fine-tuned model (currently disabled). |
+
+### Audio Input & Microphone
+| Flag | Description |
+| ---- | ----------- |
+| `--microphone_enabled` | Enable microphone input. |
+| `--list_microphones` | List available microphones and exit. |
+| `--set_microphone` | Set the default microphone by name or index. |
+| `--energy_threshold` | Set the energy threshold for audio detection (default: 100). |
+| `--mic_calibration_time` | Duration (seconds) for microphone calibration. Use 0 for default (5s). |
+| `--record_timeout` | Real-time recording chunk length (seconds). |
+| `--phrase_timeout` | Silence duration (seconds) before starting a new transcription line. |
+
+### Streaming & File Input
+| Flag | Description |
+| ---- | ----------- |
+| `--stream` | Stream audio from an HLS source (e.g., Twitch, YouTube). |
+| `--stream_language` | Language of the stream (default: English). |
+| `--stream_target_language` | Language to translate the stream to. |
+| `--stream_translate` | Enable translation for the stream. |
+| `--stream_transcribe` | Enable transcription for the stream. |
+| `--stream_original_text` | Show detected original text from the stream. |
+| `--stream_chunks` | Number of chunks to split the stream into (default: 5). |
+| `--cookies` | Name of the cookies file (without `.txt`). |
+| `--remote_hls_password_id` | Password ID for the webserver (e.g., `id`, `key`). |
+| `--remote_hls_password` | Password for the HLS webserver. |
+
+### Language & Translation
+| Flag | Description |
+| ---- | ----------- |
+| `--language` | Source language (ISO 639-1 code or English name). |
+| `--target_language` | Target language for translation (ISO 639-1 code or English name). |
+| `--translate` | Enable translation to English. |
+| `--transcribe` | Transcribe audio to a set target language. |
+| `--auto_language_lock` | Automatically lock language after several detections. |
+| `--condition_on_previous_text` | Use previous output as prompt for next window (reduces repetition). |
+
+### Output, Captions, and Filtering
+| Flag | Description |
+| ---- | ----------- |
+| `--makecaptions` | Enable captions mode (requires file input/output/name). |
+| `--file_input` | Path to input file for captioning. |
+| `--file_output` | Output folder for captions. |
+| `--file_output_name` | Output file name (without extension). |
+| `--ignorelist` | Path to blacklist file for filtering words/phrases. |
+
+### Web Server & Integration
+| Flag | Description |
+| ---- | ----------- |
+| `--portnumber` | Port number for the local web server. |
+| `--discord_webhook` | Discord webhook URL for notifications and results. |
+
+### Advanced & Debugging
+| Flag | Description |
+| ---- | ----------- |
+| `--retry` | Retry failed transcriptions/translations. |
+| `--debug` | Enable debug output. |
+
+---
+
 ## Usage 
 
 This script uses argparse to accept command line arguments. The following options are available:
@@ -192,7 +275,15 @@ This script uses argparse to accept command line arguments. The following option
 | `--ignorelist` | Usage is "`--ignorelist "C:\quoted\path\to\wordlist.txt"`" |
 | `--condition_on_previous_text` | Will help the model from repeating itself, but may slow up the process. |
 | `--remote_hls_password_id` | Password ID for the webserver. Usually like 'id', or 'key'. Key is default for the program though, so when it asks for id/password, Synthalingua will be `key=000000` - `key`=`id` - `0000000`=`password` 16 chars long. |
-| `--remote_hls_password` | Password for the hls webserver. |
+| `--remote_hls_password` | Password for the hls webserver.|
+
+## Word Block List
+With the flag `--ignorelist`, you can load a list of phrases or words to filter from the output. The blacklist file should be a `.txt` file with one word or phrase per line (empty lines are ignored). This helps remove common misheard words or unwanted phrases from transcriptions and subtitles.
+
+**Note:** The ignore list works for all modes—microphone, file, and stream input. No matter how you use Synthalingua, any words or phrases in your blacklist will be filtered from the output.
+
+- **Discord Integration**: Use `--discord_webhook` to send transcriptions and error notifications to a Discord channel. Long messages are automatically split, and rate limits are handled gracefully.
+- **Web Server**: Launch a local Flask server with `--portnumber` to view real-time subtitles in your browser. Supports query parameters to show/hide original, translated, or transcribed text.
 
 # Things to note!
 - When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
@@ -200,27 +291,6 @@ This script uses argparse to accept command line arguments. The following option
 - An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
 - ~~The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure~~ [ ⚠️ Finetune Model download is Disabled, Model is being retrained. ]
 - When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
-
-## Word Block List
-With the flag `--ignorelist` you can now load a list of phrases or words to ignore in the api output and subtitle window. This list is already filled with common phrases the AI will think it heard. You can adjust this list as youu please or add more words or phrases to it.
-
-## Cookies
-Some streams may require cookies set, you'll need to save cookies as netscape format into the `cookies` folder as a .txt file. If a folder doesn't exist, create it.
-You can save cookies using this https://cookie-editor.com/ or any other cookie editor, but it must be in netscape format.
-
-Example usage `--cookies twitchacc1` **DO NOT** include the .txt file extension.
-
-What ever you named the text file in the cookies folder, you'll need to use that name as the argument.
-
-## Web Server
-With the command flag `--port 4000`, you can use query parameters like `?showoriginal`, `?showtranslation`, and `?showtranscription` to show specific elements. If any other query parameter is used or no query parameters are specified, all elements will be shown by default. You can choose another number other than `4000` if you want. You can mix the query parameters to show specific elements, leave blank to show all elements.
-
-For example:
-- `http://localhost:4000?showoriginal` will show the `original` detected text.
-- `http://localhost:4000?showtranslation` will show the `translated` text.
-- `http://localhost:4000?showtranscription` will show the `transcribed` text.
-- `http://localhost:4000/?showoriginal&showtranscription` will show the `original` and `transcribed` text.
-- `http://localhost:4000` or `http://localhost:4000?otherparam=value` will show all elements by default.
 
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
