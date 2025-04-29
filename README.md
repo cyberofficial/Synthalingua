@@ -1,61 +1,54 @@
-## Synthalingua 
+## Synthalingua
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
 ## Wiki
 Read the [wiki here](https://github.com/cyberofficial/Synthalingua/wiki)
 
-
 ## About
-
-Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle the input transcription and translation, ensuring optimized performance. Although it is currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
-
+Synthalingua is a self-hosted AI tool for translating audio from various languages into English in near real time, with support for multilingual outputs. It uses both GPU and CPU resources for transcription and translation, ensuring optimized performance. The project is in beta and under active development, with regular updates planned to enhance its capabilities.
 
 ## Developed Proudly in PyCharm IDE from JetBrains
-JetBrains kindly approved me for an OSS licenses for their software for use of this project. This will grealty improve my production rate.
-
-Learn about it here: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceSupport?from=Synthalingua)
+JetBrains kindly provided an OSS license for this project, greatly improving development productivity.
+Learn more: [https://jb.gg/OpenSourceSupport](https://jb.gg/OpenSourceSupport?from=Synthalingua)
 
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
 [<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
 
-
-## Grab the portable version on itch! It include the GUI.
+## Download the Portable Version with GUI
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 ### Badges
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
-#### Readme will update as time goes. This is a work in progress.
+#### This README is a work in progress and will be updated over time.
 
 ### Table of Contents
-| Table of Contents | Description |
-| ----------------- | ----------- |
-| [Disclaimer](#things-to-knowdisclaimerswarningsetc) | Things to know/Disclaimers/Warnings/etc |
-| [To Do List](#todo) | Things to do |
-| [Contributors](#contributors) | People who helped with the project or contributed to the project. |
-| [Installing/Setup](#installation) | How to install and setup the tool. |
-| Misc | [Usage and File Arguments](#usage) - [Examples](#examples) - [Web Server](#web-server) |
-| [Troubleshooting](#troubleshooting) | Common issues and how to fix them. |
-| [Additional Info](#additional-information) | Additional information about the tool. |
-| [Video Demos](#video-demonstration) | Video demonstrations of the tool. |
-| [Extra Notes](#things-to-note) | Extra notes about the tool. |
+| Section | Description |
+| ------- | ----------- |
+| [Disclaimers & Warnings](#disclaimers--warnings) | Important usage notes, limitations, and ethical guidelines |
+| [To Do List](#todo) | Planned features and development status |
+| [Contributors](#contributors) | Project contributors |
+| [Installation & Setup](#installation) | How to install and set up Synthalingua |
+| [System Requirements](#system-requirements) | Hardware and software requirements |
+| [Command-Line Arguments](#command-line-arguments-by-category) | All available flags, organized by category |
+| [Usage](#usage) | How to use Synthalingua and example commands |
+| [Word Block List](#word-block-list) | Filtering unwanted words/phrases |
+| [Web Server & Discord Integration](#web-server--discord-integration) | Integration features and usage |
+| [Things to Note](#things-to-note) | Additional tips and recommendations |
+| [Troubleshooting](#troubleshooting) | Common issues and solutions |
+| [Additional Information](#additional-information) | Model sources and references |
+| [Video Demonstration](#video-demonstration) | Demo videos |
 
-## Things to know/Disclaimers/Warnings/etc
-This AI-powered translation tool is currently a work in progress and is actively being developed to improve its accuracy and functionality over time. Users should be aware that while the tool works effectively in many scenarios, it is not perfect and may occasionally produce translation errors or bugs. These issues are continuously being addressed where possible, and updates will be rolled out to enhance the tool's performance. For instance, you may encounter situations where the translation is slightly off or where technical glitches occur, but these are expected to diminish as improvements are made.
+## Disclaimers & Warnings
+Synthalingua is a work in progress and may occasionally produce translation errors or bugs. While it works well in many scenarios, it is not perfect. Updates are released regularly to improve performance and accuracy.
 
-The accuracy of translations is significantly higher when the input speech is clear and slow. If the speaker talks too fast or mumbles, the tool might struggle to provide an accurate translation, although it will still attempt to offer a useful output. For example, when using the tool in a quiet environment with clear, deliberate speech, the results are generally more precise. However, in noisy settings or when the speech is rushed, you might see a drop in accuracy. Background noise, like loud music, can also interfere with the tool’s ability to translate effectively.
-
-It’s important to note that this tool is designed for casual, non-professional use. It is ideal for purposes such as language learning, engaging in informal conversations, or understanding foreign content for entertainment. However, it is not intended for high-stakes or professional translations, such as legal documents, medical texts, or official communications. For example, while the tool can be fun and educational for learning a new language or watching foreign media, it should not be relied on for specialized or critical tasks where accuracy is paramount.
-
-As a user, you are responsible for ensuring that the tool is used ethically and not for purposes like spreading misinformation or hate speech. If there is a discrepancy between the translation and the original speech, it's crucial that you verify the output before sharing it with others. For instance, if the tool produces a misleading translation, it is your responsibility to double-check the content before using it or distributing it further.
-
-Users should also be aware that they are using the tool at their own risk. The repository owner cannot be held accountable for any damages, issues, or unintended consequences that arise from the use of this tool. For example, if the tool malfunctions or provides an inaccurate translation that leads to a misunderstanding, the developer(s)\contributors are not liable for any outcomes that occur as a result of this. You, as the user, assume all responsibility for your actions while using the tool.
-
-This tool is not intended to replace human translators, particularly for complex or specialized content. While it may be helpful for casual and everyday use, a professional translator should be consulted for more intricate tasks, such as translating legal agreements or technical manuals. For example, if you need a precise translation of a business contract, it is recommended to seek assistance from a qualified human translator rather than relying solely on this tool.
-
-In terms of performance, the tool’s effectiveness may vary depending on your hardware setup. A faster CPU or GPU will lead to better results, while slower systems may experience delays or reduced performance. However, other factors, such as internet connection speed or microphone quality, have a minimal effect on its functionality. For instance, if you're running the tool on a high-performance computer, you’ll likely experience smoother translations compared to using it on an older, slower machine.
-
-Lastly, it's important to remember that this is a __tool__, **not a service**. If using it violates any platform’s terms of service or causes any issues, the responsibility falls solely on the user. For example, if the tool's use results in violating rules on a platform—such as using the tool to translate inappropriate language—you are accountable for any penalties or restrictions imposed as a result.
+- **Translation accuracy is highest with clear, slow speech.** Fast or mumbled speech, or noisy environments, may reduce accuracy. For best results, use the tool in a quiet setting with clear speech.
+- **Intended for casual, non-professional use.** Synthalingua is ideal for language learning, informal conversations, or understanding foreign content for entertainment. It is not suitable for professional or high-stakes translations (e.g., legal, medical, or official documents).
+- **Ethical use is your responsibility.** Do not use Synthalingua to spread misinformation or hate speech. Always verify translations before sharing, especially if accuracy is critical.
+- **Use at your own risk.** The developers are not liable for any damages or consequences resulting from use of this tool. You assume all responsibility for your actions.
+- **Not a replacement for human translators.** For complex or specialized content, consult a professional translator.
+- **Performance depends on your hardware.** Faster CPUs/GPUs yield better results. Internet speed and microphone quality have minimal impact.
+- **Synthalingua is a tool, not a service.** If use of this tool violates any platform’s terms of service, you are solely responsible for any consequences.
 
 ## TODO
 | Todo  | Sub-Task                                                                                                                                                                                                                                               | Status |
@@ -119,10 +112,10 @@ Note:
 - Nvidia GPU is suggested but not required.
 - AMD GPUs are supported on linux, not Windows, but will *try* to be supported soon.
 
-The tool will work on any system that meets the minimum requirements. The tool will work better on systems that meet the recommended requirements. The tool will work best on systems that meet the best performance requirements. You can mix and match the requirements to get the best performance. For example, you can have a CPU that meets the best performance requirements and a GPU that meets the moderate requirements. The tool will work best on systems that meet the best performance requirements.
+The tool will work on any system that meets the minimum requirements. For best results, meet the recommended or best performance requirements. You can mix and match requirements (e.g., a high-end CPU with a moderate GPU).
 
-## A microphone is optional. You can use the `--stream` flag to stream audio from a HLS stream. See [Examples](#examples) for more information.
-### You'll need some sort of software input source (or hardware source). See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for additional information.
+## A microphone is optional. Use the `--stream` flag to stream audio from an HLS source. See [Examples](#examples) for more information.
+### You’ll need a software or hardware audio input source. See issue [#63](https://github.com/cyberofficial/Synthalingua/issues/63) for details.
 
 ## Installation
 1. Download and install [Python 3.10.9](https://www.python.org/downloads/release/python-3109/).
@@ -226,9 +219,8 @@ Below is a categorized list of all command-line arguments supported by Synthalin
 
 ---
 
-## Usage 
-
-This script uses argparse to accept command line arguments. The following options are available:
+## Usage
+Synthalingua uses argparse to accept command-line arguments. Below are the main options:
 | Flag | Description |
 | ---- | ----------- |
 | `--ram` | Change the amount of RAM to use. Default is 4GB. Choices are "1GB", "2GB", "4GB", "6GB", "12GB-v2", "12GB-v3". |
@@ -277,20 +269,21 @@ This script uses argparse to accept command line arguments. The following option
 | `--remote_hls_password_id` | Password ID for the webserver. Usually like 'id', or 'key'. Key is default for the program though, so when it asks for id/password, Synthalingua will be `key=000000` - `key`=`id` - `0000000`=`password` 16 chars long. |
 | `--remote_hls_password` | Password for the hls webserver.|
 
-## Word Block List
-With the flag `--ignorelist`, you can load a list of phrases or words to filter from the output. The blacklist file should be a `.txt` file with one word or phrase per line (empty lines are ignored). This helps remove common misheard words or unwanted phrases from transcriptions and subtitles.
+### Word Block List
+Use the `--ignorelist` flag to load a blacklist file containing words or phrases to filter from output. The file should be a `.txt` file with one word or phrase per line (empty lines are ignored). This helps remove unwanted or misheard words from transcriptions and subtitles.
 
-**Note:** The ignore list works for all modes—microphone, file, and stream input. No matter how you use Synthalingua, any words or phrases in your blacklist will be filtered from the output.
+**Note:** The ignore list works in all modes—microphone, file, and stream. Any words or phrases in your blacklist will be filtered from all output, including Discord webhook messages.
 
-- **Discord Integration**: Use `--discord_webhook` to send transcriptions and error notifications to a Discord channel. Long messages are automatically split, and rate limits are handled gracefully.
-- **Web Server**: Launch a local Flask server with `--portnumber` to view real-time subtitles in your browser. Supports query parameters to show/hide original, translated, or transcribed text.
+## Web Server & Discord Integration
+- **Discord Integration:** Use `--discord_webhook` to send transcriptions and error notifications to a Discord channel. Long messages are automatically split, and rate limits are handled gracefully.
+- **Web Server:** Launch a local Flask server with `--portnumber` to view real-time subtitles in your browser. Supports query parameters to show/hide original, translated, or transcribed text.
 
-# Things to note!
-- When crafting your command line arguments, you need to make sure you adjust the energy threshold to your liking. The default is 100, but you can adjust it to your liking. The higher the number, the harder it is to trigger the audio detection. The lower the number, the easier it is to trigger the audio detection. I recommend you start with 100 and adjust it from there. I seen best results with 250-500.
-- When using the discord webhook make sure the url is in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
-- An active internet connection is required for initial usage. Over time you'll no longer need an internet connection. Changing RAM size will download certain models, once downloaded you'll no longer need internet.
-- ~~The fine tuned model will automatically be downloaded from OneDrive via Direct Public link. In the event of failure~~ [ ⚠️ Finetune Model download is Disabled, Model is being retrained. ]
-- When using more than one streaming option you may experience issues. This adds more jobs to the audio queue.
+# Things to Note
+- Adjust the energy threshold (`--energy_threshold`) to suit your environment. The default is 100. Higher values make audio detection harder to trigger; lower values make it easier. Best results are typically with values between 250 and 500.
+- When using the Discord webhook, always put the URL in quotes. Example: `--discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"`
+- An internet connection is required the first time you use Synthalingua to download models. After models are downloaded, you can use the tool offline. Changing RAM size will download additional models as needed.
+- ~~The fine-tuned model will automatically be downloaded from OneDrive via direct public link. In the event of failure~~ [ ⚠️ Finetune Model download is disabled; model is being retrained. ]
+- Using multiple streaming options at once may cause issues, as this adds more jobs to the audio queue.
 
 ## Examples
 #### Please note, make sure you edit the livetranslation.bat/livetranslation.bash file to change the settings. If you do not, it will use the default settings.
