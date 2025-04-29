@@ -28,6 +28,7 @@ from modules.discord import send_to_discord_webhook
 from modules import api_backend
 import difflib
 from modules.similarity_utils import is_similar
+from collections import deque
 
 # Global shutdown flag
 shutdown_flag = False
@@ -452,6 +453,12 @@ def start_stream_transcription(
             else:
                 if DEBUG_BLOCK_SIMILAR:
                     print(f"[DEBUG] Blocked similar original message: {transcription}")
+                # Track blocked phrase for auto-blocking (rolling window)
+                if AUTO_BLOCKLIST_ENABLED and BLOCKLIST_PATH and transcription:
+                    msg = transcription.strip()
+                    blocked_phrase_history["original"].append(msg)
+                    if blocked_phrase_history["original"].count(msg) >= 3:
+                        add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
                 pass
 
         if tasktranslate_task:
@@ -474,6 +481,11 @@ def start_stream_transcription(
             else:
                 if DEBUG_BLOCK_SIMILAR:
                     print(f"[DEBUG] Blocked similar translation message: {translation}")
+                if AUTO_BLOCKLIST_ENABLED and BLOCKLIST_PATH and translation:
+                    msg = translation.strip()
+                    blocked_phrase_history["translation"].append(msg)
+                    if blocked_phrase_history["translation"].count(msg) >= 3:
+                        add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
                 pass
 
         if tasktranscribe_task:
@@ -501,6 +513,11 @@ def start_stream_transcription(
             else:
                 if DEBUG_BLOCK_SIMILAR:
                     print(f"[DEBUG] Blocked similar target transcription message: {transcription}")
+                if AUTO_BLOCKLIST_ENABLED and BLOCKLIST_PATH and transcription:
+                    msg = transcription.strip()
+                    blocked_phrase_history["target"].append(msg)
+                    if blocked_phrase_history["target"].count(msg) >= 3:
+                        add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
                 pass
         try:
             if os.path.exists(file_path):
@@ -689,3 +706,32 @@ def stop_transcription():
 
 
 print("Stream Transcription Module Loaded")
+
+# Track repeated blocked phrases for auto-blocking (rolling window)
+blocked_phrase_history = {
+    "original": deque(maxlen=10),
+    "translation": deque(maxlen=10),
+    "target": deque(maxlen=10),
+}
+
+# Check if auto-blocking is enabled and blocklist is set
+AUTO_BLOCKLIST_ENABLED = getattr(args, 'auto_blocklist', False)
+BLOCKLIST_PATH = getattr(args, 'ignorelist', None)
+
+# Helper to add a phrase to the blocklist file
+def add_phrase_to_blocklist(phrase, blocklist_path):
+    phrase = phrase.strip()
+    if not phrase:
+        return
+    # Check if already in blocklist (case-insensitive, trimmed)
+    try:
+        if os.path.exists(blocklist_path):
+            with open(blocklist_path, 'r', encoding='utf-8') as f:
+                lines = [line.strip().lower() for line in f.readlines()]
+            if phrase.lower() in lines:
+                return  # Already present, do not add again
+        with open(blocklist_path, 'a', encoding='utf-8') as f:
+            f.write(phrase + '\n')
+        print(f"[INFO] Auto-added phrase to blocklist: {phrase}")
+    except Exception as e:
+        print(f"[ERROR] Could not add phrase to blocklist: {e}")
