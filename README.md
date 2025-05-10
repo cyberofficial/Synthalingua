@@ -1,6 +1,8 @@
 # Synthalingua
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
+<a href="https://www.producthunt.com/posts/synthalingua?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-synthalingua" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=963036&theme=dark&t=1746865849346" alt="Synthalingua - Synthalingua&#0032;&#0045;&#0032;Real&#0032;Time&#0032;Translation | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
 ---
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
