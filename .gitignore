@@ -8,6 +8,7 @@ models
 build.bat
 build
 dist
+wiki
 .vscode/settings.json
 last_saved_timestamp.txt
 last_checked_timestamp.txt
