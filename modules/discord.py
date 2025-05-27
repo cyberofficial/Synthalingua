@@ -40,7 +40,7 @@ def send_to_discord_webhook(webhook_url, text, message_type="info"):
     # Format message based on type
     formatted_text = format_discord_message(text, message_type)
     
-    data = {"content": None}
+    data = {}  # Initialize as empty dict
     headers = {"Content-Type": "application/json"}
     
     try:
@@ -74,14 +74,14 @@ def format_discord_message(text, message_type="info"):
     if message_type == "transcription":
         # Format transcription messages
         if "Original" in text:
-            return f"🗣️ **Original Transcription**\n```\n{text.replace('Stream', '').replace('Original:', '').strip()}\n```"
+            return f"🗣️ **Original Transcription**\n\n{text.replace('Stream', '').replace('Original:', '').strip()}\n"
         elif "Transcription" in text:
-            return f"📝 **Transcription**\n```\n{text.replace('Stream', '').replace('Transcription:', '').strip()}\n```"
+            return f"📝 **Transcription**\n\n{text.replace('Stream', '').replace('Transcription:', '').strip()}\n"
         else:
-            return f"🎤 **Audio Transcription**\n```\n{text}\n```"
+            return f"🎤 **Audio Transcription**\n\n{text}\n"
     
     elif message_type == "translation":
-        return f"🌐 **Translation**\n```\n{text.replace('Stream EN Translation:', '').strip()}\n```"
+        return f"🌐 **Translation**\n\n{text.replace('Stream EN Translation:', '').strip()}\n"
     
     elif message_type == "success":
         return f"✅ **Success** | {text}"
