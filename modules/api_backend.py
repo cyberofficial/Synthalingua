@@ -15,10 +15,15 @@ Key Components:
 - HeaderState: Class for managing subtitle text state
 - FlaskServerThread: Thread-based Flask server implementation
 - API Blueprint: Routes for handling web requests
+- PID file-based force shutdown mechanism to prevent hanging servers
 """
 
 import os
 import logging
+import time
+import threading
+import signal
+import atexit
 from flask import Flask, send_from_directory, url_for, Blueprint
 from threading import Thread, Event
 from functools import lru_cache
@@ -52,6 +57,87 @@ class HeaderState:
     def update_transcribed_header(self, new_header):
         """Updates the transcribed text."""
         self.transcribed_header_text = new_header
+
+# PID file management for force shutdown
+PID_FILE = "server.pid"
+watchdog_thread = None
+force_shutdown_flag = False
+
+def create_pid_file():
+    """Create a PID file to track server status."""
+    try:
+        with open(PID_FILE, 'w') as f:
+            f.write(str(os.getpid()))
+        print(f"Created PID file: {PID_FILE}")
+    except Exception as e:
+        print(f"Warning: Could not create PID file: {e}")
+
+def remove_pid_file():
+    """Remove the PID file."""
+    try:
+        if os.path.exists(PID_FILE):
+            os.remove(PID_FILE)
+            print(f"Removed PID file: {PID_FILE}")
+    except Exception as e:
+        print(f"Warning: Could not remove PID file: {e}")
+
+def watchdog_monitor():
+    """Monitor PID file existence and force shutdown if file is deleted."""
+    global force_shutdown_flag
+    while not force_shutdown_flag:
+        try:
+            if not os.path.exists(PID_FILE):
+                print("🚨 PID file deleted - Force shutting down Flask server!")
+                force_shutdown_server()
+                break
+            time.sleep(2)  # Check every 2 seconds
+        except Exception as e:
+            print(f"Watchdog error: {e}")
+            break
+
+def force_shutdown_server():
+    """Force shutdown the Flask server immediately."""
+    global server_thread, force_shutdown_flag
+    force_shutdown_flag = True
+    
+    if server_thread and server_thread.is_alive():
+        print("💀 Force killing Flask server...")
+        try:
+            # Set shutdown flag
+            server_thread.shutdown_event.set()
+            
+            # Force close the server socket if available
+            if hasattr(server_thread, 'server') and server_thread.server:
+                try:
+                    server_thread.server.server_close()
+                except:
+                    pass
+            
+            # Give it a moment to shutdown gracefully
+            server_thread.join(timeout=1)
+            
+            # If still alive, we need to force kill the process
+            if server_thread.is_alive():
+                print("⚡ Server thread still alive, using OS kill...")
+                try:
+                    # Get current process ID and kill it
+                    import psutil
+                    current_process = psutil.Process()
+                    
+                    # Find and kill any child processes (Flask workers)
+                    for child in current_process.children():
+                        if 'flask' in child.name().lower() or 'python' in child.name().lower():
+                            child.terminate()
+                            
+                except ImportError:
+                    print("psutil not available, using basic termination")
+                except Exception as e:
+                    print(f"Error during force kill: {e}")
+                    
+        except Exception as e:
+            print(f"Error during force shutdown: {e}")
+        
+        print("✅ Flask server force shutdown complete!")
 
 # Global state instance
 state = HeaderState()
@@ -201,9 +287,7 @@ class FlaskServerThread(Thread):
             cert.gmtime_adj_notAfter(365 * 24 * 60 * 60)
             cert.set_issuer(cert.get_subject())
             cert.set_pubkey(key)
-            cert.sign(key, 'sha256')
-
-            # Save certificate and key
+            cert.sign(key, 'sha256')            # Save certificate and key
             with open(cert_file, 'wb') as cf, open(key_file, 'wb') as kf:
                 cf.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
                 kf.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
@@ -221,6 +305,14 @@ class FlaskServerThread(Thread):
         ssl_context = None
         ssl_dir = None
         
+        # Create PID file when server starts
+        create_pid_file()
+        
+        # Start watchdog thread
+        global watchdog_thread
+        watchdog_thread = threading.Thread(target=watchdog_monitor, daemon=True)
+        watchdog_thread.start()
+        
         if self.use_https:
             ssl_context, ssl_dir = self.setup_https()
             if not ssl_context:
@@ -231,13 +323,20 @@ class FlaskServerThread(Thread):
                                     ssl_context=ssl_context)
             print(f"Starting Flask Server on port: {self.port}")
             print(f"You can access the server at http{'s' if ssl_context else ''}://localhost:{self.port}")
+            print(f"💡 To force shutdown the server, delete the '{PID_FILE}' file")
             
-            while not self.shutdown_event.is_set():
-                self.server.handle_request()
-                
+            while not self.shutdown_event.is_set() and not force_shutdown_flag:
+                try:
+                    self.server.handle_request()
+                except OSError:
+                    # Socket was closed, likely during shutdown
+                    break
+                    
         except Exception as e:
             print(f"Server error: {e}")
         finally:
+            # Clean up PID file when server stops
+            remove_pid_file()
             if ssl_dir:
                 import shutil
                 shutil.rmtree(ssl_dir, ignore_errors=True)
@@ -261,18 +360,48 @@ def flask_server(operation, portnumber):
     """
     global server_thread
     if operation == "start":
+        create_pid_file()
         server_thread = FlaskServerThread(portnumber)
         server_thread.daemon = True
         server_thread.start()
+        global watchdog_thread
+        watchdog_thread = threading.Thread(target=watchdog_monitor)
+        watchdog_thread.daemon = True
+        watchdog_thread.start()
 
 def kill_server():
-    """Gracefully shuts down the server if it's running."""
+    """Force shutdown the server using PID file mechanism."""
     global server_thread
-    if server_thread:
-        print("Shutting down server gracefully...")
-        server_thread.shutdown()
-        server_thread.join(timeout=5)
-    
+    if server_thread and server_thread.is_alive():
+        print("🔥 Initiating server shutdown...")
+        
+        # First try graceful shutdown by deleting PID file
+        remove_pid_file()
+        
+        # Wait a moment for watchdog to detect and shutdown
+        time.sleep(3)
+        
+        # If still running, force it
+        if server_thread.is_alive():
+            print("⚡ Server still running, forcing shutdown...")
+            force_shutdown_server()
+        
+        # Wait for thread to finish
+        server_thread.join(timeout=2)
+        
+        if not server_thread.is_alive():
+            print("✅ Server shutdown complete!")
+        else:
+            print("⚠️ Server may still be running in background")
+    else:
+        print("ℹ️ No server running")
+        # Clean up PID file just in case
+        remove_pid_file()
+        remove_pid_file()
+
+# Register cleanup function to remove PID file on exit
+atexit.register(remove_pid_file)
+
 # Public interface functions
 def update_header(new_header):
     """Updates the main subtitle text."""

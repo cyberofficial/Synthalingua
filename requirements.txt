@@ -55,6 +55,7 @@ pefile==2023.2.7
 pillow==10.2.0
 prettytable==3.10.0
 protobuf==5.29.3
+psutil==7.0.0
 PyAudio==0.2.14
 pycparser==2.21
 pycryptodomex==3.20.0

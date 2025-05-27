@@ -8,6 +8,7 @@ models
 build.bat
 build
 dist
+server.pid
 wiki
 .vscode/settings.json
 last_saved_timestamp.txt

@@ -173,9 +173,7 @@ def main():
     print(f"Using {model} model.")
 
     if device.type == "cuda" and "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
-        print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")
-
-    # Initialize transcription core
+        print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")    # Initialize transcription core
     args.model = model  # Add the model name to args
     transcription_core = TranscriptionCore(args, device, audio_model, blacklist)
 
@@ -186,20 +184,26 @@ def main():
                 break
 
     except KeyboardInterrupt:
-        print("Exiting...")
+        print("\n🛑 Ctrl+C detected - Shutting down...")
+        
         if args.stream:
+            print("Stopping stream transcription...")
             stop_transcription()
             clean_temp_directory(temp_dir)
         
         if webhook_url:
+            print("Sending shutdown notification to Discord...")
             send_to_discord_webhook(webhook_url, "**Service has stopped.**")
         
         if args.save_transcript:
+            print("Saving transcript...")
             save_transcript(transcription_core.transcription, args)
             
         if args.portnumber:
+            print("Shutting down web server...")
             api_backend.kill_server()
         
+        print("✅ Shutdown complete!")
         sys.exit(0)
 
     except Exception as e:
