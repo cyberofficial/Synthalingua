@@ -10,7 +10,7 @@ This module provides utilities for file operations including:
 
 import os
 from datetime import datetime
-from modules.discord import send_to_discord_webhook
+from modules.discord import send_to_discord_webhook, send_error_notification
 
 def load_blacklist(filename):
     """
@@ -117,9 +117,7 @@ def handle_error(e, webhook_url=None):
 
     Args:
         e (Exception): The error to handle
-        webhook_url (str, optional): Discord webhook URL for error reporting
-
-    Returns:
+        webhook_url (str, optional): Discord webhook URL for error reporting    Returns:
         bool: True if the error was a KeyboardInterrupt, False otherwise
     """
     if not isinstance(e, KeyboardInterrupt):
@@ -133,5 +131,5 @@ def handle_error(e, webhook_url=None):
             error_report_file.write(str(e))
             
         if webhook_url:
-            send_to_discord_webhook(webhook_url, f"Error occurred: {str(e)}")
+            send_error_notification(webhook_url, str(e))
     return isinstance(e, KeyboardInterrupt)
