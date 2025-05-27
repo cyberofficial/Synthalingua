@@ -16,6 +16,73 @@ import subprocess
 from modules.stream_transcription_module import start_stream_transcription, stop_transcription
 import threading
 
+def get_available_streams(stream_url, cookie_file_path=None):
+    """Get detailed information about available streams.
+    
+    Args:
+        stream_url (str): URL of the stream
+        cookie_file_path (str, optional): Path to cookies file
+        
+    Returns:
+        str: Stream information output from yt-dlp
+    """
+    yt_dlp_command = ["yt-dlp", stream_url, "-F", "--no-warnings"]
+    if cookie_file_path:
+        yt_dlp_command.extend(["--cookies", cookie_file_path])
+    
+    try:
+        output = subprocess.check_output(yt_dlp_command, stderr=subprocess.DEVNULL).decode("utf-8")
+        return output
+    except subprocess.CalledProcessError as e:
+        print(f"Error getting stream information: {e}")
+        return None
+
+def select_stream_interactive(stream_url, cookie_file_path=None):
+    """Interactive stream selection with audio stream filtering.
+    
+    Args:
+        stream_url (str): URL of the stream
+        cookie_file_path (str, optional): Path to cookies file
+        
+    Returns:
+        str: Selected format ID or format string
+    """
+    print("\n🔍 Fetching available streams...")
+    stream_info = get_available_streams(stream_url, cookie_file_path)
+    
+    if not stream_info:
+        print("❌ Could not fetch stream information. Using default audio format.")
+        return "bestaudio"
+    
+    print("\n📺 Available Audio Streams:")
+    print("=" * 80)
+    print(stream_info)
+    print("=" * 80)
+    
+    print("\n💡 Common audio format suggestions:")
+    print("  • 'bestaudio' - Best available audio quality")
+    print("  • 'worst' - Lowest bandwidth option")
+    print("  • '140' - YouTube medium quality audio (m4a)")
+    print("  • '139' - YouTube low quality audio (m4a)")
+    print("  • '251' - YouTube high quality audio (webm)")
+    print("  • Or enter any format ID from the list above")
+    
+    while True:
+        choice = input("\n🎯 Enter format ID or format string (or press Enter for 'bestaudio'): ").strip()
+        
+        if not choice:
+            choice = "bestaudio"
+            print(f"✅ Using default: {choice}")
+            break
+        elif choice.lower() in ['q', 'quit', 'exit']:
+            print("❌ Exiting...")
+            return None
+        else:
+            print(f"✅ Selected: {choice}")
+            break
+    
+    return choice
+
 def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     """Set up and initialize stream processing.
     
@@ -44,37 +111,54 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     target_language = args.stream_target_language if args.stream_target_language else "en"
     translate_task = bool(args.stream_translate)
     transcribe_task = bool(args.stream_transcribe)
-    
-    # Handle cookies if specified
+      # Handle cookies if specified
     cookie_file_path = None
     if args.cookies:
         cookie_file_path = f"cookies\\{args.cookies}.txt"
     
-    # Get HLS URL using yt-dlp
-    yt_dlp_command = ["yt-dlp", args.stream, "-g"]
+    # Determine format selection method
+    selected_format = "bestaudio"  # default
+    
+    if hasattr(args, 'selectsource') and args.selectsource is not None:
+        if args.selectsource == 'interactive':
+            # Interactive mode
+            selected_format = select_stream_interactive(args.stream, cookie_file_path)
+            if selected_format is None:
+                print("❌ Stream selection cancelled.")
+                return None
+        else:
+            # Direct format specification
+            selected_format = args.selectsource
+            print(f"🎯 Using specified format: {selected_format}")
+    else:
+        print(f"🎵 Using default audio format: {selected_format}")
+    
+    # Get HLS URL using yt-dlp with selected format
+    yt_dlp_command = ["yt-dlp", args.stream, "-g", "-f", selected_format]
     if cookie_file_path:
         yt_dlp_command.extend(["--cookies", cookie_file_path])
     
     try:
         urls = subprocess.check_output(yt_dlp_command).decode("utf-8").strip().split('\n')
+        hls_url = urls[0] if urls else None
         
-        # Filter for audio stream URL (usually contains itag=140 for YouTube)
-        audio_urls = [url for url in urls if 'itag=140' in url]
-        hls_url = audio_urls[0] if audio_urls else urls[0]
+        if not hls_url:
+            print("❌ No stream URL found with selected format.")
+            return None
         
         if args.debug:
-            print("\n[DEBUG] Found URLs:")
-            for url in urls:
-                print(f"[DEBUG] - {url}")
-            print(f"\n[DEBUG] Selected URL for processing:\n{hls_url}")
+            print(f"\n[DEBUG] Selected format: {selected_format}")
+            print(f"[DEBUG] Stream URL: {hls_url}")
         else:
-            print(f"Found the Stream URL:\n{hls_url}")
+            print(f"✅ Found stream URL with format '{selected_format}'")
+    
     except subprocess.CalledProcessError as e:
-        print(f"Error fetching stream URL: {e}")
-        raise
+        print(f"❌ Error fetching stream URL with format '{selected_format}': {e}")
+        print("💡 Tip: Try using 'bestaudio' or check available formats with --selectsource")
+        return None
     except Exception as e:
-        print(f"Unexpected error processing stream URL: {e}")
-        raise
+        print(f"❌ Unexpected error processing stream URL: {e}")
+        return None
     
     # Generate random task ID
     import random

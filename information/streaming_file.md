@@ -23,12 +23,12 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 
 ### Streaming Example
 ```
-python transcribe_audio.py --ram 12GB-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
+python transcribe_audio.py --ram 11gb-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
 ```
 
 ### Captions Example
 ```
-python transcribe_audio.py --ram 12GB-v3 --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
 ```
 
 ### `--auto_hls`
