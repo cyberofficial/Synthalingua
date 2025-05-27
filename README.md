@@ -154,6 +154,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ### Streaming & File
 | Flag | Description |
 |------|-------------|
+| `--selectsource` | Select the stream audi source (interactive.) |
 | `--stream` | HLS stream input |
 | `--stream_language` | Stream language |
 | `--stream_target_language` | Stream translation target |
