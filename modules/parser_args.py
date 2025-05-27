@@ -72,7 +72,7 @@ def parse_arguments():
     parser.add_argument("--list_microphones", action='store_true', help="List available microphones and exit.")
     parser.add_argument("--set_microphone", default=None, help="Set default microphone to use.", type=str)
     parser.add_argument("--microphone_enabled", default=None, help="Enable microphone by name.", type=str)
-    parser.add_argument("--auto_language_lock", action='store_true', help="Automatically locks the language based on the detected language after set amount of transcriptions.")
+    #parser.add_argument("--auto_language_lock", action='store_true', help="Automatically locks the language based on the detected language after set amount of transcriptions.")
     parser.add_argument("--model_dir", default="models", help="Location where to store downloaded models.")
     parser.add_argument("--retry", action='store_true', help="Retries the transcription if it fails. May increase output time.")
     parser.add_argument("--use_finetune", action='store_true', help="Use finetuned model.")
