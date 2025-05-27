@@ -229,6 +229,22 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 - **Discord:** Use `--discord_webhook` to send results to Discord (long messages are split, rate limits handled)
 - **Web server:** Use `--portnumber` to launch a local Flask server and view subtitles in your browser
 
+### Accessing the Web Server
+Once you've launched Synthalingua with the `--portnumber` parameter:
+
+1. Open your web browser and navigate to `http://localhost:[PORT]` (replace `[PORT]` with the port number you specified)
+2. Example: `http://localhost:8080` if you used `--portnumber 8080`
+3. For accessing from other devices on your network, use your computer's IP address: `http://[YOUR_IP]:[PORT]`
+
+**Example usage:**
+```sh
+# Start Synthalingua with a web server on port 8080
+python transcribe_audio.py --ram 6gb --translate --language ja --portnumber 8080
+
+# For remote HLS password protection
+python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
+```
+
 ---
 
 ## Troubleshooting
