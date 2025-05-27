@@ -13,7 +13,6 @@ import torch
 import speech_recognition as sr
 from colorama import Fore, Style
 
-from modules.discord import send_to_discord_webhook
 from modules.console_settings import set_window_title
 from modules import api_backend
 from modules.languages import get_valid_languages

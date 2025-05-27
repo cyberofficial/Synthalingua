@@ -24,7 +24,7 @@ import http.client
 import http.cookiejar
 import whisper
 from modules import parser_args
-from modules.discord import send_to_discord_webhook
+from modules.discord import send_to_discord_webhook, send_transcription_to_discord
 from modules import api_backend
 import difflib
 from modules.similarity_utils import is_similar
@@ -547,8 +547,8 @@ def start_stream_transcription(
                 print_transcription_result("EN", translation, "Translation")
                 process_audio.last_translation = translation
                 if webhook_url:
-                    send_to_discord_webhook(
-                        webhook_url, f"Stream EN Translation:\n{translation}\n"
+                    send_transcription_to_discord(
+                        webhook_url, detected_language, translation, "Translation"
                     )
                 if args.portnumber:
                     new_header = f"{translation}"
@@ -576,9 +576,8 @@ def start_stream_transcription(
                 print_transcription_result(target_language, transcription, "Transcription")
                 process_audio.last_target_transcription = transcription
                 if webhook_url:
-                    send_to_discord_webhook(
-                        webhook_url,
-                        f"Stream {target_language} Transcription:\n{transcription}\n",
+                    send_transcription_to_discord(
+                        webhook_url, target_language, transcription, "Transcription"
                     )
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
