@@ -5,7 +5,7 @@ These arguments control which AI model is used and how it runs on your hardware.
 ## Arguments
 | Flag            | Description                                                                 |
 |-----------------|-----------------------------------------------------------------------------|
-| `--ram`         | Model size (choices: `1gb`, `2gb`, `4gb`, `6gb`, `12GB-v2`, `12GB-v3`).     |
+| `--ram`         | Model size (choices: `1gb`, `2gb`, `4gb`, `6gb`, `11gb-v2`, `11gb-v3`).     |
 | `--ramforce`    | Force the script to use the selected RAM/VRAM model.                        |
 | `--fp16`        | Enable FP16 mode for faster inference (may reduce accuracy slightly).        |
 | `--device`      | Select device for inference (`cpu` or `cuda`).                              |

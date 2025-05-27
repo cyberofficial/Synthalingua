@@ -109,6 +109,13 @@ def parse_arguments():
         action='store_true',
         help="Automatically add phrases that are blocked 3 times to the blocklist file. Requires --ignorelist to be set."
     )
+    parser.add_argument(
+        "--selectsource", 
+        nargs='?', 
+        const='interactive', 
+        default=None,
+        help="Show available audio streams and select one. Use without value for interactive mode, or specify format directly (e.g., 'bestaudio', '140', 'worst')"
+    )
     return parser.parse_args()
 
 

@@ -133,7 +133,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ### Model & Device
 | Flag | Description |
 |------|-------------|
-| `--ram` | Model size (1gb, 2gb, 4gb, 6gb, 12GB-v2, 12GB-v3) |
+| `--ram` | Model size (1gb, 2gb, 4gb, 6gb, 11gb-v2, 11gb-v3) |
 | `--ramforce` | Force RAM/VRAM model |
 | `--fp16` | Enable FP16 mode |
 | `--device` | Device: cpu/cuda |
@@ -198,7 +198,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ## Usage Examples
 - **Stream translation:**
   ```sh
-  python transcribe_audio.py --ram 12GB-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
+  python transcribe_audio.py --ram 11gb-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
   ```
 - **Microphone translation:**
   ```sh
@@ -206,7 +206,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   ```
 - **Captions mode:**
   ```sh
-  python transcribe_audio.py --ram 12GB-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
   ```sh
@@ -268,7 +268,7 @@ python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_
 Command line arguments used: `--ram 6gb --record_timeout 2 --language ja --energy_threshold 500`
 [<img src="https://i.imgur.com/sXTWr76.jpg" width="50%">](https://streamable.com/m9mhfr)
 
-Command line arguments used: `--ram 12GB-v2 --record_timeout 5 --language id --energy_threshold 500`
+Command line arguments used: `--ram 11gb-v2 --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
 
 ---

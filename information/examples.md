@@ -7,7 +7,7 @@ This page provides practical command-line examples for common Synthalingua workf
 ## 1. Streaming from Twitch/YouTube with Translation
 **Translate a Japanese Twitch stream to English, using GPU and Discord integration:**
 ```sh
-python transcribe_audio.py --ram 12GB-v3 --stream https://www.twitch.tv/somestreamerhere --stream_language Japanese --stream_translate --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --device cuda
+python transcribe_audio.py --ram 11gb-v3 --stream https://www.twitch.tv/somestreamerhere --stream_language Japanese --stream_translate --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --device cuda
 ```
 
 **Stream with blocklist and repetition suppression:**
@@ -44,7 +44,7 @@ python transcribe_audio.py --microphone_enabled --ignorelist "C:/path/blacklist.
 ## 3. Making Captions/Subtitles from a File
 **Generate English captions for a Japanese video file:**
 ```sh
-python transcribe_audio.py --ram 12GB-v3 --makecaptions --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
 **With blocklist filtering:**

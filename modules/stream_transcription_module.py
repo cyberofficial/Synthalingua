@@ -365,7 +365,7 @@ def start_stream_transcription(
             str: Detected language code, or "n/a" if detection fails
 
         Processes audio through mel spectrogram generation with adaptive n_mels
-        based on RAM configuration (128 for 12gb-v3, 80 otherwise) before
+        based on RAM configuration (128 for 11gb-v3, 80 otherwise) before
         performing language detection.
         """
         try:
