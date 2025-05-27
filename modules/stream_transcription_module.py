@@ -6,7 +6,7 @@ It provides functionality to:
 - Download and process HLS stream segments
 - Transcribe audio in original language
 - Translate audio to English
-- Send transcriptions/translations to Discord webhook
+- Send transcriptions/translations via Discord webhooks or API
 - Support for authenticated streams via cookies or stream keys
 
 The module uses a threaded approach to handle concurrent downloading and processing
@@ -29,6 +29,96 @@ from modules import api_backend
 import difflib
 from modules.similarity_utils import is_similar
 from collections import deque
+from colorama import Fore, Back, Style, init
+
+# Initialize colorama for Windows compatibility
+init(autoreset=True)
+
+# Console formatting helper functions
+def print_styled_header(title, icon="🎤", color=Fore.CYAN, width=80):
+    """Print a styled header with border and icon."""
+    border = "═" * (width - 4)
+    print(f"{color}╔{border}╗")
+    padding = (width - len(title) - len(icon) - 6) // 2
+    left_pad = " " * padding
+    right_pad = " " * (width - len(title) - len(icon) - 6 - padding)
+    print(f"{color}║ {icon} {Style.BRIGHT}{title}{Style.RESET_ALL}{color}{left_pad}{right_pad} ║")
+    print(f"{color}╚{border}╝{Style.RESET_ALL}")
+
+def print_transcription_result(language, content, result_type="Original"):
+    """Print transcription results with beautiful formatting."""
+    import textwrap
+    
+    if result_type == "Original":
+        icon = "🗣️"
+        color = Fore.GREEN
+        title = f"{language} {result_type}"
+    elif result_type == "Translation":
+        icon = "🌐"
+        color = Fore.BLUE
+        title = f"EN {result_type}"
+    elif result_type == "Transcription":
+        icon = "📝"
+        color = Fore.MAGENTA
+        title = f"{language} {result_type}"
+    else:
+        icon = "💬"
+        color = Fore.YELLOW
+        title = result_type
+
+    # Set maximum width for readability (80 characters is optimal for reading)
+    max_width = 80
+    min_width = 50
+    
+    # Calculate width based on title and content, but cap at max_width
+    title_width = len(f"{icon} {title}") + 4
+    content_width = len(content) + 4
+    box_width = max(min_width, min(max_width, title_width, content_width))
+    
+    # If content is longer than box width, we'll wrap it
+    content_area_width = box_width - 4  # Account for borders and padding
+    
+    # Wrap content to fit within the box
+    wrapped_lines = textwrap.wrap(content.strip(), width=content_area_width)
+    if not wrapped_lines:  # Handle empty content
+        wrapped_lines = [""]
+    
+    title_padding = box_width - len(f"{icon} ") - 4
+
+    # Print the box
+    print(f"\n{color}┌{'─' * box_width}┐")
+    print(f"│ {icon} {Style.BRIGHT}{title:<{title_padding}}{Style.RESET_ALL}{color} │")
+    print(f"├{'─' * box_width}┤")
+    
+    # Print each wrapped line
+    for line in wrapped_lines:
+        print(f"│ {Style.RESET_ALL}{line:<{content_area_width}}{color} │")
+    
+    print(f"└{'─' * box_width}┘{Style.RESET_ALL}\n")
+
+def print_info_message(message, icon="ℹ️"):
+    """Print an info message with styling."""
+    print(f"{Fore.CYAN}{icon} {Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
+
+def print_warning_message(message, icon="⚠️"):
+    """Print a warning message with styling."""
+    print(f"{Fore.YELLOW}{icon} {Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
+
+def print_error_message(message, icon="❌"):
+    """Print an error message with styling."""
+    print(f"{Fore.RED}{icon} {Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
+
+def print_debug_message(message, icon="🔍"):
+    """Print a debug message with styling."""
+    print(f"{Fore.LIGHTBLACK_EX}{icon} {Style.DIM}[DEBUG]{Style.RESET_ALL} {Fore.LIGHTBLACK_EX}{message}{Style.RESET_ALL}")
+
+def print_success_message(message, icon="✅"):
+    """Print a success message with styling."""
+    print(f"{Fore.GREEN}{icon} {Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
+
+def print_progress_message(message, icon="⏳"):
+    """Print a progress message with styling."""
+    print(f"{Fore.BLUE}{icon} {Style.BRIGHT}[PROGRESS]{Style.RESET_ALL} {message}")
 
 # Global shutdown flag
 shutdown_flag = False
@@ -67,20 +157,23 @@ def check_and_clean_temp(temp_dir):
         
     files = os.listdir(temp_dir)
     if files:
-        print("\nWARNING: Leftover files found in temp directory.")
-        print("This usually happens if the program didn't close properly.")
-        print("Remember to use 'Ctrl+C' in the console to close the program properly.")
-        user_input = input("\nWould you like to clean the temp directory? (y/n): ").lower()
+        print_warning_message("Leftover files found in temp directory.", "🗂️")
+        print_info_message("This usually happens if the program didn't close properly.")
+        print_info_message("Remember to use 'Ctrl+C' in the console to close the program properly.")
+        user_input = input(f"\n{Fore.YELLOW}🧹 Would you like to clean the temp directory? (y/n): {Style.RESET_ALL}").lower()
         
         if user_input == 'y':
+            print_progress_message("Cleaning temp directory...")
+            cleaned_files = 0
             for file in files:
                 try:
                     os.remove(os.path.join(temp_dir, file))
+                    cleaned_files += 1
                 except Exception as e:
-                    print(f"Error removing {file}: {e}")
-            print("Temp directory cleaned.")
+                    print_error_message(f"Error removing {file}: {e}")
+            print_success_message(f"Temp directory cleaned! Removed {cleaned_files} files.")
         else:
-            print("Keeping existing temp files.")
+            print_info_message("Keeping existing temp files.")
 
 def load_cookies_from_file(cookie_file_path):
     """
@@ -171,9 +264,7 @@ def start_stream_transcription(
             segment_delay (float, optional): Delay after successful download. Defaults to 0
 
         Returns:
-            bool: True if download was successful, False otherwise
-
-        This function attempts to download a segment with retry logic for robustness.
+            bool: True if download was successful, False otherwise        This function attempts to download a segment with retry logic for robustness.
         It handles authentication via cookies or stream keys, and includes proper
         error handling for network issues and invalid credentials.
         """
@@ -183,7 +274,7 @@ def start_stream_transcription(
                 try:
                     # show downloading segments if args debug is set
                     if args.debug:
-                        print(f"\n\n\nDownloading segment: {segment_url}\n\n")
+                        print_debug_message(f"Downloading segment: {segment_url}")
                     response = (
                         requests.get(
                             segment_url, stream=True, cookies=cookies, params=params
@@ -200,28 +291,20 @@ def start_stream_transcription(
                         # time.sleep(segment_delay)  # Optional delay
                         return True
                     elif response.status_code == 401:
-                        print(
-                            "Invalid credentials. Please check your cookies/streamkey and try again."
-                        )
-                        input("Press CTRL+C to exit...")
+                        print_error_message("Invalid credentials. Please check your cookies/streamkey and try again.", "🔐")
+                        input(f"{Fore.RED}Press CTRL+C to exit...{Style.RESET_ALL}")
                         kill = True
                         raise Exception("Exiting due to invalid credentials")
                     else:
-                        print(
-                            f"Failed to download segment, status code: {response.status_code}. Retrying {retry_count}/{max_retries}"
-                        )
+                        print_warning_message(f"Failed to download segment, status code: {response.status_code}. Retrying {retry_count}/{max_retries}")
                 except requests.exceptions.RequestException as e:
-                    print(
-                        f"Network error: {e}. Retrying {retry_count}/{max_retries} in {retry_delay} seconds..."
-                    )
+                    print_error_message(f"Network error: {e}. Retrying {retry_count}/{max_retries} in {retry_delay} seconds...")
                     time.sleep(retry_delay)
                 except Exception as e:
-                    print(f"Unexpected error downloading segment: {e}")
+                    print_error_message(f"Unexpected error downloading segment: {e}")
                     break
 
-        print(
-            f"Failed to download segment {segment_url} after {max_retries} retries. Skipping."
-        )
+        print_error_message(f"Failed to download segment {segment_url} after {max_retries} retries. Skipping.", "⏭️")
         # Clean up partial file if exists
         if os.path.exists(output_path):
             os.remove(output_path)
@@ -236,10 +319,7 @@ def start_stream_transcription(
             retry_delay (int, optional): Delay between retries in seconds. Defaults to 5
 
         Returns:
-            m3u8.M3U8: Parsed M3U8 playlist object, or None if loading fails or shutdown is requested
-
-        This function handles various network errors that may occur while loading
-        the M3U8 playlist, implementing retry logic with configurable delay.
+            m3u8.M3U8: Parsed M3U8 playlist object, or None if loading fails or shutdown is requested        This function handles various network errors that may occur while loading        the M3U8 playlist, implementing retry logic with configurable delay.
         It also supports multi-line URLs by taking the first line.
         """
         while not shutdown_flag:
@@ -247,7 +327,7 @@ def start_stream_transcription(
                 # Split and take first URL if multiple URLs are provided
                 cleaned_url = hls_url.strip().split('\n')[0]
                 if args.debug:
-                    print(f"\n[DEBUG] Loading m3u8 from URL: {cleaned_url}")
+                    print_debug_message(f"Loading m3u8 from URL: {cleaned_url}")
                 
                 m3u8_obj = m3u8.load(cleaned_url)
                 return m3u8_obj
@@ -256,12 +336,10 @@ def start_stream_transcription(
                 http.client.IncompleteRead,
                 requests.exceptions.RequestException,
             ) as e:
-                print(
-                    f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds..."
-                )
+                print_error_message(f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             except Exception as e:
-                print(f"Unexpected error loading m3u8 file: {e}")
+                print_error_message(f"Unexpected error loading m3u8 file: {e}")
                 time.sleep(retry_delay)
         return None
 
@@ -318,16 +396,14 @@ def start_stream_transcription(
             model (whisper.Whisper): Loaded Whisper model instance
 
         Returns:
-            str: Translated text in English, or empty string if translation fails
-
-        Uses Whisper's translate task to directly translate audio to English text.
+            str: Translated text in English, or empty string if translation fails        Uses Whisper's translate task to directly translate audio to English text.
         Includes fp16 optimization and previous text conditioning based on arguments.
         """
         try:
             result = model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
             return result["text"]
         except RuntimeError as e:
-            print(f"Error transcribing audio: {e}")
+            print_error_message(f"Error translating audio: {e}")
             return ""
 
     def transcribe_audio(file_path, model, language):
@@ -340,16 +416,14 @@ def start_stream_transcription(
             language (str): Language code for transcription
 
         Returns:
-            str: Transcribed text in specified language, or empty string if transcription fails
-
-        Uses Whisper's transcribe task with specified language, fp16 optimization,
+            str: Transcribed text in specified language, or empty string if transcription fails        Uses Whisper's transcribe task with specified language, fp16 optimization,
         and previous text conditioning based on arguments.
         """
         try:
             result = model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
             return result["text"]
         except RuntimeError as e:
-            print(f"Error transcribing audio: {e}")
+            print_error_message(f"Error transcribing audio: {e}")
             return ""
 
     def detect_language(file_path, model, device=args.device):
@@ -382,7 +456,7 @@ def start_stream_transcription(
             detected_language = max(language_probs, key=language_probs.get)
             return detected_language
         except RuntimeError as e:
-            print(f"Error detecting language: {e}")
+            print_error_message(f"Error detecting language: {e}")
             detected_language = "n/a"
             return detected_language
 
@@ -447,8 +521,7 @@ def start_stream_transcription(
             else:
                 is_new = bool(transcription)
             if is_new:
-                print(f"{'-' * 50} {detected_language} Original {'-' * 50}")
-                print(transcription)
+                print_transcription_result(detected_language, transcription, "Original")
                 process_audio.last_transcription = transcription
                 if args.portnumber and transcription.strip():
                     new_header = f"{transcription}"
@@ -471,8 +544,7 @@ def start_stream_transcription(
             else:
                 is_new = bool(translation)
             if is_new:
-                print(f"{'-' * 50} Stream EN Translation {'-' * 50}")
-                print(translation)
+                print_transcription_result("EN", translation, "Translation")
                 process_audio.last_translation = translation
                 if webhook_url:
                     send_to_discord_webhook(
@@ -501,10 +573,7 @@ def start_stream_transcription(
             else:
                 is_new = bool(transcription)
             if is_new:
-                print(
-                    f"{'-' * 50} Stream {target_language} Transcription {'-' * 50}"
-                )
-                print(transcription)
+                print_transcription_result(target_language, transcription, "Transcription")
                 process_audio.last_target_transcription = transcription
                 if webhook_url:
                     send_to_discord_webhook(
@@ -552,48 +621,45 @@ def start_stream_transcription(
     # Start processing thread
     processing_thread = threading.Thread(target=process_audio_thread)
     processing_thread.daemon = True
-    processing_thread.start()
-
-    # --- Auto HLS Adjustment Feature ---
+    processing_thread.start()    # --- Auto HLS Adjustment Feature ---
     if getattr(args, 'auto_hls', False):
-        print("\n[Auto HLS Adjustment] Sampling the stream to determine segment duration...")
+        print_styled_header("Auto HLS Adjustment", "⚙️", Fore.YELLOW, 76)
+        print_info_message("Sampling the stream to determine segment duration...", "🔍")
         m3u8_obj = load_m3u8_with_retry(hls_url)
         if m3u8_obj and m3u8_obj.segments:
             first_segment = m3u8_obj.segments[0]
             segment_duration = getattr(first_segment, 'duration', None)
             if segment_duration is not None:
-                print(f"[Auto HLS Adjustment] Detected segment duration: {segment_duration:.2f} seconds.")
-                print(f"Current chunk size (segments per batch): {segments_max}")
-                print(f"This means each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio.")
-                user_input = input("Would you like to set a new chunk size? (y/n): ").strip().lower()
+                print_success_message(f"Detected segment duration: {segment_duration:.2f} seconds", "📊")
+                print_info_message(f"Current chunk size (segments per batch): {segments_max}", "📦")
+                print_info_message(f"Each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio", "⏱️")
+                user_input = input(f"{Fore.CYAN}🔧 Would you like to set a new chunk size? (y/n): {Style.RESET_ALL}").strip().lower()
                 if user_input == 'y':
                     while True:
                         try:
-                            new_chunk = int(input("Enter new chunk size (number of segments per batch): ").strip())
+                            new_chunk = int(input(f"{Fore.CYAN}📝 Enter new chunk size (number of segments per batch): {Style.RESET_ALL}").strip())
                             if new_chunk > 0:
                                 est_time = new_chunk * segment_duration
-                                print(f"[Auto HLS Adjustment] If you set chunk size to {new_chunk}, each batch will cover ~{est_time:.2f} seconds of audio.")
-                                confirm = input(f"Confirm this chunk size? (y to confirm, n to set again, c to cancel and keep previous): ").strip().lower()
+                                print_info_message(f"If chunk size is {new_chunk}, each batch will cover ~{est_time:.2f} seconds", "📏")
+                                confirm = input(f"{Fore.YELLOW}✅ Confirm this chunk size? (y to confirm, n to set again, c to cancel): {Style.RESET_ALL}").strip().lower()
                                 if confirm == 'y':
                                     segments_max = new_chunk
-                                    print(f"[Auto HLS Adjustment] Chunk size set to {segments_max} (covers ~{segments_max * segment_duration:.2f} seconds per batch).\n")
+                                    print_success_message(f"Chunk size set to {segments_max} (covers ~{segments_max * segment_duration:.2f} seconds per batch)", "🎯")
                                     break
                                 elif confirm == 'c':
-                                    print("[Auto HLS Adjustment] Keeping existing chunk size.")
+                                    print_info_message("Keeping existing chunk size", "📌")
                                     break
                                 # else loop again for new input
                             else:
-                                print("Please enter a positive integer.")
+                                print_warning_message("Please enter a positive integer", "⚠️")
                         except ValueError:
-                            print("Invalid input. Please enter a number.")
+                            print_error_message("Invalid input. Please enter a number", "❌")
                 else:
-                    print("[Auto HLS Adjustment] Keeping existing chunk size.")
+                    print_info_message("Keeping existing chunk size", "📌")
             else:
-                print("[Auto HLS Adjustment] Could not determine segment duration. Proceeding with default chunk size.")
+                print_warning_message("Could not determine segment duration. Proceeding with default chunk size", "⚠️")
         else:
-            print("[Auto HLS Adjustment] Could not load playlist or no segments found. Proceeding with default chunk size.")
-
-    # Main loop for downloading and combining segments
+            print_error_message("Could not load playlist or no segments found. Proceeding with default chunk size", "❌")    # Main loop for downloading and combining segments
     try:
         downloaded_segments = set()
         counter = 0
@@ -602,14 +668,14 @@ def start_stream_transcription(
         while not shutdown_flag:
             m3u8_obj = load_m3u8_with_retry(hls_url)
             if not m3u8_obj:
-                print("Failed to load m3u8 after retries, stopping.")
+                print_error_message("Failed to load m3u8 after retries, stopping", "🛑")
                 break
 
             # Get total segments and calculate starting point
             total_segments = len(m3u8_obj.segments)
             if total_segments == 0:
                 if args.debug:
-                    print("\n[DEBUG] Playlist is empty, waiting for segments...")
+                    print_debug_message("Playlist is empty, waiting for segments...")
                 time.sleep(1)  # Wait if playlist is empty
                 continue
 
@@ -617,17 +683,17 @@ def start_stream_transcription(
             if len(downloaded_segments) == 0:
                 start_idx = max(0, total_segments - segments_max)
                 if args.debug:
-                    print(f"\n[DEBUG] First run:")
-                    print(f"[DEBUG] Total segments in playlist: {total_segments}")
-                    print(f"[DEBUG] Starting from segment index: {start_idx}")
-                    print(f"[DEBUG] Will process {total_segments - start_idx} segments")
+                    print_debug_message(f"First run:")
+                    print_debug_message(f"Total segments in playlist: {total_segments}")
+                    print_debug_message(f"Starting from segment index: {start_idx}")
+                    print_debug_message(f"Will process {total_segments - start_idx} segments")
             else:
                 start_idx = 0
                 if args.debug:
-                    print(f"\n[DEBUG] Continuing run:")
-                    print(f"[DEBUG] Total segments in playlist: {total_segments}")
-                    print(f"[DEBUG] Previously downloaded segments: {len(downloaded_segments)}")
-                    print(f"[DEBUG] Starting from beginning to check for new segments")
+                    print_debug_message(f"Continuing run:")
+                    print_debug_message(f"Total segments in playlist: {total_segments}")
+                    print_debug_message(f"Previously downloaded segments: {len(downloaded_segments)}")
+                    print_debug_message(f"Starting from beginning to check for new segments")
 
             # Process segments from the calculated starting point
             for idx in range(start_idx, total_segments):
@@ -641,8 +707,8 @@ def start_stream_transcription(
                 counter += 1
                 try:
                     if args.debug:
-                        print(f"\n[DEBUG] Attempting to download segment {counter}:")
-                        print(f"[DEBUG] Segment URI: {segment.uri}")
+                        print_debug_message(f"Attempting to download segment {counter}:")
+                        print_debug_message(f"Segment URI: {segment.uri}")
 
                     if download_segment(segment.absolute_uri, segment_path):
                         if kill:
@@ -651,12 +717,12 @@ def start_stream_transcription(
                         accumulated_segments.append(segment_path)
 
                         if args.debug:
-                            print(f"[DEBUG] Successfully downloaded segment {counter}")
-                            print(f"[DEBUG] Accumulated segments: {len(accumulated_segments)}/{segments_max}")
+                            print_debug_message(f"Successfully downloaded segment {counter}")
+                            print_debug_message(f"Accumulated segments: {len(accumulated_segments)}/{segments_max}")
 
                         if len(accumulated_segments) >= segments_max:
                             if args.debug:
-                                print(f"[DEBUG] Reached max segments ({segments_max}), processing batch...")
+                                print_debug_message(f"Reached max segments ({segments_max}), processing batch...")
                             combined_path = os.path.join(
                                 temp_dir, f"{task_id}_combined_{counter}.ts"
                             )
@@ -667,14 +733,14 @@ def start_stream_transcription(
                             # Track combined file and check queue size
                             combined_files_in_queue.append(combined_path)
                             if len(combined_files_in_queue) > MAX_COMBINED_FILES:
-                                print("\nWARNING: More than 5 combined files are waiting to be processed.")
-                                print("This may indicate that your GPU cannot keep up with the transcription load.")
-                                print("Consider using a smaller model or increasing processing power.\n")
+                                print_warning_message("More than 5 combined files are waiting to be processed", "⚡")
+                                print_warning_message("This may indicate that your GPU cannot keep up with transcription load", "🖥️")
+                                print_info_message("Consider using a smaller model or increasing processing power", "💡")
                             
                             audio_queue.put(combined_path)
                             accumulated_segments = []
                 except Exception as e:  # Catch the raised exception
-                    print(f"Error during download: {e}")
+                    print_error_message(f"Error during download: {e}", "💥")
                     break  # Exit the loop
 
     except KeyboardInterrupt:
@@ -710,7 +776,7 @@ def stop_transcription():
     shutdown_flag = True
 
 
-print("Stream Transcription Module Loaded")
+print_success_message("Stream Transcription Module Loaded", "🎵")
 
 # Track repeated blocked phrases for auto-blocking (rolling window)
 blocked_phrase_history = {
@@ -734,13 +800,12 @@ def add_phrase_to_blocklist(phrase, blocklist_path):
             with open(blocklist_path, 'r', encoding='utf-8') as f:
                 lines = [line.strip().lower() for line in f.readlines()]
             if phrase.lower() in lines:
-                return True  # Already present, do not add again
-        with open(blocklist_path, 'a', encoding='utf-8') as f:
+                return True  # Already present, do not add again        with open(blocklist_path, 'a', encoding='utf-8') as f:
             f.write(phrase + '\n')
-        print(f"[INFO] Auto-added phrase to blocklist: {phrase}")
+        print_info_message(f"Auto-added phrase to blocklist: {phrase}", "🚫")
         return False
     except Exception as e:
-        print(f"[ERROR] Could not add phrase to blocklist: {e}")
+        print_error_message(f"Could not add phrase to blocklist: {e}", "❌")
         return False
 
 def is_phrase_in_blocklist(phrase, blocklist_path):
