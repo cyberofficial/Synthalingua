@@ -55,9 +55,19 @@ python transcribe_audio.py --makecaptions --file_input "C:/Videos/myvideo.mp4" -
 ---
 
 ## 4. Advanced/Other Examples
-**Stream with custom chunk size and cookies:**
+**Stream with custom chunk size and cookies (cookies folder):**
 ```sh
 python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --stream_chunks 3 --cookies twitch
+```
+
+**Stream with cookies using full path:**
+```sh
+python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies "C:\path\to\my\twitch_cookies.txt"
+```
+
+**Stream with cookies from current directory:**
+```sh
+python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies youtube.txt
 ```
 
 **Transcribe to a non-English target language:**

@@ -13,7 +13,7 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 | `--stream_original_text`| Show detected original text from the stream.                     |
 | `--stream_chunks`       | Number of chunks to split the stream into (default: 5).          |
 | `--auto_hls`            | Auto-adjust HLS chunk batching for optimal performance.           |
-| `--cookies`             | Name of the cookies file (without `.txt`).                       |
+| `--cookies`             | Path to cookies file. Supports absolute paths, current directory files, or names for cookies/ folder. |
 | `--makecaptions`        | Enable captions mode (requires file input/output/name).           |
 | `--file_input`          | Path to input file for captioning.                               |
 | `--file_output`         | Output folder for captions.                                      |

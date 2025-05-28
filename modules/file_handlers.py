@@ -6,6 +6,7 @@ This module provides utilities for file operations including:
 - Handling temporary directories for audio processing
 - Saving transcription results
 - Error logging and reporting
+- Cookie file path resolution
 """
 
 import os
@@ -133,3 +134,45 @@ def handle_error(e, webhook_url=None):
         if webhook_url:
             send_error_notification(webhook_url, str(e))
     return isinstance(e, KeyboardInterrupt)
+
+def resolve_cookie_file_path(cookies_arg):
+    """
+    Resolve cookie file path with multiple search locations.
+    
+    This function searches for cookie files in the following order:
+    1. If cookies_arg is an absolute path to an existing file, use it directly
+    2. If cookies_arg is a filename with extension that exists in current directory, use it
+    3. If cookies_arg (with .txt appended if needed) exists in cookies/ folder, use that
+    
+    Args:
+        cookies_arg (str): The cookies argument value from command line
+        
+    Returns:
+        str: Resolved path to the cookie file, or None if not found
+        
+    Examples:
+        resolve_cookie_file_path("C:\\path\\to\\youtube.txt")  # Returns absolute path if exists
+        resolve_cookie_file_path("youtube.txt")               # Checks current dir, then cookies/youtube.txt
+        resolve_cookie_file_path("youtube")                   # Checks cookies/youtube.txt
+    """
+    if not cookies_arg:
+        return None
+    
+    # 1. Check if it's an absolute path to an existing file
+    if os.path.isabs(cookies_arg) and os.path.isfile(cookies_arg):
+        return cookies_arg
+    
+    # 2. Check if it's a filename (with extension) in the current directory
+    if os.path.isfile(cookies_arg):
+        return cookies_arg
+    
+    # 3. Check in cookies/ folder
+    # If the argument doesn't have .txt extension, add it
+    cookies_filename = cookies_arg if cookies_arg.endswith('.txt') else f"{cookies_arg}.txt"
+    cookies_folder_path = os.path.join("cookies", cookies_filename)
+    
+    if os.path.isfile(cookies_folder_path):
+        return cookies_folder_path
+    
+    # If none of the above locations work, return None
+    return None
