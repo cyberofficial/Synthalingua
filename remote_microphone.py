@@ -84,6 +84,14 @@ def capture_audio(device_index):
 
     ffmpeg_process = subprocess.Popen(ffmpeg_command, stdin=subprocess.PIPE)
 
+    # Check if stdin is properly initialized
+    if ffmpeg_process.stdin is None:
+        print("Error: Failed to create ffmpeg process with stdin pipe")
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        return
+
     try:
         while True:
             data = stream.read(CHUNK)
