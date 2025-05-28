@@ -89,7 +89,7 @@ def parse_arguments():
     parser.add_argument("--stream_target_language", default=None, help="[DEPRECATED - WILL BE REMOVED SOON] Language to translate the stream to. Use --stream_transcribe <language> instead.", type=str, choices=VALID_LANGUAGES)
     parser.add_argument("--stream_translate", action='store_true', help="Translate the stream.")
     parser.add_argument("--stream_transcribe", nargs='?', const=True, default=False, help="Transcribe the stream to the specified language (e.g., --stream_transcribe English). If no language is provided, will just enable transcription.", type=str)
-    parser.add_argument("--cookies", default=None, help="Path to cookies.txt file. In NetScape format.")
+    parser.add_argument("--cookies", default=None, help="Path to cookies file. Can be: absolute path (C:\\path\\to\\cookies.txt), filename in current directory (cookies.txt), or name for cookies folder (youtube = cookies/youtube.txt). NetScape format.")
     #parser.add_argument("--is_portable", action='store_true', help="Run the program in portable mode.")
     parser.add_argument("--makecaptions", action='store_true', help="Make captions for the stream.")
     parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")

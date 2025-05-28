@@ -15,6 +15,7 @@ import os
 import subprocess
 from colorama import Fore, Style
 from modules.languages import get_valid_languages
+from modules.file_handlers import resolve_cookie_file_path
 
 # Define a constant variable for valid language choices
 VALID_LANGUAGES = get_valid_languages()
@@ -154,11 +155,22 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         
     translate_task = bool(args.stream_translate)
     # If stream_transcribe is a string (language name), it means transcribe is enabled
-    transcribe_task = args.stream_transcribe is not False
-      # Handle cookies if specified
+    transcribe_task = args.stream_transcribe is not False      # Handle cookies if specified
     cookie_file_path = None
     if args.cookies:
-        cookie_file_path = f"cookies\\{args.cookies}.txt"
+        cookie_file_path = resolve_cookie_file_path(args.cookies)
+        if cookie_file_path is None:
+            print(f"❌ Cookie file not found. Searched for:")
+            print(f"   • Absolute path: {args.cookies}")
+            print(f"   • Current directory: {args.cookies}")
+            if not args.cookies.endswith('.txt'):
+                print(f"   • Current directory: {args.cookies}.txt")
+            cookies_filename = args.cookies if args.cookies.endswith('.txt') else f"{args.cookies}.txt"
+            print(f"   • Cookies folder: cookies/{cookies_filename}")
+            print(f"Please ensure the cookie file exists in one of these locations.")
+            return None
+        else:
+            print(f"🍪 Using cookie file: {cookie_file_path}")
     
     # Determine format selection method
     selected_format = "bestaudio"  # default
