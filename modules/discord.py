@@ -131,7 +131,7 @@ def send_transcription_to_discord(webhook_url, language, content, result_type="O
     formatted_message = f"{icon} {title}\n```\n{content.strip()}\n```"
     send_to_discord_webhook(webhook_url, formatted_message, message_type)
 
-def send_startup_notification(webhook_url, model_info, translation_enabled=False):
+def send_startup_notification(webhook_url, model_info, translation_enabled=False, stream_source=None):
     """
     Send a beautifully formatted startup notification to Discord.
     
@@ -139,9 +139,17 @@ def send_startup_notification(webhook_url, model_info, translation_enabled=False
         webhook_url (str): Discord webhook URL
         model_info (str): Information about the model being used
         translation_enabled (bool): Whether translation is enabled
+        stream_source (str, optional): The URL or identifier of the stream source
     """
     translation_status = "🌐 **Translation: Enabled**" if translation_enabled else "🚫 **Translation: Disabled**"
+    
+    # Base message without stream source
     message = f"🚀 **Synthalingua Service Started**\n\n🤖 **Model:** {model_info}\n{translation_status}\n\n📡 Ready to process audio streams!"
+    
+    # Add stream source if provided
+    if stream_source:
+        message += f"\n\nUsing the stream source: <{stream_source}>"
+    
     send_to_discord_webhook(webhook_url, message, "startup")
 
 def send_shutdown_notification(webhook_url):

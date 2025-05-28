@@ -157,9 +157,9 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--selectsource` | Select the stream audi source (interactive.) |
 | `--stream` | HLS stream input |
 | `--stream_language` | Stream language |
-| `--stream_target_language` | Stream translation target |
+| `--stream_target_language` | [DEPRECATED] Stream translation target (use --stream_transcribe <language> instead) |
 | `--stream_translate` | Enable stream translation |
-| `--stream_transcribe` | Enable stream transcription |
+| `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English) |
 | `--stream_original_text` | Show original stream text |
 | `--stream_chunks` | Stream chunk size |
 | `--auto_hls` | Auto HLS chunk tuning |

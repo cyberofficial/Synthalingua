@@ -13,6 +13,11 @@ The module uses yt-dlp for URL extraction and handles both direct and HLS stream
 
 import os
 import subprocess
+from colorama import Fore, Style
+from modules.languages import get_valid_languages
+
+# Define a constant variable for valid language choices
+VALID_LANGUAGES = get_valid_languages()
 from modules.stream_transcription_module import start_stream_transcription, stop_transcription
 import threading
 
@@ -105,12 +110,21 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         subprocess.CalledProcessError: If stream URL extraction fails
         Exception: For other unexpected errors during setup
     """
-    
-    # Get stream parameters
+      # Get stream parameters
     stream_language = args.stream_language
-    target_language = args.stream_target_language if args.stream_target_language else "en"
+    
+    # Handle target language (support both deprecated and new format)
+    if args.stream_target_language:
+        print(f"{Fore.YELLOW}Warning:{Style.RESET_ALL} --stream_target_language is deprecated. Please use --stream_transcribe <language> instead.")
+        target_language = args.stream_target_language
+    elif isinstance(args.stream_transcribe, str) and args.stream_transcribe in VALID_LANGUAGES:
+        target_language = args.stream_transcribe
+    else:
+        target_language = "en"  # Default to English
+        
     translate_task = bool(args.stream_translate)
-    transcribe_task = bool(args.stream_transcribe)
+    # If stream_transcribe is a string (language name), it means transcribe is enabled
+    transcribe_task = args.stream_transcribe is not False
       # Handle cookies if specified
     cookie_file_path = None
     if args.cookies:
