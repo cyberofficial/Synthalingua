@@ -157,6 +157,61 @@ def split_text_for_subtitles(text: str, start_time: float, end_time: float, max_
     
     return result
 
+def split_text_with_word_timestamps(words: List[Dict], max_chars: int = 60, max_words: int = 8) -> List[Tuple[str, float, float]]:
+    """
+    Split text using word-level timestamps for more accurate timing.
+    
+    Args:
+        words (List[Dict]): List of word dictionaries with 'word', 'start', 'end' keys
+        max_chars (int): Maximum characters per subtitle line
+        max_words (int): Maximum words per subtitle line
+    
+    Returns:
+        List[Tuple[str, float, float]]: List of (text_chunk, start_time, end_time) tuples
+    """
+    if not words:
+        return []
+    
+    chunks = []
+    current_chunk_words = []
+    current_chars = 0
+    
+    i = 0
+    while i < len(words):
+        word_data = words[i]
+        word = word_data.get("word", "").strip()
+        
+        if not word:  # Skip empty words
+            i += 1
+            continue
+            
+        word_chars = len(word) + (1 if current_chunk_words else 0)  # +1 for space
+        
+        # Check if adding this word would exceed limits
+        if (current_chars + word_chars > max_chars or len(current_chunk_words) >= max_words) and current_chunk_words:
+            # Finalize current chunk using actual word timestamps
+            chunk_text = " ".join([w.get("word", "").strip() for w in current_chunk_words])
+            chunk_start = current_chunk_words[0].get("start", 0.0)
+            chunk_end = current_chunk_words[-1].get("end", 0.0)
+            
+            chunks.append((chunk_text, chunk_start, chunk_end))
+            current_chunk_words = []
+            current_chars = 0
+        else:
+            # Add word to current chunk
+            current_chunk_words.append(word_data)
+            current_chars += word_chars
+            i += 1
+    
+    # Add remaining words as final chunk
+    if current_chunk_words:
+        chunk_text = " ".join([w.get("word", "").strip() for w in current_chunk_words])
+        chunk_start = current_chunk_words[0].get("start", 0.0)
+        chunk_end = current_chunk_words[-1].get("end", 0.0)
+        chunks.append((chunk_text, chunk_start, chunk_end))
+    
+    return chunks
+
 def format_words_with_confidence(text: str, avg_logprob: float) -> Tuple[str, float]:
     """
     Format words with color based on confidence.
@@ -300,25 +355,60 @@ def run_sub_gen(
             model_type=model_type,
             device=args.device,
             model_dir=model_dir
-        )
-
-        # Set up transcription options (matching Whisper's official implementation)
-        decode_options = {
-            "fp16": args.fp16,
-            "language": args.language,  # Use None for auto-detection
-            "task": task,
-            "word_timestamps": True,  # Enable word-level timestamps for better timing
-            "temperature": 0.0,
-            "compression_ratio_threshold": 2.4,
-            "logprob_threshold": -1.0,
-            "no_speech_threshold": 0.6,
-            "condition_on_previous_text": True
-        }
+        )        # Set up transcription options (matching Whisper's official implementation)
+        # Adjust parameters based on model type for better segmentation
+        if model_type == "turbo":
+            # Turbo model needs different parameters for proper segmentation
+            decode_options = {
+                "fp16": args.fp16,
+                "language": args.language,
+                "task": task,
+                "word_timestamps": True,
+                "temperature": 0.1,  # Slightly higher temperature for turbo
+                "compression_ratio_threshold": 2.0,  # Lower threshold for turbo
+                "logprob_threshold": -0.8,  # Higher threshold for turbo
+                "no_speech_threshold": 0.4,  # Lower threshold for turbo
+                "condition_on_previous_text": False,  # Disable for turbo to prevent long segments                "prepend_punctuations": "\"'([{-",
+                "append_punctuations": "\"\'.。,，!！?？:：\")]}、"
+            }
+        else:
+            # Standard parameters for other models
+            decode_options = {
+                "fp16": args.fp16,
+                "language": args.language,
+                "task": task,
+                "word_timestamps": True,
+                "temperature": 0.0,
+                "compression_ratio_threshold": 2.4,
+                "logprob_threshold": -1.0,
+                "no_speech_threshold": 0.6,
+                "condition_on_previous_text": True
+            }
 
         # Use Whisper's built-in transcription (no manual chunking)
         logger.info("Starting transcription process...")
-        result = model.transcribe(str(input_path_obj), **decode_options)        # Filter out empty segments and add progress display
+        result = model.transcribe(str(input_path_obj), **decode_options)        # Filter out empty segments and handle turbo model's long segments
         filtered_segments = []
+        total_segments_processed = 0
+        
+        # First pass: calculate total segments after potential splitting
+        total_final_segments = 0
+        for segment in result["segments"]:
+            if isinstance(segment, dict):
+                text = segment.get("text", "").strip()
+                if text:
+                    start_time = segment.get("start", 0.0)
+                    end_time = segment.get("end", 0.0)
+                    duration = end_time - start_time
+                    
+                    if model_type == "turbo" and duration > 10.0:
+                        # Count how many segments this will split into
+                        split_segments = split_text_for_subtitles(text, start_time, end_time, max_chars=80, max_words=12)
+                        total_final_segments += len(split_segments)
+                    else:
+                        total_final_segments += 1
+        
+        # Second pass: process segments with accurate progress tracking
         for idx, segment in enumerate(result["segments"]):
             # Ensure segment is treated as a dictionary
             if isinstance(segment, dict):
@@ -329,22 +419,67 @@ def run_sub_gen(
                 
             text = seg_dict.get("text", "").strip()
             if text:  # Only process non-empty segments
-                # Get colored text and confidence for display
-                avg_logprob = seg_dict.get("avg_logprob", -1)
-                colored_text, confidence = format_words_with_confidence(text, float(avg_logprob))
+                start_time = seg_dict.get("start", 0.0)
+                end_time = seg_dict.get("end", 0.0)
+                duration = end_time - start_time
                 
-                # Show progress with colored words and overall confidence
-                progress = (idx + 1) / len(result["segments"])
-                logger.info(
-                    "[%.2f%%] %s %s(%.2f%% confident)%s", 
-                    progress * 100, 
-                    colored_text,
-                    Fore.CYAN,
-                    confidence * 100,
-                    Style.RESET_ALL
-                )
-                
-                filtered_segments.append(seg_dict)
+                # If this is a turbo model and segment is very long, split it
+                if model_type == "turbo" and duration > 10.0:  # Split segments longer than 10 seconds
+                    # Try to use word-level timestamps if available
+                    words = seg_dict.get("words", [])
+                    if words and len(words) > 0:
+                        # Use word-level timestamps for more accurate splitting
+                        split_segments = split_text_with_word_timestamps(words, max_chars=80, max_words=12)
+                    else:
+                        # Fallback to proportional splitting
+                        split_segments = split_text_for_subtitles(text, start_time, end_time, max_chars=80, max_words=12)
+                    
+                    for chunk_text, chunk_start, chunk_end in split_segments:
+                        chunk_seg = {
+                            "start": chunk_start,
+                            "end": chunk_end,
+                            "text": chunk_text,
+                            "avg_logprob": seg_dict.get("avg_logprob", -1),
+                            "compression_ratio": seg_dict.get("compression_ratio", 1.0),
+                            "no_speech_prob": seg_dict.get("no_speech_prob", 0.0),
+                            "temperature": seg_dict.get("temperature", 0.0)
+                        }
+                        
+                        # Get colored text and confidence for display
+                        avg_logprob = chunk_seg.get("avg_logprob", -1)
+                        colored_text, confidence = format_words_with_confidence(chunk_text, float(avg_logprob))
+                        
+                        # Show progress with accurate calculation
+                        total_segments_processed += 1
+                        progress = total_segments_processed / total_final_segments
+                        logger.info(
+                            "[%.2f%%] %s %s(%.2f%% confident)%s", 
+                            progress * 100, 
+                            colored_text,
+                            Fore.CYAN,
+                            confidence * 100,
+                            Style.RESET_ALL
+                        )
+                        
+                        filtered_segments.append(chunk_seg)
+                else:
+                    # Normal processing for segments that don't need splitting
+                    avg_logprob = seg_dict.get("avg_logprob", -1)
+                    colored_text, confidence = format_words_with_confidence(text, float(avg_logprob))
+                    
+                    # Show progress with accurate calculation
+                    total_segments_processed += 1
+                    progress = total_segments_processed / total_final_segments
+                    logger.info(
+                        "[%.2f%%] %s %s(%.2f%% confident)%s", 
+                        progress * 100, 
+                        colored_text,
+                        Fore.CYAN,
+                        confidence * 100,
+                        Style.RESET_ALL
+                    )
+                    
+                    filtered_segments.append(seg_dict)
 
         # Update result with filtered segments
         result["segments"] = filtered_segments
