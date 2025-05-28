@@ -12,6 +12,26 @@ This module provides utilities for file operations including:
 import os
 from datetime import datetime
 from modules.discord import send_to_discord_webhook, send_error_notification
+from colorama import Fore, Style, init
+
+# Initialize colorama for Windows compatibility
+init(autoreset=True)
+
+def print_warning_message(message, icon="⚠️"):
+    """Print a warning message with styling."""
+    print(f"{Fore.YELLOW}{icon} {Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
+
+def print_info_message(message, icon="ℹ️"):
+    """Print an info message with styling."""
+    print(f"{Fore.CYAN}{icon} {Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
+
+def print_success_message(message, icon="✅"):
+    """Print a success message with styling."""
+    print(f"{Fore.GREEN}{icon} {Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
+
+def print_error_message(message, icon="❌"):
+    """Print an error message with styling."""
+    print(f"{Fore.RED}{icon} {Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
 
 def load_blacklist(filename):
     """
@@ -37,10 +57,45 @@ def load_blacklist(filename):
         with open(filename, "r", encoding="utf-8") as f:
             for line in f:
                 word = line.strip()
+                # Skip empty lines only
                 if word:
                     blacklist.append(word)
     except FileNotFoundError:
-        print(f"Warning: Blacklist file '{filename}' not found.")
+        print_warning_message(f"Ignorelist file '{filename}' not found.", "🚫")
+        print_info_message("An ignorelist file helps filter out unwanted words or phrases from transcriptions.")
+        
+        # Ask user if they want to create the file
+        try:
+            user_input = input(f"\n{Fore.YELLOW}📝 Would you like to create an ignorelist file at '{filename}'? (y/n): {Style.RESET_ALL}").lower().strip()
+            
+            if user_input == 'y' or user_input == 'yes':
+                try:
+                    # Create directory if it doesn't exist
+                    directory = os.path.dirname(filename)
+                    if directory and not os.path.exists(directory):
+                        os.makedirs(directory)
+                        print_info_message(f"Created directory: {directory}")
+                    
+                    # Create the file with basic example content (no comments)
+                    with open(filename, "w", encoding="utf-8") as f:
+                        f.write("thanks for watching\n")
+                        f.write("please subscribe\n")
+                        f.write("like and subscribe\n")
+                    
+                    print_success_message(f"Ignorelist file created at '{filename}'")
+                    print_info_message("You can edit this file to add words or phrases you want to filter out.")
+                    print_info_message("Each word or phrase should be on a separate line.")
+                    
+                except Exception as e:
+                    print_error_message(f"Failed to create ignorelist file: {e}")
+            else:
+                print_info_message("Continuing without ignorelist file. No filtering will be applied.")
+                
+        except KeyboardInterrupt:
+            print_info_message("\nContinuing without ignorelist file.")
+        except EOFError:
+            print_info_message("Continuing without ignorelist file.")
+    
     return blacklist
 
 def setup_temp_directory():
