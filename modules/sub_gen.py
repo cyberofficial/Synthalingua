@@ -24,11 +24,9 @@ Output is color-coded based on confidence levels:
 import logging
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
-from datetime import timedelta
 import numpy as np
 
 import whisper
-from whisper.utils import get_writer
 from colorama import Fore, Style, init
 from modules import parser_args
 
@@ -44,20 +42,27 @@ args = parser_args.parse_arguments()
 
 def format_timestamp(seconds: float) -> str:
     """
-    Convert seconds to SRT timestamp format.
+    Convert seconds to SRT timestamp format (matching Whisper's official implementation).
     
     Args:
         seconds (float): Time in seconds
         
     Returns:
-        str: Formatted timestamp
+        str: Formatted timestamp in SRT format (HH:MM:SS,mmm)
     """
-    td = timedelta(seconds=seconds)
-    hours = td.seconds//3600
-    minutes = (td.seconds//60)%60
-    seconds = td.seconds%60
-    milliseconds = td.microseconds//1000
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
+    assert seconds >= 0, "non-negative timestamp expected"
+    milliseconds = round(seconds * 1000.0)
+
+    hours = milliseconds // 3_600_000
+    milliseconds -= hours * 3_600_000
+
+    minutes = milliseconds // 60_000
+    milliseconds -= minutes * 60_000
+
+    seconds_part = milliseconds // 1_000
+    milliseconds -= seconds_part * 1_000
+
+    return f"{hours:02d}:{minutes:02d}:{seconds_part:02d},{milliseconds:03d}"
 
 def get_color_for_confidence(confidence: float) -> str:
     """
@@ -73,8 +78,84 @@ def get_color_for_confidence(confidence: float) -> str:
         return Fore.GREEN
     elif confidence >= 0.75:
         return Fore.YELLOW
+    else:        return Fore.RED
+
+def split_text_for_subtitles(text: str, start_time: float, end_time: float, max_chars: int = 60, max_words: int = 8) -> List[Tuple[str, float, float]]:
+    """
+    Split long text into readable subtitle chunks.
+    
+    Args:
+        text (str): The text to split
+        start_time (float): Start time of the original segment
+        end_time (float): End time of the original segment
+        max_chars (int): Maximum characters per subtitle line
+        max_words (int): Maximum words per subtitle line
+    
+    Returns:
+        List[Tuple[str, float, float]]: List of (text_chunk, start_time, end_time) tuples
+    """
+    # If text is already short enough, return as-is
+    if len(text) <= max_chars and len(text.split()) <= max_words:
+        return [(text, start_time, end_time)]
+    
+    words = text.split()
+    duration = end_time - start_time
+    chunks = []
+    current_chunk = []
+    current_chars = 0
+    
+    i = 0
+    while i < len(words):
+        word = words[i]
+        word_chars = len(word) + (1 if current_chunk else 0)  # +1 for space
+        
+        # Check if adding this word would exceed limits
+        if (current_chars + word_chars > max_chars or len(current_chunk) >= max_words) and current_chunk:
+            # Finalize current chunk
+            chunk_text = " ".join(current_chunk)
+            chunks.append(chunk_text)
+            current_chunk = []
+            current_chars = 0
+        else:
+            # Add word to current chunk
+            current_chunk.append(word)
+            current_chars += word_chars
+            i += 1
+    
+    # Add remaining words as final chunk
+    if current_chunk:
+        chunk_text = " ".join(current_chunk)
+        chunks.append(chunk_text)
+      # Assign timing to chunks proportionally based on text length
+    result = []
+    if len(chunks) == 1:
+        result.append((chunks[0], start_time, end_time))
     else:
-        return Fore.RED
+        # Calculate proportional timing based on character count
+        total_chars = sum(len(chunk) for chunk in chunks)
+        gap_time = min(0.1, duration * 0.02)  # Small gap between segments (max 0.1s)
+        available_duration = duration - (gap_time * (len(chunks) - 1))
+        
+        current_time = start_time
+        for idx, chunk in enumerate(chunks):
+            # Calculate duration proportional to text length
+            char_ratio = len(chunk) / total_chars if total_chars > 0 else 1.0 / len(chunks)
+            chunk_duration = available_duration * char_ratio
+            
+            # Ensure minimum duration of 0.5 seconds
+            chunk_duration = max(0.5, chunk_duration)
+            
+            chunk_start = current_time
+            chunk_end = current_time + chunk_duration
+            
+            # Ensure we don't exceed the original end time
+            if idx == len(chunks) - 1:  # Last chunk
+                chunk_end = end_time
+            
+            result.append((chunk, chunk_start, chunk_end))
+            current_time = chunk_end + gap_time
+    
+    return result
 
 def format_words_with_confidence(text: str, avg_logprob: float) -> Tuple[str, float]:
     """
@@ -100,26 +181,8 @@ def format_words_with_confidence(text: str, avg_logprob: float) -> Tuple[str, fl
         word_conf = min(1.0, max(0.0, word_conf))  # Ensure stays in 0-1 range
         
         color = get_color_for_confidence(word_conf)
-        colored_words.append(f"{color}{word}{Style.RESET_ALL}")
-    
+        colored_words.append(f"{color}{word}{Style.RESET_ALL}")    
     return " ".join(colored_words), confidence
-
-def write_caption(segment: Dict[str, Any], file_handle: Any) -> None:
-    """
-    Write a single caption segment.
-    
-    Args:
-        segment (Dict[str, Any]): Caption segment data
-        file_handle (Any): File handle to write to
-    """
-    index = segment.get("id", 0) + 1
-    start = format_timestamp(segment["start"])
-    end = format_timestamp(segment["end"])
-    text = segment["text"].strip()
-    
-    # Write to file in SRT format
-    caption = f"{index}\n{start} --> {end}\n{text}\n\n"
-    file_handle.write(caption)
 
 def get_model_type(ram: str, skip_warning: bool = False) -> str:
     """
@@ -217,16 +280,16 @@ def run_sub_gen(
     if not input_path:
         raise ValueError("Input path cannot be empty")
     
-    input_path = Path(input_path)
-    if not input_path.exists():
-        raise ValueError(f"Input file does not exist: {input_path}")
+    input_path_obj = Path(input_path)
+    if not input_path_obj.exists():
+        raise ValueError(f"Input file does not exist: {input_path_obj}")
     
     if task not in ["transcribe", "translate"]:
         raise ValueError("Task must be either 'transcribe' or 'translate'")
     
-    output_directory = Path(output_directory)
-    if not output_directory.exists():
-        output_directory.mkdir(parents=True, exist_ok=True)
+    output_directory_obj = Path(output_directory)
+    if not output_directory_obj.exists():
+        output_directory_obj.mkdir(parents=True, exist_ok=True)
 
     try:
         # Determine model type based on available RAM (skip warning for file input mode)
@@ -239,76 +302,67 @@ def run_sub_gen(
             model_dir=model_dir
         )
 
-        # Load audio
-        logger.info("Loading audio file...")
-        audio = whisper.load_audio(str(input_path))
-        mel = whisper.log_mel_spectrogram(audio).to(model.device)
-
-        # Detect language if needed
-        language = args.language
-        if language is None and model.is_multilingual:
-            logger.info("Detecting language...")
-            _, probs = model.detect_language(mel)
-            language = max(probs, key=probs.get)
-            logger.info(f"Detected language: {language}")
-
-        # Set up decoding options
+        # Set up transcription options (matching Whisper's official implementation)
         decode_options = {
             "fp16": args.fp16,
-            "language": language,
-            "task": task
+            "language": args.language,  # Use None for auto-detection
+            "task": task,
+            "word_timestamps": True,  # Enable word-level timestamps for better timing
+            "temperature": 0.0,
+            "compression_ratio_threshold": 2.4,
+            "logprob_threshold": -1.0,
+            "no_speech_threshold": 0.6,
+            "condition_on_previous_text": True
         }
 
-        # Process in segments with progress updates
+        # Use Whisper's built-in transcription (no manual chunking)
         logger.info("Starting transcription process...")
-        segments = []
-        
-        # Process in 30-second segments
-        chunk_size = 30 * whisper.audio.SAMPLE_RATE
-        for i in range(0, len(audio), chunk_size):
-            chunk_end = min(i + chunk_size, len(audio))
-            chunk = audio[i:chunk_end]
-            chunk_mel = whisper.log_mel_spectrogram(chunk).to(model.device)
-            
-            # Transcribe chunk
-            result = model.transcribe(chunk, **decode_options)
-            
-            # Calculate and show progress
-            progress = min(1.0, chunk_end / len(audio))
-            
-            # Add segments with adjusted timestamps and confidence
-            for seg in result["segments"]:
-                seg["start"] += i / whisper.audio.SAMPLE_RATE
-                seg["end"] += i / whisper.audio.SAMPLE_RATE
-                text = seg["text"].strip()
+        result = model.transcribe(str(input_path_obj), **decode_options)        # Filter out empty segments and add progress display
+        filtered_segments = []
+        for idx, segment in enumerate(result["segments"]):
+            # Ensure segment is treated as a dictionary
+            if isinstance(segment, dict):
+                seg_dict = segment
+            else:
+                # Skip if segment is not a dict (shouldn't happen with Whisper)
+                continue
                 
-                if text:  # Only process non-empty segments
-                    # Get colored text and confidence
-                    avg_logprob = seg.get("avg_logprob", -1)
-                    colored_text, confidence = format_words_with_confidence(text, avg_logprob)
-                    
-                    # Show progress with colored words and overall confidence
-                    logger.info(
-                        "[%.2f%%] %s %s(%.2f%% confident)%s", 
-                        progress * 100, 
-                        colored_text,
-                        Fore.CYAN,
-                        confidence * 100,
-                        Style.RESET_ALL
-                    )
-                    
-                segments.append(seg)
+            text = seg_dict.get("text", "").strip()
+            if text:  # Only process non-empty segments
+                # Get colored text and confidence for display
+                avg_logprob = seg_dict.get("avg_logprob", -1)
+                colored_text, confidence = format_words_with_confidence(text, float(avg_logprob))
+                
+                # Show progress with colored words and overall confidence
+                progress = (idx + 1) / len(result["segments"])
+                logger.info(
+                    "[%.2f%%] %s %s(%.2f%% confident)%s", 
+                    progress * 100, 
+                    colored_text,
+                    Fore.CYAN,
+                    confidence * 100,
+                    Style.RESET_ALL
+                )
+                
+                filtered_segments.append(seg_dict)
 
-        result = {"segments": segments, "language": language}
+        # Update result with filtered segments
+        result["segments"] = filtered_segments
 
-        # Generate subtitle file
+        # Generate subtitle file manually with correct timing
         logger.info("\nWriting subtitle file...")
-        output_path = output_directory / f"{output_name}.srt"
+        output_path = output_directory_obj / f"{output_name}.srt"
         
         with open(output_path, 'w', encoding='utf-8') as f:
-            for idx, segment in enumerate(result["segments"]):
-                segment["id"] = idx
-                write_caption(segment, f)
+            for idx, segment in enumerate(filtered_segments):
+                # Write SRT format: index, timestamp, text, blank line
+                start_time = format_timestamp(segment.get("start", 0.0))
+                end_time = format_timestamp(segment.get("end", 0.0))
+                text = segment.get("text", "").strip()
+                
+                f.write(f"{idx + 1}\n")
+                f.write(f"{start_time} --> {end_time}\n")
+                f.write(f"{text}\n\n")
         
         logger.info("Subtitle file saved to: %s", output_path)
         return result, output_name
