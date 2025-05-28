@@ -264,6 +264,10 @@ class TranscriptionCore:
 
         self._detect_language(mel)
         
+        # Override detected language with user-specified language if provided
+        if self.args.language:
+            self.detected_language = self.args.language
+        
         result = self._transcribe_audio(temp_file)
         self.original_text = result['text'].strip()
 
@@ -318,8 +322,11 @@ class TranscriptionCore:
                 print("Warning: FP16 is not supported on CPU; using FP32 instead")
                 dtype = torch.float32
 
+        # Use user-specified language if provided, otherwise use detected language
+        language_to_use = self.args.language if self.args.language else self.detected_language
+
         kwargs = {
-            'language': self.detected_language,
+            'language': language_to_use,
             'condition_on_previous_text': self.args.condition_on_previous_text,
             'fp16': dtype == torch.float16
         }
@@ -350,13 +357,16 @@ class TranscriptionCore:
             - Updates self.translated_text with the result
         """
         self.translated_text = ""
-        if self.detected_language != 'en':
+        # Use user-specified language if provided, otherwise use detected language
+        source_language = self.args.language if self.args.language else self.detected_language
+        
+        if source_language != 'en':
             if not self.args.no_log:
                 print("Translating...")
             
             kwargs = {
                 'task': 'translate',
-                'language': self.detected_language,
+                'language': source_language,
                 'condition_on_previous_text': self.args.condition_on_previous_text,
                 'fp16': isinstance(self.device, torch.device) and self.device.type == 'cuda'
             }
