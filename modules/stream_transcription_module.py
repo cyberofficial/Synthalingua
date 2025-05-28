@@ -831,7 +831,7 @@ def stop_transcription():
     shutdown_flag = True
 
 
-print_success_message("Stream Transcription Module Loaded", "🎵")
+print(f"{Fore.GREEN}✅ Stream Transcription Module Loaded{Style.RESET_ALL}")
 
 # Track repeated blocked phrases for auto-blocking (rolling window)
 blocked_phrase_history = {

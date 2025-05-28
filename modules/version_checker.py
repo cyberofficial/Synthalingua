@@ -163,4 +163,4 @@ def check_for_updates(updatebranch: str) -> None:
             print(f"Current version: {local_version}")
             print("\n\n")
 
-print("Version Checker Module Loaded")
+print(f"{Fore.GREEN}✅ Version Checker Module Loaded{Style.RESET_ALL}")

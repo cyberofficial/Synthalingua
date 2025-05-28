@@ -119,4 +119,4 @@ def parse_arguments():
     return parser.parse_args()
 
 
-print("Args Module Loaded")
+print(f"{Fore.GREEN}✅ Parser Args Module Loaded{Style.RESET_ALL}")
