@@ -111,15 +111,14 @@ class TranscriptionCore:
                 
                 phrase_complete = self._handle_phrase_timeout(now)
                 self._collect_audio_data(data_queue)
-                
-                # Only process with source for microphone input
+                  # Only process with source for microphone input
                 if source is not None:
                     self._process_audio_file(source, temp_file)
                 else:
                     # For non-microphone sources like streaming
                     self._process_audio_file_without_source(temp_file)
                 
-                if phrase_complete:
+                if phrase_complete or not self.transcription:
                     self.transcription.append((self.original_text, 
                                             self.translated_text if self.args.translate else None,
                                             self.transcribed_text if self.args.transcribe else None,
