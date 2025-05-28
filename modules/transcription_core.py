@@ -122,6 +122,7 @@ class TranscriptionCore:
                             self._perform_transcription_to_target(temp_file)
                         
                         self._display_results()
+                        self._update_api_headers()  # Update web server with transcription results
                         
                         self.transcription.append((
                             self.original_text, 
