@@ -793,13 +793,16 @@ def add_phrase_to_blocklist(phrase, blocklist_path):
     phrase = phrase.strip()
     if not phrase:
         return True  # treat as already blocked for debug logic
+    
     # Check if already in blocklist (case-insensitive, trimmed)
     try:
         if os.path.exists(blocklist_path):
             with open(blocklist_path, 'r', encoding='utf-8') as f:
                 lines = [line.strip().lower() for line in f.readlines()]
             if phrase.lower() in lines:
-                return True  # Already present, do not add again        with open(blocklist_path, 'a', encoding='utf-8') as f:
+                return True  # Already present, do not add again
+            
+        with open(blocklist_path, 'a', encoding='utf-8') as f:
             f.write(phrase + '\n')
         print_info_message(f"Auto-added phrase to blocklist: {phrase}", "🚫")
         return False

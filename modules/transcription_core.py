@@ -22,9 +22,11 @@ try:
     from modules.stream_transcription_module import add_phrase_to_blocklist, is_phrase_in_blocklist
 except ImportError:
     # Fallback if not available (for testing)
-    def add_phrase_to_blocklist(phrase, blocklist_path):
+    def add_phrase_to_blocklist(phrase, blocklist_path) -> bool:
+        # Always return False to match expected return type
         return False
-    def is_phrase_in_blocklist(phrase, blocklist_path):
+    def is_phrase_in_blocklist(phrase, blocklist_path) -> bool:
+        # Always return False to match expected return type
         return False
 
 class TranscriptionCore:
@@ -51,8 +53,7 @@ class TranscriptionCore:
         transcribed_text: Text transcribed to target language (if enabled)
     """
     
-    def __init__(self, args: Any, device: torch.device,
-                 audio_model: whisper.Whisper, blacklist: List[str]) -> None:
+    def __init__(self, args: Any, device: torch.device, audio_model: whisper.Whisper, blacklist: List[str]) -> None:
         """Initialize the TranscriptionCore.
         
         Args:
@@ -65,7 +66,7 @@ class TranscriptionCore:
         self.device = device
         self.audio_model = audio_model
         self.blacklist = blacklist
-        self.transcription: List[Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]] = ['']
+        self.transcription: List[Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]] = []
         self.phrase_time: Optional[datetime] = None
         self.last_sample: bytes = bytes()
         self.detected_language: Optional[str] = None
@@ -87,13 +88,13 @@ class TranscriptionCore:
         self._AUTO_BLOCKLIST_ENABLED = getattr(self.args, 'auto_blocklist', False)
         self._BLOCKLIST_PATH = getattr(self.args, 'ignorelist', None)
 
-    def process_audio(self, data_queue: Queue, source: sr.AudioSource,
+    def process_audio(self, data_queue: Queue, source: Optional[sr.AudioSource],
                      temp_file: str) -> bool:
         """Process audio data from the queue.
         
         Args:
             data_queue: Queue containing raw audio data
-            source: Audio source for recording
+            source: Audio source for recording. Can be None for non-microphone sources
             temp_file: Path to temporary file for audio processing
             
         Returns:
@@ -110,7 +111,13 @@ class TranscriptionCore:
                 
                 phrase_complete = self._handle_phrase_timeout(now)
                 self._collect_audio_data(data_queue)
-                self._process_audio_file(source, temp_file)
+                
+                # Only process with source for microphone input
+                if source is not None:
+                    self._process_audio_file(source, temp_file)
+                else:
+                    # For non-microphone sources like streaming
+                    self._process_audio_file_without_source(temp_file)
                 
                 if phrase_complete:
                     self.transcription.append((self.original_text, 
@@ -182,6 +189,25 @@ class TranscriptionCore:
         if self.args.transcribe:
             self._perform_transcription_to_target(temp_file)
 
+    def _process_audio_file_without_source(self, temp_file: str) -> None:
+        """Process the audio file without an audio source (for streaming).
+        
+        This method handles processing for non-microphone audio sources:
+        1. Perform initial transcription
+        2. Handle translation if enabled
+        3. Handle target language transcription if enabled
+        
+        Args:
+            temp_file: Path to temporary file for audio processing
+        """
+        self._perform_transcription(temp_file)
+        
+        if self.args.translate:
+            self._perform_translation(temp_file)
+            
+        if self.args.transcribe:
+            self._perform_transcription_to_target(temp_file)
+
     def _prepare_audio_data(self, source: sr.AudioSource) -> sr.AudioData:
         """Convert raw audio data to AudioData object.
         
@@ -190,8 +216,17 @@ class TranscriptionCore:
             
         Returns:
             sr.AudioData: Processed audio data ready for transcription
+            
+        Raises:
+            AttributeError: If source does not have required attributes
         """
-        return sr.AudioData(self.last_sample, source.SAMPLE_RATE, source.SAMPLE_WIDTH)
+        try:
+            sample_rate = getattr(source, 'SAMPLE_RATE', 16000)
+            sample_width = getattr(source, 'SAMPLE_WIDTH', 2)
+            return sr.AudioData(self.last_sample, sample_rate, sample_width)
+        except Exception as e:
+            print(f"Error preparing audio data: {e}")
+            return sr.AudioData(self.last_sample, 16000, 2)
 
     def _save_audio_data(self, audio_data: sr.AudioData, temp_file: str) -> None:
         """Save audio data to a temporary WAV file.
@@ -232,52 +267,34 @@ class TranscriptionCore:
         self.original_text = result['text'].strip()
 
     def _detect_language(self, mel: torch.Tensor) -> None:
-        """Detect or determine the language of the audio input.
-        
-        This method determines the language through one of these methods:
-        1. Use English if model is English-specific
-        2. Use stream language if specified
-        3. Use explicitly set language if provided
-        4. Detect language using the model
+        """Detect the language of the audio content.
         
         Args:
-            mel: Mel spectrogram of the audio input
-        """
-        if ".en" in self.args.model:
-            self.detected_language = "English"
-        elif self.args.stream_language:
-            print(f"Language Set: {self.args.stream_language}\n")
-            self.detected_language = self.args.stream_language
-        elif self.args.language:
-            self.detected_language = self.args.language
-        else:
-            if not self.args.no_log:
-                print(f"Detecting Language\n")
-            _, language_probs = self.audio_model.detect_language(mel)
-            self.detected_language = max(language_probs, key=language_probs.get)
-            self._update_language_confidence(language_probs)
-
-    def _update_language_confidence(self, language_probs: Dict[str, float]) -> None:
-        """Update and display the confidence level for detected language.
-        
-        Args:
-            language_probs: Dictionary mapping language codes to confidence scores
-        
-        Raises:
-            KeyError: If detected language is not found in probability dictionary
+            mel: Mel spectrogram of the audio
         """
         try:
-            confidence = language_probs[self.detected_language] * 100
-            confidence_color = (Fore.GREEN if confidence > 75
-                               else (Fore.YELLOW if confidence > 50 else Fore.RED))
-            set_window_title(self.detected_language, confidence)
-            if not self.args.no_log:
-                print(f"Detected language: {self.detected_language} "
-                      f"{confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
-        except KeyError:
-            print(f"Warning: Could not determine confidence for language {self.detected_language}")
+            _, probs = self.audio_model.detect_language(mel)
+            if isinstance(probs, dict):
+                # Find the language with highest probability
+                self.detected_language = str(max(probs.items(), key=lambda x: x[1])[0])
+                self._update_language_confidence(probs)
         except Exception as e:
-            print(f"Error updating language confidence: {str(e)}")
+            print(f"Error detecting language: {e}")
+            self.detected_language = None
+
+    def _update_language_confidence(self, language_probs: Dict[str, float]) -> None:
+        """Update window title with language confidence.
+        
+        Args:
+            language_probs: Dictionary of language probabilities
+        """
+        try:
+            if self.detected_language and self.detected_language in language_probs:
+                confidence = language_probs[self.detected_language] * 100
+                if hasattr(self, 'args') and hasattr(self.args, 'model'):
+                    set_window_title(self.detected_language, confidence, self.args.model)
+        except Exception as e:
+            print(f"Error updating language confidence: {e}")
 
     def _transcribe_audio(self, temp_file: str) -> Dict[str, Any]:
         """Transcribe audio file using the Whisper model.
@@ -335,30 +352,27 @@ class TranscriptionCore:
         if self.detected_language != 'en':
             if not self.args.no_log:
                 print("Translating...")
-            # Handle FP16 settings properly
-            dtype = torch.float16 if self.args.fp16 else torch.float32
-            if self.device == torch.device("cpu"):
-                if torch.cuda.is_available():
-                    print("Warning: Performing inference on CPU when CUDA is available")
-                if dtype == torch.float16:
-                    print("Warning: FP16 is not supported on CPU; using FP32 instead")
-                    dtype = torch.float32
-
+            
             kwargs = {
                 'task': 'translate',
                 'language': self.detected_language,
                 'condition_on_previous_text': self.args.condition_on_previous_text,
-                'fp16': dtype == torch.float16
+                'fp16': isinstance(self.device, torch.device) and self.device.type == 'cuda'
             }
                 
-            translated_result = self.audio_model.transcribe(temp_file, **kwargs)
-            self.translated_text = translated_result['text'].strip()
-            
-            if self.translated_text == "" and self.args.retry:
-                if not self.args.no_log:
-                    print("Translation failed, trying again...")
+            try:
                 translated_result = self.audio_model.transcribe(temp_file, **kwargs)
-                self.translated_text = translated_result['text'].strip()
+                if isinstance(translated_result, dict) and 'text' in translated_result:
+                    self.translated_text = str(translated_result['text']).strip()
+            
+                if not self.translated_text and self.args.retry:
+                    if not self.args.no_log:
+                        print("Translation failed, trying again...")
+                    translated_result = self.audio_model.transcribe(temp_file, **kwargs)
+                    if isinstance(translated_result, dict) and 'text' in translated_result:
+                        self.translated_text = str(translated_result['text']).strip()
+            except Exception as e:
+                print(f"Error in translation: {e}")
 
     def _perform_transcription_to_target(self, temp_file: str) -> None:
         """Transcribe audio to the specified target language.
@@ -370,33 +384,27 @@ class TranscriptionCore:
             - Will retry once if transcription fails and retry flag is set
             - Updates self.transcribed_text with the result
         """
-        if not self.args.no_log:
-            print(f"Transcribing to {self.args.target_language}...")
-            
-        # Handle FP16 settings properly
-        dtype = torch.float16 if self.args.fp16 else torch.float32
-        if self.device == torch.device("cpu"):
-            if torch.cuda.is_available():
-                print("Warning: Performing inference on CPU when CUDA is available")
-            if dtype == torch.float16:
-                print("Warning: FP16 is not supported on CPU; using FP32 instead")
-                dtype = torch.float32
-
-        kwargs = {
-            'task': 'transcribe',
-            'language': self.args.target_language,
-            'condition_on_previous_text': self.args.condition_on_previous_text,
-            'fp16': dtype == torch.float16
-        }
-            
-        transcribed_result = self.audio_model.transcribe(temp_file, **kwargs)
-        self.transcribed_text = transcribed_result['text'].strip()
-        
-        if self.transcribed_text == "" and self.args.retry:
-            if not self.args.no_log:
-                print("Transcribe failed, trying again...")
+        try:
+            kwargs = {
+                'task': 'transcribe',
+                'language': self.args.target_language,
+                'condition_on_previous_text': self.args.condition_on_previous_text,
+                'fp16': isinstance(self.device, torch.device) and self.device.type == 'cuda'
+            }
+                
             transcribed_result = self.audio_model.transcribe(temp_file, **kwargs)
-            self.transcribed_text = transcribed_result['text'].strip()
+            if isinstance(transcribed_result, dict) and 'text' in transcribed_result:
+                self.transcribed_text = str(transcribed_result['text']).strip()
+            
+            if not self.transcribed_text and self.args.retry:
+                if not self.args.no_log:
+                    print("Transcribe failed, trying again...")
+                transcribed_result = self.audio_model.transcribe(temp_file, **kwargs)
+                if isinstance(transcribed_result, dict) and 'text' in transcribed_result:
+                    self.transcribed_text = str(transcribed_result['text']).strip()
+        except Exception as e:
+            print(f"Error in transcription: {e}")
+            self.transcribed_text = ""
 
     def _update_api_headers(self) -> None:
         """Check if API port is specified and update headers."""
@@ -429,15 +437,16 @@ class TranscriptionCore:
             print(f"Warning: Failed to update API headers: {str(e)}")
 
     def _filter_text(self, text: Optional[str]) -> str:
-        """Filter text by removing blacklisted words.
+        """Filter and process text output.
         
         Args:
-            text: Input text to filter, can be None
+            text: Text to filter, can be None
             
         Returns:
-            str: Filtered text with blacklisted words removed,
-                 or empty string if input is None
+            str: Filtered text, empty string if input is None
         """
+        if text is None:
+            return ""
         filtered_text = text.lower()
         for phrase in self.blacklist:
             filtered_text = re.sub(rf"\b{phrase.lower()}\b", "", filtered_text).strip()
@@ -445,41 +454,19 @@ class TranscriptionCore:
 
     def _display_results(self) -> None:
         """Display the current transcription results with suppression/blocklist logic."""
-        # Original
         filtered_text = self._filter_text(self.original_text)
-        if filtered_text:
-            if not self._should_block_output(filtered_text, 'original'):
-                if not self.args.no_log:
-                    self._display_full_results(filtered_text)
-                else:
-                    self._display_simple_results(filtered_text)
-            else:
-                if self._DEBUG_BLOCK_SIMILAR:
-                    print(f"[DEBUG] Blocked similar or blocklisted original message: {filtered_text}")
-        # Translation
+        if filtered_text and not self._should_block_output(filtered_text, 'original'):
+            print(f"Original text: {filtered_text}")
+
         if self.args.translate and self.translated_text:
             filtered_translated = self._filter_text(self.translated_text)
             if filtered_translated and not self._should_block_output(filtered_translated, 'translation'):
-                if not self.args.no_log:
-                    print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} EN Translation {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{filtered_translated}\n")
-                else:
-                    print(f"[Translation (EN)]: {filtered_translated}\n")
-            else:
-                if self._DEBUG_BLOCK_SIMILAR:
-                    print(f"[DEBUG] Blocked similar or blocklisted translation message: {filtered_translated}")
-        # Target transcription
+                print(f"Translation (EN): {filtered_translated}")
+
         if self.args.transcribe and self.transcribed_text:
             filtered_transcribed = self._filter_text(self.transcribed_text)
             if filtered_transcribed and not self._should_block_output(filtered_transcribed, 'target'):
-                if not self.args.no_log:
-                    print(f"{'-' * int((shutil.get_terminal_size().columns - 15) / 2)} {self.detected_language} -> {self.args.target_language} {'-' * int((shutil.get_terminal_size().columns - 15) / 2)}")
-                    print(f"{filtered_transcribed}\n")
-                else:
-                    print(f"[Transcription ({self.detected_language} -> {self.args.target_language})]: {filtered_transcribed}\n")
-            else:
-                if self._DEBUG_BLOCK_SIMILAR:
-                    print(f"[DEBUG] Blocked similar or blocklisted target transcription message: {filtered_transcribed}")
+                print(f"Transcription ({self.detected_language} -> {self.args.target_language}): {filtered_transcribed}")
 
     def _should_block_output(self, text, key):
         """Return True if text should be suppressed due to similarity or blocklist, and handle auto-blocklist."""
