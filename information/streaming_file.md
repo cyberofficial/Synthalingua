@@ -7,7 +7,7 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 |-------------------------|------------------------------------------------------------------|
 | `--stream`              | Stream audio from an HLS source (e.g., Twitch, YouTube).         |
 | `--stream_language`     | Language of the stream (default: English).                       |
-| `--stream_target_language` | [DEPRECATED] Language to translate the stream to. Use --stream_transcribe <language> instead. |
+| `--stream_target_language` | [DEPRECATED - WILL BE REMOVED SOON] Language to translate the stream to. Use --stream_transcribe <language> instead. |
 | `--stream_translate`    | Enable translation for the stream.                               |
 | `--stream_transcribe [language]` | Enable transcription for the stream with optional target language (e.g., --stream_transcribe English). |
 | `--stream_original_text`| Show detected original text from the stream.                     |

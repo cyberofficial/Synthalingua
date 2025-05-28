@@ -53,10 +53,10 @@ def main():
         reset_text = Style.RESET_ALL
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
         sys.exit("Exiting...")    # Check for correct transcription arguments
-    if args.stream_transcribe is True and args.stream_target_language is None:
-        # User used --stream_transcribe without a language and without --stream_target_language
+    if args.stream_transcribe is True and not isinstance(args.stream_transcribe, str):
+        # User used --stream_transcribe without a language
         print(f"{Fore.YELLOW}Note:{Style.RESET_ALL} Stream transcribe is set without a target language. Using 'English' as default.")
-        args.stream_target_language = "English"
+        args.stream_transcribe = "English"
 
     # Load blacklist (skip empty lines)
     blacklist = []
