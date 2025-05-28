@@ -133,7 +133,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ### Model & Device
 | Flag | Description |
 |------|-------------|
-| `--ram` | Model size (1gb, 2gb, 4gb, 6gb, 11gb-v2, 11gb-v3) |
+| `--ram` | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3) |
 | `--ramforce` | Force RAM/VRAM model |
 | `--fp16` | Enable FP16 mode |
 | `--device` | Device: cpu/cuda |
