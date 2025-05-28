@@ -111,11 +111,41 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         Exception: For other unexpected errors during setup
     """
       # Get stream parameters
-    stream_language = args.stream_language
-    
-    # Handle target language (support both deprecated and new format)
+    stream_language = args.stream_language      # Handle target language (support both deprecated and new format)
     if args.stream_target_language:
-        print(f"{Fore.YELLOW}Warning:{Style.RESET_ALL} --stream_target_language is deprecated. Please use --stream_transcribe <language> instead.")
+        # Create a dramatic warning box
+        import shutil
+        import textwrap
+        
+        # Get terminal width (default to 80 if can't determine)
+        terminal_width = shutil.get_terminal_size(fallback=(80, 24)).columns
+        box_width = min(terminal_width - 4, 80)  # Keep readable
+        
+        # Create a row of red exclamation marks
+        exclamation_row = f"{Fore.RED}{'!' * box_width}{Style.RESET_ALL}"
+        
+        # Warning message
+        warning_message = "--stream_target_language is deprecated and will be removed in a future update. Please update your scripts/commands to use --stream_transcribe <language> instead."
+        
+        # Wrap the text to fit within the box
+        wrapped_lines = textwrap.wrap(warning_message, width=box_width-4)  # -4 for padding
+        
+        # Print the warning box
+        print("\n" + exclamation_row)
+        print(f"{Fore.RED}┌{'─' * box_width}┐{Style.RESET_ALL}")
+        print(f"{Fore.RED}│ {Style.BRIGHT}⚠️  IMPORTANT DEPRECATION WARNING{' ' * (box_width - 32)} │{Style.RESET_ALL}")
+        print(f"{Fore.RED}├{'─' * box_width}┤{Style.RESET_ALL}")
+        
+        for line in wrapped_lines:
+            padding = box_width - len(line) - 2
+            print(f"{Fore.RED}│ {Style.RESET_ALL}{line}{' ' * padding}{Fore.RED}│{Style.RESET_ALL}")
+        
+        print(f"{Fore.RED}└{'─' * box_width}┘{Style.RESET_ALL}")
+        print(exclamation_row + "\n")
+        
+        # Proxy behavior: set stream_transcribe if not already set to maintain backward compatibility
+        if not args.stream_transcribe:
+            args.stream_transcribe = args.stream_target_language
         target_language = args.stream_target_language
     elif isinstance(args.stream_transcribe, str) and args.stream_transcribe in VALID_LANGUAGES:
         target_language = args.stream_transcribe
