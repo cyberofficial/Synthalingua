@@ -30,6 +30,7 @@ from functools import lru_cache
 import ssl
 import tempfile
 from werkzeug.serving import make_server
+from colorama import Fore, Style
 
 # State management class
 class HeaderState:
@@ -415,4 +416,4 @@ def update_transcribed_header(new_header):
     """Updates the transcribed text."""
     state.update_transcribed_header(new_header)
 
-print("Web Server Module Loaded")
+print(f"{Fore.GREEN}✅ Web Server Module Loaded{Style.RESET_ALL}")

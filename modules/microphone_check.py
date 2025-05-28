@@ -8,6 +8,7 @@ It uses the speech_recognition library to perform the verification.
 
 import speech_recognition as sr
 from speech_recognition.__main__ import r
+from colorama import Fore, Style
 
 def microphone_check():
     """
@@ -35,4 +36,4 @@ def microphone_check():
     print("\n\n")
     return True
 
-print("Microphone Check Module Loaded")
+print(f"{Fore.GREEN}✅ Microphone Check Module Loaded{Style.RESET_ALL}")

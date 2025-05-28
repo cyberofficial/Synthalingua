@@ -137,4 +137,4 @@ def contributors(ScriptCreator, GitHubRepo):
     
     sys.exit()
 
-print("About Module Loaded")
+print(f"{Fore.GREEN}✅ About Module Loaded{Style.RESET_ALL}")

@@ -318,4 +318,4 @@ def run_sub_gen(
         raise RuntimeError(f"Subtitle generation failed: {str(e)}")
 
 # Indicate that the subtitles generator module is loaded.
-logger.info("Subtitles Generator Module Loaded")
+print(f"{Fore.GREEN}✅ Subtitles Generator Module Loaded{Style.RESET_ALL}")

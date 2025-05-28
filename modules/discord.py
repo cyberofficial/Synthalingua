@@ -173,4 +173,4 @@ def send_error_notification(webhook_url, error_message):
     formatted_message = f"💥 **System Error Occurred**\n```\n{error_message}\n```\n\n🔧 Please check the logs for more details."
     send_to_discord_webhook(webhook_url, formatted_message, "error")
 
-print(f"{Fore.GREEN}✅ [SUCCESS]{Style.RESET_ALL} Discord Module Loaded with Enhanced Formatting")
+print(f"{Fore.GREEN}✅ Discord Module Loaded{Style.RESET_ALL}")
