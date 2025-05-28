@@ -25,6 +25,7 @@ import logging
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
 import numpy as np
+import gc
 
 import whisper
 from colorama import Fore, Style, init
@@ -306,6 +307,35 @@ def load_whisper_model(
     except Exception as e:
         raise RuntimeError(f"Failed to load Whisper model: {str(e)}")
 
+def unload_model(model: whisper.Whisper) -> None:
+    """
+    Unload the Whisper model and clear VRAM/RAM.
+    
+    Args:
+        model (whisper.Whisper): The Whisper model to unload
+    """
+    try:
+        # Delete the model from memory
+        del model
+        
+        # Force garbage collection
+        gc.collect()
+        
+        # Clear CUDA cache if using GPU
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.info("🗑️ VRAM cleared")
+        except ImportError:
+            # torch not available, skip CUDA cleanup
+            pass
+            
+        logger.info("🗑️ Model unloaded and memory cleared")
+        
+    except Exception as e:
+        logger.warning("Failed to completely unload model: %s", str(e))
+
 def run_sub_gen(
     input_path: str, 
     output_name: str = "", 
@@ -506,9 +536,19 @@ def run_sub_gen(
                 f.write(f"{text}\n\n")
         
         logger.info("Subtitle file saved to: %s", output_path)
+        
+        # Unload model to free VRAM/RAM
+        unload_model(model)
+        
         return result, output_name
 
     except Exception as e:
+        # Ensure model is unloaded even if there's an error
+        try:
+            unload_model(model)
+        except:
+            pass  # Model might not be loaded if error occurred during loading
+            
         logger.error("Failed to generate subtitles: %s", str(e))
         raise RuntimeError(f"Subtitle generation failed: {str(e)}")
 

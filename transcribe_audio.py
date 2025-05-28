@@ -145,7 +145,7 @@ def main():
         # Check if compare mode is enabled
         if args.makecaptions == "compare":
             # Run through all RAM options from 11gb-v3 backwards
-            ram_options = ["11gb-v3", "11gb-v2", "7gb", "6gb", "3gb", "2gb", "1gb"]
+            ram_options = ["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"]
             original_ram = args.ram  # Save original RAM setting            
             print(f"🔄 Compare mode enabled - generating captions with all RAM models...")
             print(f"📁 Output files will be saved to: {args.file_output}")
@@ -154,13 +154,13 @@ def main():
             
             for i, ram_option in enumerate(ram_options):
                 print(f"[{i+1}/{len(ram_options)}] Processing with {ram_option} model...")
-                args.ram = ram_option  # Temporarily change RAM setting
-                # Create unique output filename for each model
+                args.ram = ram_option  # Temporarily change RAM setting                # Create unique output filename for each model
                 model_output_name = f"{args.file_output_name}.{ram_option}"
                 
                 try:
                     run_sub_gen(args.file_input, model_output_name, args.file_output, ram_setting=ram_option)
                     print(f"✅ Completed {ram_option} model - saved as '{model_output_name}'")
+                    print("🗑️ Model unloaded, VRAM/RAM freed for next model")
                 except Exception as e:
                     print(f"❌ Error with {ram_option} model: {e}")
                     print(f"⏭️  Continuing with next model...")
