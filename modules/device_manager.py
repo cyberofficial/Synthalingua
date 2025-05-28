@@ -50,9 +50,7 @@ def get_microphone_source(args):
         args: Command line arguments containing microphone settings
 
     Returns:
-        tuple: (sr.Microphone, sr.Microphone, str) - Two configured microphone objects and device name
-
-    Raises:
+        tuple: (sr.Microphone, sr.Microphone, str) - Two configured microphone objects and device name    Raises:
         ValueError: If no valid input devices are found
     """
     pa = pyaudio.PyAudio()
@@ -84,11 +82,20 @@ def get_microphone_source(args):
                 break
 
     if device_index is None:
-        raise ValueError("No valid input devices found.")
-
-    # Create two separate microphone instances with the same settings
-    source_calibration = sr.Microphone(sample_rate=16000, device_index=device_index)
-    source_listening = sr.Microphone(sample_rate=16000, device_index=device_index)
+        raise ValueError("No valid input devices found.")    # Create two separate microphone instances with enhanced quality settings
+    # Using 48000 Hz sample rate for better audio quality (professional standard)
+    # This provides better frequency response and less aliasing
+    # Added chunk_size=4096 for higher quality audio capture (larger buffer = better quality)
+    source_calibration = sr.Microphone(
+        sample_rate=48000, 
+        device_index=device_index,
+        chunk_size=4096  # Larger chunk size for better audio quality
+    )
+    source_listening = sr.Microphone(
+        sample_rate=48000, 
+        device_index=device_index,
+        chunk_size=4096  # Larger chunk size for better audio quality
+    )
     
     return source_calibration, source_listening, mic_name
 
