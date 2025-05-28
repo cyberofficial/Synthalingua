@@ -24,11 +24,20 @@ def is_input_device(device_index):
         device_index (int): Index of the audio device to check
 
     Returns:
-        bool: True if device is an input device, False otherwise
-    """
+        bool: True if device is an input device, False otherwise    """
     pa = pyaudio.PyAudio()
     device_info = pa.get_device_info_by_index(device_index)
-    return device_info['maxInputChannels'] > 0
+    max_input_channels = device_info['maxInputChannels']
+    
+    # Ensure we have a numeric value for comparison
+    if isinstance(max_input_channels, (int, float)):
+        return max_input_channels > 0
+    else:
+        # If it's not numeric, try to convert it
+        try:
+            return int(max_input_channels) > 0
+        except (ValueError, TypeError):
+            return False
 
 def get_microphone_source(args):
     """
