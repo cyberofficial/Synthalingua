@@ -14,17 +14,55 @@ def valid_port_number(value):
 def set_model_by_ram(ram, language):
     ram = ram.lower()
     language = language.lower() if language else ""
+    is_english = language in ("en", "english")
+    
     if ram == "1gb":
-        model = "tiny.en" if language in ("en", "english") else "tiny"
+        if is_english:
+            model_en = "tiny.en"
+            model_multi = "tiny"
+            print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (tiny.en) or multilingual model (tiny).")
+            if input("Use English-specific model? (y/n): ").lower() == "y":
+                model = model_en
+            else:
+                model = model_multi
+        else:
+            model = "tiny"
     elif ram == "2gb":
-        model = "base.en" if language in ("en", "english") else "base"
+        if is_english:
+            model_en = "base.en"
+            model_multi = "base"
+            print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (base.en) or multilingual model (base).")
+            if input("Use English-specific model? (y/n): ").lower() == "y":
+                model = model_en
+            else:
+                model = model_multi
+        else:
+            model = "base"
     elif ram == "3gb":
-        model = "small.en" if language in ("en", "english") else "small"
+        if is_english:
+            model_en = "small.en"
+            model_multi = "small"
+            print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (small.en) or multilingual model (small).")
+            if input("Use English-specific model? (y/n): ").lower() == "y":
+                model = model_en
+            else:
+                model = model_multi
+        else:
+            model = "small"
     elif ram == "6gb":
-        model = "medium.en" if language in ("en", "english") else "medium"
+        if is_english:
+            model_en = "medium.en"
+            model_multi = "medium"
+            print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (medium.en) or multilingual model (medium).")
+            if input("Use English-specific model? (y/n): ").lower() == "y":
+                model = model_en
+            else:
+                model = model_multi
+        else:
+            model = "medium"
     elif ram == "7gb":
         model = "turbo"
-        if language in ("en", "english"):
+        if is_english:
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: The turbo model is multilingual and works for all languages.")
     elif ram in ("11gb-v2", "11gb-v3"):
         if ram == "11gb-v2":
@@ -33,7 +71,7 @@ def set_model_by_ram(ram, language):
         else:
             model = "large-v3"
             version = "Version 3"
-        if language in ("en", "english"):
+        if is_english:
             red_text = Fore.RED + Back.BLACK
             green_text = Fore.GREEN + Back.BLACK
             yellow_text = Fore.YELLOW + Back.BLACK
