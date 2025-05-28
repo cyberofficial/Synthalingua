@@ -180,7 +180,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ### Output, Captions, and Filtering
 | Flag | Description |
 |------|-------------|
-| `--makecaptions` | Captions mode |
+| `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
@@ -208,6 +208,10 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 - **Captions mode:**
   ```sh
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Captions compare mode (all models):**
+  ```sh
+  python transcribe_audio.py --makecaptions compare --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
   ```sh
