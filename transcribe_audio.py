@@ -52,11 +52,11 @@ def main():
         print("You can only use one input source. Please only set one input source.")
         reset_text = Style.RESET_ALL
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-        sys.exit("Exiting...")
-
-    if args.stream_transcribe and args.stream_target_language is None:
-        print("Stream Transcribe is set but no stream target language is set. Please set a stream target language.")
-        sys.exit("Exiting...")
+        sys.exit("Exiting...")    # Check for correct transcription arguments
+    if args.stream_transcribe is True and args.stream_target_language is None:
+        # User used --stream_transcribe without a language and without --stream_target_language
+        print(f"{Fore.YELLOW}Note:{Style.RESET_ALL} Stream transcribe is set without a target language. Using 'English' as default.")
+        args.stream_target_language = "English"
 
     # Load blacklist (skip empty lines)
     blacklist = []
@@ -138,7 +138,9 @@ def main():
     if webhook_url:
         translation_status = args.translate
         model_info = f"{args.ram} model"
-        send_startup_notification(webhook_url, model_info, translation_status)
+        # Include stream source if available
+        stream_source = args.stream if args.stream else None
+        send_startup_notification(webhook_url, model_info, translation_status, stream_source)
 
     # Handle caption generation
     if args.makecaptions:
