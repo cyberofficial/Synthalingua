@@ -30,6 +30,8 @@ import difflib
 from modules.similarity_utils import is_similar
 from collections import deque
 from colorama import Fore, Back, Style, init
+from urllib.parse import urlparse
+from modules.rate_limiter import global_rate_limiter
 
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
@@ -243,13 +245,11 @@ def start_stream_transcription(
         params = None
 
     global shutdown_flag
-    audio_queue = queue.Queue()
-
-    # Load cookies if a cookie file path is provided
+    audio_queue = queue.Queue()    # Load cookies if a cookie file path is provided
     cookies = None
     if cookie_file_path:
         cookies = load_cookies_from_file(cookie_file_path)
-
+        
     def download_segment(
         segment_url, output_path, max_retries=3, retry_delay=0.5, segment_delay=0
     ):
@@ -260,21 +260,28 @@ def start_stream_transcription(
             segment_url (str): URL of the segment to download
             output_path (str): Path where the downloaded segment will be saved
             max_retries (int, optional): Maximum number of retry attempts. Defaults to 3
-            retry_delay (float, optional): Delay between retries in seconds. Defaults to 0.5
+            retry_delay (float, optional): Initial delay between retries in seconds. Defaults to 0.5
             segment_delay (float, optional): Delay after successful download. Defaults to 0
 
         Returns:
-            bool: True if download was successful, False otherwise        This function attempts to download a segment with retry logic for robustness.
+            bool: True if download was successful, False otherwise
+        
+        This function attempts to download a segment with retry logic for robustness.
         It handles authentication via cookies or stream keys, and includes proper
         error handling for network issues and invalid credentials.
+        When 429 errors are encountered, the delay will be increased using the rate_limiter.
         """
         global kill
+        # Get host from URL for rate limiting
+        host = urlparse(segment_url).netloc
+        
         with download_semaphore:
             for retry_count in range(max_retries + 1):
                 try:
                     # show downloading segments if args debug is set
                     if args.debug:
                         print_debug_message(f"Downloading segment: {segment_url}")
+                    
                     response = (
                         requests.get(
                             segment_url, stream=True, cookies=cookies, params=params
@@ -288,6 +295,8 @@ def start_stream_transcription(
                         with open(output_path, "wb") as file:
                             for chunk in response.iter_content(chunk_size=16000):
                                 file.write(chunk)
+                        # Reset delay on successful request
+                        global_rate_limiter.reset_delay(host)
                         # time.sleep(segment_delay)  # Optional delay
                         return True
                     elif response.status_code == 401:
@@ -295,20 +304,42 @@ def start_stream_transcription(
                         input(f"{Fore.RED}Press CTRL+C to exit...{Style.RESET_ALL}")
                         kill = True
                         raise Exception("Exiting due to invalid credentials")
+                    elif response.status_code == 429:
+                        # Use rate limiter to increase delay
+                        delay = global_rate_limiter.increase_delay(host)
+                        print_error_message(f"Rate limit exceeded (HTTP 429). Increasing delay to {delay:.1f} seconds...")
+                        time.sleep(delay)
                     else:
                         print_warning_message(f"Failed to download segment, status code: {response.status_code}. Retrying {retry_count}/{max_retries}")
                 except requests.exceptions.RequestException as e:
-                    print_error_message(f"Network error: {e}. Retrying {retry_count}/{max_retries} in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
+                    # Check if it's a 429 error
+                    is_rate_limited = "429" in str(e) or "Too Many Requests" in str(e)
+                    
+                    if is_rate_limited:
+                        delay = global_rate_limiter.increase_delay(host)
+                        print_error_message(f"Rate limit exceeded (HTTP 429). Increasing delay to {delay:.1f} seconds...")
+                    else:
+                        delay = global_rate_limiter.get_delay(host)
+                        print_error_message(f"Network error: {e}. Retrying {retry_count}/{max_retries} in {delay:.1f} seconds...")
+                    
+                    time.sleep(delay)
                 except Exception as e:
-                    print_error_message(f"Unexpected error downloading segment: {e}")
-                    break
+                    # Check if it's a 429 error
+                    is_rate_limited = "429" in str(e) or "Too Many Requests" in str(e)
+                    
+                    if is_rate_limited:
+                        delay = global_rate_limiter.increase_delay(host)
+                        print_error_message(f"Rate limit exceeded (HTTP 429). Increasing delay to {delay:.1f} seconds...")
+                        time.sleep(delay)
+                    else:
+                        print_error_message(f"Unexpected error downloading segment: {e}")
+                        break
 
-        print_error_message(f"Failed to download segment {segment_url} after {max_retries} retries. Skipping.", "⏭️")
-        # Clean up partial file if exists
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        return False
+            print_error_message(f"Failed to download segment {segment_url} after {max_retries} retries. Skipping.", "⏭️")
+            # Clean up partial file if exists
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            return False
 
     def load_m3u8_with_retry(hls_url, retry_delay=5):
         """
@@ -316,31 +347,56 @@ def start_stream_transcription(
 
         Args:
             hls_url (str): URL of the M3U8 playlist to load
-            retry_delay (int, optional): Delay between retries in seconds. Defaults to 5
+            retry_delay (int, optional): Initial delay between retries in seconds. Defaults to 5
 
         Returns:
-            m3u8.M3U8: Parsed M3U8 playlist object, or None if loading fails or shutdown is requested        This function handles various network errors that may occur while loading        the M3U8 playlist, implementing retry logic with configurable delay.
+            m3u8.M3U8: Parsed M3U8 playlist object, or None if loading fails or shutdown is requested
+            
+        This function handles various network errors that may occur while loading
+        the M3U8 playlist, implementing adaptive retry logic with rate limiting support.
+        It uses the rate_limiter module to automatically adjust delays when 429 errors occur.
         It also supports multi-line URLs by taking the first line.
-        """
+        """        # Get host from URL for rate limiting
+        cleaned_url = hls_url.strip().split('\n')[0]
+        host = urlparse(cleaned_url).netloc
+        
         while not shutdown_flag:
             try:
-                # Split and take first URL if multiple URLs are provided
-                cleaned_url = hls_url.strip().split('\n')[0]
                 if args.debug:
                     print_debug_message(f"Loading m3u8 from URL: {cleaned_url}")
                 
                 m3u8_obj = m3u8.load(cleaned_url)
+                # Reset delay on successful request
+                global_rate_limiter.reset_delay(host)
                 return m3u8_obj
             except (
                 http.client.RemoteDisconnected,
                 http.client.IncompleteRead,
                 requests.exceptions.RequestException,
             ) as e:
-                print_error_message(f"Error loading m3u8 file: {e}. Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
+                # Check if it's a 429 error
+                is_rate_limited = "429" in str(e) or "Too Many Requests" in str(e)
+                
+                if is_rate_limited:
+                    delay = global_rate_limiter.increase_delay(host)
+                    print_error_message(f"Rate limit exceeded (HTTP 429). Increasing delay to {delay:.1f} seconds...")
+                else:
+                    delay = global_rate_limiter.get_delay(host)
+                    print_error_message(f"Error loading m3u8 file: {e}. Retrying in {delay:.1f} seconds...")
+                
+                time.sleep(delay)
             except Exception as e:
-                print_error_message(f"Unexpected error loading m3u8 file: {e}")
-                time.sleep(retry_delay)
+                # Check if it's a 429 error
+                is_rate_limited = "429" in str(e) or "Too Many Requests" in str(e)
+                
+                if is_rate_limited:
+                    delay = global_rate_limiter.increase_delay(host)
+                    print_error_message(f"Rate limit exceeded (HTTP 429). Increasing delay to {delay:.1f} seconds...")
+                else:
+                    delay = global_rate_limiter.get_delay(host)
+                    print_error_message(f"Unexpected error loading m3u8 file: {e}")
+                
+                time.sleep(delay)
         return None
 
     def generate_segment_filename(url, counter, task_id):
