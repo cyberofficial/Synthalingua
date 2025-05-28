@@ -83,7 +83,7 @@ echo Creating a shortcut batch file for the translation app...
     echo cls
     echo call "data_whisper\Scripts\activate.bat"
     echo call ffmpeg_path.bat
-    echo python "transcribe_audio.py" --ram 4gb --non_english --translate
+    echo python "transcribe_audio.py" --ram 3gb --non_english --translate
     echo pause
 ) > "livetranslation.bat"
 

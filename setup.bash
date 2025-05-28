@@ -92,7 +92,7 @@ source "$(dirname "$0")/data_whisper/bin/activate"
 if [ -f "ffmpeg_path.sh" ]; then
     source ffmpeg_path.sh
 fi
-python "$(dirname "$0")/transcribe_audio.py" --ram 4gb --non_english --translate
+python "$(dirname "$0")/transcribe_audio.py" --ram 3gb --non_english --translate
 read -p "Press enter to exit..."
 EOL
 
