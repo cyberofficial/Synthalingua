@@ -9,10 +9,11 @@ import secrets
 from functools import partial
 from socketserver import ThreadingMixIn
 
-CHUNK = 2048
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100
+# Enhanced audio quality settings for better microphone input
+CHUNK = 4096          # Increased from 2048 for better audio quality (larger buffer)
+FORMAT = pyaudio.paInt24    # Upgraded from paInt16 to paInt24 for higher bit depth
+CHANNELS = 1          # Mono audio (standard for speech)
+RATE = 48000          # Increased from 44100 to 48000 Hz (professional standard)
 OUTPUT_DIR = "hls_segments"
 PLAYLIST_NAME = "index.m3u8"
 SERVER_PORT = 8888  # Default
