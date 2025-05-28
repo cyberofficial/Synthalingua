@@ -13,6 +13,7 @@ from modules.file_handlers import load_blacklist, setup_temp_directory, clean_te
 from modules.transcription_core import TranscriptionCore
 from modules.stream_handler import handle_stream_setup
 from modules.stream_transcription_module import stop_transcription
+from modules.sub_gen import run_sub_gen
 from modules import parser_args
 from modules.languages import get_valid_languages
 from modules import api_backend
@@ -39,9 +40,7 @@ def main():
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
-        sys.exit(0)
-
-    # Check input sources
+        sys.exit(0)    # Check input sources
     if args.stream is None and args.microphone_enabled is None and not args.makecaptions:
         print("No audio source was set. Please set an audio source.")
         reset_text = Style.RESET_ALL
@@ -119,9 +118,7 @@ def main():
     # Set up model directory
     if not os.path.exists(args.model_dir):
         print("Creating models folder...")
-        os.makedirs(args.model_dir)
-
-    # Configure model
+        os.makedirs(args.model_dir)    # Configure model
     model = parser_args.set_model_by_ram(args.ram, args.language)
     if not args.makecaptions:
         audio_model = whisper.load_model(model, device=device, download_root=args.model_dir)
@@ -140,13 +137,43 @@ def main():
         model_info = f"{args.ram} model"
         # Include stream source if available
         stream_source = args.stream if args.stream else None
-        send_startup_notification(webhook_url, model_info, translation_status, stream_source)
-
-    # Handle caption generation
+        send_startup_notification(webhook_url, model_info, translation_status, stream_source)    # Handle caption generation
     if args.makecaptions:
         if args.file_output_name is None:
             args.file_output_name = "filename"
-        run_sub_gen(args.file_input, args.file_output_name, args.file_output)
+        
+        # Check if compare mode is enabled
+        if args.makecaptions == "compare":
+            # Run through all RAM options from 11gb-v3 backwards
+            ram_options = ["11gb-v3", "11gb-v2", "7gb", "6gb", "3gb", "2gb", "1gb"]
+            original_ram = args.ram  # Save original RAM setting            
+            print(f"🔄 Compare mode enabled - generating captions with all RAM models...")
+            print(f"📁 Output files will be saved to: {args.file_output}")
+            print(f"📝 Base filename: {args.file_output_name}")
+            print()
+            
+            for i, ram_option in enumerate(ram_options):
+                print(f"[{i+1}/{len(ram_options)}] Processing with {ram_option} model...")
+                args.ram = ram_option  # Temporarily change RAM setting
+                # Create unique output filename for each model
+                model_output_name = f"{args.file_output_name}.{ram_option}"
+                
+                try:
+                    run_sub_gen(args.file_input, model_output_name, args.file_output, ram_setting=ram_option)
+                    print(f"✅ Completed {ram_option} model - saved as '{model_output_name}'")
+                except Exception as e:
+                    print(f"❌ Error with {ram_option} model: {e}")
+                    print(f"⏭️  Continuing with next model...")
+                
+                print()
+            
+            args.ram = original_ram  # Restore original RAM setting
+            print("🎉 Compare mode completed! Check your output folder for all caption files.")
+            print("💡 Tip: Compare the different files to choose the best quality for your needs.")
+        else:
+            # Standard single model caption generation
+            run_sub_gen(args.file_input, args.file_output_name, args.file_output)
+        
         print("Press enter to exit...")
         input()
         sys.exit("Exiting...")

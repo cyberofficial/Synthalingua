@@ -311,7 +311,8 @@ def run_sub_gen(
     output_name: str = "", 
     output_directory: str = "./",
     task: str = "translate",
-    model_dir: Optional[str] = None
+    model_dir: Optional[str] = None,
+    ram_setting: Optional[str] = None
 ) -> Tuple[Dict[str, Any], str]:
     """
     Generate subtitles for an audio file using Whisper.
@@ -323,6 +324,8 @@ def run_sub_gen(
         task (str, optional): Whisper task type ('transcribe' or 'translate'). Defaults to "translate".
         model_dir (str, optional): Custom directory for model files. 
             If None, uses the directory from command line args.
+        ram_setting (str, optional): RAM setting to use for model selection.
+            If None, uses the setting from command line args.
     
     Returns:
         Tuple[Dict[str, Any], str]: Tuple containing the transcription result and output filename
@@ -330,8 +333,7 @@ def run_sub_gen(
     Raises:
         ValueError: If input parameters are invalid
         RuntimeError: If subtitle generation fails
-    """
-    # Input validation
+    """    # Input validation
     if not input_path:
         raise ValueError("Input path cannot be empty")
     
@@ -348,14 +350,18 @@ def run_sub_gen(
 
     try:
         # Determine model type based on available RAM (skip warning for file input mode)
-        model_type = get_model_type(args.ram, skip_warning=True)
+        # Use provided ram_setting or fall back to args.ram
+        ram_to_use = ram_setting if ram_setting is not None else args.ram
+        model_type = get_model_type(ram_to_use, skip_warning=True)
         
         # Load the model with optional custom model directory
         model = load_whisper_model(
             model_type=model_type,
             device=args.device,
             model_dir=model_dir
-        )        # Set up transcription options (matching Whisper's official implementation)
+        )
+        
+        # Set up transcription options (matching Whisper's official implementation)
         # Adjust parameters based on model type for better segmentation
         if model_type == "turbo":
             # Turbo model needs different parameters for proper segmentation

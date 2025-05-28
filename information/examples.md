@@ -47,6 +47,11 @@ python transcribe_audio.py --microphone_enabled --ignorelist "C:/path/blacklist.
 python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
+**Generate captions with all models for quality comparison:**
+```sh
+python transcribe_audio.py --makecaptions compare --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
 **With blocklist filtering:**
 ```sh
 python transcribe_audio.py --makecaptions --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --ignorelist "C:/path/blacklist.txt"
