@@ -22,7 +22,7 @@ import re
 from typing import Optional
 from colorama import Fore, Style
 
-version = "1.1.0"
+version = "1.1.1"
 ScriptCreator = "cyberofficial"
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
 repo_owner = "cyberofficial"

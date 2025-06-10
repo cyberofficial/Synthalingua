@@ -128,7 +128,7 @@ args = parser_args.parse_arguments()
 kill = False
 
 # Toggle debug output for similar message blocking
-DEBUG_BLOCK_SIMILAR = True  # Set to False to hide debug output
+DEBUG_BLOCK_SIMILAR = False  # Set to False to hide debug output
 
 # Enable similar message protection if --condition_on_previous_text is used
 ENABLE_SIMILAR_PROTECTION = args.condition_on_previous_text
