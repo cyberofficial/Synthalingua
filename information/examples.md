@@ -65,6 +65,11 @@ python transcribe_audio.py --makecaptions --file_input "C:/Videos/myvideo.mp4" -
 python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --stream_chunks 3 --cookies twitch
 ```
 
+**Stream with padded audio for better context:**
+```sh
+python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --stream_chunks 4 --paddedaudio 1
+```
+
 **Stream with cookies using full path:**
 ```sh
 python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies "C:\path\to\my\twitch_cookies.txt"

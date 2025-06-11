@@ -12,6 +12,7 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 | `--stream_transcribe [language]` | Enable transcription for the stream with optional target language (e.g., --stream_transcribe English). |
 | `--stream_original_text`| Show detected original text from the stream.                     |
 | `--stream_chunks`       | Number of chunks to split the stream into (default: 5).          |
+| `--paddedaudio`         | Number of chunks to overlap from previous batch for better transcription context. |
 | `--auto_hls`            | Auto-adjust HLS chunk batching for optimal performance.           |
 | `--cookies`             | Path to cookies file. Supports absolute paths, current directory files, or names for cookies/ folder. |
 | `--makecaptions`        | Enable captions mode (requires file input/output/name).           |
