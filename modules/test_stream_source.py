@@ -10,9 +10,9 @@ import time
 import wave
 import contextlib
 
-def test_stream_source(hls_url, temp_dir=None, cookie_file_path=None, params=None, num_segments=10):
+def test_stream_source(hls_url, temp_dir, cookie_file_path=None, params=None, preview_seconds=10):
     """
-    Downloads the first `num_segments` from the given HLS URL, combines them, and converts to WAV.
+    Downloads enough segments from the given HLS URL to cover at least `preview_seconds` of audio, combines them, and converts to WAV.
     Returns the path to the resulting WAV file.
     """
     # Prepare temp paths
@@ -24,15 +24,24 @@ def test_stream_source(hls_url, temp_dir=None, cookie_file_path=None, params=Non
         cookie_jar = http.cookiejar.MozillaCookieJar()
         cookie_jar.load(cookie_file_path, ignore_discard=True, ignore_expires=True)
         cookies = cookie_jar
-    if temp_dir is None:
-        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'temp')
-    os.makedirs(temp_dir, exist_ok=True)
     # Download playlist
     m3u8_obj = m3u8.load(hls_url)
-    segments = m3u8_obj.segments[:num_segments]
+    segments = m3u8_obj.segments
     if not segments:
         print(f"{Fore.RED}No segments found in playlist!{Style.RESET_ALL}")
         return None
+    # Calculate how many segments to get at least preview_seconds
+    total_duration = 0.0
+    num_segments = 0
+    for seg in segments:
+        total_duration += getattr(seg, 'duration', 0)
+        num_segments += 1
+        if total_duration >= preview_seconds:
+            break
+    if num_segments == 0:
+        print(f"{Fore.RED}No valid segments with duration found!{Style.RESET_ALL}")
+        return None
+    segments = segments[:num_segments]
     for idx, segment in enumerate(segments):
         url = segment.absolute_uri
         url_hash = hashlib.md5(url.encode()).hexdigest()

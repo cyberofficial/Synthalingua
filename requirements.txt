@@ -79,6 +79,7 @@ rich==13.7.1
 semantic-version==2.10.0
 setuptools-rust==1.9.0
 simple-websocket==1.1.0
+simpleaudio
 six==1.16.0
 sounddevice==0.4.7
 soundfile==0.12.1
