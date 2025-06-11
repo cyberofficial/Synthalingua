@@ -13,6 +13,7 @@ The module uses yt-dlp for URL extraction and handles both direct and HLS stream
 
 import os
 import subprocess
+import tempfile
 from colorama import Fore, Style
 from modules.languages import get_valid_languages
 from modules.file_handlers import resolve_cookie_file_path
@@ -21,6 +22,7 @@ from modules.file_handlers import resolve_cookie_file_path
 VALID_LANGUAGES = get_valid_languages()
 from modules.stream_transcription_module import start_stream_transcription, stop_transcription
 import threading
+from modules.test_stream_source import test_stream_source
 
 def get_available_streams(stream_url, cookie_file_path=None):
     """Get detailed information about available streams.
@@ -43,7 +45,7 @@ def get_available_streams(stream_url, cookie_file_path=None):
         print(f"Error getting stream information: {e}")
         return None
 
-def select_stream_interactive(stream_url, cookie_file_path=None):
+def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None):
     """Interactive stream selection with audio stream filtering.
     
     Args:
@@ -78,18 +80,47 @@ def select_stream_interactive(stream_url, cookie_file_path=None):
     
     while True:
         choice = input("\n🎯 Enter format ID or format string (or press Enter for 'bestaudio'): ").strip()
-        
         if not choice:
             choice = "bestaudio"
             print(f"✅ Using default: {choice}")
-            break
         elif choice.lower() in ['q', 'quit', 'exit']:
             print("❌ Exiting...")
             return None
         else:
             print(f"✅ Selected: {choice}")
+        # Ask if user wants to test this source
+        test_prompt = input("\n🔊 Would you like to preview this source? (y/n): ").strip().lower()
+        if test_prompt == 'y':
+            # Get HLS URL for this format
+            yt_dlp_command = ["yt-dlp", stream_url, "-g", "-f", choice]
+            if cookie_file_path:
+                yt_dlp_command.extend(["--cookies", cookie_file_path])
+            try:
+                urls = subprocess.check_output(yt_dlp_command).decode("utf-8").strip().split('\n')
+                hls_url = urls[0] if urls else None
+                if not hls_url:
+                    print(f"{Fore.RED}No stream URL found for preview.{Style.RESET_ALL}")
+                    continue
+                if temp_dir is None:
+                    temp_dir = tempfile.gettempdir()
+                wav_path = test_stream_source(hls_url, temp_dir, cookie_file_path=cookie_file_path)
+                if wav_path:
+                    print(f"\n🎧 Preview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
+                    print("Please listen to this file. If it starts from the beginning of the stream or is not correct, try a different source.")
+                    input("Press Enter to continue...")
+                    confirm = input("Is this the correct live audio? (y to continue, n to pick another): ").strip().lower()
+                    if confirm == 'y':
+                        break
+                    else:
+                        continue
+                else:
+                    print(f"{Fore.RED}Preview failed. Try another source.{Style.RESET_ALL}")
+                    continue
+            except Exception as e:
+                print(f"{Fore.RED}Error testing source: {e}{Style.RESET_ALL}")
+                continue
+        else:
             break
-    
     return choice
 
 def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
