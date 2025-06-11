@@ -14,6 +14,7 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 | `--stream_chunks`       | Number of chunks to split the stream into (default: 5).          |
 | `--paddedaudio`         | Number of chunks to overlap from previous batch for better transcription context. Works with both streaming and microphone input. |
 | `--auto_hls`            | Auto-adjust HLS chunk batching for optimal performance.           |
+| `--selectsource`        | Show available audio streams and select one (use without value for interactive mode, or specify format directly). |
 | `--cookies`             | Path to cookies file. Supports absolute paths, current directory files, or names for cookies/ folder. |
 | `--makecaptions`        | Enable captions mode (requires file input/output/name).           |
 | `--file_input`          | Path to input file for captioning.                               |
@@ -34,6 +35,13 @@ python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:/path/vi
 
 ### `--auto_hls`
 Automatically tunes chunk size for best latency and performance.
+
+### `--selectsource`
+Shows available audio streams for a given URL and lets you select one. Examples:
+```
+python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --selectsource
+python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --selectsource bestaudio
+```
 
 ---
 [Back to Index](./index.md)
