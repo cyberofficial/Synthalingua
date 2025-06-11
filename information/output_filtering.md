@@ -8,6 +8,8 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--ignorelist`          | Path to a blacklist file for filtering words/phrases.             |
 | `--auto_blocklist`      | Auto-add frequently blocked phrases to the blocklist file.        |
 | `--debug`               | Print debug output for blocked/suppressed messages.               |
+| `--save_transcript`     | Save the transcript to a file.                                    |
+| `--save_folder`         | Folder to save the transcript to (default: `out`).               |
 | `--makecaptions`        | Enable captions mode. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). |
 | `--file_input`          | Path to input file for captioning.                                |
 | `--file_output`         | Output folder for captions.                                       |
@@ -23,6 +25,12 @@ When enabled (with `--ignorelist`), phrases blocked 3+ times in the last 10 are 
 
 ### `--debug`
 Prints debug info about blocked or suppressed messages.
+
+### `--save_transcript` & `--save_folder`
+Save transcriptions to a file in the specified folder:
+```
+python transcribe_audio.py --save_transcript --save_folder "C:/transcripts"
+```
 
 ### Captions Example
 ```

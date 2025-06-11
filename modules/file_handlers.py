@@ -135,17 +135,15 @@ def save_transcript(transcription, args):
 
     Saves the transcription results including original text, translations,
     and transcriptions to a text file. Creates numbered files if multiple
-    transcriptions exist.
-
-    Args:
+    transcriptions exist.    Args:
         transcription (list): List of tuples containing (original_text,
             translated_text, transcribed_text, detected_language)
         args: Command line arguments containing output directory settings
     """
-    if not args.output:
+    if not args.save_folder:
         out = "out"
     else:
-        out = args.output
+        out = args.save_folder
     
     if not os.path.isdir(out):
         os.mkdir(out)

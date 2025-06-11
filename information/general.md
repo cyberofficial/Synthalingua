@@ -10,8 +10,7 @@ These arguments control the overall operation and behavior of Synthalingua.
 | `--updatebranch`    | Choose which branch to check for updates (`master`, `dev-testing`, `bleeding-under-work`, `disable`). |
 | `--no_log`          | Only show the last line of the transcription (not a running log).                        |
 | `--keep_temp`       | Keep temporary audio files (may use more disk space over time).                           |
-| `--save_transcript` | Save the transcript to a text file.                                                      |
-| `--save_folder`     | Set the folder to save the transcript to.                                                |
+| `--retry`           | Retries the transcription if it fails (may increase processing time).                    |
 
 ## Details & Examples
 
@@ -33,8 +32,8 @@ Only the most recent line of output is shown, instead of a running log. Useful f
 ### `--keep_temp`
 Prevents deletion of temporary audio files. Useful for debugging or archiving.
 
-### `--save_transcript` & `--save_folder`
-Saves all transcriptions to a text file. You can specify the folder with `--save_folder`.
+### `--retry`
+Retries transcription if it fails, which may increase processing time but improves reliability.
 
 ---
 [Back to Index](./index.md)
