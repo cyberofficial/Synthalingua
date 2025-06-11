@@ -10,7 +10,7 @@ import time
 import wave
 import contextlib
 
-def test_stream_source(hls_url, temp_dir, cookie_file_path=None, params=None, num_segments=10):
+def test_stream_source(hls_url, temp_dir=None, cookie_file_path=None, params=None, num_segments=10):
     """
     Downloads the first `num_segments` from the given HLS URL, combines them, and converts to WAV.
     Returns the path to the resulting WAV file.
@@ -24,6 +24,9 @@ def test_stream_source(hls_url, temp_dir, cookie_file_path=None, params=None, nu
         cookie_jar = http.cookiejar.MozillaCookieJar()
         cookie_jar.load(cookie_file_path, ignore_discard=True, ignore_expires=True)
         cookies = cookie_jar
+    if temp_dir is None:
+        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'temp')
+    os.makedirs(temp_dir, exist_ok=True)
     # Download playlist
     m3u8_obj = m3u8.load(hls_url)
     segments = m3u8_obj.segments[:num_segments]
