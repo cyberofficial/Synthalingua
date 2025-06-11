@@ -427,18 +427,23 @@ def start_stream_transcription(
         url_hash = hashlib.md5(url.encode()).hexdigest()
         return os.path.join(temp_dir, f"{task_id}_{counter:05d}_{url_hash}.ts")
 
-    def combine_audio_segments(segment_paths, output_path):
+    def combine_audio_segments(segment_paths, output_path, keep_segments=None):
         """
         Combine multiple HLS segments into a single audio file.
 
         Args:
             segment_paths (list[str]): List of paths to segment files to combine
             output_path (str): Path where the combined file will be saved
+            keep_segments (list[str], optional): List of segment paths to keep (not delete)
 
         The function reads each segment file in binary mode and writes them
         sequentially to create a single combined file. It handles missing
-        files gracefully and cleans up individual segment files after combining.
+        files gracefully and cleans up individual segment files after combining,
+        except for those specified in keep_segments.
         """
+        if keep_segments is None:
+            keep_segments = []
+        
         with open(output_path, "wb") as outfile:
             for segment_path in segment_paths:
                 if not os.path.exists(segment_path):
@@ -447,7 +452,9 @@ def start_stream_transcription(
                 try:
                     with open(segment_path, "rb") as infile:
                         outfile.write(infile.read())
-                    os.remove(segment_path)
+                    # Only remove if not in keep_segments list
+                    if segment_path not in keep_segments:
+                        os.remove(segment_path)
                 except Exception as e:
                     print(f"Error combining audio segments: {e}")
 
@@ -727,6 +734,8 @@ def start_stream_transcription(
         downloaded_segments = set()
         counter = 0
         accumulated_segments = []
+        previous_batch_segments = []  # Store segments from previous batch for padding
+        padded_audio_count = getattr(args, 'paddedaudio', 0)
 
         while not shutdown_flag:
             m3u8_obj = load_m3u8_with_retry(hls_url)
@@ -786,11 +795,33 @@ def start_stream_transcription(
                         if len(accumulated_segments) >= segments_max:
                             if args.debug:
                                 print_debug_message(f"Reached max segments ({segments_max}), processing batch...")
+                            
+                            # Prepare segments for combination including padding
+                            segments_to_combine = []
+                            keep_segments = []
+                            
+                            # Add previous batch segments for padding if enabled
+                            if padded_audio_count > 0 and previous_batch_segments:
+                                padding_segments = previous_batch_segments[-padded_audio_count:]
+                                segments_to_combine.extend(padding_segments)
+                                keep_segments.extend(padding_segments)  # Keep padding segments for reuse
+                                if args.debug:
+                                    print_debug_message(f"Adding {len(padding_segments)} padded segments from previous batch")                            # Store current batch for next iteration's padding BEFORE combining/deleting
+                            if padded_audio_count > 0:
+                                previous_batch_segments = accumulated_segments.copy()
+                                # Also keep the last few segments from current batch for next iteration
+                                padding_segments_to_keep = accumulated_segments[-padded_audio_count:]
+                                keep_segments.extend(padding_segments_to_keep)
+                            
+                            # Add current batch segments
+                            segments_to_combine.extend(accumulated_segments)
+                            
+
                             combined_path = os.path.join(
                                 temp_dir, f"{task_id}_combined_{counter}.ts"
                             )
                             combine_audio_segments(
-                                accumulated_segments, combined_path
+                                segments_to_combine, combined_path, keep_segments
                             )
                             
                             # Track combined file and check queue size
@@ -801,6 +832,7 @@ def start_stream_transcription(
                                 print_info_message("Consider using a smaller model or increasing processing power", "💡")
                             
                             audio_queue.put(combined_path)
+                            
                             accumulated_segments = []
                 except Exception as e:  # Catch the raised exception
                     print_error_message(f"Error during download: {e}", "💥")

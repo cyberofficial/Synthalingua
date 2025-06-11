@@ -162,6 +162,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English) |
 | `--stream_original_text` | Show original stream text |
 | `--stream_chunks` | Stream chunk size |
+| `--paddedaudio` | Number of chunks to overlap from previous batch for better context |
 | `--auto_hls` | Auto HLS chunk tuning |
 | `--cookies` | Cookies file (supports absolute paths, current dir, or cookies/ folder) |
 | `--remote_hls_password_id` | Webserver password ID |

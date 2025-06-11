@@ -123,6 +123,7 @@ def parse_arguments():
     parser.add_argument("--stream", default=None, help="Stream mode. Specify the url to the stream. Example: https://twitch.tv/laplusdarknesss_hololive")
     parser.add_argument("--stream_original_text", action='store_true', help="Show's the detected language of the stream.")
     parser.add_argument("--stream_chunks", default=5, help="How many chunks to split the stream into. Default is 5 is recommended to be between 3 and 5. YouTube streams should be 1 or 2, twitch should be 5 to 10.", type=int)
+    parser.add_argument("--paddedaudio", default=0, help="Number of chunks to overlap from previous batch for better transcription context. For example, with --stream_chunks 4 --paddedaudio 1, each batch will contain 1 chunk from the previous batch plus 4 new chunks (5 total).", type=int)
     parser.add_argument("--stream_language", default=None, help="Language of the stream. Default is English.", type=str, choices=VALID_LANGUAGES)
     parser.add_argument("--stream_target_language", default=None, help="[DEPRECATED - WILL BE REMOVED SOON] Language to translate the stream to. Use --stream_transcribe <language> instead.", type=str, choices=VALID_LANGUAGES)
     parser.add_argument("--stream_translate", action='store_true', help="Translate the stream.")
