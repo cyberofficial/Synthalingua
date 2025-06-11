@@ -277,6 +277,10 @@ def start_stream_transcription(
         
         with download_semaphore:
             for retry_count in range(max_retries + 1):
+                if shutdown_flag:
+                    if args.debug:
+                        print_debug_message("Shutdown requested, aborting segment download.")
+                    break
                 try:
                     # show downloading segments if args debug is set
                     if args.debug:
@@ -361,6 +365,10 @@ def start_stream_transcription(
         host = urlparse(cleaned_url).netloc
         
         while not shutdown_flag:
+            if shutdown_flag:
+                if args.debug:
+                    print_debug_message("Shutdown requested, aborting m3u8 load.")
+                break
             try:
                 if args.debug:
                     print_debug_message(f"Loading m3u8 from URL: {cleaned_url}")
