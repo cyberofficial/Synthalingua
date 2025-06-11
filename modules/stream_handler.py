@@ -72,6 +72,9 @@ def select_stream_interactive(stream_url, cookie_file_path=None):
     print("  • '139' - YouTube low quality audio (m4a)")
     print("  • '251' - YouTube high quality audio (webm)")
     print("  • Or enter any format ID from the list above")
+    print("\n⚠️  If you experience playback starting from the beginning of the live stream instead\n" \
+    "of the current live point, you may have selected a DVR (recorded) source instead of a\n" \
+    "true live stream source. Please try choosing a different source/format for real-time streaming.")
     
     while True:
         choice = input("\n🎯 Enter format ID or format string (or press Enter for 'bestaudio'): ").strip()
