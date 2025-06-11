@@ -102,7 +102,8 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None):
                     print(f"{Fore.RED}No stream URL found for preview.{Style.RESET_ALL}")
                     continue
                 if temp_dir is None:
-                    temp_dir = tempfile.gettempdir()
+                    temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'temp')
+                os.makedirs(temp_dir, exist_ok=True)
                 wav_path = test_stream_source(hls_url, temp_dir, cookie_file_path=cookie_file_path)
                 if wav_path:
                     print(f"\n🎧 Preview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
