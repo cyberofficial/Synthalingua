@@ -48,7 +48,8 @@ class TranscriptionCore:
             'translation': deque(maxlen=10),
             'target': deque(maxlen=10),
         }
-        self._last_output = {            'original': None,
+        self._last_output = {
+            'original': None,
             'translation': None,
             'target': None,
         }
@@ -61,6 +62,12 @@ class TranscriptionCore:
         self._processing_thread = None
         self._stop_processing = threading.Event()
         self._queue_active = False
+        
+        # Padded audio support for microphone
+        self._padded_audio_count = getattr(self.args, 'paddedaudio', 0)
+        self._mic_chunk_size = getattr(self.args, 'mic_chunk_size', 1)  # Default to 1 if not set
+        self._accumulated_audio_files = []
+        self._previous_batch_files = []
 
     def start_queue_processing(self):
         if not self._queue_active:
@@ -104,44 +111,13 @@ class TranscriptionCore:
                     break
 
                 if os.path.exists(temp_file):
-                    if not self.args.no_log:
-                        queue_size = self._audio_file_queue.qsize()
-                        print(f"📁 Processing audio file (Queue: {queue_size} pending)")
+                    # Add file to accumulated batch
+                    self._accumulated_audio_files.append(temp_file)
                     
-                    try:
-                        self.original_text = None
-                        self.translated_text = None
-                        self.transcribed_text = None
-                        self.detected_language = None
-
-                        self._perform_transcription(temp_file)
+                    # Check if we should process the batch
+                    if self._should_process_batch():
+                        self._process_audio_batch()
                         
-                        if self.args.translate and self.original_text:
-                            self._perform_translation(temp_file)
-                        if self.args.transcribe and self.original_text:
-                            self._perform_transcription_to_target(temp_file)
-                        
-                        self._display_results()
-                        self._update_api_headers()  # Update web server with transcription results
-                        
-                        self.transcription.append((
-                            self.original_text, 
-                            self.translated_text if self.args.translate else None,
-                            self.transcribed_text if self.args.transcribe else None,
-                            self.detected_language
-                        ))
-                        
-                    except Exception as e:
-                        if not self.args.no_log:
-                            print(f"❌ Error processing audio file {temp_file}: {e}")
-                            traceback.print_exc()
-                    finally:
-                        try:
-                            if os.path.exists(temp_file):
-                                os.remove(temp_file)
-                        except Exception as e:
-                            if not self.args.no_log:
-                                print(f"⚠️ Warning: Could not delete temp file {temp_file}: {e}")                
                 self._audio_file_queue.task_done()
                 
             except Empty:
@@ -150,6 +126,160 @@ class TranscriptionCore:
                 if not self.args.no_log:
                     print(f"❌ Queue processing error: {e}")
                     traceback.print_exc()
+
+    def _should_process_batch(self) -> bool:
+        """Check if we have enough audio files to process a batch"""
+        if self._padded_audio_count > 0:
+            # With padded audio, wait for mic_chunk_size files
+            return len(self._accumulated_audio_files) >= self._mic_chunk_size
+        else:
+            # Without padded audio, process each file immediately
+            return len(self._accumulated_audio_files) >= 1
+
+    def _process_audio_batch(self):
+        """Process a batch of audio files with optional padding"""
+        try:
+            if not self._accumulated_audio_files:
+                return
+
+            if not self.args.no_log:
+                queue_size = self._audio_file_queue.qsize()
+                if self._padded_audio_count > 0:
+                    print(f"📁 Processing audio batch: {len(self._accumulated_audio_files)} files + {len(self._previous_batch_files)} padded (Queue: {queue_size} pending)")
+                else:
+                    print(f"📁 Processing audio file (Queue: {queue_size} pending)")
+
+            # Prepare files for combination including padding
+            files_to_combine = []
+            files_to_keep = []
+            
+            # Add previous batch files for padding if enabled
+            if self._padded_audio_count > 0 and self._previous_batch_files:
+                padding_files = self._previous_batch_files[-self._padded_audio_count:]
+                files_to_combine.extend(padding_files)
+                files_to_keep.extend(padding_files)  # Keep padding files for reuse
+                if self.args.debug:
+                    print(f"🔍 [DEBUG] Adding {len(padding_files)} padded audio files from previous batch")
+
+            # Store current batch for next iteration's padding BEFORE combining/deleting
+            if self._padded_audio_count > 0:
+                self._previous_batch_files = self._accumulated_audio_files.copy()
+                # Also keep the last few files from current batch for next iteration
+                padding_files_to_keep = self._accumulated_audio_files[-self._padded_audio_count:]
+                files_to_keep.extend(padding_files_to_keep)
+
+            # Add current batch files
+            files_to_combine.extend(self._accumulated_audio_files)
+            
+            # Combine audio files if needed
+            if len(files_to_combine) > 1:
+                combined_file = self._combine_audio_files(files_to_combine, files_to_keep)
+                if combined_file:
+                    self._process_single_file(combined_file)
+                    # Clean up combined file
+                    if os.path.exists(combined_file):
+                        os.remove(combined_file)
+                else:
+                    # Fallback to processing first file if combination fails
+                    self._process_single_file(files_to_combine[0])
+            else:
+                # Process single file
+                self._process_single_file(files_to_combine[0])
+            
+            # Clean up processed files (except those in keep list)
+            for file_path in self._accumulated_audio_files:
+                if file_path not in files_to_keep:
+                    try:
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                    except Exception as e:
+                        if not self.args.no_log:
+                            print(f"⚠️ Warning: Could not delete temp file {file_path}: {e}")
+
+            # Clear accumulated files
+            self._accumulated_audio_files = []
+            
+        except Exception as e:
+            if not self.args.no_log:
+                print(f"❌ Error processing audio batch: {e}")
+                traceback.print_exc()
+
+    def _combine_audio_files(self, file_paths: List[str], keep_files: List[str]) -> Optional[str]:
+        """Combine multiple audio files into a single file"""
+        try:
+            from tempfile import NamedTemporaryFile
+            
+            combined_file = NamedTemporaryFile(
+                dir=self.temp_dir,
+                delete=False,
+                suffix=".wav",
+                prefix="combined_"
+            ).name
+            
+            # Use ffmpeg to concatenate the audio files
+            import subprocess
+            
+            # Create a temporary file list for ffmpeg
+            file_list_path = NamedTemporaryFile(mode='w', delete=False, suffix=".txt").name
+            
+            try:
+                with open(file_list_path, 'w') as f:
+                    for file_path in file_paths:
+                        if os.path.exists(file_path):
+                            f.write(f"file '{file_path}'\n")
+                
+                # Combine files using ffmpeg
+                ffmpeg_cmd = [
+                    "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                    "-i", file_list_path,
+                    "-c", "copy", combined_file
+                ]
+                
+                subprocess.run(ffmpeg_cmd, capture_output=True, check=True)
+                
+                if os.path.exists(combined_file):
+                    return combined_file
+                    
+            finally:
+                # Clean up temporary file list
+                if os.path.exists(file_list_path):
+                    os.remove(file_list_path)
+                    
+        except Exception as e:
+            if not self.args.no_log:
+                print(f"❌ Error combining audio files: {e}")
+            
+        return None
+
+    def _process_single_file(self, temp_file: str):
+        """Process a single audio file"""
+        try:
+            self.original_text = None
+            self.translated_text = None
+            self.transcribed_text = None
+            self.detected_language = None
+
+            self._perform_transcription(temp_file)
+            
+            if self.args.translate and self.original_text:
+                self._perform_translation(temp_file)
+            if self.args.transcribe and self.original_text:
+                self._perform_transcription_to_target(temp_file)
+            
+            self._display_results()
+            self._update_api_headers()  # Update web server with transcription results
+            
+            self.transcription.append((
+                self.original_text, 
+                self.translated_text if self.args.translate else None,
+                self.transcribed_text if self.args.transcribe else None,
+                self.detected_language
+            ))
+            
+        except Exception as e:
+            if not self.args.no_log:
+                print(f"❌ Error processing audio file {temp_file}: {e}")
+                traceback.print_exc()
     
     def process_audio(self, data_queue: Queue, source: Optional[sr.AudioSource]) -> bool:
         try:
