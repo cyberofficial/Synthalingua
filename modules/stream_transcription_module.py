@@ -13,6 +13,7 @@ The module uses a threaded approach to handle concurrent downloading and process
 of audio segments, with support for retry logic and error handling.
 """
 
+
 import threading
 import queue
 import time
@@ -24,6 +25,9 @@ import http.client
 import http.cookiejar
 import whisper
 from modules import parser_args
+import subprocess
+import shutil
+import tempfile
 from modules.discord import send_to_discord_webhook, send_transcription_to_discord
 from modules import api_backend
 import difflib
@@ -562,7 +566,7 @@ def start_stream_transcription(
             process_audio.last_translation = None
         if not hasattr(process_audio, "last_target_transcription"):
             process_audio.last_target_transcription = None
-
+        import os
         if not os.path.exists(file_path):
             print(f"Warning: File {file_path} does not exist, skipping.")
             return
@@ -574,15 +578,86 @@ def start_stream_transcription(
             except ValueError:
                 pass  # File might not be in list if tracking started after file was created
 
+        # --- Vocal isolation for HLS chunk (Demucs) ---
+        processed_audio_path = file_path
+        if getattr(args, 'isolate_vocals', False):
+            if not shutil.which('demucs'):
+                print_error_message("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
+            else:
+                try:
+                    if args.debug:
+                        print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        demucs_cmd = [
+                            'demucs',
+                            '-o', tmpdir,
+                            '--two-stems', 'vocals',
+                        ]
+                        if getattr(args, 'device', None) == 'cuda':
+                            demucs_cmd += ['-d', 'cuda']
+                        demucs_cmd.append(str(file_path))
+                        result = subprocess.run(
+                            demucs_cmd,
+                            capture_output=True, text=True, encoding='utf-8', errors='replace')
+                        if args.debug:
+                            print_debug_message(f"Demucs return code: {result.returncode}")
+                            if result.stdout:
+                                print_debug_message(f"Demucs stdout: {result.stdout[:500]}...")
+                            if result.stderr:
+                                print_debug_message(f"Demucs stderr: {result.stderr[:500]}...")
+                        if result.returncode != 0:
+                            print_error_message(f"Demucs failed with return code {result.returncode}: {result.stderr}")
+                        else:
+                            base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
+                            vocals_path = None
+                            possible_locations = [
+                                os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
+                                os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
+                                os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),
+                                os.path.join(tmpdir, base_name, 'vocals.wav'),
+                            ]
+                            for root, dirs, files in os.walk(tmpdir):
+                                if 'vocals.wav' in files:
+                                    vocals_path = os.path.join(root, 'vocals.wav')
+                                    if args.debug:
+                                        print_success_message(f"Found vocals.wav at: {vocals_path}")
+                                    break
+                            if not vocals_path:
+                                for location in possible_locations:
+                                    if os.path.exists(location):
+                                        vocals_path = location
+                                        if args.debug:
+                                            print_success_message(f"Found vocals.wav at predefined location: {vocals_path}")
+                                        break
+                            if not vocals_path or not os.path.exists(vocals_path):
+                                print_error_message(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
+                            else:
+                                # Use absolute path for temp/audio/ folder
+                                from datetime import datetime
+                                utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                                dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
+                                os.makedirs(dest_dir, exist_ok=True)
+                                for file in os.listdir(os.path.dirname(vocals_path)):
+                                    src_file = os.path.join(os.path.dirname(vocals_path), file)
+                                    if os.path.isfile(src_file):
+                                        shutil.copy2(src_file, os.path.join(dest_dir, file))
+                                processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
+                                if args.debug:
+                                    print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
+                                    print_info_message(f"Using vocals file: {processed_audio_path}")
+                except Exception as e:
+                    print_error_message(f"Vocal isolation failed: {str(e)}")
+
         transcription = None
         translation = None
         if args.stream_original_text:
             if args.stream_language:
                 detected_language = stream_language
             else:
-                detected_language = detect_language(file_path, model)
+                detected_language = detect_language(processed_audio_path, model)
             transcription = transcribe_audio(
-                file_path, model, language=detected_language
+                processed_audio_path, model, language=detected_language
             )
             # If the phrase is in the blocklist, skip printing and updating last_transcription
             if is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
@@ -609,7 +684,7 @@ def start_stream_transcription(
                 pass
 
         if tasktranslate_task:
-            translation = translate_audio(file_path, model)
+            translation = translate_audio(processed_audio_path, model)
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = translation and not is_similar(translation, process_audio.last_translation)
             else:
@@ -637,7 +712,7 @@ def start_stream_transcription(
 
         if tasktranscribe_task:
             transcription = transcribe_audio(
-                file_path, model, language=target_language
+                processed_audio_path, model, language=target_language
             )
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = transcription and not is_similar(transcription, process_audio.last_target_transcription)
@@ -826,11 +901,12 @@ def start_stream_transcription(
                             
                             # Track combined file and check queue size
                             combined_files_in_queue.append(combined_path)
-                            if len(combined_files_in_queue) > MAX_COMBINED_FILES:
-                                print_warning_message("More than 5 combined files are waiting to be processed", "⚡")
-                                print_warning_message("This may indicate that your GPU cannot keep up with transcription load", "🖥️")
-                                print_info_message("Consider using a smaller model or increasing processing power", "💡")
-                            
+                            if args.debug:
+                                if len(combined_files_in_queue) > MAX_COMBINED_FILES:
+                                    print_warning_message("More than 5 combined files are waiting to be processed", "⚡")
+                                    print_warning_message("This may indicate that your GPU cannot keep up with transcription load", "🖥️")
+                                    print_info_message("Consider using a smaller model or increasing processing power", "💡")
+
                             audio_queue.put(combined_path)
                             
                             accumulated_segments = []
