@@ -28,6 +28,7 @@ import numpy as np
 import gc
 
 import whisper
+import subprocess
 from colorama import Fore, Style, init
 from modules import parser_args
 
@@ -39,7 +40,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Parse command-line arguments
+
 args = parser_args.parse_arguments()
+
+# Inform user if word_timestamps is enabled
+if getattr(args, 'word_timestamps', False):
+    print(f"{Fore.CYAN}ℹ️  Word-level timestamps are enabled. This may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the --word_timestamps flag next time you run this command.{Style.RESET_ALL}")
+
+# Inform user if isolate_vocals is enabled
+if getattr(args, 'isolate_vocals', False):
+    print(f"{Fore.CYAN}ℹ️  Vocal isolation is enabled. The program will attempt to extract vocals from the input audio before generating subtitles. This may take additional time and requires the demucs package.{Style.RESET_ALL}")
 
 def format_timestamp(seconds: float) -> str:
     """
@@ -367,9 +377,46 @@ def run_sub_gen(
     if not input_path:
         raise ValueError("Input path cannot be empty")
     
+
     input_path_obj = Path(input_path)
     if not input_path_obj.exists():
         raise ValueError(f"Input file does not exist: {input_path_obj}")
+
+    # Vocal isolation step if requested
+    processed_audio_path = str(input_path_obj)
+    if getattr(args, 'isolate_vocals', False):
+        import shutil, tempfile, os
+        if not shutil.which('demucs'):
+            raise RuntimeError("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
+        try:
+            print(f"{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs...{Style.RESET_ALL}")
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # Run demucs CLI to separate vocals
+                result = subprocess.run([
+                    'demucs',
+                    '-o', tmpdir,
+                    '--two-stems', 'vocals',
+                    str(input_path_obj)
+                ], capture_output=True, text=True)
+                if result.returncode != 0:
+                    raise RuntimeError(f"Demucs failed: {result.stderr}")
+                # Demucs outputs to tmpdir/demucs/{input_basename}/
+                base_name = os.path.splitext(os.path.basename(str(input_path_obj)))[0]
+                demucs_out_dir = os.path.join(tmpdir, 'demucs', base_name)
+                vocals_path = os.path.join(demucs_out_dir, 'vocals.wav')
+                if not os.path.exists(vocals_path):
+                    raise RuntimeError("Vocal isolation failed: vocals.wav not found.")
+                processed_audio_path = vocals_path
+                # Copy all split audio files to temp/audio/<folder>/
+                dest_dir = os.path.join('temp', 'audio', base_name)
+                os.makedirs(dest_dir, exist_ok=True)
+                for file in os.listdir(demucs_out_dir):
+                    src_file = os.path.join(demucs_out_dir, file)
+                    if os.path.isfile(src_file):
+                        shutil.copy2(src_file, os.path.join(dest_dir, file))
+                print(f"{Fore.GREEN}✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}{Style.RESET_ALL}")
+        except Exception as e:
+            raise RuntimeError(f"Vocal isolation failed: {str(e)}")
     
     if task not in ["transcribe", "translate"]:
         raise ValueError("Task must be either 'transcribe' or 'translate'")
@@ -393,19 +440,22 @@ def run_sub_gen(
         
         # Set up transcription options (matching Whisper's official implementation)
         # Adjust parameters based on model type for better segmentation
+        # Only enable word_timestamps if the argument is set (default False)
+        word_timestamps = getattr(args, 'word_timestamps', False)
         if model_type == "turbo":
             # Turbo model needs different parameters for proper segmentation
             decode_options = {
                 "fp16": args.fp16,
                 "language": args.language,
                 "task": task,
-                "word_timestamps": True,
+                "word_timestamps": word_timestamps,
                 "temperature": 0.1,  # Slightly higher temperature for turbo
                 "compression_ratio_threshold": 2.0,  # Lower threshold for turbo
                 "logprob_threshold": -0.8,  # Higher threshold for turbo
                 "no_speech_threshold": 0.4,  # Lower threshold for turbo
-                "condition_on_previous_text": False,  # Disable for turbo to prevent long segments                "prepend_punctuations": "\"'([{-",
-                "append_punctuations": "\"\'.。,，!！?？:：\")]}、"
+                "condition_on_previous_text": False,  # Disable for turbo to prevent long segments
+                "prepend_punctuations": "\"'([{-",
+                "append_punctuations": "\"\'.。,，!！?？:：)"  # fixed closing string and removed stray characters
             }
         else:
             # Standard parameters for other models
@@ -413,7 +463,7 @@ def run_sub_gen(
                 "fp16": args.fp16,
                 "language": args.language,
                 "task": task,
-                "word_timestamps": True,
+                "word_timestamps": word_timestamps,
                 "temperature": 0.0,
                 "compression_ratio_threshold": 2.4,
                 "logprob_threshold": -1.0,
@@ -423,7 +473,7 @@ def run_sub_gen(
 
         # Use Whisper's built-in transcription (no manual chunking)
         logger.info("Starting transcription process...")
-        result = model.transcribe(str(input_path_obj), **decode_options)        # Filter out empty segments and handle turbo model's long segments
+        result = model.transcribe(processed_audio_path, **decode_options)        # Filter out empty segments and handle turbo model's long segments
         filtered_segments = []
         total_segments_processed = 0
         

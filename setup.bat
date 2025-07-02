@@ -69,10 +69,31 @@ echo Installing requirements from 'requirements.txt'...
 pip install -r requirements.txt
 
 :cuda_patch
-echo Applying CUDA patch to install GPU versions of PyTorch packages...
-pip uninstall --yes torch torchvision torchaudio
+set /p has_cuda_gpu="Do you have an Nvidia GPU with CUDA cores? [Y/N]: "
+if /i "!has_cuda_gpu!"=="Y" (
+    set /p use_cuda="Do you want to use your Nvidia GPU for acceleration? [Y/N]: "
+    if /i "!use_cuda!"=="Y" (
+        echo Applying CUDA patch to install GPU versions of PyTorch packages...
+        pip uninstall --yes torch 
+        pip install torch --index-url https://download.pytorch.org/whl/cu128
+        echo CUDA patch applied for Nvidia GPU support.
+    ) else (
+        echo Skipping CUDA patch. Using default CPU versions of torch, torchvision, and torchaudio.
+    )
+) else (
+    echo Not using Nvidia GPU. Keeping default CPU versions of torch, torchvision, and torchaudio.
+)
 
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+rem === Ask about vocal isolation (demucs) ===
+set /p install_demucs="Do you plan to use the vocal isolation feature (requires demucs, ~1GB download)? [Y/N]: "
+if /i "!install_demucs!"=="Y" (
+    echo Installing demucs for vocal isolation support...
+    pip install demucs
+    if %errorlevel% neq 0 (
+        echo Failed to install demucs. Please install manually if needed.
+    )
+    echo Demucs installation complete.
+)
 
 echo Whisper translation environment setup completed!
 
@@ -83,7 +104,9 @@ echo Creating a shortcut batch file for the translation app...
     echo cls
     echo call "data_whisper\Scripts\activate.bat"
     echo call ffmpeg_path.bat
-    echo python "transcribe_audio.py" --ram 3gb --non_english --translate
+            echo rem Example: Generate English captions for a video file
+            echo python "transcribe_audio.py" --ram 3gb --makecaptions --file_input "C:\path\to\your\video.mp4" --file_output "C:\path\to\output\folder" --file_output_name "output_captions" --language Japanese --device cuda
+            echo rem Edit the above paths and options as needed
     echo pause
 ) > "livetranslation.bat"
 
@@ -92,6 +115,7 @@ echo You can edit this file with notepad if necessary.
 pause
 
 Echo Setting up Environment Stuff.
+call data_whisper\Scripts\activate.bat
 !python! set_up_env.py
 
 exit /b

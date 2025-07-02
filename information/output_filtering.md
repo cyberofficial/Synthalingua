@@ -11,9 +11,20 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--save_transcript`     | Save the transcript to a file.                                    |
 | `--save_folder`         | Folder to save the transcript to (default: `out`).               |
 | `--makecaptions`        | Enable captions mode. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). |
+| `--word_timestamps`     | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--file_input`          | Path to input file for captioning.                                |
 | `--file_output`         | Output folder for captions.                                       |
 | `--file_output_name`    | Output file name (without extension).                             |
+| `--isolate_vocals`      | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the spleeter package. |
+### `--isolate_vocals`
+When enabled, the program will attempt to extract vocals from the input audio file before generating subtitles. This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `spleeter` package. If `spleeter` is not installed, a warning will be shown.
+
+**Note:** This flag only affects subtitle generation (sub_gen/captions mode). It has no effect in microphone or HLS/stream modes.
+
+### `--word_timestamps`
+When enabled, subtitles will include word-level timestamps for more precise alignment. This may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the `--word_timestamps` flag next time you run this command.
+
+**Note:** This flag only affects subtitle generation (sub_gen/captions mode). It has no effect in microphone or HLS/stream modes, and will show a warning if used there.
 
 ## Details & Examples
 
