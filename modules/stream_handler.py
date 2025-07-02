@@ -120,49 +120,15 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None):
                     print(f"{Fore.YELLOW}Could not determine audio duration: {e}{Style.RESET_ALL}")
                 # Move the info message before playback
                 print("If it starts from the beginning of the stream or is not correct, try a different source.")
-                try:
-                    print("🔊 Playing preview audio... (press Ctrl+C to stop playback)")
-                    wave_obj = sa.WaveObject.from_wave_file(wav_path)
-                    play_obj = wave_obj.play()
-                    def wait_or_interrupt():
-                        try:
-                            play_obj.wait_done()
-                        except Exception:
-                            pass
-                    t = threading.Thread(target=wait_or_interrupt)
-                    t.start()
-                    playback_interrupted = False
-                    try:
-                        while t.is_alive():
-                            t.join(timeout=0.1)
-                    except KeyboardInterrupt:
-                        play_obj.stop()
-                        print(f"\n{Fore.YELLOW}Playback interrupted by user.{Style.RESET_ALL}")
-                        playback_interrupted = True
-                    if not playback_interrupted:
-                        print("🔊 Playback finished.")
-                        played = True
-                    # Always ask for confirmation, even if interrupted
-                    print()
-                    print("You have just listened to the preview above (or interrupted playback).")
-                    confirm = input("Is this the correct live audio? (y to continue, n to pick another): ").strip().lower()
-                    if confirm == 'y':
-                        break
-                    else:
-                        continue
-                except Exception as e:
-                    print(f"{Fore.RED}Could not play audio: {e}{Style.RESET_ALL}")
-                if not played:
-                    print(f"{Fore.YELLOW}If the file did not play, you can play it manually: {wav_path}{Style.RESET_ALL}")
-                    # Move this message up so it's always visible before the prompt
-                    print("If it starts from the beginning of the stream or is not correct, try a different source.")
-                    print()
-                    print("You have just listened to the preview above (or interrupted playback).")
-                    confirm = input("Is this the correct live audio? (y to continue, n to pick another): ").strip().lower()
-                    if confirm == 'y':
-                        break
-                    else:
-                        continue
+                print(f"{Fore.YELLOW}Please manually open and listen to the preview file to verify the audio: {wav_path}{Style.RESET_ALL}")
+                print("If it starts from the beginning of the stream or is not correct, try a different source.")
+                print()
+                input("Press Enter after you have listened to the preview file...")
+                confirm = input("Is this the correct live audio? (y to continue, n to pick another): ").strip().lower()
+                if confirm == 'y':
+                    break
+                else:
+                    continue
             else:
                 print(f"{Fore.RED}Preview failed. Try another source.{Style.RESET_ALL}")
                 continue
