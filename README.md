@@ -182,6 +182,8 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | Flag | Description |
 |------|-------------|
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
+| `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
+| `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the spleeter package. |
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
@@ -209,10 +211,18 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 - **Captions mode:**
   ```sh
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With word-level timestamps (may be slower):
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With vocal isolation (requires spleeter):
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Captions compare mode (all models):**
   ```sh
   python transcribe_audio.py --makecaptions compare --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With word-level timestamps (may be slower):
+  python transcribe_audio.py --makecaptions compare --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With vocal isolation (requires spleeter):
+  python transcribe_audio.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
   ```sh
@@ -293,4 +303,14 @@ JetBrains kindly provided an OSS license for this project, greatly improving dev
 - [Official Nvidia List](https://developer.nvidia.com/cuda-gpus)
 - [Simple Nvidia List](https://gist.github.com/standaloneSA/99788f30466516dbcc00338b36ad5acf)
 - [FFMPEG Install Guide](https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222)
+
+### Word-level Timestamps
+The `--word_timestamps` flag enables word-level timestamps in subtitle output (sub_gen/captions mode only). This provides more precise alignment but may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the flag next time you run this command.
+
+**Note:** This flag has no effect in microphone or HLS/stream modes, and will show a warning if used there.
+
+### Vocal Isolation
+The `--isolate_vocals` flag attempts to isolate vocals from the input audio before generating subtitles (sub_gen/captions mode only). This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `spleeter` package. If `spleeter` is not installed, a warning will be shown.
+
+**Note:** This flag has no effect in microphone or HLS/stream modes.
 

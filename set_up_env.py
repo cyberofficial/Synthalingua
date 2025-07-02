@@ -1,3 +1,4 @@
+import argparse
 """Environment setup script for Synthalingua.
 
 This script handles the installation and configuration of required tools:
@@ -24,7 +25,7 @@ from tqdm import tqdm
 class Config:
     """Configuration settings for the environment setup."""
     FFMPEG_URL: str = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
-    YTDLP_URL: str = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.09/yt-dlp_win.zip'
+    YTDLP_URL: str = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_win.zip'
     SEVEN_ZIP_URL: str = 'https://www.7-zip.org/a/7zr.exe'
     
     def __post_init__(self) -> None:
@@ -217,6 +218,15 @@ class EnvironmentSetup:
                 self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
                 self.downloader.extract_zip(self.config.YTDLP_ARCHIVE, str(self.config.YTDLP_PATH))
                 os.remove(self.config.YTDLP_ARCHIVE)
+                # Auto-update yt-dlp to latest version
+                ytdlp_exe = self.config.YTDLP_PATH / 'yt-dlp.exe'
+                if ytdlp_exe.exists():
+                    print("Updating yt-dlp to the latest version...")
+                    try:
+                        subprocess.run([str(ytdlp_exe), '-U'], check=True)
+                        print("yt-dlp updated to the latest version.")
+                    except Exception as e:
+                        print(f"Warning: Failed to auto-update yt-dlp: {e}")
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
                 print(f"Failed to set up yt-dlp: {e}")
@@ -288,9 +298,30 @@ def check_system_compatibility() -> bool:
 
 def main() -> None:
     """Main entry point of the script."""
+
     print("Version 0.0.35")
 
-    if os.path.exists("ffmpeg_path.bat"):
+    parser = argparse.ArgumentParser(description="Synthalingua Environment Setup")
+    parser.add_argument('--reinstall', action='store_true', help='Wipe all tool folders/files and redownload fresh')
+    args = parser.parse_args()
+
+    if args.reinstall:
+        print("--reinstall specified: Removing all tool folders/files for a fresh setup...")
+        cfg = Config()
+        for path in [cfg.FFMPEG_ROOT_PATH, cfg.YTDLP_PATH, Path.cwd() / '7zr.exe', Path.cwd() / 'ffmpeg_path.bat']:
+            if path.exists():
+                if path.is_dir():
+                    print(f"Removing folder: {path}")
+                    import shutil
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    print(f"Removing file: {path}")
+                    try:
+                        path.unlink()
+                    except Exception as e:
+                        print(f"Warning: Could not remove {path}: {e}")
+
+    if os.path.exists("ffmpeg_path.bat") and not args.reinstall:
         print("Config file already exists. Exiting...")
         return
 

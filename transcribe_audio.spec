@@ -6,7 +6,7 @@ import glob
 block_cipher = None
 
 # Define CUDA paths
-CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6'
+CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8'
 cuda_bin = os.path.join(CUDA_PATH, 'bin')
 cupti_path = os.path.join(CUDA_PATH, 'extras', 'CUPTI', 'lib64')
 

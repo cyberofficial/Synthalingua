@@ -91,6 +91,8 @@ def set_model_by_ram(ram, language):
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ram", default="2gb", help="Model to use", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
+    parser.add_argument("--word_timestamps", action='store_true', default=False, help="Enable word-level timestamps in output (default: False)")
+    parser.add_argument("--isolate_vocals", action='store_true', default=False, help="Attempt to isolate vocals from the input audio before generating subtitles.")
     parser.add_argument("--ramforce", action='store_true', help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
     parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, increases speed with a light decrease in accuracy.")
     parser.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
@@ -154,7 +156,24 @@ def parse_arguments():
         default=None,
         help="Show available audio streams and select one. Use without value for interactive mode, or specify format directly (e.g., 'bestaudio', '140', 'worst')"
     )
-    return parser.parse_args()
+
+    args = parser.parse_args()
+
+    # Restrict --word_timestamps to sub_gen usage only
+    # If microphone or HLS/stream mode is enabled, warn and exit if --word_timestamps is set
+    using_microphone = (
+        (hasattr(args, 'microphone_enabled') and args.microphone_enabled) or
+        (hasattr(args, 'set_microphone') and args.set_microphone)
+    )
+    using_hls = (
+        (hasattr(args, 'stream') and args.stream) or
+        (hasattr(args, 'auto_hls') and args.auto_hls)
+    )
+    if args.word_timestamps and (using_microphone or using_hls):
+        print(f"{Fore.YELLOW}⚠️  The --word_timestamps flag is only supported for subtitle generation (sub_gen). Please remove the redundant command flag as it serves no purpose in microphone or HLS modes.{Style.RESET_ALL}")
+        exit(1)
+
+    return args
 
 
 print(f"{Fore.GREEN}✅ Parser Args Module Loaded{Style.RESET_ALL}")
