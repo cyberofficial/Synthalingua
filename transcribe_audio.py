@@ -7,6 +7,11 @@ from queue import Queue
 from tempfile import NamedTemporaryFile
 from colorama import Fore, Style, init
 
+# Set up proper encoding for Windows to handle Unicode characters
+if sys.platform.startswith('win'):
+    # Set environment variables for proper UTF-8 handling
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 from modules.audio_handlers import record_callback, handle_mic_calibration
 from modules.device_manager import get_microphone_source, list_microphones, setup_device
 from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error
