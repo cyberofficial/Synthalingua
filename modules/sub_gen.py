@@ -391,30 +391,87 @@ def run_sub_gen(
         try:
             print(f"{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs...{Style.RESET_ALL}")
             with tempfile.TemporaryDirectory() as tmpdir:
-                # Run demucs CLI to separate vocals
+                # Run demucs CLI to separate vocals with proper encoding
                 result = subprocess.run([
                     'demucs',
                     '-o', tmpdir,
                     '--two-stems', 'vocals',
                     str(input_path_obj)
-                ], capture_output=True, text=True)
+                ], capture_output=True, text=True, encoding='utf-8', errors='replace')
+                
+                # Debug output
+                print(f"{Fore.YELLOW}Debug: Demucs return code: {result.returncode}{Style.RESET_ALL}")
+                if result.stdout:
+                    print(f"{Fore.YELLOW}Debug: Demucs stdout: {result.stdout[:500]}...{Style.RESET_ALL}")
+                if result.stderr:
+                    print(f"{Fore.YELLOW}Debug: Demucs stderr: {result.stderr[:500]}...{Style.RESET_ALL}")
+                
                 if result.returncode != 0:
-                    raise RuntimeError(f"Demucs failed: {result.stderr}")
-                # Demucs outputs to tmpdir/demucs/{input_basename}/
+                    raise RuntimeError(f"Demucs failed with return code {result.returncode}: {result.stderr}")
+                
+                # Find the actual output directory structure
                 base_name = os.path.splitext(os.path.basename(str(input_path_obj)))[0]
-                demucs_out_dir = os.path.join(tmpdir, 'demucs', base_name)
-                vocals_path = os.path.join(demucs_out_dir, 'vocals.wav')
-                if not os.path.exists(vocals_path):
-                    raise RuntimeError("Vocal isolation failed: vocals.wav not found.")
-                processed_audio_path = vocals_path
-                # Copy all split audio files to temp/audio/<folder>/
-                dest_dir = os.path.join('temp', 'audio', base_name)
+                
+                # Demucs might create different directory structures, let's search for vocals.wav
+                vocals_path = None
+                
+                # Try different possible output locations
+                possible_locations = [
+                    os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),  # Standard location
+                    os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),  # HTDemucs model
+                    os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),  # MDX model
+                    os.path.join(tmpdir, base_name, 'vocals.wav'),  # Direct output
+                ]
+                
+                # Search recursively for vocals.wav in case structure is different
+                for root, dirs, files in os.walk(tmpdir):
+                    if 'vocals.wav' in files:
+                        vocals_path = os.path.join(root, 'vocals.wav')
+                        print(f"{Fore.GREEN}Found vocals.wav at: {vocals_path}{Style.RESET_ALL}")
+                        break
+                
+                # Try the predefined locations if recursive search didn't work
+                if not vocals_path:
+                    for location in possible_locations:
+                        if os.path.exists(location):
+                            vocals_path = location
+                            print(f"{Fore.GREEN}Found vocals.wav at predefined location: {vocals_path}{Style.RESET_ALL}")
+                            break
+                
+                if not vocals_path or not os.path.exists(vocals_path):
+                    # List all files in tmpdir for debugging
+                    print(f"{Fore.RED}Debug: Contents of tmpdir ({tmpdir}):{Style.RESET_ALL}")
+                    for root, dirs, files in os.walk(tmpdir):
+                        level = root.replace(tmpdir, '').count(os.sep)
+                        indent = ' ' * 2 * level
+                        print(f"{indent}{os.path.basename(root)}/")
+                        subindent = ' ' * 2 * (level + 1)
+                        for file in files:
+                            print(f"{subindent}{file}")
+                    raise RuntimeError(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
+                
+                # Set the demucs_out_dir for file copying
+                demucs_out_dir = os.path.dirname(vocals_path)
+                # Set the demucs_out_dir for file copying
+                demucs_out_dir = os.path.dirname(vocals_path)
+
+                # Use current UTC time for folder name to avoid Unicode issues
+                from datetime import datetime
+                utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                
+                # Use absolute path to ensure files are saved in the correct location
+                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up two levels from modules/
+                dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
                 os.makedirs(dest_dir, exist_ok=True)
                 for file in os.listdir(demucs_out_dir):
                     src_file = os.path.join(demucs_out_dir, file)
                     if os.path.isfile(src_file):
                         shutil.copy2(src_file, os.path.join(dest_dir, file))
+                
+                # Update processed_audio_path to point to the copied vocals file
+                processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
                 print(f"{Fore.GREEN}✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}Using vocals file: {processed_audio_path}{Style.RESET_ALL}")
         except Exception as e:
             raise RuntimeError(f"Vocal isolation failed: {str(e)}")
     
