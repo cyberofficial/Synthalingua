@@ -124,7 +124,9 @@ def main():
     if not os.path.exists(args.model_dir):
         print("Creating models folder...")
         os.makedirs(args.model_dir)    # Configure model
-    model = parser_args.set_model_by_ram(args.ram, args.language)
+    # Use stream_language for model selection if in stream mode
+    model_language = args.stream_language if args.stream else args.language
+    model = parser_args.set_model_by_ram(args.ram, model_language)
     if not args.makecaptions:
         audio_model = whisper.load_model(model, device=device, download_root=args.model_dir)
 
