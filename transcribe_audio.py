@@ -250,5 +250,13 @@ def main():
         if is_keyboard_interrupt:
             sys.exit(0)
 
+try:
+    from multiprocessing import freeze_support
+except ImportError:
+    freeze_support = None
+
+
 if __name__ == "__main__":
+    if freeze_support:
+        freeze_support()
     main()
