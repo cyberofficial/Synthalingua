@@ -332,5 +332,12 @@ def main() -> None:
     setup.run()
 
 
+try:
+    from multiprocessing import freeze_support
+except ImportError:
+    freeze_support = None
+
 if __name__ == "__main__":
+    if freeze_support:
+        freeze_support()
     main()

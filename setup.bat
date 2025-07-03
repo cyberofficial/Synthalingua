@@ -6,24 +6,24 @@ Title Realtime Whisper Translation App Setup
 
 if NOT exist transcribe_audio.py goto EoF_Error
 
-Echo Checking for Python 3.10.x
+Echo Checking for Python 3.12.x
 echo Running command: python -V
 python -V
 echo.
 
 rem Prompt user to verify the Python version
-set /p user_check="Does this show Python 3.10.x? (Y/N): "
+set /p user_check="Does this show Python 3.12.x? (Y/N): "
 if /i "%user_check%" neq "Y" (
-    echo It seems you do not have Python 3.10.x installed.
-    echo Please download and install Python 3.10.10 from the following link:
-    echo https://www.python.org/downloads/release/python-31010/
+    echo It seems you do not have Python 3.12.x installed.
+    echo Please download and install Python 3.12 from the following link:
+    echo https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
     echo.
-    set /p filepath="If you have Python 3.10.x installed but not in PATH, enter the path to the file python.exe for 3.10.x (e.g., C:\path\to\python\python.exe): "
+    set /p filepath="If you have Python 3.12.x installed but not in PATH, enter the path to the file python.exe for 3.12.x (e.g., C:\path\to\python\python.exe): "
 
     echo Using this for python: !filepath!
     set "python=!filepath!"
 ) else (
-    rem Set default python if user confirms Python 3.10.x is installed
+    rem Set default python if user confirms Python 3.12.x is installed
     set "python=python"
 )
 
@@ -114,9 +114,10 @@ echo Shortcut 'livetranslation.bat' created in the current directory.
 echo You can edit this file with notepad if necessary.
 pause
 
+:setup_env
 Echo Setting up Environment Stuff.
 call data_whisper\Scripts\activate.bat
-!python! set_up_env.py
+python set_up_env.py --reinstall
 
 exit /b
 
