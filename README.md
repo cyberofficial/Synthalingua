@@ -63,9 +63,9 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ---
 
 ## Quick Start
-1. **Install Python 3.10.9+ (not 3.11+)** and [Git](https://git-scm.com/downloads)
+1. **Install Python 3.12** from [here](https://www.python.org/downloads/release/python-31210/) and [Git](https://git-scm.com/downloads)
 2. **Install FFMPEG** ([guide](https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222))
-3. *(Optional)* Install CUDA for GPU acceleration
+3. *(Optional)* Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) for GPU acceleration if you plan to use GPU features
 4. Run `setup.bat` (Windows) or `setup.bash` (Linux)
 5. Edit and run the generated batch/bash file, or use the GUI portable version:
 
@@ -109,10 +109,10 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ---
 
 ## Installation
-1. Install [Python 3.10.9+](https://www.python.org/downloads/release/python-3109/) (not 3.11+)
+1. Install [Python 3.12](https://www.python.org/downloads/release/python-31210/)
 2. Install [Git](https://git-scm.com/downloads)
 3. Install FFMPEG ([guide](https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222))
-4. *(Optional)* Install CUDA for GPU
+4. *(Optional)* Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) for GPU if you plan to use GPU features
 5. Run `setup.bat` (Windows) or `setup.bash` (Linux)
 6. Edit and run the generated batch/bash file, or use the GUI
 
@@ -264,10 +264,10 @@ python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_
 ---
 
 ## Troubleshooting
-- **Python not recognized:** Add Python to PATH, restart, check version (must be 3.10.x, not 3.11+)
+- **Python not recognized:** Add Python to PATH, restart, check version (should be 3.12)
 - **No module named 'transformers':** Run `pip install transformers` in the correct Python environment
 - **Git not recognized:** Add Git to PATH, restart
-- **CUDA not available:** Install CUDA (Nvidia only), or use CPU mode
+- **CUDA not available:** Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) (Nvidia only), or use CPU mode
 - **Audio source errors:** Make sure a microphone or stream is set up
 - **Other issues:** See [GitHub Issues](https://github.com/cyberofficial/Synthalingua/issues)
 
