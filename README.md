@@ -183,7 +183,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 |------|-------------|
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
 | `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
-| `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the spleeter package. |
+| `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
@@ -213,7 +213,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With word-level timestamps (may be slower):
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
-  # With vocal isolation (requires spleeter):
+  # With vocal isolation (requires demucs):
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Captions compare mode (all models):**
@@ -221,7 +221,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   python transcribe_audio.py --makecaptions compare --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With word-level timestamps (may be slower):
   python transcribe_audio.py --makecaptions compare --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
-  # With vocal isolation (requires spleeter):
+  # With vocal isolation (requires demucs):
   python transcribe_audio.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
@@ -310,7 +310,7 @@ The `--word_timestamps` flag enables word-level timestamps in subtitle output (s
 **Note:** This flag has no effect in microphone or HLS/stream modes, and will show a warning if used there.
 
 ### Vocal Isolation
-The `--isolate_vocals` flag attempts to isolate vocals from the input audio before generating subtitles (sub_gen/captions mode only). This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `spleeter` package. If `spleeter` is not installed, a warning will be shown.
+The `--isolate_vocals` flag attempts to isolate vocals from the input audio before generating subtitles (sub_gen/captions mode only). This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `demucs` package. If `demucs` is not installed, a warning will be shown.
 
 **Note:** This flag has no effect in microphone or HLS/stream modes.
 
