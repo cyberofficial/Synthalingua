@@ -535,7 +535,7 @@ class EnvironmentSetup:
 
 def main() -> None:
     """Main entry point of the script."""
-    print("Version 0.0.39")
+    print("Version 0.0.40")
     parser = argparse.ArgumentParser(description="Synthalingua Environment Setup")
     parser.add_argument('--reinstall', action='store_true', help='Wipe all tool folders/files and redownload fresh')
     parser.add_argument('--using_vocal_isolation', action='store_true', help='Install miniconda environment with demucs for vocal isolation features')
