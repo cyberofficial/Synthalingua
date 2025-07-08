@@ -122,46 +122,85 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         transitions = []
         current_state = is_silent[0]
         current_start = 0.0
+        current_rms_values = []  # Track RMS values for current region
         
         for i, silent in enumerate(is_silent[1:], 1):
+            current_rms_values.append(rms_frames[i-1])  # Add previous frame's RMS
+            
             if silent != current_state:
                 # State change detected
                 region_type = 'silence' if current_state else 'speech'
                 region_duration = frame_times[i] - current_start
+                
+                # Calculate average dB level for this region
+                if current_rms_values:
+                    avg_rms = np.mean(current_rms_values)
+                    avg_db = 20 * np.log10(max(avg_rms, 1e-10))  # Avoid log(0)
+                    max_rms = np.max(current_rms_values)
+                    max_db = 20 * np.log10(max(max_rms, 1e-10))
+                else:
+                    avg_db = -float('inf')
+                    max_db = -float('inf')
                 
                 # Only add regions that meet minimum duration requirements
                 if region_type == 'silence' and region_duration >= min_silence_duration:
                     transitions.append({
                         'type': 'silence',
                         'start': current_start,
-                        'end': frame_times[i]
+                        'end': frame_times[i],
+                        'avg_db': avg_db,
+                        'max_db': max_db,
+                        'duration': region_duration
                     })
                 elif region_type == 'speech' and region_duration >= 0.1:  # Minimum 100ms for speech
                     transitions.append({
                         'type': 'speech',
                         'start': current_start,
-                        'end': frame_times[i]
+                        'end': frame_times[i],
+                        'avg_db': avg_db,
+                        'max_db': max_db,
+                        'duration': region_duration
                     })
                 
                 current_state = silent
                 current_start = frame_times[i]
+                current_rms_values = []  # Reset for new region
+        
+        # Add remaining RMS values for final region
+        current_rms_values.extend(rms_frames[len(is_silent)-len(current_rms_values):])
         
         # Add final region
         audio_duration = len(audio) / sr
         final_region_type = 'silence' if current_state else 'speech'
         final_duration = audio_duration - current_start
         
+        # Calculate dB for final region
+        if current_rms_values:
+            avg_rms = np.mean(current_rms_values)
+            avg_db = 20 * np.log10(max(avg_rms, 1e-10))
+            max_rms = np.max(current_rms_values)
+            max_db = 20 * np.log10(max(max_rms, 1e-10))
+        else:
+            avg_db = -float('inf')
+            max_db = -float('inf')
+        
         if final_region_type == 'silence' and final_duration >= min_silence_duration:
             transitions.append({
                 'type': 'silence',
                 'start': current_start,
-                'end': audio_duration
+                'end': audio_duration,
+                'avg_db': avg_db,
+                'max_db': max_db,
+                'duration': final_duration
             })
         elif final_region_type == 'speech' and final_duration >= 0.1:
             transitions.append({
                 'type': 'speech',
                 'start': current_start,
-                'end': audio_duration
+                'end': audio_duration,
+                'avg_db': avg_db,
+                'max_db': max_db,
+                'duration': final_duration
             })
         
         # Merge adjacent speech regions separated by very short silences
@@ -171,8 +210,24 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                 merged_regions and 
                 merged_regions[-1]['type'] == 'speech' and
                 region['start'] - merged_regions[-1]['end'] < 1.0):  # Less than 1 second gap
-                # Merge with previous speech region
-                merged_regions[-1]['end'] = region['end']
+                # Merge with previous speech region - combine dB values
+                prev_region = merged_regions[-1]
+                
+                # Weight the dB values by duration for proper averaging
+                prev_duration = prev_region['duration']
+                curr_duration = region['duration']
+                total_duration = prev_duration + curr_duration
+                
+                # Weighted average of dB values
+                combined_avg_db = (prev_region['avg_db'] * prev_duration + region['avg_db'] * curr_duration) / total_duration
+                combined_max_db = max(prev_region['max_db'], region['max_db'])
+                
+                merged_regions[-1].update({
+                    'end': region['end'],
+                    'avg_db': combined_avg_db,
+                    'max_db': combined_max_db,
+                    'duration': total_duration
+                })
             else:
                 merged_regions.append(region)
         
@@ -187,11 +242,65 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         print(f"   • Speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
         print(f"   • Silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
         print(f"   • Processing efficiency: {100 * total_speech_duration / audio_duration:.1f}% of audio contains speech")
+        print(f"   • Current threshold: {silence_threshold_db:.1f}dB")
         
-        # Show speech regions that will be processed
-        for i, region in enumerate(speech_regions):
-            duration = region['end'] - region['start']
-            print(f"   🎵 Speech segment {i+1}: {region['start']:.1f}s - {region['end']:.1f}s ({duration:.1f}s)")
+        # Show detailed breakdown of regions with dB levels
+        print(f"\n{Fore.CYAN}🔊 Audio Level Analysis:{Style.RESET_ALL}")
+        
+        for i, region in enumerate(merged_regions):
+            region_type = region['type']
+            start_time = region['start']
+            end_time = region['end']
+            duration = region['duration']
+            avg_db = region['avg_db']
+            max_db = region['max_db']
+            
+            # Color-code based on region type and dB levels
+            if region_type == 'speech':
+                icon = "🎵"
+                type_color = Fore.GREEN
+                type_label = "SPEECH"
+            else:
+                icon = "🔇"
+                type_color = Fore.YELLOW
+                type_label = "SILENCE"
+            
+            # Add recommendations based on dB levels
+            recommendation = ""
+            if region_type == 'silence':
+                if avg_db > silence_threshold_db + 5:
+                    recommendation = f" {Fore.RED}(Maybe increase threshold to {avg_db + 3:.1f}dB?){Style.RESET_ALL}"
+                elif avg_db > silence_threshold_db:
+                    recommendation = f" {Fore.YELLOW}(Close to threshold){Style.RESET_ALL}"
+            else:  # speech
+                if avg_db < silence_threshold_db:
+                    recommendation = f" {Fore.RED}(Maybe decrease threshold to {avg_db - 3:.1f}dB?){Style.RESET_ALL}"
+            
+            print(f"   {icon} {type_color}{type_label:<7}{Style.RESET_ALL} "
+                  f"{start_time:6.1f}s - {end_time:6.1f}s ({duration:5.1f}s) "
+                  f"│ Avg: {avg_db:6.1f}dB │ Peak: {max_db:6.1f}dB{recommendation}")
+        
+        # Show threshold guidance
+        print(f"\n{Fore.CYAN}💡 Threshold Guidance:{Style.RESET_ALL}")
+        
+        # Analyze if threshold seems appropriate
+        misclassified_speech = [r for r in silence_regions if r['avg_db'] < silence_threshold_db - 5]
+        misclassified_silence = [r for r in speech_regions if r['avg_db'] > silence_threshold_db + 10]
+        
+        if misclassified_speech:
+            print(f"   {Fore.YELLOW}⚠️  {len(misclassified_speech)} 'silence' regions have very low audio levels{Style.RESET_ALL}")
+            print(f"   {Fore.YELLOW}   Consider lowering threshold to around {min(r['avg_db'] for r in misclassified_speech) - 3:.1f}dB{Style.RESET_ALL}")
+        
+        if misclassified_silence:
+            print(f"   {Fore.YELLOW}⚠️  {len(misclassified_silence)} 'speech' regions have high audio levels{Style.RESET_ALL}")
+            print(f"   {Fore.YELLOW}   Consider raising threshold to around {max(r['avg_db'] for r in misclassified_silence) - 3:.1f}dB{Style.RESET_ALL}")
+        
+        if not misclassified_speech and not misclassified_silence:
+            print(f"   {Fore.GREEN}✅ Current threshold ({silence_threshold_db:.1f}dB) seems well-tuned for this audio{Style.RESET_ALL}")
+        
+        # Show speech regions that will be processed (simplified now since detailed info is above)
+        if speech_regions:
+            print(f"\n{Fore.GREEN}🎵 Speech regions to be processed: {len(speech_regions)}{Style.RESET_ALL}")
         
         return merged_regions
         
