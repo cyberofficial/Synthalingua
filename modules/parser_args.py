@@ -133,6 +133,7 @@ def parse_arguments():
     #parser.add_argument("--is_portable", action='store_true', help="Run the program in portable mode.")
     parser.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Make captions for the stream. Use '--makecaptions compare' to generate captions with all RAM models for comparison (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb).")
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing silent audio chunks during caption generation. Only works with --makecaptions, not with HLS streaming or microphone input.")
+    parser.add_argument("--silent_threshold", type=float, default=-35.0, help="dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with --silent_detect.")
     parser.add_argument("--file_input", default=None, help="Path to file to transcribe or translate.")
     parser.add_argument("--file_output", default=None, help="Path to file to save transcript to.")
     parser.add_argument("--file_output_name", default=None, help="Path to file to save transcript to.")
