@@ -18,6 +18,7 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--isolate_vocals`      | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
 | `--silent_detect`       | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
 | `--silent_threshold`    | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
+| `--silent_duration`     | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
 ### `--isolate_vocals`
 When enabled, the program will attempt to extract vocals from the input audio file before generating subtitles. This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `demucs` package. If `demucs` is not installed, a warning will be shown.
 
@@ -58,6 +59,32 @@ Controls the dB threshold used for silence detection. This allows fine-tuning th
 --silent_detect --silent_threshold -25.0
 ```
 
+### `--silent_duration`
+Controls the minimum duration for a region to be considered silence versus a brief pause in speech. This helps distinguish between natural speaking pauses and actual silent periods.
+
+**Default:** 0.5 seconds (brief pauses are treated as part of speech)
+
+**Common adjustments:**
+- **Ignore brief pauses:** Use 2.0s or higher to only consider longer gaps as silence
+- **Conversational speech:** Use 1.0-1.5s for natural conversation with pauses
+- **Rapid speech:** Use 0.1-0.3s to detect even brief silent moments
+- **Podcast intros/outros:** Use 3.0s+ to skip only major silent sections
+
+**Examples:**
+```
+# Default duration (0.5s minimum)
+--silent_detect
+
+# Only consider 2+ second gaps as silence (ignore brief pauses)
+--silent_detect --silent_duration 2.0
+
+# Very sensitive to short gaps
+--silent_detect --silent_duration 0.1
+
+# Combined with custom threshold
+--silent_detect --silent_threshold -40.0 --silent_duration 1.5
+```
+
 **Note:** This argument only has effect when used with `--silent_detect`.
 
 ### `--word_timestamps`
@@ -96,6 +123,16 @@ python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --fil
 For quiet speech or whispered content:
 ```
 python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -45.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```
+
+For content with brief speaking pauses (ignore pauses under 2 seconds):
+```
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_duration 2.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```
+
+For precise control over both threshold and duration:
+```
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -40.0 --silent_duration 1.5 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
 ```
 
 This combination:
