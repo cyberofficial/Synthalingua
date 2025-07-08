@@ -67,14 +67,19 @@ python transcribe_audio.py --makecaptions --silent_detect --file_input "C:/Video
 python transcribe_audio.py --makecaptions --silent_detect --silent_threshold -45.0 --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
+**With custom duration to ignore brief pauses (e.g., 2s minimum):**
+```sh
+python transcribe_audio.py --makecaptions --silent_detect --silent_duration 2.0 --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
 **RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):**
 ```sh
 python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
-**RECOMMENDED with custom threshold for quiet content:**
+**RECOMMENDED with custom settings for natural speech with pauses:**
 ```sh
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -45.0 --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -40.0 --silent_duration 1.5 --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
 **Compare mode with advanced features:**
