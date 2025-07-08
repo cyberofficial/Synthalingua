@@ -26,6 +26,10 @@ from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
 import numpy as np
 import gc
+import shutil
+import tempfile
+import os
+import librosa
 
 import whisper
 import subprocess
@@ -50,6 +54,241 @@ if getattr(args, 'word_timestamps', False):
 # Inform user if isolate_vocals is enabled
 if getattr(args, 'isolate_vocals', False):
     print(f"{Fore.CYAN}ℹ️  Vocal isolation is enabled. The program will attempt to extract vocals from the input audio before generating subtitles. This may take additional time and requires the demucs package.{Style.RESET_ALL}")
+
+# Inform user if silent_detect is enabled
+if getattr(args, 'silent_detect', False):
+    print(f"{Fore.CYAN}ℹ️  Silent detection is enabled. The program will skip processing silent audio chunks during caption generation. This may improve processing speed for files with long silent periods.{Style.RESET_ALL}")
+
+def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.5) -> List[Dict[str, Any]]:
+    """
+    Detect silence and speech regions in audio file using intelligent segmentation.
+    
+    Args:
+        audio_path (str): Path to audio file
+        silence_threshold_db (float): dB threshold below which audio is considered silent (default: -35.0)
+        min_silence_duration (float): Minimum duration in seconds for a region to be considered silence (default: 0.5)
+    
+    Returns:
+        List[Dict[str, Any]]: List of regions with type, start, and end times
+                              [{'type': 'speech', 'start': 13.8, 'end': 42.3}, ...]
+    """
+    try:
+        # Try to import librosa, fall back to basic audio loading if not available
+        try:
+            import librosa
+            # Load audio with librosa for better compatibility
+            audio, sr = librosa.load(audio_path, sr=None)
+        except ImportError:
+            # Fallback: use whisper's audio loading
+            import whisper.audio
+            audio = whisper.audio.load_audio(audio_path)
+            sr = 16000  # Whisper's standard sample rate
+        
+        print(f"{Fore.CYAN}🔍 Analyzing audio for speech/silence regions...{Style.RESET_ALL}")
+        
+        # Convert dB threshold to linear amplitude
+        silence_threshold_linear = 10 ** (silence_threshold_db / 20.0)
+        
+        # Calculate frame-wise RMS energy with overlapping windows
+        frame_length = int(0.025 * sr)  # 25ms frames
+        hop_length = int(0.010 * sr)    # 10ms hop (overlap for smoother detection)
+        
+        # Calculate RMS for each frame
+        rms_frames = []
+        for i in range(0, len(audio) - frame_length + 1, hop_length):
+            frame = audio[i:i + frame_length]
+            rms = np.sqrt(np.mean(frame ** 2)) if len(frame) > 0 else 0.0
+            rms_frames.append(rms)
+        
+        # Create time axis for frames
+        frame_times = np.arange(len(rms_frames)) * hop_length / sr
+        
+        # Detect silence/speech regions
+        is_silent = np.array(rms_frames) < silence_threshold_linear
+        
+        # Find transitions between silence and speech
+        transitions = []
+        current_state = is_silent[0]
+        current_start = 0.0
+        
+        for i, silent in enumerate(is_silent[1:], 1):
+            if silent != current_state:
+                # State change detected
+                region_type = 'silence' if current_state else 'speech'
+                region_duration = frame_times[i] - current_start
+                
+                # Only add regions that meet minimum duration requirements
+                if region_type == 'silence' and region_duration >= min_silence_duration:
+                    transitions.append({
+                        'type': 'silence',
+                        'start': current_start,
+                        'end': frame_times[i]
+                    })
+                elif region_type == 'speech' and region_duration >= 0.1:  # Minimum 100ms for speech
+                    transitions.append({
+                        'type': 'speech',
+                        'start': current_start,
+                        'end': frame_times[i]
+                    })
+                
+                current_state = silent
+                current_start = frame_times[i]
+        
+        # Add final region
+        audio_duration = len(audio) / sr
+        final_region_type = 'silence' if current_state else 'speech'
+        final_duration = audio_duration - current_start
+        
+        if final_region_type == 'silence' and final_duration >= min_silence_duration:
+            transitions.append({
+                'type': 'silence',
+                'start': current_start,
+                'end': audio_duration
+            })
+        elif final_region_type == 'speech' and final_duration >= 0.1:
+            transitions.append({
+                'type': 'speech',
+                'start': current_start,
+                'end': audio_duration
+            })
+        
+        # Merge adjacent speech regions separated by very short silences
+        merged_regions = []
+        for region in transitions:
+            if (region['type'] == 'speech' and 
+                merged_regions and 
+                merged_regions[-1]['type'] == 'speech' and
+                region['start'] - merged_regions[-1]['end'] < 1.0):  # Less than 1 second gap
+                # Merge with previous speech region
+                merged_regions[-1]['end'] = region['end']
+            else:
+                merged_regions.append(region)
+        
+        # Filter out speech regions and show statistics
+        speech_regions = [r for r in merged_regions if r['type'] == 'speech']
+        silence_regions = [r for r in merged_regions if r['type'] == 'silence']
+        
+        total_speech_duration = sum(r['end'] - r['start'] for r in speech_regions)
+        total_silence_duration = sum(r['end'] - r['start'] for r in silence_regions)
+        
+        print(f"{Fore.GREEN}� Audio analysis complete:{Style.RESET_ALL}")
+        print(f"   • Speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
+        print(f"   • Silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
+        print(f"   • Processing efficiency: {100 * total_speech_duration / audio_duration:.1f}% of audio contains speech")
+        
+        # Show speech regions that will be processed
+        for i, region in enumerate(speech_regions):
+            duration = region['end'] - region['start']
+            print(f"   🎵 Speech segment {i+1}: {region['start']:.1f}s - {region['end']:.1f}s ({duration:.1f}s)")
+        
+        return merged_regions
+        
+    except Exception as e:
+        print(f"{Fore.YELLOW}⚠️  Silence detection failed: {e}. Processing entire file.{Style.RESET_ALL}")
+        # If silence detection fails, return the entire audio as one speech chunk
+        try:
+            import whisper.audio
+            audio = whisper.audio.load_audio(audio_path)
+            duration = len(audio) / 16000
+            return [{'type': 'speech', 'start': 0.0, 'end': duration}]
+        except:
+            # Last resort - assume 60 minute max duration
+            return [{'type': 'speech', 'start': 0.0, 'end': 3600.0}]
+
+def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model, decode_options: Dict) -> List[Dict]:
+    """
+    Process speech regions and return combined segments with proper timestamps.
+    
+    Args:
+        audio_path (str): Path to audio file
+        regions (List[Dict[str, Any]]): List of speech/silence regions from detect_silence_in_audio
+        model: Loaded Whisper model
+        decode_options (Dict): Whisper decode options
+    
+    Returns:
+        List[Dict]: List of processed segments with adjusted timestamps
+    """
+    all_segments = []
+    
+    # Filter to only speech regions
+    speech_regions = [r for r in regions if r['type'] == 'speech']
+    
+    if not speech_regions:
+        print(f"{Fore.YELLOW}⚠️  No speech regions detected in audio file.{Style.RESET_ALL}")
+        return []
+    
+    try:
+        print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions...{Style.RESET_ALL}")
+        
+        for i, region in enumerate(speech_regions, 1):
+            region_start = region['start']
+            region_end = region['end']
+            region_duration = region_end - region_start
+            
+            print(f"{Fore.CYAN}🎵 Processing speech region {i}/{len(speech_regions)}: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s){Style.RESET_ALL}")
+            
+            # Load full audio for this approach
+            import whisper.audio
+            full_audio = whisper.audio.load_audio(audio_path)
+            sr = 16000  # Whisper's standard sample rate
+            
+            # Extract the speech region
+            start_sample = int(region_start * sr)
+            end_sample = int(region_end * sr)
+            region_audio = full_audio[start_sample:end_sample]
+            
+            # Create temporary audio file for this speech region
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                try:
+                    # Try using soundfile if available
+                    import soundfile as sf
+                    sf.write(tmp_file.name, region_audio, sr)
+                except ImportError:
+                    # Fallback: use basic wave writing
+                    import wave
+                    with wave.open(tmp_file.name, 'wb') as wav_file:
+                        wav_file.setnchannels(1)  # Mono
+                        wav_file.setsampwidth(2)  # 16-bit
+                        wav_file.setframerate(sr)
+                        # Convert float audio to 16-bit PCM
+                        audio_int16 = (region_audio * 32767).astype(np.int16)
+                        wav_file.writeframes(audio_int16.tobytes())
+                
+                # Transcribe the entire speech region as one chunk
+                # Let Whisper handle internal segmentation naturally
+                region_result = model.transcribe(tmp_file.name, **decode_options)
+                
+                # Adjust all timestamps to match original audio timeline
+                for segment in region_result.get("segments", []):
+                    if isinstance(segment, dict) and segment.get("text", "").strip():
+                        # Adjust timestamps relative to original audio
+                        segment["start"] = segment.get("start", 0.0) + region_start
+                        segment["end"] = segment.get("end", 0.0) + region_start
+                        all_segments.append(segment)
+                        
+                        # Show progress for each segment within the region
+                        seg_start = segment["start"]
+                        seg_end = segment["end"]
+                        seg_text = segment.get("text", "").strip()[:50] + "..." if len(segment.get("text", "").strip()) > 50 else segment.get("text", "").strip()
+                        print(f"   📝 Segment: {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                
+                # Clean up temporary file
+                try:
+                    os.unlink(tmp_file.name)
+                except:
+                    pass
+                    
+                print(f"   ✅ Region {i} complete: {len(region_result.get('segments', []))} segments generated")
+    
+    except Exception as e:
+        print(f"{Fore.RED}❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
+        # Fallback to processing entire file
+        full_result = model.transcribe(audio_path, **decode_options)
+        all_segments = full_result.get("segments", [])
+    
+    print(f"{Fore.GREEN}🎉 Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
+    return all_segments
 
 def format_timestamp(seconds: float) -> str:
     """
@@ -528,9 +767,33 @@ def run_sub_gen(
                 "condition_on_previous_text": True
             }
 
-        # Use Whisper's built-in transcription (no manual chunking)
+        # Use Whisper's built-in transcription or chunk-based processing
         logger.info("Starting transcription process...")
-        result = model.transcribe(processed_audio_path, **decode_options)        # Filter out empty segments and handle turbo model's long segments
+        
+        # Check if silence detection is enabled and we're in caption mode
+        use_silence_detection = getattr(args, 'silent_detect', False) and getattr(args, 'makecaptions', False)
+        
+        if use_silence_detection:
+            print(f"{Fore.CYAN}🔍 Analyzing audio for speech/silence regions...{Style.RESET_ALL}")
+            audio_regions = detect_silence_in_audio(processed_audio_path)
+            
+            # Filter to speech regions only
+            speech_regions = [r for r in audio_regions if r['type'] == 'speech']
+            
+            if len(speech_regions) == 0:
+                print(f"{Fore.YELLOW}⚠️  No speech detected in file. Creating empty result.{Style.RESET_ALL}")
+                result = {"segments": [], "text": "", "language": args.language or "en"}
+            else:
+                print(f"{Fore.GREEN}🎵 Processing {len(speech_regions)} speech regions with natural boundaries{Style.RESET_ALL}")
+                segments = process_speech_regions(processed_audio_path, audio_regions, model, decode_options)
+                result = {
+                    "segments": segments,
+                    "text": " ".join(seg.get("text", "").strip() for seg in segments if seg.get("text", "").strip()),
+                    "language": args.language or "en"
+                }
+        else:
+            # Standard full-file processing
+            result = model.transcribe(processed_audio_path, **decode_options)        # Filter out empty segments and handle turbo model's long segments
         filtered_segments = []
         total_segments_processed = 0
         

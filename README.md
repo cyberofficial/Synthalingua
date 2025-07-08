@@ -184,6 +184,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
 | `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
+| `--silent_detect` | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
@@ -215,6 +216,10 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation (requires demucs):
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With silence detection (faster processing for long silent periods):
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Captions compare mode (all models):**
   ```sh
@@ -223,12 +228,63 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   python transcribe_audio.py --makecaptions compare --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation (requires demucs):
   python transcribe_audio.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
+  python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
   ```sh
   python transcribe_audio.py --set_microphone "Microphone (Realtek USB2.0 Audi)"
   python transcribe_audio.py --set_microphone 4
   ```
+
+---
+
+## Caption Generation Optimization
+
+### Advanced Caption Features
+For the best caption generation experience, Synthalingua offers several advanced features that can be combined:
+
+#### **🎯 Silent Detection (`--silent_detect`)**
+- **What it does:** Intelligently skips silent regions in audio files
+- **Benefits:** Faster processing, reduced resource usage, better transcription quality
+- **Best for:** Podcasts, lectures, videos with long pauses or intro/outro music
+- **Usage:** Only works with `--makecaptions` (caption generation mode)
+- **⚠️ Not supported:** HLS/streaming modes or microphone input
+
+#### **🎵 Vocal Isolation (`--isolate_vocals`)**
+- **What it does:** Separates vocals from background music/noise using AI (requires demucs)
+- **Benefits:** Cleaner transcription, better accuracy in noisy environments
+- **Best for:** Music videos, podcasts with background music, noisy recordings
+- **Requires:** `pip install demucs` or included in some distributions
+
+#### **⚡ Maximum Efficiency Combo (RECOMMENDED)**
+Combine both features for optimal results:
+```sh
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input="your_file.mp4"
+```
+
+**Why this combination works so well:**
+1. **Vocal isolation** removes background noise/music, creating cleaner audio
+2. **Silent detection** analyzes the cleaned audio for more accurate silence detection
+3. **Result:** Only speech regions from isolated vocals are processed
+4. **Benefits:** 
+   - ⚡ **Fastest processing** (skips silence and noise)
+   - 🎯 **Highest accuracy** (clean vocal-only audio)
+   - 💰 **Resource efficient** (processes less audio overall)
+   - 🎪 **Natural boundaries** (respects speech patterns, no mid-word cuts)
+
+#### **📊 Processing Workflow**
+1. **Input:** Original audio/video file
+2. **Vocal Isolation:** Extracts clean vocals (if `--isolate_vocals`)
+3. **Silence Detection:** Finds speech regions in vocal track (if `--silent_detect`)
+4. **Transcription:** Processes only speech regions with natural boundaries
+5. **Output:** High-quality SRT captions with perfect timestamps
+
+#### **💡 Pro Tips**
+- Use `--makecaptions compare` with both flags to test all models efficiently
+- Silent detection works on any audio, but is most effective with vocal isolation
+- Both features maintain perfect timestamp accuracy in final SRT files
+- Vocal isolation creates temporary files in `temp/audio/` directory
 
 ---
 
