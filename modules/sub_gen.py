@@ -71,6 +71,28 @@ if getattr(args, 'silent_detect', False):
     
     print(f"{Fore.CYAN}ℹ️  Silent detection is enabled{settings_info}. The program will skip processing silent audio chunks during caption generation. This may improve processing speed for files with long silent periods.{Style.RESET_ALL}")
 
+def format_human_time(seconds: float) -> str:
+    """
+    Convert seconds to human-readable format (e.g., 1m40.2s).
+    
+    Args:
+        seconds (float): Time in seconds
+        
+    Returns:
+        str: Human-readable time format
+    """
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    remaining_seconds = seconds % 60
+    
+    if hours > 0:
+        return f"{hours}h{minutes:02d}m{remaining_seconds:04.1f}s"
+    else:
+        return f"{minutes}m{remaining_seconds:04.1f}s"
+
 def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.5) -> List[Dict[str, Any]]:
     """
     Detect silence and speech regions in audio file using intelligent segmentation.
@@ -278,6 +300,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             
             print(f"   {icon} {type_color}{type_label:<7}{Style.RESET_ALL} "
                   f"{start_time:6.1f}s - {end_time:6.1f}s ({duration:5.1f}s) "
+                  f"({format_human_time(start_time)} - {format_human_time(end_time)}) "
                   f"│ Avg: {avg_db:6.1f}dB │ Peak: {max_db:6.1f}dB{recommendation}")
         
         # Show threshold guidance
@@ -297,6 +320,134 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         
         if not misclassified_speech and not misclassified_silence:
             print(f"   {Fore.GREEN}✅ Current threshold ({silence_threshold_db:.1f}dB) seems well-tuned for this audio{Style.RESET_ALL}")
+        
+        # Interactive adjustment options
+        while True:
+            print(f"\n{Fore.CYAN}🔧 Detection Review:{Style.RESET_ALL}")
+            print(f"   Do you want to:")
+            print(f"   1. {Fore.GREEN}Proceed with current detection{Style.RESET_ALL}")
+            print(f"   2. {Fore.YELLOW}Adjust threshold settings and re-analyze{Style.RESET_ALL}")
+            print(f"   3. {Fore.CYAN}Manually modify region classifications{Style.RESET_ALL}")
+            
+            try:
+                choice = input(f"\n{Fore.CYAN}Enter your choice (1-3): {Style.RESET_ALL}").strip()
+                
+                if choice == "1":
+                    break  # Proceed with current detection
+                    
+                elif choice == "2":
+                    # Re-run with new settings
+                    print(f"\n{Fore.CYAN}Current settings:{Style.RESET_ALL}")
+                    print(f"   Threshold: {silence_threshold_db:.1f}dB")
+                    print(f"   Min duration: {min_silence_duration:.1f}s")
+                    
+                    # Get new threshold
+                    new_threshold_input = input(f"\n{Fore.CYAN}Enter new threshold (current: {silence_threshold_db:.1f}dB) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    if new_threshold_input:
+                        try:
+                            new_threshold = float(new_threshold_input)
+                            print(f"{Fore.GREEN}✅ New threshold: {new_threshold:.1f}dB{Style.RESET_ALL}")
+                        except ValueError:
+                            print(f"{Fore.RED}❌ Invalid threshold. Keeping current: {silence_threshold_db:.1f}dB{Style.RESET_ALL}")
+                            new_threshold = silence_threshold_db
+                    else:
+                        new_threshold = silence_threshold_db
+                    
+                    # Get new duration
+                    new_duration_input = input(f"{Fore.CYAN}Enter new min duration (current: {min_silence_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    if new_duration_input:
+                        try:
+                            new_duration = float(new_duration_input)
+                            print(f"{Fore.GREEN}✅ New min duration: {new_duration:.1f}s{Style.RESET_ALL}")
+                        except ValueError:
+                            print(f"{Fore.RED}❌ Invalid duration. Keeping current: {min_silence_duration:.1f}s{Style.RESET_ALL}")
+                            new_duration = min_silence_duration
+                    else:
+                        new_duration = min_silence_duration
+                    
+                    # Re-run analysis
+                    print(f"\n{Fore.CYAN}🔄 Re-analyzing with new settings...{Style.RESET_ALL}")
+                    return detect_silence_in_audio(audio_path, new_threshold, new_duration)
+                    
+                elif choice == "3":
+                    # Manual region modification - this should loop back to menu
+                    while True:
+                        print(f"\n{Fore.CYAN}Manual Region Modification:{Style.RESET_ALL}")
+                        print(f"Enter region numbers to toggle (e.g., '1,3,5' to toggle regions 1, 3, and 5)")
+                        print(f"Enter 'back' to return to main menu")
+                        print(f"Current regions:")
+                        
+                        # Update statistics for current display
+                        current_speech_regions = [r for r in merged_regions if r['type'] == 'speech']
+                        current_silence_regions = [r for r in merged_regions if r['type'] == 'silence']
+                        current_speech_duration = sum(r['end'] - r['start'] for r in current_speech_regions)
+                        current_silence_duration = sum(r['end'] - r['start'] for r in current_silence_regions)
+                        
+                        print(f"   • Current: {len(current_speech_regions)} speech ({current_speech_duration:.1f}s), {len(current_silence_regions)} silence ({current_silence_duration:.1f}s)")
+                        
+                        for i, region in enumerate(merged_regions, 1):
+                            region_type = region['type']
+                            start_time = region['start']
+                            end_time = region['end']
+                            duration = region['duration']
+                            type_color = Fore.GREEN if region_type == 'speech' else Fore.YELLOW
+                            print(f"   {i:2d}. {type_color}{region_type.upper():<7}{Style.RESET_ALL} "
+                                  f"{start_time:6.1f}s - {end_time:6.1f}s ({format_human_time(start_time)} - {format_human_time(end_time)})")
+                        
+                        toggle_input = input(f"\n{Fore.CYAN}Enter region numbers to toggle (or 'back' to return): {Style.RESET_ALL}").strip()
+                        
+                        if toggle_input.lower() == 'back':
+                            break  # Go back to main menu
+                            
+                        if toggle_input:
+                            try:
+                                # Parse region numbers
+                                region_numbers = [int(x.strip()) for x in toggle_input.split(',') if x.strip()]
+                                
+                                # Toggle specified regions
+                                changes_made = False
+                                for region_num in region_numbers:
+                                    if 1 <= region_num <= len(merged_regions):
+                                        region_idx = region_num - 1
+                                        old_type = merged_regions[region_idx]['type']
+                                        new_type = 'silence' if old_type == 'speech' else 'speech'
+                                        merged_regions[region_idx]['type'] = new_type
+                                        
+                                        print(f"   {Fore.GREEN}✅ Region {region_num}: {old_type} → {new_type}{Style.RESET_ALL}")
+                                        changes_made = True
+                                    else:
+                                        print(f"   {Fore.RED}❌ Invalid region number: {region_num}{Style.RESET_ALL}")
+                                
+                                if changes_made:
+                                    print(f"\n{Fore.GREEN}✅ Manual modifications applied!{Style.RESET_ALL}")
+                                    # Update statistics after manual changes
+                                    speech_regions = [r for r in merged_regions if r['type'] == 'speech']
+                                    silence_regions = [r for r in merged_regions if r['type'] == 'silence']
+                                    
+                                    total_speech_duration = sum(r['end'] - r['start'] for r in speech_regions)
+                                    total_silence_duration = sum(r['end'] - r['start'] for r in silence_regions)
+                                    
+                                    print(f"   • Updated speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
+                                    print(f"   • Updated silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
+                                    
+                            except ValueError:
+                                print(f"{Fore.RED}❌ Invalid input format. Use comma-separated numbers (e.g., '1,3,5'){Style.RESET_ALL}")
+                        else:
+                            # Empty input, continue the loop to show regions again
+                            continue
+                    
+                    # Continue to main menu after manual modification
+                    continue
+                    
+                else:
+                    print(f"{Fore.RED}❌ Invalid choice. Please enter 1, 2, or 3.{Style.RESET_ALL}")
+                    
+            except KeyboardInterrupt:
+                print(f"\n{Fore.YELLOW}⚠️  Operation cancelled. Proceeding with current detection.{Style.RESET_ALL}")
+                break
+            except EOFError:
+                print(f"\n{Fore.YELLOW}⚠️  Input ended. Proceeding with current detection.{Style.RESET_ALL}")
+                break
         
         # Show speech regions that will be processed (simplified now since detailed info is above)
         if speech_regions:
