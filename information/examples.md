@@ -52,6 +52,26 @@ python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input "C:/Videos/
 python transcribe_audio.py --makecaptions compare --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
 ```
 
+**With vocal isolation (requires demucs):**
+```sh
+python transcribe_audio.py --makecaptions --isolate_vocals --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
+**With silence detection (faster processing for files with silent periods):**
+```sh
+python transcribe_audio.py --makecaptions --silent_detect --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
+**RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):**
+```sh
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
+**Compare mode with advanced features:**
+```sh
+python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --language Japanese --device cuda
+```
+
 **With blocklist filtering:**
 ```sh
 python transcribe_audio.py --makecaptions --file_input "C:/Videos/myvideo.mp4" --file_output "C:/Videos/captions" --file_output_name "myvideo_captions" --ignorelist "C:/path/blacklist.txt"

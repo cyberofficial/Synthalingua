@@ -56,7 +56,15 @@ def main():
         print("You can only use one input source. Please only set one input source.")
         reset_text = Style.RESET_ALL
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
-        sys.exit("Exiting...")    # Check for correct transcription arguments
+        sys.exit("Exiting...")
+
+    # Validate silent_detect usage
+    if getattr(args, 'silent_detect', False) and not args.makecaptions:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --silent_detect can only be used with --makecaptions for caption generation.")
+        print("Silent detection is not supported for HLS streaming or microphone input.")
+        sys.exit("Exiting...")
+
+    # Check for correct transcription arguments
     if args.stream_transcribe is True and not isinstance(args.stream_transcribe, str):
         # User used --stream_transcribe without a language
         print(f"{Fore.YELLOW}Note:{Style.RESET_ALL} Stream transcribe is set without a target language. Using 'English' as default.")
