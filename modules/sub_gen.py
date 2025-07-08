@@ -328,9 +328,13 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             print(f"   1. {Fore.GREEN}Proceed with current detection{Style.RESET_ALL}")
             print(f"   2. {Fore.YELLOW}Adjust threshold settings and re-analyze{Style.RESET_ALL}")
             print(f"   3. {Fore.CYAN}Manually modify region classifications{Style.RESET_ALL}")
+            if getattr(args, 'isolate_vocals', False):
+                print(f"   4. {Fore.MAGENTA}Try different Demucs model and re-analyze{Style.RESET_ALL}")
+            
+            max_choice = 4 if getattr(args, 'isolate_vocals', False) else 3
             
             try:
-                choice = input(f"\n{Fore.CYAN}Enter your choice (1-3): {Style.RESET_ALL}").strip()
+                choice = input(f"\n{Fore.CYAN}Enter your choice (1-{max_choice}): {Style.RESET_ALL}").strip()
                 
                 if choice == "1":
                     break  # Proceed with current detection
@@ -368,6 +372,114 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     # Re-run analysis
                     print(f"\n{Fore.CYAN}🔄 Re-analyzing with new settings...{Style.RESET_ALL}")
                     return detect_silence_in_audio(audio_path, new_threshold, new_duration)
+                
+                elif choice == "4" and getattr(args, 'isolate_vocals', False):
+                    # Try different Demucs model
+                    print(f"\n{Fore.CYAN}🎛️ Demucs Model Selection:{Style.RESET_ALL}")
+                    print(f"   Available models:")
+                    print(f"   1. {Fore.YELLOW}htdemucs{Style.RESET_ALL} (default, Hybrid Transformer v4)")
+                    print(f"   2. {Fore.YELLOW}htdemucs_ft{Style.RESET_ALL} (fine-tuned htdemucs, better quality, slower)")
+                    print(f"   3. {Fore.YELLOW}htdemucs_6s{Style.RESET_ALL} (6-source: drums, bass, other, vocals, piano, guitar)")
+                    print(f"   4. {Fore.YELLOW}hdemucs_mmi{Style.RESET_ALL} (Hybrid Demucs v3, MusDB + 800 songs)")
+                    print(f"   5. {Fore.YELLOW}mdx{Style.RESET_ALL} (MDX challenge Track A winner)")
+                    print(f"   6. {Fore.YELLOW}mdx_extra{Style.RESET_ALL} (MDX Track B, trained with extra data)")
+                    print(f"   7. {Fore.YELLOW}mdx_q{Style.RESET_ALL} (quantized mdx, smaller/faster)")
+                    print(f"   8. {Fore.YELLOW}mdx_extra_q{Style.RESET_ALL} (quantized mdx_extra, smaller/faster)")
+                    print(f"   9. {Fore.YELLOW}hdemucs{Style.RESET_ALL} (original Hybrid Demucs v3)")
+                    print(f"  10. {Fore.YELLOW}demucs{Style.RESET_ALL} (original time-only Demucs)")
+                    
+                    print(f"\n{Fore.CYAN}💡 Recommendations:{Style.RESET_ALL}")
+                    print(f"   🎯 {Fore.GREEN}Best Quality{Style.RESET_ALL}: htdemucs_ft (fine-tuned)")
+                    print(f"   🎯 {Fore.BLUE}Fastest{Style.RESET_ALL}: mdx_q or mdx_extra_q (quantized)")
+                    print(f"   🎯 {Fore.MAGENTA}Detailed Separation{Style.RESET_ALL}: htdemucs_6s (6 sources)")
+                    print(f"   🎯 {Fore.CYAN}Balanced{Style.RESET_ALL}: mdx_extra (good quality + speed)")
+                    print(f"   🎯 {Fore.YELLOW}Legacy/Compatibility{Style.RESET_ALL}: hdemucs or demucs")
+                    
+                    model_choice = input(f"\n{Fore.CYAN}Select Demucs model (1-10): {Style.RESET_ALL}").strip()
+                    
+                    model_map = {
+                        "1": "htdemucs",
+                        "2": "htdemucs_ft", 
+                        "3": "htdemucs_6s",
+                        "4": "hdemucs_mmi",
+                        "5": "mdx",
+                        "6": "mdx_extra",
+                        "7": "mdx_q",
+                        "8": "mdx_extra_q",
+                        "9": "hdemucs",
+                        "10": "demucs"
+                    }
+                    
+                    if model_choice in model_map:
+                        selected_model = model_map[model_choice]
+                        print(f"{Fore.GREEN}✅ Selected model: {selected_model}{Style.RESET_ALL}")
+                        
+                        # Show model info
+                        model_info = {
+                            "htdemucs": "Latest Hybrid Transformer model (default)",
+                            "htdemucs_ft": "Fine-tuned version for better quality",
+                            "htdemucs_6s": "6-source separation (includes piano/guitar)",
+                            "hdemucs_mmi": "Hybrid v3 trained on expanded dataset",
+                            "mdx": "Frequency-domain model, MDX winner",
+                            "mdx_extra": "Enhanced MDX with extra training data",
+                            "mdx_q": "Quantized MDX (faster, smaller)",
+                            "mdx_extra_q": "Quantized MDX Extra (faster, smaller)",
+                            "hdemucs": "Original Hybrid Demucs v3",
+                            "demucs": "Original time-domain Demucs"
+                        }
+                        
+                        print(f"{Fore.CYAN}ℹ️  {model_info[selected_model]}{Style.RESET_ALL}")
+                        
+                        # Re-run vocal isolation with new model and then re-analyze
+                        print(f"\n{Fore.CYAN}🔄 Re-running vocal isolation with {selected_model} model...{Style.RESET_ALL}")
+                        
+                        # Import the original audio path from the calling function
+                        # We need to get the original path before vocal isolation
+                        original_audio_path = audio_path.replace("_vocals.wav", "") if "_vocals" in audio_path else audio_path
+                        
+                        try:
+                            import tempfile
+                            import subprocess
+                            import os
+                            import glob
+                            
+                            with tempfile.TemporaryDirectory() as tmpdir:
+                                # Run demucs with selected model
+                                result = subprocess.run([
+                                    'demucs',
+                                    '-n', selected_model,
+                                    '-o', tmpdir,
+                                    '--two-stems', 'vocals',
+                                    original_audio_path
+                                ], capture_output=True, text=True, encoding='utf-8', errors='replace')
+                                
+                                if result.returncode != 0:
+                                    print(f"{Fore.RED}❌ Demucs failed with model {selected_model}: {result.stderr}{Style.RESET_ALL}")
+                                    continue
+                                
+                                # Find the vocals file
+                                base_name = os.path.splitext(os.path.basename(original_audio_path))[0]
+                                vocals_pattern = os.path.join(tmpdir, selected_model, base_name, "vocals.wav")
+                                vocals_files = glob.glob(vocals_pattern)
+                                
+                                if not vocals_files:
+                                    print(f"{Fore.RED}❌ Could not find vocals file after Demucs processing{Style.RESET_ALL}")
+                                    continue
+                                
+                                new_vocals_path = vocals_files[0]
+                                print(f"{Fore.GREEN}✅ Vocal isolation complete with {selected_model} model{Style.RESET_ALL}")
+                                
+                                # Re-analyze with the new vocals file
+                                print(f"\n{Fore.CYAN}🔄 Re-analyzing audio with new vocal isolation...{Style.RESET_ALL}")
+                                return detect_silence_in_audio(new_vocals_path, silence_threshold_db, min_silence_duration)
+                                
+                        except Exception as e:
+                            print(f"{Fore.RED}❌ Error running Demucs with {selected_model}: {e}{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}   Continuing with current analysis...{Style.RESET_ALL}")
+                            continue
+                    else:
+                        print(f"{Fore.RED}❌ Invalid model choice. Please select 1-10.{Style.RESET_ALL}")
+                        continue
                     
                 elif choice == "3":
                     # Manual region modification - this should loop back to menu
@@ -440,7 +552,8 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     continue
                     
                 else:
-                    print(f"{Fore.RED}❌ Invalid choice. Please enter 1, 2, or 3.{Style.RESET_ALL}")
+                    max_choice_text = "4" if getattr(args, 'isolate_vocals', False) else "3"
+                    print(f"{Fore.RED}❌ Invalid choice. Please enter 1-{max_choice_text}.{Style.RESET_ALL}")
                     
             except KeyboardInterrupt:
                 print(f"\n{Fore.YELLOW}⚠️  Operation cancelled. Proceeding with current detection.{Style.RESET_ALL}")
@@ -899,12 +1012,113 @@ def run_sub_gen(
         import shutil, tempfile, os
         if not shutil.which('demucs'):
             raise RuntimeError("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
+        
+        # Determine which Demucs model to use
+        selected_model = getattr(args, 'demucs_model', None)
+        
+        if selected_model and selected_model != 'htdemucs':
+            # User specified a model via command line
+            print(f"{Fore.GREEN}✅ Using specified Demucs model: {selected_model}{Style.RESET_ALL}")
+            
+            # Show model info
+            model_info = {
+                "htdemucs": "Latest Hybrid Transformer model (default)",
+                "htdemucs_ft": "Fine-tuned version for better quality",
+                "htdemucs_6s": "6-source separation (includes piano/guitar)",
+                "hdemucs_mmi": "Hybrid v3 trained on expanded dataset",
+                "mdx": "Frequency-domain model, MDX winner",
+                "mdx_extra": "Enhanced MDX with extra training data",
+                "mdx_q": "Quantized MDX (faster, smaller)",
+                "mdx_extra_q": "Quantized MDX Extra (faster, smaller)",
+                "hdemucs": "Original Hybrid Demucs v3",
+                "demucs": "Original time-domain Demucs"
+            }
+            print(f"{Fore.CYAN}ℹ️  {model_info.get(selected_model, 'Unknown model')}{Style.RESET_ALL}")
+            
+        else:
+            # Ask user which Demucs model to use
+            print(f"\n{Fore.CYAN}🎛️ Demucs Model Selection for Vocal Isolation:{Style.RESET_ALL}")
+            print(f"   Available models:")
+            print(f"   1. {Fore.YELLOW}htdemucs{Style.RESET_ALL} (default, Hybrid Transformer v4)")
+            print(f"   2. {Fore.YELLOW}htdemucs_ft{Style.RESET_ALL} (fine-tuned htdemucs, better quality, slower)")
+            print(f"   3. {Fore.YELLOW}htdemucs_6s{Style.RESET_ALL} (6-source: drums, bass, other, vocals, piano, guitar)")
+            print(f"   4. {Fore.YELLOW}hdemucs_mmi{Style.RESET_ALL} (Hybrid Demucs v3, MusDB + 800 songs)")
+            print(f"   5. {Fore.YELLOW}mdx{Style.RESET_ALL} (MDX challenge Track A winner)")
+            print(f"   6. {Fore.YELLOW}mdx_extra{Style.RESET_ALL} (MDX Track B, trained with extra data)")
+            print(f"   7. {Fore.YELLOW}mdx_q{Style.RESET_ALL} (quantized mdx, smaller/faster)")
+            print(f"   8. {Fore.YELLOW}mdx_extra_q{Style.RESET_ALL} (quantized mdx_extra, smaller/faster)")
+            print(f"   9. {Fore.YELLOW}hdemucs{Style.RESET_ALL} (original Hybrid Demucs v3)")
+            print(f"  10. {Fore.YELLOW}demucs{Style.RESET_ALL} (original time-domain Demucs)")
+            
+            print(f"\n{Fore.CYAN}💡 Recommendations:{Style.RESET_ALL}")
+            print(f"   🎯 {Fore.GREEN}Best Quality{Style.RESET_ALL}: htdemucs_ft (fine-tuned)")
+            print(f"   🎯 {Fore.BLUE}Fastest{Style.RESET_ALL}: mdx_q or mdx_extra_q (quantized)")
+            print(f"   🎯 {Fore.MAGENTA}Detailed Separation{Style.RESET_ALL}: htdemucs_6s (6 sources)")
+            print(f"   🎯 {Fore.CYAN}Balanced{Style.RESET_ALL}: mdx_extra (good quality + speed)")
+            print(f"   🎯 {Fore.YELLOW}Legacy/Compatibility{Style.RESET_ALL}: hdemucs or demucs")
+            
+            # Get user choice
+            while True:
+                try:
+                    model_choice = input(f"\n{Fore.CYAN}Select Demucs model (1-10, or Enter for default htdemucs): {Style.RESET_ALL}").strip()
+                    
+                    if not model_choice:  # User pressed Enter for default
+                        selected_model = "htdemucs"
+                        print(f"{Fore.GREEN}✅ Using default model: {selected_model}{Style.RESET_ALL}")
+                        break
+                    
+                    model_map = {
+                        "1": "htdemucs",
+                        "2": "htdemucs_ft", 
+                        "3": "htdemucs_6s",
+                        "4": "hdemucs_mmi",
+                        "5": "mdx",
+                        "6": "mdx_extra",
+                        "7": "mdx_q",
+                        "8": "mdx_extra_q",
+                        "9": "hdemucs",
+                        "10": "demucs"
+                    }
+                    
+                    if model_choice in model_map:
+                        selected_model = model_map[model_choice]
+                        print(f"{Fore.GREEN}✅ Selected model: {selected_model}{Style.RESET_ALL}")
+                        
+                        # Show model info
+                        model_info = {
+                            "htdemucs": "Latest Hybrid Transformer model (default)",
+                            "htdemucs_ft": "Fine-tuned version for better quality",
+                            "htdemucs_6s": "6-source separation (includes piano/guitar)",
+                            "hdemucs_mmi": "Hybrid v3 trained on expanded dataset",
+                            "mdx": "Frequency-domain model, MDX winner",
+                            "mdx_extra": "Enhanced MDX with extra training data",
+                            "mdx_q": "Quantized MDX (faster, smaller)",
+                            "mdx_extra_q": "Quantized MDX Extra (faster, smaller)",
+                            "hdemucs": "Original Hybrid Demucs v3",
+                            "demucs": "Original time-domain Demucs"
+                        }
+                        
+                        print(f"{Fore.CYAN}ℹ️  {model_info[selected_model]}{Style.RESET_ALL}")
+                        break
+                    else:
+                        print(f"{Fore.RED}❌ Invalid choice. Please select 1-10 or press Enter for default.{Style.RESET_ALL}")
+                        
+                except KeyboardInterrupt:
+                    print(f"\n{Fore.YELLOW}⚠️  Operation cancelled. Using default model: htdemucs{Style.RESET_ALL}")
+                    selected_model = "htdemucs"
+                    break
+                except EOFError:
+                    print(f"\n{Fore.YELLOW}⚠️  Input ended. Using default model: htdemucs{Style.RESET_ALL}")
+                    selected_model = "htdemucs"
+                    break
+        
         try:
-            print(f"{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs...{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs model: {selected_model}...{Style.RESET_ALL}")
             with tempfile.TemporaryDirectory() as tmpdir:
-                # Run demucs CLI to separate vocals with proper encoding
+                # Run demucs CLI to separate vocals with proper encoding and selected model
                 result = subprocess.run([
                     'demucs',
+                    '-n', selected_model,
                     '-o', tmpdir,
                     '--two-stems', 'vocals',
                     str(input_path_obj)
@@ -926,8 +1140,9 @@ def run_sub_gen(
                 # Demucs might create different directory structures, let's search for vocals.wav
                 vocals_path = None
                 
-                # Try different possible output locations
+                # Try different possible output locations based on selected model
                 possible_locations = [
+                    os.path.join(tmpdir, selected_model, base_name, 'vocals.wav'),  # Model-specific location
                     os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),  # Standard location
                     os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),  # HTDemucs model
                     os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),  # MDX model

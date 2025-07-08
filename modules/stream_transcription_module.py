@@ -590,6 +590,7 @@ def start_stream_transcription(
                     with tempfile.TemporaryDirectory() as tmpdir:
                         demucs_cmd = [
                             'demucs',
+                            '-n', getattr(args, 'demucs_model', 'htdemucs'),
                             '-o', tmpdir,
                             '--two-stems', 'vocals',
                         ]
@@ -610,7 +611,9 @@ def start_stream_transcription(
                         else:
                             base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
                             vocals_path = None
+                            demucs_model = getattr(args, 'demucs_model', 'htdemucs')
                             possible_locations = [
+                                os.path.join(tmpdir, demucs_model, base_name, 'vocals.wav'),
                                 os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
                                 os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
                                 os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),

@@ -184,6 +184,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
 | `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
+| `--demucs_model` | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled. |
 | `--silent_detect` | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
 | `--silent_threshold` | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
 | `--silent_duration` | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
@@ -218,6 +219,8 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation (requires demucs):
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With vocal isolation using specific model (skip interactive prompt):
+  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With silence detection (faster processing for long silent periods):
   python transcribe_audio.py --ram 11gb-v3 --makecaptions --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With custom silence threshold for quiet speech (e.g., whispers):
@@ -382,6 +385,36 @@ The `--word_timestamps` flag enables word-level timestamps in subtitle output (s
 
 ### Vocal Isolation
 The `--isolate_vocals` flag attempts to isolate vocals from the input audio before generating subtitles (sub_gen/captions mode only). This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `demucs` package. If `demucs` is not installed, a warning will be shown.
+
+**Demucs Model Selection:**
+- By default, the program will prompt you to select which Demucs model to use for vocal isolation
+- You can skip the prompt by using `--demucs_model` to specify the model directly
+- Available models:
+  - `htdemucs` (default): Latest Hybrid Transformer model
+  - `htdemucs_ft`: Fine-tuned version for better quality (slower)
+  - `htdemucs_6s`: 6-source separation (includes piano/guitar)
+  - `hdemucs_mmi`: Hybrid v3 trained on expanded dataset
+  - `mdx`: Frequency-domain model, MDX winner
+  - `mdx_extra`: Enhanced MDX with extra training data
+  - `mdx_q`: Quantized MDX (faster, smaller)
+  - `mdx_extra_q`: Quantized MDX Extra (faster, smaller)
+  - `hdemucs`: Original Hybrid Demucs v3
+  - `demucs`: Original time-domain Demucs
+
+**Examples:**
+```sh
+# Interactive model selection (default behavior)
+python transcribe_audio.py --makecaptions --isolate_vocals --file_input="video.mp4"
+
+# Specify model directly (no prompt)
+python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
+
+# For best quality (slower)
+python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
+
+# For fastest processing
+python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model mdx_q --file_input="video.mp4"
+```
 
 **Note:** This flag has no effect in microphone or HLS/stream modes.
 
