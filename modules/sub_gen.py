@@ -57,7 +57,8 @@ if getattr(args, 'isolate_vocals', False):
 
 # Inform user if silent_detect is enabled
 if getattr(args, 'silent_detect', False):
-    print(f"{Fore.CYAN}ℹ️  Silent detection is enabled. The program will skip processing silent audio chunks during caption generation. This may improve processing speed for files with long silent periods.{Style.RESET_ALL}")
+    threshold_info = f" (threshold: {getattr(args, 'silent_threshold', -35.0)}dB)" if hasattr(args, 'silent_threshold') and args.silent_threshold != -35.0 else ""
+    print(f"{Fore.CYAN}ℹ️  Silent detection is enabled{threshold_info}. The program will skip processing silent audio chunks during caption generation. This may improve processing speed for files with long silent periods.{Style.RESET_ALL}")
 
 def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.5) -> List[Dict[str, Any]]:
     """
@@ -775,7 +776,12 @@ def run_sub_gen(
         
         if use_silence_detection:
             print(f"{Fore.CYAN}🔍 Analyzing audio for speech/silence regions...{Style.RESET_ALL}")
-            audio_regions = detect_silence_in_audio(processed_audio_path)
+            
+            # Get custom silence threshold from args if provided
+            silence_threshold_db = getattr(args, 'silent_threshold', -35.0)
+            print(f"{Fore.YELLOW}🔧 Using silence threshold: {silence_threshold_db}dB{Style.RESET_ALL}")
+            
+            audio_regions = detect_silence_in_audio(processed_audio_path, silence_threshold_db=silence_threshold_db)
             
             # Filter to speech regions only
             speech_regions = [r for r in audio_regions if r['type'] == 'speech']
