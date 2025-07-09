@@ -16,7 +16,7 @@ import subprocess
 import tempfile
 from colorama import Fore, Style
 from modules.languages import get_valid_languages
-from modules.file_handlers import resolve_cookie_file_path
+from modules.file_handlers import resolve_cookie_file_path, cleanup_temp_cookie_file
 import simpleaudio as sa
 import wave
 import threading
@@ -32,7 +32,7 @@ def get_available_streams(stream_url, cookie_file_path=None):
     
     Args:
         stream_url (str): URL of the stream
-        cookie_file_path (str, optional): Path to cookies file
+        cookie_file_path (str, optional): Path to cookies file (including temp files from browser)
         
     Returns:
         str: Stream information output from yt-dlp
@@ -53,7 +53,7 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None):
     
     Args:
         stream_url (str): URL of the stream
-        cookie_file_path (str, optional): Path to cookies file
+        cookie_file_path (str, optional): Path to cookies file (including temp files from browser)
         
     Returns:
         str: Selected format ID or format string
@@ -205,20 +205,32 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     # If stream_transcribe is a string (language name), it means transcribe is enabled
     transcribe_task = args.stream_transcribe is not False      # Handle cookies if specified
     cookie_file_path = None
-    if args.cookies:
-        cookie_file_path = resolve_cookie_file_path(args.cookies)
+    temp_cookie_file = False
+    
+    if args.cookies or args.cookies_from_browser:
+        cookie_file_path = resolve_cookie_file_path(args.cookies, args.cookies_from_browser)
+        
         if cookie_file_path is None:
-            print(f"❌ Cookie file not found. Searched for:")
-            print(f"   • Absolute path: {args.cookies}")
-            print(f"   • Current directory: {args.cookies}")
-            if not args.cookies.endswith('.txt'):
-                print(f"   • Current directory: {args.cookies}.txt")
-            cookies_filename = args.cookies if args.cookies.endswith('.txt') else f"{args.cookies}.txt"
-            print(f"   • Cookies folder: cookies/{cookies_filename}")
-            print(f"Please ensure the cookie file exists in one of these locations.")
+            if args.cookies:
+                print(f"❌ Cookie file not found. Searched for:")
+                print(f"   • Absolute path: {args.cookies}")
+                print(f"   • Current directory: {args.cookies}")
+                if not args.cookies.endswith('.txt'):
+                    print(f"   • Current directory: {args.cookies}.txt")
+                cookies_filename = args.cookies if args.cookies.endswith('.txt') else f"{args.cookies}.txt"
+                print(f"   • Cookies folder: cookies/{cookies_filename}")
+                print(f"Please ensure the cookie file exists in one of these locations.")
+            else:
+                print(f"❌ Failed to extract cookies from {args.cookies_from_browser} browser.")
+                print(f"Please ensure {args.cookies_from_browser} is installed and has saved cookies for the target site.")
             return None
         else:
-            print(f"🍪 Using cookie file: {cookie_file_path}")
+            # Check if this is a temporary file (from browser extraction)
+            if args.cookies_from_browser:
+                temp_cookie_file = True
+                print(f"🍪 Using cookies extracted from {args.cookies_from_browser} browser")
+            else:
+                print(f"🍪 Using cookie file: {cookie_file_path}")
     
     # Determine format selection method
     selected_format = "bestaudio"  # default
@@ -229,6 +241,8 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
             selected_format = select_stream_interactive(args.stream, cookie_file_path)
             if selected_format is None:
                 print("❌ Stream selection cancelled.")
+                if temp_cookie_file:
+                    cleanup_temp_cookie_file(cookie_file_path)
                 return None
         else:
             # Direct format specification
@@ -248,6 +262,8 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         
         if not hls_url:
             print("❌ No stream URL found with selected format.")
+            if temp_cookie_file:
+                cleanup_temp_cookie_file(cookie_file_path)
             return None
         
         if args.debug:
@@ -259,9 +275,13 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     except subprocess.CalledProcessError as e:
         print(f"❌ Error fetching stream URL with format '{selected_format}': {e}")
         print("💡 Tip: Try using 'bestaudio' or check available formats with --selectsource")
+        if temp_cookie_file:
+            cleanup_temp_cookie_file(cookie_file_path)
         return None
     except Exception as e:
         print(f"❌ Unexpected error processing stream URL: {e}")
+        if temp_cookie_file:
+            cleanup_temp_cookie_file(cookie_file_path)
         return None
     
     # Generate random task ID
@@ -291,5 +311,13 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         )
     )
     stream_thread.start()
+    
+    # If we used a temporary cookie file, clean it up after some time
+    # We'll let the main thread handle cleanup on exit
+    if temp_cookie_file:
+        # Store the temp file path for cleanup later
+        if not hasattr(args, '_temp_cookie_files'):
+            args._temp_cookie_files = []
+        args._temp_cookie_files.append(cookie_file_path)
     
     return stream_thread

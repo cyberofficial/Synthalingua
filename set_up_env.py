@@ -405,11 +405,11 @@ class EnvironmentSetup:
                     return False
                 print("CPU PyTorch installation completed successfully.")
             
-            print("Installing demucs in data_whisper environment...")
+            print("Installing demucs and diffq in data_whisper environment...")
             sys.stdout.flush()
-            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs'], text=True)
+            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs', 'diffq'], text=True)
             if result.returncode != 0:
-                print(f"Error installing demucs. Exit code: {result.returncode}")
+                print(f"Error installing demucs and diffq. Exit code: {result.returncode}")
                 return False
             
             print("Installing additional audio backend support for demucs...")

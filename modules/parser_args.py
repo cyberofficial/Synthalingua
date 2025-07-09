@@ -1,4 +1,5 @@
 import argparse
+import sys
 from colorama import Fore, Back, Style
 from modules.languages import get_valid_languages
 
@@ -131,6 +132,7 @@ def parse_arguments():
     parser.add_argument("--stream_translate", action='store_true', help="Translate the stream.")
     parser.add_argument("--stream_transcribe", nargs='?', const=True, default=False, help="Transcribe the stream to the specified language (e.g., --stream_transcribe English). If no language is provided, will just enable transcription.", type=str)
     parser.add_argument("--cookies", default=None, help="Path to cookies file. Can be: absolute path (C:\\path\\to\\cookies.txt), filename in current directory (cookies.txt), or name for cookies folder (youtube = cookies/youtube.txt). NetScape format.")
+    parser.add_argument("--cookies-from-browser", default=None, help="Load cookies from browser. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Example: --cookies-from-browser chrome", choices=["brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale"])
     #parser.add_argument("--is_portable", action='store_true', help="Run the program in portable mode.")
     parser.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Make captions for the stream. Use '--makecaptions compare' to generate captions with all RAM models for comparison (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb).")
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing silent audio chunks during caption generation. Only works with --makecaptions, not with HLS streaming or microphone input.")
@@ -162,6 +164,12 @@ def parse_arguments():
     )
 
     args = parser.parse_args()
+
+    # Validate that cookies and cookies-from-browser are not used together
+    if args.cookies and args.cookies_from_browser:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --cookies and --cookies-from-browser cannot be used together.")
+        print("Please use either --cookies to specify a cookies file or --cookies-from-browser to extract cookies from a browser.")
+        sys.exit(1)
 
     # Restrict --word_timestamps to sub_gen usage only
     # If microphone or HLS/stream mode is enabled, warn and exit if --word_timestamps is set
