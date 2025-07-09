@@ -22,8 +22,8 @@ It also creates a batch file (`ffmpeg_path.bat`) to set up your PATH and activat
 1. **Locate the Executable**
    - Find `set_up_env.exe` in your Synthalingua folder (usually in the main directory).
 
-2. **Run as Administrator (Recommended)**
-   - Right-click `set_up_env.exe` and select **Run as administrator** for best results, especially if installing to system folders.
+2. **DO NOT Run as Administrator (NOT Recommended)**
+   - Click `set_up_env.exe` as is and just run.
 
 3. **Follow the Prompts**
    - The tool is interactive. It will ask if you want to reuse existing tools, provide your own, or download fresh copies.
