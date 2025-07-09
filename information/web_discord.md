@@ -6,21 +6,23 @@ These arguments control integration with Discord and the built-in web server.
 | Flag                    | Description                                                      |
 |-------------------------|------------------------------------------------------------------|
 | `--portnumber`          | Port number for the local web server.                             |
-| `--discord_webhook`     | Discord webhook URL for notifications and results.                |
+| `--discord_webhook`     | Discord webhook URL (string) for notifications and results.                |
 | `--remote_hls_password_id` | Password ID for the webserver.                                 |
 | `--remote_hls_password` | Password for the HLS webserver.                                   |
 
 ## Details & Examples
 
 ### `--portnumber`
-Launches a local Flask web server to view real-time subtitles in your browser. Example:
-```
+Launches a local Flask web server to view real-time subtitles in your browser. The port number must be between 1 and 65535. Example:
+```python
 python transcribe_audio.py --portnumber 8080
 ```
+---
+**Note:** All arguments and examples in this document are validated against the actual parser arguments in `modules/parser_args.py` and should match the code exactly.
 
 ### `--discord_webhook`
 Sends results and notifications to a Discord channel. Example:
-```
+```python
 python transcribe_audio.py --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890"
 ```
 

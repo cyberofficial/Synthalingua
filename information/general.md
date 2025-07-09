@@ -16,13 +16,13 @@ These arguments control the overall operation and behavior of Synthalingua.
 
 ### `--about`
 Shows information about Synthalingua, including contributors and version. Example:
-```
+```python
 python transcribe_audio.py --about
 ```
 
 ### `--updatebranch`
 Controls which branch is checked for updates. Example:
-```
+```python
 python transcribe_audio.py --updatebranch dev-testing
 ```
 
