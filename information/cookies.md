@@ -44,27 +44,27 @@ Synthalingua supports multiple ways to specify cookie files:
 ### Method 1: Cookies Folder (Legacy)
 - Place your cookies file in the `cookies/` folder (e.g., `cookies/twitch.txt` or `cookies/youtube.txt`).
 - Use the `--cookies` argument without the `.txt` extension:
-  ```sh
+  ```python
   python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies twitch
   ```
 - For YouTube:
-  ```sh
+  ```python
   python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies youtube
   ```
 
 ### Method 2: Full Path
 - Specify the complete path to your cookie file:
-  ```sh
+  ```python
   python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies "C:\path\to\twitch.txt"
   ```
 - For YouTube:
-  ```sh
+  ```python
   python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies "C:\Users\username\Downloads\youtube_cookies.txt"
   ```
 
 ### Method 3: Current Directory
 - Place the cookie file in the same directory as your script and reference it by name:
-  ```sh
+  ```python
   python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies twitch.txt
   ```
 

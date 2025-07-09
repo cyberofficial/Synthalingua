@@ -17,20 +17,20 @@ These arguments control streaming (HLS, YouTube, Twitch) and file input.
 | `--selectsource`        | Show available audio streams and select one (use without value for interactive mode, or specify format directly). |
 | `--cookies`             | Path to cookies file. Supports absolute paths, current directory files, or names for cookies/ folder. |
 | `--makecaptions`        | Enable captions mode (requires file input/output/name).           |
-| `--file_input`          | Path to input file for captioning.                               |
-| `--file_output`         | Output folder for captions.                                      |
-| `--file_output_name`    | Output file name (without extension).                            |
+| `--file_input`          | Path to input file for captioning. |
+| `--file_output`         | Folder to save generated captions (SRT) to. Used with `--makecaptions`. |
+| `--file_output_name`    | Output file name for captions (without extension, e.g. `MyCaptionsFile`). The program will add `.srt` automatically. |
 
 ## Details & Examples
 
 ### Streaming Example
-```
+```python
 python transcribe_audio.py --ram 11gb-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
 ```
 
 ### Captions Example
-```
-python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 ### `--auto_hls`
@@ -38,7 +38,7 @@ Automatically tunes chunk size for best latency and performance.
 
 ### `--selectsource`
 Shows available audio streams for a given URL and lets you select one. Examples:
-```
+```python
 python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --selectsource
 python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --selectsource bestaudio
 ```

@@ -16,7 +16,7 @@ These arguments control which AI model is used and how it runs on your hardware.
 
 ### `--ram` & `--ramforce`
 Choose a model size that fits your hardware. For example:
-```
+```python
 python transcribe_audio.py --ram 6gb
 ```
 Use `--ramforce` to override automatic checks (use with caution).
@@ -26,13 +26,13 @@ Enables half-precision mode for faster processing on supported GPUs.
 
 ### `--device` & `--cuda_device`
 Selects CPU or GPU for inference. Example:
-```
+```python
 python transcribe_audio.py --device cuda --cuda_device 1
 ```
 
 ### `--model_dir`
 Change where models are stored/downloaded. Example:
-```
+```python
 python transcribe_audio.py --model_dir "C:/models"
 ```
 

@@ -15,13 +15,13 @@ These arguments control language selection and translation features.
 
 ### `--language` & `--target_language`
 Set the source and target languages. Example:
-```
+```python
 python transcribe_audio.py --language ja --target_language en
 ```
 
 ### `--translate` & `--transcribe`
 Enable translation or transcription to a target language. Example:
-```
+```python
 python transcribe_audio.py --translate --language ja
 python transcribe_audio.py --transcribe --target_language es
 ```

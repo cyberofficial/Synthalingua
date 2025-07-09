@@ -9,12 +9,12 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--auto_blocklist`      | Auto-add frequently blocked phrases to the blocklist file.        |
 | `--debug`               | Print debug output for blocked/suppressed messages.               |
 | `--save_transcript`     | Save the transcript to a file.                                    |
-| `--save_folder`         | Folder to save the transcript to (default: `out`).               |
-| `--makecaptions`        | Enable captions mode. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). |
+| `--save_folder`         | Folder to save the transcript to (default: `out`). Used with `--save_transcript`. |
+| `--makecaptions`        | Enable captions mode. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). Only `compare` is a valid argument. |
 | `--word_timestamps`     | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
-| `--file_input`          | Path to input file for captioning.                                |
-| `--file_output`         | Output folder for captions.                                       |
-| `--file_output_name`    | Output file name (without extension).                             |
+| `--file_input`          | Path to input file for captioning. |
+| `--file_output`         | Folder to save generated captions (SRT) to. Used with `--makecaptions`. |
+| `--file_output_name`    | Output file name for captions (without extension, e.g. `MyCaptionsFile`). The program will add `.srt` automatically. |
 | `--isolate_vocals`      | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
 | `--demucs_model`        | Demucs model to use for vocal isolation (default: htdemucs). Choices: htdemucs, htdemucs_ft, htdemucs_6s, hdemucs_mmi, mdx, mdx_extra, mdx_q, mdx_extra_q, hdemucs, demucs. Only used when `--isolate_vocals` is enabled. |
 | `--silent_detect`       | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
@@ -69,7 +69,7 @@ Controls the dB threshold used for silence detection. This allows fine-tuning th
 - **Loud speech only:** Use -25.0dB or higher for less sensitive detection
 
 **Examples:**
-```
+```python
 # Default threshold
 --silent_detect
 
@@ -92,7 +92,7 @@ Controls the minimum duration for a region to be considered silence versus a bri
 - **Podcast intros/outros:** Use 3.0s+ to skip only major silent sections
 
 **Examples:**
-```
+```python
 # Default duration (0.5s minimum)
 --silent_detect
 
@@ -125,45 +125,45 @@ When enabled (with `--ignorelist`), phrases blocked 3+ times in the last 10 are 
 Prints debug info about blocked or suppressed messages.
 
 ### `--save_transcript` & `--save_folder`
-Save transcriptions to a file in the specified folder:
-```
+Save transcriptions to a file in the specified folder (always use both flags together):
+```python
 python transcribe_audio.py --save_transcript --save_folder "C:/transcripts"
 ```
 
 ### Captions Example
-```
-python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 ### Advanced Captions with Vocal Isolation and Silence Detection (RECOMMENDED)
 For maximum efficiency and quality, combine vocal isolation with silence detection:
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 With specific Demucs model (skip interactive prompt):
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 For fastest processing (quantized model):
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model mdx_q --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model mdx_q --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 For quiet speech or whispered content:
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -45.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -45.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 For content with brief speaking pauses (ignore pauses under 2 seconds):
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_duration 2.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_duration 2.0 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 For precise control over both threshold and duration:
-```
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -40.0 --silent_duration 1.5 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --silent_threshold -40.0 --silent_duration 1.5 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 This combination:
@@ -174,22 +174,22 @@ This combination:
 
 ### Captions Compare Mode
 Generate captions with all available RAM models for quality comparison:
-```
-python transcribe_audio.py --makecaptions compare --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions compare --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
 With advanced features:
-```
-python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="mycaptions"
+```python
+python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 This will create files like:
-- `mycaptions.11gb-v3.srt`
-- `mycaptions.11gb-v2.srt`  
-- `mycaptions.7gb.srt`
-- `mycaptions.6gb.srt`
-- `mycaptions.3gb.srt`
-- `mycaptions.2gb.srt`
-- `mycaptions.1gb.srt`
+- `MyCaptionsFile.11gb-v3.srt`
+- `MyCaptionsFile.11gb-v2.srt`  
+- `MyCaptionsFile.7gb.srt`
+- `MyCaptionsFile.6gb.srt`
+- `MyCaptionsFile.3gb.srt`
+- `MyCaptionsFile.2gb.srt`
+- `MyCaptionsFile.1gb.srt`
 
 ---
 [Back to Index](./index.md)
