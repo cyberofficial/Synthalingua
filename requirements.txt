@@ -103,5 +103,5 @@ Werkzeug==3.0.1
 whisper==1.1.10
 wrapt==1.17.2
 wsproto==1.2.0
-yt-dlp==2024.3.10
+yt-dlp
 librosa==0.11.0
