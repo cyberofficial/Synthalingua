@@ -44,7 +44,7 @@ Specifies which Demucs model to use for vocal isolation. Only used when `--isola
 - `mdx_extra_q`: Quantized MDX Extra (faster, smaller)
 - `hdemucs`: Original Hybrid Demucs v3
 - `demucs`: Original time-domain Demucs
-> **Warning:** The longer your video or audio file, the more RAM will be required for processing—especially when using advanced models. For example, the `htdemucs_ft` model may require up to **24GB of RAM** to process a 1-hour video. If you encounter memory errors or segmentation faults, try using a shorter file, a less demanding model, processing your media in smaller segments, or increasing your system's page file (virtual memory) size to help prevent crashes.
+> **Warning:** The longer your video or audio file, the more RAM will be required for processing—especially when using advanced models. For example, the `htdemucs_ft` model may require up to **24GB of RAM** (not to be confused with VRAM) to process a 1-hour video. If you encounter memory errors or segmentation faults, try using a shorter file, a less demanding model, processing your media in smaller segments, or increasing your system's page file (virtual memory) size to help prevent crashes.
 
 ### `--silent_detect`
 When enabled, the program will intelligently skip silent regions in audio files during caption generation. This uses advanced audio analysis to detect speech vs. silence boundaries, resulting in faster processing and better transcription quality by avoiding unnecessary processing of silent segments.
