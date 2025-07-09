@@ -32,6 +32,10 @@ from pathlib import Path
 from typing import Optional, List
 from tqdm import tqdm
 
+
+# Version number for the setup script
+VERSION_NUMBER = "0.0.41"
+
 @dataclass
 class Config:
     """Configuration settings for the environment setup."""
@@ -39,7 +43,6 @@ class Config:
     YTDLP_URL: str = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_win.zip'
     SEVEN_ZIP_URL: str = 'https://www.7-zip.org/a/7zr.exe'
     MINICONDA_WINDOWS_URL: str = 'https://repo.anaconda.com/miniconda/Miniconda3-py312_25.5.1-0-Windows-x86_64.exe'
-    
     def __init__(self, miniconda_path: Path):
         self.ASSETS_PATH: Path = Path.cwd() / 'downloaded_assets'
         self.FFMPEG_ROOT_PATH: Path = self.ASSETS_PATH / 'ffmpeg'
@@ -243,12 +246,21 @@ class EnvironmentSetup:
                 # Keep the archive for reuse: os.remove(self.config.YTDLP_ARCHIVE)
                 ytdlp_exe = self.config.YTDLP_PATH / 'yt-dlp.exe'
                 if ytdlp_exe.exists():
-                    print("Updating yt-dlp to the latest version...")
-                    try:
-                        subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
-                        print("yt-dlp updated to the latest version.")
-                    except Exception as e:
-                        print(f"Warning: Failed to auto-update yt-dlp: {e}")
+                    while True:
+                        update_choice = input("Would you like to check for yt-dlp updates now? (yes/no): ").strip().lower()
+                        if update_choice in ("yes", "y"):
+                            print("Updating yt-dlp to the latest version...")
+                            try:
+                                subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
+                                print("yt-dlp updated to the latest version.")
+                            except Exception as e:
+                                print(f"Warning: Failed to auto-update yt-dlp: {e}")
+                            break
+                        elif update_choice in ("no", "n"):
+                            print("Skipping yt-dlp update check.")
+                            break
+                        else:
+                            print("Please answer 'yes' or 'no'.")
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
                 print(f"Failed to set up yt-dlp: {e}")
@@ -438,8 +450,9 @@ class EnvironmentSetup:
             return False
 
     def setup_vocal_isolation(self) -> None:
-        """Set up vocal isolation feature with demucs."""
+        """Set up vocal isolation feature with demucs, with improved user prompts and safety."""
         print("\nSetting up vocal isolation feature...")
+        # Step 1: Ensure Miniconda is installed
         if not self.check_miniconda_installed():
             print("Miniconda not found. Downloading miniconda...")
             installer_path = self.download_miniconda()
@@ -450,16 +463,74 @@ class EnvironmentSetup:
                 print("Failed to install miniconda. Skipping vocal isolation setup.")
                 return
         else:
-            print("Miniconda already installed.")
+            print(f"Miniconda already installed at {self.config.MINICONDA_PATH}.")
 
-        env_path = self.config.MINICONDA_PATH / 'envs' / 'data_whisper'
+        # Step 2: Check for existing data_whisper environment
+        default_env_path = self.config.MINICONDA_PATH / 'envs' / 'data_whisper'
+        env_path = default_env_path
+        env_exists = env_path.exists()
+        custom_env = False
+        if env_exists:
+            print(f"A data_whisper environment already exists at {env_path}.")
+            while True:
+                choice = input("Would you like to (k)eep, (r)ecreate, or (s)pecify a different environment? (keep/recreate/specify): ").strip().lower()
+                if choice in ("keep", "k"):
+                    print("Keeping existing data_whisper environment. Will update/install required packages.")
+                    break
+                elif choice in ("recreate", "r"):
+                    confirm = input(f"Are you sure you want to delete and recreate the environment at {env_path}? (yes/no): ").strip().lower()
+                    if confirm in ("yes", "y"):
+                        import shutil
+                        try:
+                            shutil.rmtree(env_path)
+                            print("Old environment removed.")
+                            env_exists = False
+                        except Exception as e:
+                            print(f"Failed to remove environment: {e}")
+                            return
+                        break
+                    else:
+                        print("Keeping existing environment.")
+                        break
+                elif choice in ("specify", "s"):
+                    custom_path = input("Please enter the full path to your existing data_whisper environment folder: ").strip()
+                    if custom_path and os.path.isdir(custom_path):
+                        env_path = Path(custom_path)
+                        custom_env = True
+                        print(f"Using custom data_whisper environment at {env_path}.")
+                        break
+                    else:
+                        print("Invalid path. Please try again.")
+                else:
+                    print("Please answer 'keep', 'recreate', or 'specify'.")
+        else:
+            # No environment exists, ask if user has one elsewhere
+            while True:
+                choice = input("No data_whisper environment found. Do you want to (c)reate a new one or (s)pecify an existing one? (create/specify): ").strip().lower()
+                if choice in ("create", "c"):
+                    break
+                elif choice in ("specify", "s"):
+                    custom_path = input("Please enter the full path to your existing data_whisper environment folder: ").strip()
+                    if custom_path and os.path.isdir(custom_path):
+                        env_path = Path(custom_path)
+                        custom_env = True
+                        print(f"Using custom data_whisper environment at {env_path}.")
+                        break
+                    else:
+                        print("Invalid path. Please try again.")
+                else:
+                    print("Please answer 'create' or 'specify'.")
+
+        # Step 3: Create environment if needed
         if not env_path.exists():
             if not self.create_data_whisper_env():
                 print("Failed to create data_whisper environment. Skipping.")
                 return
+            print(f"Created new data_whisper environment at {env_path}.")
         else:
-            print("data_whisper environment already exists.")
+            print(f"Using data_whisper environment at {env_path}.")
 
+        # Step 4: Always run installs to ensure dependencies are present/up to date
         if self.install_demucs_in_env():
             print("\nVocal isolation setup completed successfully!")
             print(f"To manually activate the environment, run: conda activate {env_path.resolve()}")
@@ -535,7 +606,7 @@ class EnvironmentSetup:
 
 def main() -> None:
     """Main entry point of the script."""
-    print("Version 0.0.40")
+    print(f"Version {VERSION_NUMBER}")
     parser = argparse.ArgumentParser(description="Synthalingua Environment Setup")
     parser.add_argument('--reinstall', action='store_true', help='Wipe all tool folders/files and redownload fresh')
     parser.add_argument('--using_vocal_isolation', action='store_true', help='Install miniconda environment with demucs for vocal isolation features')
@@ -641,9 +712,28 @@ def main() -> None:
             folders_to_remove.append(cfg.FFMPEG_ROOT_PATH)
         if args.reinstall or (cfg.YTDLP_PATH in assets_to_remove):
             folders_to_remove.append(cfg.YTDLP_PATH)
+        # Miniconda: prompt before removing, even with --reinstall
+        minconda_should_remove = False
         if args.using_vocal_isolation and (args.reinstall or (cfg.MINICONDA_PATH in assets_to_remove)):
+            if cfg.MINICONDA_PATH.exists():
+                print(f"Miniconda is already installed at {cfg.MINICONDA_PATH}.")
+                while True:
+                    wipe_choice = input(f"Do you want to (w)ipe and reinstall Miniconda, or (k)eep and reuse it? (wipe/keep): ").strip().lower()
+                    if wipe_choice in ("wipe", "w"):
+                        minconda_should_remove = True
+                        print("Vocal isolation flag detected - will reinstall miniconda environment.")
+                        break
+                    elif wipe_choice in ("keep", "k"):
+                        print("Keeping existing Miniconda installation. Will reuse and update environments as needed.")
+                        minconda_should_remove = False
+                        break
+                    else:
+                        print("Please answer 'wipe' or 'keep'.")
+            else:
+                minconda_should_remove = False
+        # Only add Miniconda to folders_to_remove if user confirmed wipe
+        if minconda_should_remove:
             folders_to_remove.append(cfg.MINICONDA_PATH)
-            print("Vocal isolation flag detected - will reinstall miniconda environment.")
         # Remove files for 7zr.exe and ffmpeg_path.bat if selected
         if args.reinstall or (seven_zip_path in assets_to_remove):
             files_to_remove.append(seven_zip_path)
