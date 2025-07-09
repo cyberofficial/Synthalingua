@@ -3,7 +3,7 @@
 Common issues and solutions for Synthalingua.
 
 ## Python & Environment
-- **Python not recognized:** Add Python to PATH, restart, check version (must be 3.10.x, not 3.11+)
+- **Python not recognized:** Add Python to PATH, restart, check version (must be 3.12.x, not 3.13 or 3.11 & lower.)
 - **No module named 'transformers':** Run `pip install transformers` in the correct Python environment
 - **Git not recognized:** Add Git to PATH, restart
 - **CUDA not available:** Install CUDA (Nvidia only), or use CPU mode
