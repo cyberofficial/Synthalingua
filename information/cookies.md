@@ -39,9 +39,36 @@ These are plain text files containing your browser's cookies in a standard forma
 
 ## Using Cookies in Synthalingua
 
-Synthalingua supports multiple ways to specify cookie files:
+Synthalingua supports multiple ways to specify cookies for authenticated streams:
 
-### Method 1: Cookies Folder (Legacy)
+### Method 1: Browser Cookie Extraction (Recommended)
+Synthalingua can directly extract cookies from your browser using yt-dlp's built-in functionality:
+
+```python
+# Extract cookies from Chrome
+python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies-from-browser chrome
+
+# Extract cookies from Firefox
+python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies-from-browser firefox
+
+# Extract cookies from other supported browsers
+python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies-from-browser edge
+```
+
+**Supported browsers:**
+- `brave` - Brave Browser
+- `chrome` - Google Chrome
+- `chromium` - Chromium
+- `edge` - Microsoft Edge
+- `firefox` - Mozilla Firefox
+- `opera` - Opera
+- `safari` - Safari (macOS only)
+- `vivaldi` - Vivaldi
+- `whale` - Whale Browser
+
+**Important:** The browser must be installed and you must have logged in to the target site (e.g., Twitch, YouTube) for cookie extraction to work.
+
+### Method 2: Cookies Folder (Legacy)
 - Place your cookies file in the `cookies/` folder (e.g., `cookies/twitch.txt` or `cookies/youtube.txt`).
 - Use the `--cookies` argument without the `.txt` extension:
   ```python
@@ -52,7 +79,7 @@ Synthalingua supports multiple ways to specify cookie files:
   python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies youtube
   ```
 
-### Method 2: Full Path
+### Method 3: Full Path
 - Specify the complete path to your cookie file:
   ```python
   python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies "C:\path\to\twitch.txt"
@@ -62,13 +89,18 @@ Synthalingua supports multiple ways to specify cookie files:
   python transcribe_audio.py --stream https://www.youtube.com/watch?v=abc123 --cookies "C:\Users\username\Downloads\youtube_cookies.txt"
   ```
 
-### Method 3: Current Directory
+### Method 4: Current Directory
 - Place the cookie file in the same directory as your script and reference it by name:
   ```python
   python transcribe_audio.py --stream https://www.twitch.tv/somestreamerhere --cookies twitch.txt
   ```
 
-### Search Order
+### Usage Rules
+- **Cannot use both**: You cannot use `--cookies` and `--cookies-from-browser` together
+- **Browser extraction is temporary**: Cookies extracted from browsers are stored in temporary files and automatically cleaned up
+- **File-based cookies are permanent**: Cookie files you specify with `--cookies` are not modified or deleted
+
+### Search Order (for --cookies)
 When you specify `--cookies`, Synthalingua will search for the file in this order:
 1. **Absolute path**: If you provide a full path (e.g., `C:\path\to\cookies.txt`), it uses that directly
 2. **Current directory**: Looks for the file in the current working directory

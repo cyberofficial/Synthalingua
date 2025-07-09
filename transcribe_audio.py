@@ -14,7 +14,7 @@ if sys.platform.startswith('win'):
 
 from modules.audio_handlers import record_callback, handle_mic_calibration
 from modules.device_manager import get_microphone_source, list_microphones, setup_device
-from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error
+from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error, cleanup_temp_cookie_file
 from modules.transcription_core import TranscriptionCore
 from modules.stream_handler import handle_stream_setup
 from modules.stream_transcription_module import stop_transcription
@@ -235,6 +235,11 @@ def main():
             print("Stopping stream transcription...")
             stop_transcription()
             clean_temp_directory(temp_dir)
+        
+        # Clean up any temporary cookie files
+        if hasattr(args, '_temp_cookie_files'):
+            for temp_cookie_file in args._temp_cookie_files:
+                cleanup_temp_cookie_file(temp_cookie_file)
         
         if webhook_url:
             print("Sending shutdown notification to Discord...")

@@ -10,6 +10,8 @@ This module provides utilities for file operations including:
 """
 
 import os
+import tempfile
+import subprocess
 from datetime import datetime
 from modules.discord import send_to_discord_webhook, send_error_notification
 from colorama import Fore, Style, init
@@ -188,17 +190,99 @@ def handle_error(e, webhook_url=None):
             send_error_notification(webhook_url, str(e))
     return isinstance(e, KeyboardInterrupt)
 
-def resolve_cookie_file_path(cookies_arg):
+def load_cookies_from_browser(browser_name):
     """
-    Resolve cookie file path with multiple search locations.
+    Load cookies from a browser using yt-dlp's cookie extraction functionality.
+    
+    Args:
+        browser_name (str): Name of the browser to extract cookies from
+        
+    Returns:
+        str: Path to the temporary cookies file, or None if extraction failed
+        
+    This function uses yt-dlp's built-in browser cookie extraction to create
+    a temporary Netscape-format cookies file. The file should be cleaned up
+    by the caller when no longer needed.
+    """
+    try:
+        # Create a temporary file for cookies
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', prefix='synthalingua_cookies_')
+        os.close(temp_fd)  # Close the file descriptor as we'll let yt-dlp write to it
+        
+        print_info_message(f"Extracting cookies from {browser_name} browser...")
+        
+        # Use yt-dlp to extract cookies from browser
+        # We'll use a dummy URL to trigger cookie extraction
+        yt_dlp_command = [
+            "yt-dlp",
+            "--cookies-from-browser", browser_name,
+            "--cookies", temp_path,
+            "--simulate",
+            "--no-warnings",
+            "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Dummy URL
+        ]
+        
+        result = subprocess.run(yt_dlp_command, 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=30)
+        
+        # Check if the command was successful and cookies file was created
+        if result.returncode == 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+            print_success_message(f"Successfully extracted cookies from {browser_name}")
+            return temp_path
+        else:
+            error_msg = result.stderr if result.stderr else result.stdout
+            print_error_message(f"Failed to extract cookies from {browser_name}: {error_msg}")
+            # Clean up the temporary file if it was created but empty/invalid
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            return None
+            
+    except subprocess.TimeoutExpired:
+        print_error_message(f"Timeout while extracting cookies from {browser_name}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return None
+    except Exception as e:
+        print_error_message(f"Error extracting cookies from {browser_name}: {str(e)}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return None
+
+def cleanup_temp_cookie_file(cookie_file_path):
+    """
+    Clean up temporary cookie file created by load_cookies_from_browser.
+    
+    Args:
+        cookie_file_path (str): Path to the temporary cookie file
+        
+    This function safely removes temporary cookie files created during
+    browser cookie extraction. It checks if the file is in a temp directory
+    to avoid accidentally removing user's permanent cookie files.
+    """
+    if cookie_file_path and os.path.exists(cookie_file_path):
+        try:
+            # Only delete if it's a temporary file (contains temp in path)
+            if 'temp' in cookie_file_path.lower() or cookie_file_path.startswith(tempfile.gettempdir()):
+                os.remove(cookie_file_path)
+                print_info_message("Cleaned up temporary cookie file")
+        except Exception as e:
+            print_warning_message(f"Could not clean up temporary cookie file: {str(e)}")
+
+def resolve_cookie_file_path(cookies_arg, cookies_from_browser=None):
+    """
+    Resolve cookie file path with multiple search locations or extract from browser.
     
     This function searches for cookie files in the following order:
-    1. If cookies_arg is an absolute path to an existing file, use it directly
-    2. If cookies_arg is a filename with extension that exists in current directory, use it
-    3. If cookies_arg (with .txt appended if needed) exists in cookies/ folder, use that
+    1. If cookies_from_browser is specified, extract cookies from browser
+    2. If cookies_arg is an absolute path to an existing file, use it directly
+    3. If cookies_arg is a filename with extension that exists in current directory, use it
+    4. If cookies_arg (with .txt appended if needed) exists in cookies/ folder, use that
     
     Args:
         cookies_arg (str): The cookies argument value from command line
+        cookies_from_browser (str, optional): Browser name to extract cookies from
         
     Returns:
         str: Resolved path to the cookie file, or None if not found
@@ -207,7 +291,12 @@ def resolve_cookie_file_path(cookies_arg):
         resolve_cookie_file_path("C:\\path\\to\\youtube.txt")  # Returns absolute path if exists
         resolve_cookie_file_path("youtube.txt")               # Checks current dir, then cookies/youtube.txt
         resolve_cookie_file_path("youtube")                   # Checks cookies/youtube.txt
+        resolve_cookie_file_path(None, "chrome")              # Extracts cookies from Chrome browser
     """
+    # Handle browser cookie extraction
+    if cookies_from_browser:
+        return load_cookies_from_browser(cookies_from_browser)
+    
     if not cookies_arg:
         return None
     
