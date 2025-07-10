@@ -29,6 +29,8 @@ import gc
 import shutil
 import tempfile
 import os
+import warnings
+import glob
 import librosa
 
 import whisper
@@ -48,6 +50,9 @@ args = parser_args.parse_arguments()
 
 # Global variable to track auto-proceed mode for detection reviews
 _auto_proceed_detection = False
+
+# Global variable to track if user wants to skip Turbo model questions
+_skip_turbo_questions = False
 
 # Inform user if word_timestamps is enabled
 if getattr(args, 'word_timestamps', False):
@@ -95,7 +100,7 @@ def format_human_time(seconds: float) -> str:
     else:
         return f"{minutes}m{remaining_seconds:04.1f}s"
 
-def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.5) -> List[Dict[str, Any]]:
+def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.1) -> List[Dict[str, Any]]:
     """
     Detect silence and speech regions in audio file using intelligent segmentation.
     
@@ -109,16 +114,24 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                               [{'type': 'speech', 'start': 13.8, 'end': 42.3}, ...]
     """
     try:
-        # Try to import librosa, fall back to basic audio loading if not available
+        # Use Whisper's audio loading first (more reliable, fewer warnings)
         try:
-            import librosa
-            # Load audio with librosa for better compatibility
-            audio, sr = librosa.load(audio_path, sr=None)
-        except ImportError:
-            # Fallback: use whisper's audio loading
             import whisper.audio
             audio = whisper.audio.load_audio(audio_path)
             sr = 16000  # Whisper's standard sample rate
+        except Exception:
+            # Fallback: try librosa with error suppression
+            try:
+                import librosa
+                import warnings
+                # Suppress librosa warnings about PySoundFile and audioread
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    warnings.filterwarnings("ignore", category=FutureWarning)
+                    audio, sr = librosa.load(audio_path, sr=None)
+            except ImportError:
+                # Last resort: basic audio loading
+                raise RuntimeError("Neither Whisper nor librosa audio loading is available")
         
         print(f"{Fore.CYAN}🔍 Analyzing audio for speech/silence regions...{Style.RESET_ALL}")
         
@@ -262,11 +275,21 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         total_speech_duration = sum(r['end'] - r['start'] for r in speech_regions)
         total_silence_duration = sum(r['end'] - r['start'] for r in silence_regions)
         
+        # Calculate workload reduction
+        workload_reduction = (total_silence_duration / audio_duration) * 100
+        
         print(f"{Fore.GREEN}� Audio analysis complete:{Style.RESET_ALL}")
         print(f"   • Speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
         print(f"   • Silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
         print(f"   • Processing efficiency: {100 * total_speech_duration / audio_duration:.1f}% of audio contains speech")
         print(f"   • Current threshold: {silence_threshold_db:.1f}dB")
+        
+        # Show workload reduction with helpful context
+        if workload_reduction > 0:
+            time_saved = format_human_time(total_silence_duration)
+            print(f"   • {Fore.CYAN}💡 With current settings, workload will be reduced by {workload_reduction:.1f}% (saving {time_saved} of processing){Style.RESET_ALL}")
+        else:
+            print(f"   • {Fore.YELLOW}⚠️  No workload reduction - consider adjusting threshold for better efficiency{Style.RESET_ALL}")
         
         # Show detailed breakdown of regions with dB levels
         print(f"\n{Fore.CYAN}🔊 Audio Level Analysis:{Style.RESET_ALL}")
@@ -620,6 +643,99 @@ def get_next_higher_model(current_ram: str) -> Optional[str]:
     except ValueError:
         return None  # Invalid current model
 
+def ask_about_turbo_model(task: str) -> Tuple[bool, bool]:
+    """
+    Ask user if they want to use the Turbo model with translation warning.
+    
+    Args:
+        task (str): Current task ('transcribe' or 'translate')
+        
+    Returns:
+        Tuple[bool, bool]: (use_turbo, skip_future_turbo_questions)
+    """
+    global _skip_turbo_questions
+    
+    if _skip_turbo_questions:
+        return False, True
+    
+    print(f"\n{Fore.CYAN}🚀 Turbo Model Available (7GB):{Style.RESET_ALL}")
+    print(f"   The Turbo model is faster and uses less memory than the large models.")
+    
+    if task == "translate":
+        print(f"   {Fore.YELLOW}⚠️  WARNING: Turbo model does NOT support translation to English.{Style.RESET_ALL}")
+        print(f"   {Fore.YELLOW}   It will only transcribe in the original language.{Style.RESET_ALL}")
+        print(f"   {Fore.YELLOW}   If you skip this, it will use the 11GB-v2 model instead.{Style.RESET_ALL}")
+    else:
+        print(f"   {Fore.GREEN}✅ Turbo model supports transcription in original language.{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.CYAN}Options:{Style.RESET_ALL}")
+    print(f"   1. {Fore.GREEN}Use Turbo model (7GB){Style.RESET_ALL}")
+    print(f"   2. {Fore.YELLOW}Skip to 11GB-v2 model{Style.RESET_ALL}")
+    print(f"   3. {Fore.BLUE}Skip to 11GB-v2 and don't ask about Turbo again{Style.RESET_ALL}")
+    
+    while True:
+        try:
+            choice = input(f"\n{Fore.CYAN}Enter your choice (1/2/3): {Style.RESET_ALL}").strip()
+            
+            if choice == "1":
+                return True, False
+            elif choice == "2":
+                return False, False
+            elif choice == "3":
+                _skip_turbo_questions = True
+                print(f"{Fore.BLUE}✅ Turbo model questions will be skipped for remaining regions.{Style.RESET_ALL}")
+                return False, True
+            else:
+                print(f"{Fore.RED}❌ Invalid choice. Please enter 1, 2, or 3.{Style.RESET_ALL}")
+                
+        except KeyboardInterrupt:
+            print(f"\n{Fore.YELLOW}⚠️  Skipping to 11GB-v2 model.{Style.RESET_ALL}")
+            return False, False
+        except EOFError:
+            print(f"\n{Fore.YELLOW}⚠️  Skipping to 11GB-v2 model.{Style.RESET_ALL}")
+            return False, False
+
+def get_next_higher_model_with_turbo_handling(current_ram: str, task: str = "translate", auto_continue: bool = False) -> Optional[str]:
+    """
+    Get the next higher RAM model with special handling for Turbo model.
+    
+    Args:
+        current_ram (str): Current RAM setting
+        task (str): Current task ('transcribe' or 'translate')
+        auto_continue (bool): Whether user is in auto-continue mode
+        
+    Returns:
+        Optional[str]: Next higher RAM setting, or None if already at highest
+    """
+    next_model = get_next_higher_model(current_ram)
+    
+    # Special handling for Turbo model (7GB)
+    if next_model == "7gb":
+        global _skip_turbo_questions
+        
+        if auto_continue and not _skip_turbo_questions:
+            # In auto-continue mode, show informative message about skipping Turbo
+            if task == "translate":
+                print(f"   {Fore.CYAN}🚀 Auto-continue: Skipping Turbo model (no translation support) → 11GB-v2{Style.RESET_ALL}")
+            else:
+                print(f"   {Fore.CYAN}🚀 Auto-continue: Using Turbo model (7GB){Style.RESET_ALL}")
+                return next_model
+            _skip_turbo_questions = True  # Don't ask again in auto mode
+            return get_next_higher_model("7gb")  # Skip to 11GB-v2
+        elif _skip_turbo_questions:
+            # User previously chose to skip Turbo questions
+            if task == "translate":
+                print(f"   {Fore.CYAN}🚀 Skipping Turbo model (translation not supported) → 11GB-v2{Style.RESET_ALL}")
+            return get_next_higher_model("7gb")  # Skip to 11GB-v2
+        else:
+            # Ask user about Turbo model
+            use_turbo, skip_future = ask_about_turbo_model(task)
+            if not use_turbo:
+                # Skip to 11GB-v2 instead
+                return get_next_higher_model("7gb")  # This will return "11gb-v2"
+    
+    return next_model
+
 def calculate_region_confidence(segments: List[Dict]) -> float:
     """
     Calculate average confidence for a region's segments.
@@ -645,7 +761,7 @@ def calculate_region_confidence(segments: List[Dict]) -> float:
     
     return total_confidence / segment_count if segment_count > 0 else 0.0
 
-def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model, decode_options: Dict) -> List[Dict]:
+def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model, decode_options: Dict, task: str = "translate") -> List[Dict]:
     """
     Process speech regions and return combined segments with proper timestamps.
     
@@ -654,6 +770,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
         regions (List[Dict[str, Any]]): List of speech/silence regions from detect_silence_in_audio
         model: Loaded Whisper model
         decode_options (Dict): Whisper decode options
+        task (str): Current task ('transcribe' or 'translate')
     
     Returns:
         List[Dict]: List of processed segments with adjusted timestamps
@@ -709,16 +826,8 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 # Let Whisper handle internal segmentation naturally
                 region_result = model.transcribe(tmp_file.name, **decode_options)
                 
-                # Show transcription results for this region first
-                region_segments = region_result.get("segments", [])
-                for segment in region_segments:
-                    if isinstance(segment, dict) and segment.get("text", "").strip():
-                        seg_start = segment.get("start", 0.0) + region_start
-                        seg_end = segment.get("end", 0.0) + region_start
-                        seg_text = segment.get("text", "").strip()
-                        print(f"   📝 Segment: {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
-                
                 # Calculate confidence for this region
+                region_segments = region_result.get("segments", [])
                 region_confidence = calculate_region_confidence(region_segments)
                 
                 # Check if we should offer retry with higher model (if not in auto mode)
@@ -735,9 +844,20 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                     best_result = region_result
                     best_confidence = region_confidence
                     original_confidence = region_confidence
+                    auto_continue = False  # Track if user chose to continue automatically
+                    
+                    # Track all attempts for comprehensive comparison
+                    all_attempts = [
+                        {
+                            'model': args.ram,
+                            'model_type': get_model_type(args.ram, skip_warning=True),
+                            'result': region_result,
+                            'confidence': region_confidence
+                        }
+                    ]
                     
                     while True:
-                        next_model = get_next_higher_model(current_test_model)
+                        next_model = get_next_higher_model_with_turbo_handling(current_test_model, task, auto_continue)
                         if not next_model:
                             if current_test_model != args.ram:
                                 print(f"{Fore.YELLOW}📊 No more higher models available.{Style.RESET_ALL}")
@@ -748,9 +868,14 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         print(f"   Region: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s)")
                         if current_test_model != args.ram:
                             print(f"   Previous attempts didn't improve confidence enough.")
-                        print(f"   Current transcription above - retry for better accuracy?")
                         
-                        retry_choice = input(f"\n{Fore.CYAN}Try this region with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
+                        # Skip asking if user already chose to continue automatically
+                        if auto_continue:
+                            print(f"   {Fore.CYAN}🚀 Auto-continuing with {next_model} model...{Style.RESET_ALL}")
+                            retry_choice = 'y'
+                        else:
+                            print(f"   Current transcription above - retry for better accuracy?")
+                            retry_choice = input(f"\n{Fore.CYAN}Try this region with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
                         
                         if retry_choice not in ['y', 'yes']:
                             print(f"{Fore.BLUE}ℹ️  Skipping further model upgrades. Using best results so far.{Style.RESET_ALL}")
@@ -760,7 +885,6 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         
                         # Load the higher model
                         try:
-                            from modules.sub_gen import get_model_type, load_whisper_model, unload_model
                             if next_model:  # Ensure next_model is not None
                                 higher_model_type = get_model_type(next_model, skip_warning=True)
                                 higher_model = load_whisper_model(higher_model_type, decode_options.get('device', 'cuda'))
@@ -771,56 +895,70 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                 if isinstance(retry_segments, list):  # Type safety check
                                     retry_confidence = calculate_region_confidence(retry_segments)
                                     
+                                    # Add this attempt to our tracking list
+                                    all_attempts.append({
+                                        'model': next_model,
+                                        'model_type': higher_model_type,
+                                        'result': retry_result,
+                                        'confidence': retry_confidence
+                                    })
+                                    
                                     print(f"   Original confidence: {original_confidence*100:.1f}% | Current confidence: {retry_confidence*100:.1f}%")
                                     
-                                    # Show both versions and let user choose
-                                    print(f"\n{Fore.CYAN}📋 Transcription Comparison:{Style.RESET_ALL}")
-                                    print(f"\n{Fore.YELLOW}🔤 Original Version ({args.ram} model - {original_confidence*100:.1f}% confidence):{Style.RESET_ALL}")
-                                    original_result = region_result if current_test_model == args.ram else best_result
-                                    for segment in original_result.get("segments", []):
-                                        if isinstance(segment, dict) and segment.get("text", "").strip():
-                                            seg_start = segment.get("start", 0.0) + region_start
-                                            seg_end = segment.get("end", 0.0) + region_start
-                                            seg_text = segment.get("text", "").strip()
-                                            print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                    # Show comprehensive comparison of all attempts
+                                    print(f"\n{Fore.CYAN}📋 Transcription Comparison - All Attempts:{Style.RESET_ALL}")
                                     
-                                    print(f"\n{Fore.CYAN}🔤 New Version ({next_model} model - {retry_confidence*100:.1f}% confidence):{Style.RESET_ALL}")
-                                    for segment in retry_result.get("segments", []):
-                                        if isinstance(segment, dict) and segment.get("text", "").strip():
-                                            seg_start = segment.get("start", 0.0) + region_start
-                                            seg_end = segment.get("end", 0.0) + region_start
-                                            seg_text = segment.get("text", "").strip()
-                                            print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                    for idx, attempt in enumerate(all_attempts):
+                                        attempt_label = f"🔤 Version {idx + 1}" if len(all_attempts) > 2 else ("🔤 Original Version" if idx == 0 else "🔤 New Version")
+                                        confidence_color = Fore.GREEN if attempt['confidence'] >= 0.90 else (Fore.YELLOW if attempt['confidence'] >= 0.75 else Fore.RED)
+                                        
+                                        print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence):{Style.RESET_ALL}")
+                                        for segment in attempt['result'].get("segments", []):
+                                            if isinstance(segment, dict) and segment.get("text", "").strip():
+                                                seg_start = segment.get("start", 0.0) + region_start
+                                                seg_end = segment.get("end", 0.0) + region_start
+                                                seg_text = segment.get("text", "").strip()
+                                                print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
                                     
                                     # Let user choose which version to use
                                     print(f"\n{Fore.CYAN}🤔 Which transcription do you prefer?{Style.RESET_ALL}")
-                                    print(f"   A. Use Original Version ({args.ram} model)")
-                                    print(f"   B. Use New Version ({next_model} model)")
-                                    print(f"   C. Continue trying higher models (if available)")
+                                    for idx, attempt in enumerate(all_attempts):
+                                        choice_letter = chr(65 + idx)  # A, B, C, D, etc.
+                                        print(f"   {choice_letter}. Use Version {idx + 1} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence)")
                                     
-                                    choice = input(f"\n{Fore.CYAN}Enter your choice (A/B/C): {Style.RESET_ALL}").strip().upper()
+                                    next_choice = chr(65 + len(all_attempts))  # Next letter for "Continue"
+                                    if get_next_higher_model(next_model):
+                                        print(f"   {next_choice}. Continue trying higher models (if available)")
                                     
-                                    if choice == 'B':
-                                        print(f"{Fore.GREEN}✅ Using New Version ({next_model} results).{Style.RESET_ALL}")
-                                        best_result = retry_result
-                                        best_confidence = retry_confidence
+                                    valid_choices = [chr(65 + i) for i in range(len(all_attempts))]
+                                    if get_next_higher_model(next_model):
+                                        valid_choices.append(next_choice)
+                                    
+                                    choice_prompt = f"Enter your choice ({'/'.join(valid_choices)}): "
+                                    choice = input(f"\n{Fore.CYAN}{choice_prompt}{Style.RESET_ALL}").strip().upper()
+                                    
+                                    # Handle choice selection
+                                    if choice in [chr(65 + i) for i in range(len(all_attempts))]:
+                                        selected_idx = ord(choice) - 65
+                                        selected_attempt = all_attempts[selected_idx]
+                                        print(f"{Fore.GREEN}✅ Using Version {selected_idx + 1} ({selected_attempt['model']} model - {selected_attempt['confidence']*100:.1f}% confidence).{Style.RESET_ALL}")
+                                        best_result = selected_attempt['result']
+                                        best_confidence = selected_attempt['confidence']
                                         current_test_model = next_model
                                         
-                                        # If we've achieved good confidence (≥90%), ask if user wants to stop
-                                        if retry_confidence >= 0.90:
-                                            stop_choice = input(f"\n{Fore.GREEN}🎯 Excellent confidence achieved ({retry_confidence*100:.1f}%)! Stop here? (y/n): {Style.RESET_ALL}").strip().lower()
+                                        # If we've achieved good confidence (≥90%), ask if user wants to stop trying higher models for this region
+                                        if selected_attempt['confidence'] >= 0.90:
+                                            stop_choice = input(f"\n{Fore.GREEN}🎯 Excellent confidence achieved ({selected_attempt['confidence']*100:.1f}%)! Stop trying higher models for this region? (y/n): {Style.RESET_ALL}").strip().lower()
                                             if stop_choice in ['y', 'yes']:
-                                                print(f"{Fore.GREEN}✅ Stopping at excellent confidence level.{Style.RESET_ALL}")
+                                                print(f"{Fore.GREEN}✅ Using this result for this region. Continuing with next regions...{Style.RESET_ALL}")
                                                 unload_model(higher_model)
                                                 break
-                                    elif choice == 'A':
-                                        print(f"{Fore.BLUE}✅ Keeping Original Version ({args.ram} results).{Style.RESET_ALL}")
-                                        current_test_model = next_model  # Continue to next model in hierarchy
-                                    elif choice == 'C':
+                                    elif choice == next_choice and get_next_higher_model(next_model):
                                         print(f"{Fore.CYAN}➡️  Continuing to try higher models...{Style.RESET_ALL}")
+                                        auto_continue = True  # Set flag to auto-continue for remaining models
                                         current_test_model = next_model  # Continue to next model
                                     else:
-                                        print(f"{Fore.YELLOW}❓ Invalid choice. Keeping Original Version ({args.ram} results).{Style.RESET_ALL}")
+                                        print(f"{Fore.YELLOW}❓ Invalid choice. Using best results so far.{Style.RESET_ALL}")
                                         current_test_model = next_model  # Continue to next model
                                 
                                 # Unload the higher model
@@ -2033,8 +2171,6 @@ def process_single_file(
         use_silence_detection = getattr(args, 'silent_detect', False) and getattr(args, 'makecaptions', False)
         
         if use_silence_detection:
-            print(f"{Fore.CYAN}🔍 Analyzing audio for speech/silence regions...{Style.RESET_ALL}")
-            
             # Get custom silence parameters from args if provided
             silence_threshold_db = getattr(args, 'silent_threshold', -35.0)
             min_silence_duration = getattr(args, 'silent_duration', 0.5)
@@ -2054,7 +2190,7 @@ def process_single_file(
                 result = {"segments": [], "text": "", "language": args.language or "en"}
             else:
                 print(f"{Fore.GREEN}🎵 Processing {len(speech_regions)} speech regions with natural boundaries{Style.RESET_ALL}")
-                segments = process_speech_regions(processed_audio_path, audio_regions, model, decode_options)
+                segments = process_speech_regions(processed_audio_path, audio_regions, model, decode_options, task)
                 result = {
                     "segments": segments,
                     "text": " ".join(seg.get("text", "").strip() for seg in segments if seg.get("text", "").strip()),
@@ -2097,9 +2233,20 @@ def process_single_file(
                 best_result = result
                 best_confidence = overall_confidence
                 original_confidence = overall_confidence
+                auto_continue = False  # Track if user chose to continue automatically
+                
+                # Track all attempts for comprehensive comparison
+                all_attempts = [
+                    {
+                        'model': args.ram,
+                        'model_type': get_model_type(args.ram, skip_warning=True),
+                        'result': result,
+                        'confidence': overall_confidence
+                    }
+                ]
                 
                 while True:
-                    next_model = get_next_higher_model(current_test_model)
+                    next_model = get_next_higher_model_with_turbo_handling(current_test_model, task, auto_continue)
                     if not next_model:
                         if current_test_model != args.ram:
                             print(f"{Fore.YELLOW}📊 No more higher models available.{Style.RESET_ALL}")
@@ -2109,9 +2256,14 @@ def process_single_file(
                     print(f"   Current model: {current_test_model} | Available upgrade: {next_model}")
                     if current_test_model != args.ram:
                         print(f"   Previous attempts didn't improve confidence enough.")
-                    print(f"   Current transcription above - retry for better accuracy?")
                     
-                    retry_choice = input(f"\n{Fore.CYAN}Try full file with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
+                    # Skip asking if user already chose to continue automatically
+                    if auto_continue:
+                        print(f"   {Fore.CYAN}🚀 Auto-continuing with {next_model} model...{Style.RESET_ALL}")
+                        retry_choice = 'y'
+                    else:
+                        print(f"   Current transcription above - retry for better accuracy?")
+                        retry_choice = input(f"\n{Fore.CYAN}Try full file with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
                     
                     if retry_choice not in ['y', 'yes']:
                         print(f"{Fore.BLUE}ℹ️  Skipping further model upgrades. Using best results so far.{Style.RESET_ALL}")
@@ -2131,59 +2283,74 @@ def process_single_file(
                             if isinstance(retry_segments, list):  # Type safety check
                                 retry_confidence = calculate_region_confidence(retry_segments)
                                 
+                                # Add this attempt to our tracking list
+                                all_attempts.append({
+                                    'model': next_model,
+                                    'model_type': higher_model_type,
+                                    'result': retry_result,
+                                    'confidence': retry_confidence
+                                })
+                                
                                 print(f"   Original confidence: {original_confidence*100:.1f}% | Current confidence: {retry_confidence*100:.1f}%")
                                 
-                                # Show both versions and let user choose
-                                print(f"\n{Fore.CYAN}📋 Transcription Comparison:{Style.RESET_ALL}")
-                                print(f"\n{Fore.YELLOW}🔤 Original Version ({args.ram} model - {original_confidence*100:.1f}% confidence):{Style.RESET_ALL}")
-                                original_segments = result.get("segments", []) if current_test_model == args.ram else best_result.get("segments", [])
-                                if isinstance(original_segments, list):
-                                    for i, segment in enumerate(original_segments[:5], 1):
-                                        if isinstance(segment, dict) and segment.get("text", "").strip():
-                                            seg_start = segment.get("start", 0.0)
-                                            seg_end = segment.get("end", 0.0)
-                                            seg_text = segment.get("text", "").strip()
-                                            print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                # Show comprehensive comparison of all attempts
+                                print(f"\n{Fore.CYAN}📋 Transcription Comparison - All Attempts:{Style.RESET_ALL}")
                                 
-                                print(f"\n{Fore.CYAN}🔤 New Version ({next_model} model - {retry_confidence*100:.1f}% confidence):{Style.RESET_ALL}")
-                                retry_segments_list = retry_result.get("segments", [])
-                                if isinstance(retry_segments_list, list):
-                                    for i, segment in enumerate(retry_segments_list[:5], 1):
-                                        if isinstance(segment, dict) and segment.get("text", "").strip():
-                                            seg_start = segment.get("start", 0.0)
-                                            seg_end = segment.get("end", 0.0)
-                                            seg_text = segment.get("text", "").strip()
-                                            print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                for idx, attempt in enumerate(all_attempts):
+                                    attempt_label = f"🔤 Version {idx + 1}" if len(all_attempts) > 2 else ("🔤 Original Version" if idx == 0 else "🔤 New Version")
+                                    confidence_color = Fore.GREEN if attempt['confidence'] >= 0.90 else (Fore.YELLOW if attempt['confidence'] >= 0.75 else Fore.RED)
+                                    
+                                    print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence):{Style.RESET_ALL}")
+                                    attempt_segments = attempt['result'].get("segments", [])
+                                    if isinstance(attempt_segments, list):
+                                        for i, segment in enumerate(attempt_segments[:5], 1):  # Show first 5 segments
+                                            if isinstance(segment, dict) and segment.get("text", "").strip():
+                                                seg_start = segment.get("start", 0.0)
+                                                seg_end = segment.get("end", 0.0)
+                                                seg_text = segment.get("text", "").strip()
+                                                print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                        if len(attempt_segments) > 5:
+                                            print(f"   ... and {len(attempt_segments) - 5} more segments")
                                 
                                 # Let user choose which version to use
                                 print(f"\n{Fore.CYAN}🤔 Which transcription do you prefer?{Style.RESET_ALL}")
-                                print(f"   A. Use Original Version ({args.ram} model)")
-                                print(f"   B. Use New Version ({next_model} model)")
-                                print(f"   C. Continue trying higher models (if available)")
+                                for idx, attempt in enumerate(all_attempts):
+                                    choice_letter = chr(65 + idx)  # A, B, C, D, etc.
+                                    print(f"   {choice_letter}. Use Version {idx + 1} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence)")
                                 
-                                choice = input(f"\n{Fore.CYAN}Enter your choice (A/B/C): {Style.RESET_ALL}").strip().upper()
+                                next_choice = chr(65 + len(all_attempts))  # Next letter for "Continue"
+                                if get_next_higher_model(next_model):
+                                    print(f"   {next_choice}. Continue trying higher models (if available)")
                                 
-                                if choice == 'B':
-                                    print(f"{Fore.GREEN}✅ Using New Version ({next_model} results).{Style.RESET_ALL}")
-                                    best_result = retry_result
-                                    best_confidence = retry_confidence
+                                valid_choices = [chr(65 + i) for i in range(len(all_attempts))]
+                                if get_next_higher_model(next_model):
+                                    valid_choices.append(next_choice)
+                                
+                                choice_prompt = f"Enter your choice ({'/'.join(valid_choices)}): "
+                                choice = input(f"\n{Fore.CYAN}{choice_prompt}{Style.RESET_ALL}").strip().upper()
+                                
+                                # Handle choice selection
+                                if choice in [chr(65 + i) for i in range(len(all_attempts))]:
+                                    selected_idx = ord(choice) - 65
+                                    selected_attempt = all_attempts[selected_idx]
+                                    print(f"{Fore.GREEN}✅ Using Version {selected_idx + 1} ({selected_attempt['model']} model - {selected_attempt['confidence']*100:.1f}% confidence).{Style.RESET_ALL}")
+                                    best_result = selected_attempt['result']
+                                    best_confidence = selected_attempt['confidence']
                                     current_test_model = next_model
                                     
-                                    # If we've achieved good confidence (≥90%), ask if user wants to stop
-                                    if retry_confidence >= 0.90:
-                                        stop_choice = input(f"\n{Fore.GREEN}🎯 Excellent confidence achieved ({retry_confidence*100:.1f}%)! Stop here? (y/n): {Style.RESET_ALL}").strip().lower()
+                                    # If we've achieved good confidence (≥90%), ask if user wants to stop trying higher models
+                                    if selected_attempt['confidence'] >= 0.90:
+                                        stop_choice = input(f"\n{Fore.GREEN}🎯 Excellent confidence achieved ({selected_attempt['confidence']*100:.1f}%)! Stop trying higher models for this file? (y/n): {Style.RESET_ALL}").strip().lower()
                                         if stop_choice in ['y', 'yes']:
-                                            print(f"{Fore.GREEN}✅ Stopping at excellent confidence level.{Style.RESET_ALL}")
+                                            print(f"{Fore.GREEN}✅ Using this result for the file. Processing complete.{Style.RESET_ALL}")
                                             unload_model(higher_model)
                                             break
-                                elif choice == 'A':
-                                    print(f"{Fore.BLUE}✅ Keeping Original Version ({args.ram} results).{Style.RESET_ALL}")
-                                    current_test_model = next_model  # Continue to next model in hierarchy
-                                elif choice == 'C':
+                                elif choice == next_choice and get_next_higher_model(next_model):
                                     print(f"{Fore.CYAN}➡️  Continuing to try higher models...{Style.RESET_ALL}")
+                                    auto_continue = True  # Set flag to auto-continue for remaining models
                                     current_test_model = next_model  # Continue to next model
                                 else:
-                                    print(f"{Fore.YELLOW}❓ Invalid choice. Keeping Original Version ({args.ram} results).{Style.RESET_ALL}")
+                                    print(f"{Fore.YELLOW}❓ Invalid choice. Using best results so far.{Style.RESET_ALL}")
                                     current_test_model = next_model  # Continue to next model
                             
                             # Unload the higher model
