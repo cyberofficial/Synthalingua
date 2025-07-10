@@ -41,18 +41,22 @@ from modules import parser_args
 # Initialize colorama for Windows support
 init()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Parse command-line arguments
+# Parse command-line arguments first to check for debug flag
 args = parser_args.parse_arguments()
+
+# Configure logging based on debug flag
+log_level = logging.DEBUG if getattr(args, 'debug', False) else logging.WARNING
+logging.basicConfig(level=log_level)
+logger = logging.getLogger(__name__)
 
 # Global variable to track auto-proceed mode for detection reviews
 _auto_proceed_detection = False
 
 # Global variable to track if user wants to skip Turbo model questions
 _skip_turbo_questions = False
+
+# Global variable to track intelligent mode (auto-testing higher models)
+_intelligent_mode = True
 
 # Inform user if word_timestamps is enabled
 if getattr(args, 'word_timestamps', False):
@@ -377,8 +381,44 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     break  # Proceed with current detection
                     
                 elif choice == "5":
+                    global _intelligent_mode
                     _auto_proceed_detection = True
                     print(f"{Fore.GREEN}✅ Auto-proceed mode enabled. Future segments will skip detection review.{Style.RESET_ALL}")
+                    
+                    # Ask about intelligent mode unless they're already using the highest model
+                    if hasattr(args, 'ram') and args.ram != "11gb-v3":
+                        print(f"\n{Fore.CYAN}🧠 Intelligent Mode Options:{Style.RESET_ALL}")
+                        print(f"   Your current model: {args.ram}")
+                        print(f"   1. {Fore.GREEN}Enable Intelligent Mode{Style.RESET_ALL} - Automatically try higher models when confidence is low or repetitions detected")
+                        print(f"   2. {Fore.YELLOW}Disable Intelligent Mode{Style.RESET_ALL} - Only use your current model ({args.ram}) for all segments")
+                        
+                        while True:
+                            try:
+                                intelligent_choice = input(f"\n{Fore.CYAN}Choose mode (1/2): {Style.RESET_ALL}").strip()
+                                
+                                if intelligent_choice == "1":
+                                    _intelligent_mode = True
+                                    print(f"{Fore.GREEN}✅ Intelligent mode enabled - will automatically test higher models when needed{Style.RESET_ALL}")
+                                    break
+                                elif intelligent_choice == "2":
+                                    _intelligent_mode = False
+                                    print(f"{Fore.YELLOW}⚠️ Intelligent mode disabled - will only use {args.ram} model for all segments{Style.RESET_ALL}")
+                                    break
+                                else:
+                                    print(f"{Fore.RED}❌ Invalid choice. Please enter 1 or 2.{Style.RESET_ALL}")
+                                    
+                            except KeyboardInterrupt:
+                                print(f"\n{Fore.YELLOW}⚠️ Defaulting to intelligent mode enabled.{Style.RESET_ALL}")
+                                _intelligent_mode = True
+                                break
+                            except EOFError:
+                                print(f"\n{Fore.YELLOW}⚠️ Defaulting to intelligent mode enabled.{Style.RESET_ALL}")
+                                _intelligent_mode = True
+                                break
+                    else:
+                        print(f"{Fore.BLUE}ℹ️ Using highest available model (11gb-v3) - no higher models to test{Style.RESET_ALL}")
+                        _intelligent_mode = False
+                        
                     break  # Proceed and skip future reviews
                     
                 elif choice == "2":
@@ -944,15 +984,25 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 # Check for internal repetitions within individual segments
                 has_internal_repetitions, problematic_segments, max_internal_repetitions = detect_internal_repetitions(region_segments)
                 
-                # Check if we should offer retry with higher model (if not in auto mode)
-                should_retry = (
+                # Check if we should retry with higher model
+                # In manual mode: ask user for confirmation
+                # In auto mode: automatically try all models if confidence is low or repetitions detected
+                should_retry_manual = (
                     (region_confidence < 0.90 or has_repetitions or has_internal_repetitions) and  # Low confidence OR repetitions OR internal repetitions
                     not _auto_proceed_detection and  # Not in auto mode
                     hasattr(args, 'ram') and  # Has RAM setting
                     get_next_higher_model(args.ram) is not None  # Higher model available
                 )
                 
-                if should_retry:
+                should_retry_auto = (
+                    (region_confidence < 0.90 or has_repetitions or has_internal_repetitions) and  # Low confidence OR repetitions OR internal repetitions
+                    _auto_proceed_detection and  # In auto mode
+                    _intelligent_mode and  # Intelligent mode enabled
+                    hasattr(args, 'ram') and  # Has RAM setting
+                    get_next_higher_model(args.ram) is not None  # Higher model available
+                )
+                
+                if should_retry_manual:
                     # Try progressively higher models until improvement or no more models available
                     current_test_model = args.ram
                     best_result = region_result
@@ -1255,6 +1305,238 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         except Exception as e:
                             print(f"{Fore.RED}❌ Error with {next_model} model: {e}. Continuing with previous results.{Style.RESET_ALL}")
                             current_test_model = next_model  # Still try next model if available
+                    
+                    # Use the best result found
+                    region_result = best_result
+                    region_confidence = best_confidence
+                
+                elif should_retry_auto:
+                    # Auto mode: Try all available models automatically and pick the best confidence
+                    print(f"\n{Fore.CYAN}🤖 Auto mode: Low confidence ({region_confidence*100:.1f}%) or repetitions detected for region {i}{Style.RESET_ALL}")
+                
+                elif _auto_proceed_detection and not _intelligent_mode and (region_confidence < 0.90 or has_repetitions or has_internal_repetitions):
+                    # Auto mode with intelligent mode disabled - just log the issues but continue with current model
+                    issue_reasons = []
+                    if region_confidence < 0.90:
+                        issue_reasons.append(f"Low confidence ({region_confidence*100:.1f}%)")
+                    if has_repetitions:
+                        issue_reasons.append(f"Repetitive segments detected ({max_consecutive} consecutive)")
+                    if has_internal_repetitions:
+                        issue_reasons.append(f"Internal repetitions detected (up to {max_internal_repetitions} times)")
+                    
+                    issue_text = " and ".join(issue_reasons)
+                    print(f"\n{Fore.YELLOW}⚠️ Auto mode: {issue_text} for region {i}{Style.RESET_ALL}")
+                    print(f"   {Fore.BLUE}ℹ️ Intelligent mode disabled - continuing with {args.ram} model{Style.RESET_ALL}")
+                    print(f"   Region: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s)")
+                    
+                    # Just continue with current results - no model upgrades
+                
+                # Execute auto mode with intelligent model testing
+                if should_retry_auto:
+                    
+                    retry_reasons = []
+                    if region_confidence < 0.90:
+                        retry_reasons.append(f"Low confidence ({region_confidence*100:.1f}%)")
+                    if has_repetitions:
+                        retry_reasons.append(f"Repetitive segments detected ({max_consecutive} consecutive)")
+                    if has_internal_repetitions:
+                        retry_reasons.append(f"Internal repetitions detected (up to {max_internal_repetitions} times)")
+                    
+                    reason_text = " and ".join(retry_reasons)
+                    print(f"   {Fore.YELLOW}Issues: {reason_text}{Style.RESET_ALL}")
+                    print(f"   Region: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s)")
+                    print(f"   {Fore.CYAN}🚀 Automatically trying all available models to find best result...{Style.RESET_ALL}")
+                    
+                    # Collect all available models
+                    available_models = []
+                    test_model = args.ram
+                    while test_model:
+                        test_model = get_next_higher_model(test_model)
+                        if test_model:
+                            available_models.append(test_model)
+                    
+                    print(f"   Available models to test: {', '.join(available_models)}")
+                    
+                    # Track all attempts for comparison
+                    all_attempts = [
+                        {
+                            'model': args.ram,
+                            'model_type': get_model_type(args.ram, skip_warning=True),
+                            'result': region_result,
+                            'confidence': region_confidence,
+                            'has_repetitions': has_repetitions,
+                            'repeated_texts': repeated_texts,
+                            'max_consecutive': max_consecutive,
+                            'has_internal_repetitions': has_internal_repetitions,
+                            'problematic_segments': problematic_segments,
+                            'max_internal_repetitions': max_internal_repetitions
+                        }
+                    ]
+                    
+                    best_result = region_result
+                    best_confidence = region_confidence
+                    best_model = args.ram
+                    
+                    # Test each available model
+                    for model_name in available_models:
+                        try:
+                            # Skip 7GB (Turbo) model automatically in auto mode if translating to English
+                            if model_name == "7gb":
+                                if task == "translate":
+                                    print(f"   {Fore.YELLOW}⚠️  Skipping {model_name} (Turbo model - does not support translation to English){Style.RESET_ALL}")
+                                    continue
+                                else:
+                                    print(f"   {Fore.CYAN}ℹ️  Testing {model_name} (Turbo model - transcription only){Style.RESET_ALL}")
+                            
+                            model_type = get_model_type(model_name, skip_warning=True)
+                            print(f"   {Fore.CYAN}🔄 Testing {model_name} model...{Style.RESET_ALL}")
+                            
+                            # Load the model
+                            test_model_obj = load_whisper_model(model_type, decode_options.get('device', 'cuda'))
+                            
+                            # Retry transcription with this model
+                            test_result = test_model_obj.transcribe(tmp_file.name, **decode_options)
+                            test_segments = test_result.get("segments", [])
+                            
+                            if isinstance(test_segments, list):  # Type safety check
+                                test_confidence = calculate_region_confidence(test_segments)
+                                
+                                # Check for repetitions in test result
+                                test_has_repetitions, test_repeated_texts, test_max_consecutive = detect_repeated_segments(test_segments)
+                                test_has_internal_repetitions, test_problematic_segments, test_max_internal_repetitions = detect_internal_repetitions(test_segments)
+                                
+                                # Add this attempt to our tracking list
+                                all_attempts.append({
+                                    'model': model_name,
+                                    'model_type': model_type,
+                                    'result': test_result,
+                                    'confidence': test_confidence,
+                                    'has_repetitions': test_has_repetitions,
+                                    'repeated_texts': test_repeated_texts,
+                                    'max_consecutive': test_max_consecutive,
+                                    'has_internal_repetitions': test_has_internal_repetitions,
+                                    'problematic_segments': test_problematic_segments,
+                                    'max_internal_repetitions': test_max_internal_repetitions
+                                })
+                                
+                                print(f"      Confidence: {test_confidence*100:.1f}%", end="")
+                                
+                                # Show repetition status
+                                if test_has_repetitions:
+                                    print(f" | {Fore.RED}Consecutive repetitions: {test_max_consecutive}{Style.RESET_ALL}", end="")
+                                if test_has_internal_repetitions:
+                                    print(f" | {Fore.RED}Internal repetitions: {test_max_internal_repetitions}{Style.RESET_ALL}", end="")
+                                
+                                # Update best if this is better (prioritize no repetitions, then confidence, then lower repetition counts)
+                                is_better = False
+                                best_attempt = next((attempt for attempt in all_attempts if attempt['model'] == best_model), all_attempts[0])
+                                best_repetitions = best_attempt.get('has_repetitions', False) or best_attempt.get('has_internal_repetitions', False)
+                                test_repetitions = test_has_repetitions or test_has_internal_repetitions
+                                
+                                # Priority 1: Prefer models without repetitions over those with repetitions
+                                if best_repetitions and not test_repetitions:
+                                    # Current best has repetitions, test model doesn't → choose test model
+                                    is_better = True
+                                elif not best_repetitions and test_repetitions:
+                                    # Current best doesn't have repetitions, test model does → keep current best
+                                    is_better = False
+                                else:
+                                    # Both have same repetition status (both have repetitions OR both don't have repetitions)
+                                    # Priority 2: Higher confidence
+                                    if test_confidence > best_confidence:
+                                        is_better = True
+                                    elif test_confidence == best_confidence:
+                                        # Priority 3: Lower repetition counts (only matters if both have repetitions)
+                                        if best_repetitions and test_repetitions:
+                                            best_total_reps = (best_attempt.get('max_consecutive', 0) + 
+                                                             best_attempt.get('max_internal_repetitions', 0))
+                                            test_total_reps = test_max_consecutive + test_max_internal_repetitions
+                                            if test_total_reps < best_total_reps:
+                                                is_better = True
+                                
+                                if is_better:
+                                    best_result = test_result
+                                    best_confidence = test_confidence
+                                    best_model = model_name
+                                    print(f" {Fore.GREEN}← New best!{Style.RESET_ALL}")
+                                else:
+                                    print()
+                            
+                            # Unload the model
+                            unload_model(test_model_obj)
+                            
+                        except Exception as e:
+                            print(f"      {Fore.RED}❌ Error with {model_name} model: {e}{Style.RESET_ALL}")
+                            continue
+                    
+                    # Show summary of all tested models for transparency
+                    if len(all_attempts) > 1:
+                        print(f"\n   {Fore.CYAN}📊 Model Performance Summary:{Style.RESET_ALL}")
+                        for idx, attempt in enumerate(all_attempts):
+                            status_icons = []
+                            if attempt['confidence'] >= 0.90:
+                                conf_color = Fore.GREEN
+                                status_icons.append("🟢")
+                            elif attempt['confidence'] >= 0.75:
+                                conf_color = Fore.YELLOW
+                                status_icons.append("🟡")
+                            else:
+                                conf_color = Fore.RED
+                                status_icons.append("🔴")
+                            
+                            if attempt.get('has_repetitions', False):
+                                status_icons.append("🔄")
+                            if attempt.get('has_internal_repetitions', False):
+                                status_icons.append("🔁")
+                            
+                            best_indicator = " ← SELECTED" if attempt['model'] == best_model else ""
+                            icons_str = "".join(status_icons)
+                            
+                            print(f"      {icons_str} {attempt['model']}: {conf_color}{attempt['confidence']*100:.1f}%{Style.RESET_ALL}{best_indicator}")
+                    
+                    # Show final auto mode results with enhanced evaluation
+                    print(f"\n   {Fore.GREEN}🎯 Auto mode results:{Style.RESET_ALL}")
+                    print(f"      Best model: {best_model}")
+                    print(f"      Best confidence: {best_confidence*100:.1f}%")
+                    print(f"      {Fore.CYAN}ℹ️  Selection prioritizes: 1) No repetitions, 2) High confidence, 3) Lower repetition counts{Style.RESET_ALL}")
+                    
+                    # Check if we achieved good results
+                    best_attempt = next((attempt for attempt in all_attempts if attempt['model'] == best_model), all_attempts[0])
+                    has_any_repetitions = best_attempt.get('has_repetitions', False) or best_attempt.get('has_internal_repetitions', False)
+                    
+                    # Evaluate all models to see if ANY achieved good confidence
+                    all_confidences = [attempt['confidence'] for attempt in all_attempts]
+                    max_confidence_overall = max(all_confidences)
+                    
+                    if best_confidence >= 0.90 and not has_any_repetitions:
+                        print(f"      {Fore.GREEN}✅ Excellent results achieved!{Style.RESET_ALL}")
+                    elif best_confidence >= 0.75 and not has_any_repetitions:
+                        print(f"      {Fore.YELLOW}⚠️  Acceptable results achieved{Style.RESET_ALL}")
+                    elif best_confidence >= 0.75:
+                        print(f"      {Fore.YELLOW}⚠️  Acceptable confidence but with repetition issues{Style.RESET_ALL}")
+                        if best_attempt.get('has_repetitions', False):
+                            print(f"         • {best_attempt.get('max_consecutive', 0)} consecutive repetitions detected")
+                        if best_attempt.get('has_internal_repetitions', False):
+                            print(f"         • Up to {best_attempt.get('max_internal_repetitions', 0)} internal repetitions in segments")
+                    else:
+                        # All models have low confidence - explain we're choosing the best available
+                        print(f"      {Fore.RED}⚠️  All tested models have low confidence (<75%){Style.RESET_ALL}")
+                        print(f"         {Fore.CYAN}📊 Confidence range across all models: {min(all_confidences)*100:.1f}% - {max_confidence_overall*100:.1f}%{Style.RESET_ALL}")
+                        print(f"         {Fore.YELLOW}🔄 Auto-selecting highest confidence result ({best_confidence*100:.1f}%){Style.RESET_ALL}")
+                        
+                        if has_any_repetitions:
+                            print(f"         {Fore.YELLOW}⚠️  Note: Selected result also has repetition issues{Style.RESET_ALL}")
+                            if best_attempt.get('has_repetitions', False):
+                                print(f"            • {best_attempt.get('max_consecutive', 0)} consecutive repetitions")
+                            if best_attempt.get('has_internal_repetitions', False):
+                                print(f"            • Up to {best_attempt.get('max_internal_repetitions', 0)} internal repetitions")
+                        else:
+                            print(f"         {Fore.GREEN}✅ At least no repetition issues detected{Style.RESET_ALL}")
+                        
+                        # Show what models were tested for transparency
+                        tested_models = [attempt['model'] for attempt in all_attempts]
+                        print(f"         {Fore.BLUE}ℹ️  Models tested: {', '.join(tested_models)}{Style.RESET_ALL}")
+                        print(f"         {Fore.BLUE}ℹ️  This may indicate challenging audio conditions{Style.RESET_ALL}")
                     
                     # Use the best result found
                     region_result = best_result
