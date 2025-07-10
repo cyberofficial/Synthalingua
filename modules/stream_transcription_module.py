@@ -596,6 +596,9 @@ def start_stream_transcription(
                         ]
                         if getattr(args, 'device', None) == 'cuda':
                             demucs_cmd += ['-d', 'cuda']
+                        # Add jobs parameter if specified
+                        if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                            demucs_cmd.extend(['-j', str(args.demucs_jobs)])
                         demucs_cmd.append(str(file_path))
                         result = subprocess.run(
                             demucs_cmd,

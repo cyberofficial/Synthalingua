@@ -11,7 +11,7 @@ This guide explains how to use the `set_up_env.exe` tool to set up and manage th
 - **yt-dlp** (video downloader)
 - **7zr** (archive extractor)
 - **Miniconda** (Python environment manager, for vocal isolation)
-- **Demucs** (vocal isolation, optional)
+- **Demucs** (vocal isolation, optional, now supports parallel jobs for faster processing)
 
 It also creates a batch file (`ffmpeg_path.bat`) to set up your PATH and activate the correct environment for Synthalingua.
 
@@ -43,7 +43,7 @@ You can run `set_up_env.exe` from a terminal (PowerShell or Command Prompt) with
   Basic setup (FFmpeg, yt-dlp, 7zr only)
 
 - `set_up_env.exe --using_vocal_isolation`  
-  Also installs Miniconda and Demucs for vocal isolation features
+  Also installs Miniconda and Demucs for vocal isolation features (Demucs now supports parallel jobs with `--isolate_vocals [jobs]` for faster processing)
 
 - `set_up_env.exe --reinstall`  
   Wipes tool folders/files and redownloads everything fresh
@@ -217,7 +217,8 @@ Do you want to use the system default yt-dlp? (yes/no): yes
 
 - **Interactive Prompts:** The tool will ask if you want to reuse, download, or provide your own versions of each tool. This helps avoid unnecessary downloads and lets you use custom builds.
 - **Batch File Creation:** After setup, a `ffmpeg_path.bat` file is created. Run this batch file to set up your PATH and activate the correct environment for Synthalingua.
-- **Vocal Isolation:** If you enable vocal isolation, the tool installs Miniconda and Demucs, and sets up a `data_whisper` environment. You can choose CPU or CUDA (GPU) support during setup.
+- **Vocal Isolation:** If you enable vocal isolation, the tool installs Miniconda and Demucs, and sets up a `data_whisper` environment. You can choose CPU or CUDA (GPU) support during setup. 
+  - **Parallel Jobs:** The `--isolate_vocals` argument now supports an optional value to control the number of parallel jobs Demucs uses. You can use `--isolate_vocals all` to use all CPU cores, or specify a number (e.g., `--isolate_vocals 4`). This can significantly speed up vocal isolation on multi-core systems.
 - **Safe Reinstallation:** The `--reinstall` flag lets you wipe and redownload tools. You will be prompted before deleting important folders like `data_whisper`.
 - **Custom Paths:** You can specify a custom Miniconda install path if you do not want to use the default.
 
