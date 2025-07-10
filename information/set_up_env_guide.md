@@ -28,6 +28,10 @@ It also creates a batch file (`ffmpeg_path.bat`) to set up your PATH and activat
 3. **Follow the Prompts**
    - The tool is interactive. It will ask if you want to reuse existing tools, provide your own, or download fresh copies.
    - For a fresh install, just press Enter to accept defaults unless you have custom requirements.
+   - **Miniconda Path Warning:**
+     - It is strongly recommended to use the default Miniconda installation path.
+     - If you must choose a custom location, make absolutely sure the path contains **NO SPACES**. Paths with spaces can cause installation and runtime errors with Miniconda and other tools.
+     - The setup tool will warn you and prevent you from using a path with spaces.
 
 ---
 
@@ -73,6 +77,13 @@ Would you like to set up vocal isolation (demucs) along with the basic tools? (y
 
 Miniconda will be installed to: C:\bin\Synthalingua\miniconda
 Do you agree to install Miniconda to this path? (yes/no): yes
+
+⚠️  It is strongly recommended to use the default installation path for Miniconda.
+   Changing the location is not recommended unless absolutely necessary.
+   If you must choose a custom location, make sure the path contains NO SPACES.
+Please enter a custom path for Miniconda installation (NO SPACES, recommended to keep the default): D:\My Custom Folder\miniconda
+❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.
+Please enter a custom path for Miniconda installation (NO SPACES, recommended to keep the default): D:\MinicondaNoSpaces
 ```
 
 **Existing Installation (Updating Tools):**
