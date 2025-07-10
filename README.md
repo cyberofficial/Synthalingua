@@ -1,5 +1,23 @@
 # Synthalingua
-> **Note:** The Synthalingua Wrapper code has been moved to a new repository: [Synthalingua_Wrapper](https://github.com/cyberofficial/Synthalingua_Wrapper)
+> **Note:** The Synthalingua Wrapper code has been moved to aBy using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
+
+- **Real-time translation & transcription** (stream, mic, file)
+- **Multilingual**: Translate between dozens of languages
+- **Streaming & captions**: HLS, YouTube, Twitch, and more
+- **Blocklist & repetition suppression**: Auto-filter repeated or unwanted phrases
+- **Discord & web integration**: Send results to Discord or view in browser
+- **Portable GUI version available**
+
+---
+
+## Quick Start
+1. **Install Python 3.12** from [here](https://www.python.org/downloads/release/python-31210/) and [Git](https://git-scm.com/downloads)
+2. **Install FFMPEG** ([guide](https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222))
+3. *(Optional)* Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) for GPU acceleration if you plan to use GPU features
+4. **Windows**: Run `setup.bat` | **Linux**: See [LINUX_SETUP.md](./LINUX_SETUP.md) for detailed setup instructions
+5. Edit and run the generated batch/bash file, or use the GUI portable version:
+
+[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)ository: [Synthalingua_Wrapper](https://github.com/cyberofficial/Synthalingua_Wrapper)
 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
@@ -11,6 +29,7 @@
 
 ## Table of Contents
 - [About](#about)
+- [📚 Documentation Wiki](#-documentation-wiki)
 - [Quick Start](#quick-start)
 - [Feature Highlights](#feature-highlights)
 - [System Requirements](#system-requirements)
@@ -25,8 +44,33 @@
 
 ---
 
+## 📚 Documentation Wiki
+
+**For comprehensive guides and detailed documentation, visit the [information folder](./information/index.md)!**
+
+The wiki contains detailed guides for every feature:
+- **[Environment Setup Guide](./information/set_up_env_guide.md)** - Complete setup instructions and troubleshooting
+- **[General Usage](./information/general.md)** - Basic command-line arguments
+- **[Model & Device Options](./information/model_device.md)** - RAM models, GPU/CPU settings
+- **[Input & Microphone](./information/input_microphone.md)** - Microphone configuration
+- **[Streaming & File Input](./information/streaming_file.md)** - HLS streams and file processing
+- **[Language & Translation](./information/language_translation.md)** - Language settings and translation
+- **[Output, Captions, and Filtering](./information/output_filtering.md)** - Captions, vocal isolation, filtering
+- **[Web & Discord Integration](./information/web_discord.md)** - Web server and Discord webhooks
+- **[Troubleshooting & FAQ](./information/troubleshooting.md)** - Common issues and solutions
+- **[Usage Examples](./information/examples.md)** - Real-world usage scenarios
+- **[Using Cookies](./information/cookies.md)** - Cookie authentication for streams
+- **[Linux Guide](./LINUX_SETUP.md)** - Linux installation and setup guide
+> **ℹ️ Note:** The Linux guide is not fully documented or tested. If you have trouble, please open an issue report on GitHub and I'll try to help.
+
+💡 **The information folder is your go-to resource for in-depth help with any Synthalingua feature!**
+
+---
 
 ## About
+Synthalingua is a self-hosted AI tool for real-time audio translation and transcription. It supports multilingual input and output, streaming, microphone, and file modes, and is optimized for both GPU and CPU. The project is in active development and open source.
+
+## Legal & Friendly Disclaimer
 Synthalingua is a self-hosted AI tool for real-time audio translation and transcription. It supports multilingual input and output, streaming, microphone, and file modes, and is optimized for both GPU and CPU. The project is in active development and open source.
 
 ## Legal & Friendly Disclaimer
@@ -343,6 +387,7 @@ python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_
 - **Git not recognized:** Add Git to PATH, restart
 - **CUDA not available:** Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) (Nvidia only), or use CPU mode
 - **Audio source errors:** Make sure a microphone or stream is set up
+- **For detailed troubleshooting:** See the [Troubleshooting Guide](./information/troubleshooting.md) in the information folder
 - **Other issues:** See [GitHub Issues](https://github.com/cyberofficial/Synthalingua/issues)
 
 ---
