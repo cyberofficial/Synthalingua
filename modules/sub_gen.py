@@ -46,6 +46,9 @@ logger = logging.getLogger(__name__)
 # Parse command-line arguments
 args = parser_args.parse_arguments()
 
+# Global variable to track auto-proceed mode for detection reviews
+_auto_proceed_detection = False
+
 # Inform user if word_timestamps is enabled
 if getattr(args, 'word_timestamps', False):
     print(f"{Fore.CYAN}ℹ️  Word-level timestamps are enabled. This may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the --word_timestamps flag next time you run this command.{Style.RESET_ALL}")
@@ -321,6 +324,16 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             print(f"   {Fore.GREEN}✅ Current threshold ({silence_threshold_db:.1f}dB) seems well-tuned for this audio{Style.RESET_ALL}")
         
         # Interactive adjustment options
+        global _auto_proceed_detection
+        
+        # Check if auto-proceed is enabled
+        if _auto_proceed_detection:
+            print(f"\n{Fore.GREEN}🚀 Auto-proceeding with current detection (skip mode enabled){Style.RESET_ALL}")
+            # Show speech regions that will be processed (simplified now since detailed info is above)
+            if speech_regions:
+                print(f"\n{Fore.GREEN}🎵 Speech regions to be processed: {len(speech_regions)}{Style.RESET_ALL}")
+            return merged_regions
+        
         while True:
             print(f"\n{Fore.CYAN}🔧 Detection Review:{Style.RESET_ALL}")
             print(f"   Do you want to:")
@@ -329,14 +342,21 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             print(f"   3. {Fore.CYAN}Manually modify region classifications{Style.RESET_ALL}")
             if getattr(args, 'isolate_vocals', False):
                 print(f"   4. {Fore.MAGENTA}Try different Demucs model and re-analyze{Style.RESET_ALL}")
+            print(f"   5. {Fore.BLUE}Proceed with current detection and skip asking again{Style.RESET_ALL}")
             
-            max_choice = 4 if getattr(args, 'isolate_vocals', False) else 3
+            max_choice = 5 if getattr(args, 'isolate_vocals', False) else 5
+            max_choice_vocals = 4 if getattr(args, 'isolate_vocals', False) else 3
             
             try:
                 choice = input(f"\n{Fore.CYAN}Enter your choice (1-{max_choice}): {Style.RESET_ALL}").strip()
                 
                 if choice == "1":
                     break  # Proceed with current detection
+                    
+                elif choice == "5":
+                    _auto_proceed_detection = True
+                    print(f"{Fore.GREEN}✅ Auto-proceed mode enabled. Future segments will skip detection review.{Style.RESET_ALL}")
+                    break  # Proceed and skip future reviews
                     
                 elif choice == "2":
                     # Re-run with new settings
@@ -551,7 +571,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     continue
                     
                 else:
-                    max_choice_text = "4" if getattr(args, 'isolate_vocals', False) else "3"
+                    max_choice_text = "5"
                     print(f"{Fore.RED}❌ Invalid choice. Please enter 1-{max_choice_text}.{Style.RESET_ALL}")
                     
             except KeyboardInterrupt:
@@ -1207,40 +1227,62 @@ def run_sub_gen(
     if not input_path_obj.exists():
         raise ValueError(f"Input file does not exist: {input_path_obj}")
 
-    # Check media duration and offer segmentation for long files
+    # Check media duration and offer segmentation for all files
     duration = get_media_duration(str(input_path_obj))
     use_segmentation = False
     split_points = []
     
-    if duration and duration > 1800:  # 30 minutes
+    if duration:  # Offer segmentation for any file with detectable duration
         hours = int(duration // 3600)
         minutes = int((duration % 3600) // 60)
         seconds = duration % 60
         
-        print(f"\n{Fore.YELLOW}⚠️  Long media file detected:{Style.RESET_ALL}")
+        # Determine appropriate messaging and defaults based on file length
+        if duration > 3600:  # Over 1 hour
+            file_category = "Very long"
+            warning_color = Fore.RED
+            default_segment_length = 1800  # 30 minutes for very long files
+            recommendation = "Strongly recommended to use segmentation to avoid memory issues."
+        elif duration > 1800:  # Over 30 minutes
+            file_category = "Long"
+            warning_color = Fore.YELLOW
+            default_segment_length = 900   # 15 minutes for long files
+            recommendation = "Recommended to use segmentation for better memory management."
+        elif duration > 300:  # 5-30 minutes
+            file_category = "Medium"
+            warning_color = Fore.CYAN
+            default_segment_length = 600   # 10 minutes for medium files
+            recommendation = "Optional segmentation available for better control or memory management."
+        else:  # Under 5 minutes
+            file_category = "Short"
+            warning_color = Fore.GREEN
+            default_segment_length = 120   # 2 minutes for short files
+            recommendation = "Optional segmentation available (may not be necessary for such short files)."
+        
+        print(f"\n{warning_color}📊 {file_category} media file detected:{Style.RESET_ALL}")
         print(f"   Duration: {hours:02d}:{minutes:02d}:{seconds:06.3f} ({duration:.1f} seconds)")
         print(f"   File size: {input_path_obj.stat().st_size / (1024*1024*1024):.2f} GB")
         
-        print(f"\n{Fore.CYAN}💡 Recommendation:{Style.RESET_ALL}")
-        print(f"   Large files can cause memory issues during processing.")
-        print(f"   Consider splitting into segments for better memory management.")
+        print(f"\n{Fore.CYAN}💡 {recommendation}{Style.RESET_ALL}")
         
-        # Suggest automatic split points
-        suggested_points = suggest_split_points(duration)
+        # Suggest automatic split points based on file length
+        suggested_points = suggest_split_points(duration, default_segment_length)
         if suggested_points:
-            print(f"\n{Fore.CYAN}🎯 Suggested split points (every 30 minutes):{Style.RESET_ALL}")
+            segment_minutes = default_segment_length // 60
+            print(f"\n{Fore.CYAN}🎯 Suggested split points (every {segment_minutes} minutes):{Style.RESET_ALL}")
             for i, point in enumerate(suggested_points):
                 timestamp = format_seconds_to_timestamp(point)
                 print(f"   {i+1}. {timestamp}")
         
         print(f"\n{Fore.CYAN}Options:{Style.RESET_ALL}")
-        print(f"   1. {Fore.GREEN}Process entire file (may cause memory issues){Style.RESET_ALL}")
+        print(f"   1. {Fore.GREEN}Process entire file{Style.RESET_ALL}")
         print(f"   2. {Fore.YELLOW}Use suggested split points{Style.RESET_ALL}")
         print(f"   3. {Fore.CYAN}Enter custom split points{Style.RESET_ALL}")
+        print(f"   4. {Fore.MAGENTA}Choose different segment length{Style.RESET_ALL}")
         
         while True:
             try:
-                choice = input(f"\n{Fore.CYAN}Select option (1-3): {Style.RESET_ALL}").strip()
+                choice = input(f"\n{Fore.CYAN}Select option (1-4): {Style.RESET_ALL}").strip()
                 
                 if choice == "1":
                     print(f"{Fore.GREEN}✅ Processing entire file...{Style.RESET_ALL}")
@@ -1295,9 +1337,79 @@ def run_sub_gen(
                     else:
                         print(f"{Fore.YELLOW}⚠️  No split points entered, processing entire file{Style.RESET_ALL}")
                         break
+
+                elif choice == "4":
+                    print(f"\n{Fore.CYAN}Choose segment length:{Style.RESET_ALL}")
+                    print(f"   1. {Fore.GREEN}5 minutes{Style.RESET_ALL} (for high memory constraints)")
+                    print(f"   2. {Fore.YELLOW}10 minutes{Style.RESET_ALL} (balanced)")
+                    print(f"   3. {Fore.CYAN}15 minutes{Style.RESET_ALL} (good for most files)")
+                    print(f"   4. {Fore.MAGENTA}30 minutes{Style.RESET_ALL} (for long files)")
+                    print(f"   5. {Fore.BLUE}Custom minutes{Style.RESET_ALL} (enter your own)")
+                    
+                    segment_choice = input(f"\n{Fore.CYAN}Select segment length (1-5): {Style.RESET_ALL}").strip()
+                    
+                    segment_length_map = {
+                        "1": 300,   # 5 minutes
+                        "2": 600,   # 10 minutes
+                        "3": 900,   # 15 minutes
+                        "4": 1800,  # 30 minutes
+                    }
+                    
+                    if segment_choice in segment_length_map:
+                        new_segment_length = segment_length_map[segment_choice]
+                        minutes = new_segment_length // 60
+                        print(f"{Fore.GREEN}✅ Using {minutes}-minute segments{Style.RESET_ALL}")
+                        
+                        # Regenerate split points with new length
+                        suggested_points = suggest_split_points(duration, new_segment_length)
+                        if suggested_points:
+                            print(f"\n{Fore.CYAN}🎯 New split points (every {minutes} minutes):{Style.RESET_ALL}")
+                            for i, point in enumerate(suggested_points):
+                                timestamp = format_seconds_to_timestamp(point)
+                                print(f"   {i+1}. {timestamp}")
+                            
+                            use_segmentation = True
+                            split_points = suggested_points
+                            break
+                        else:
+                            print(f"{Fore.YELLOW}⚠️  File is shorter than segment length, processing entire file{Style.RESET_ALL}")
+                            break
+                            
+                    elif segment_choice == "5":
+                        try:
+                            custom_minutes = input(f"\n{Fore.CYAN}Enter segment length in minutes: {Style.RESET_ALL}").strip()
+                            custom_length = int(float(custom_minutes) * 60)
+                            
+                            if custom_length > 0 and custom_length < duration:
+                                print(f"{Fore.GREEN}✅ Using {custom_minutes}-minute segments{Style.RESET_ALL}")
+                                
+                                # Generate split points with custom length
+                                suggested_points = suggest_split_points(duration, custom_length)
+                                if suggested_points:
+                                    print(f"\n{Fore.CYAN}🎯 Custom split points (every {custom_minutes} minutes):{Style.RESET_ALL}")
+                                    for i, point in enumerate(suggested_points):
+                                        timestamp = format_seconds_to_timestamp(point)
+                                        print(f"   {i+1}. {timestamp}")
+                                    
+                                    use_segmentation = True
+                                    split_points = suggested_points
+                                    break
+                                else:
+                                    print(f"{Fore.YELLOW}⚠️  File is shorter than segment length, processing entire file{Style.RESET_ALL}")
+                                    break
+                            else:
+                                print(f"{Fore.RED}❌ Invalid segment length. Must be positive and less than file duration.{Style.RESET_ALL}")
+                                continue
+                                
+                        except ValueError:
+                            print(f"{Fore.RED}❌ Invalid input. Please enter a valid number of minutes.{Style.RESET_ALL}")
+                            continue
+                    else:
+                        print(f"{Fore.RED}❌ Invalid choice. Please select 1-5.{Style.RESET_ALL}")
+                        continue
                         
                 else:
-                    print(f"{Fore.RED}❌ Invalid choice. Please select 1-3.{Style.RESET_ALL}")
+                    print(f"{Fore.RED}❌ Invalid choice. Please select 1-4.{Style.RESET_ALL}")
                     
             except KeyboardInterrupt:
                 print(f"\n{Fore.YELLOW}⚠️  Operation cancelled. Processing entire file.{Style.RESET_ALL}")
