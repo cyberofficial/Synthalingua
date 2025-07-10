@@ -649,10 +649,14 @@ def main() -> None:
             miniconda_path = Path(default_path)
             break
         elif agree in ('no', 'n'):
+            print("\n⚠️  It is strongly recommended to use the default installation path for Miniconda.")
+            print("   Changing the location is not recommended unless absolutely necessary.")
+            print("   If you must choose a custom location, make sure the path contains NO SPACES.")
+            print("   Paths with spaces can cause installation and runtime errors with Miniconda and other tools.")
             while True:
-                custom_path = input("Please enter a custom path for Miniconda installation (no spaces allowed): ").strip()
+                custom_path = input("Please enter a custom path for Miniconda installation (NO SPACES, recommended to keep the default): ").strip()
                 if ' ' in custom_path:
-                    print("Path cannot contain spaces. Please try again.")
+                    print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
                     continue
                 if not custom_path:
                     print("Path cannot be empty. Please try again.")
