@@ -1099,6 +1099,37 @@ def create_segment(input_path: str, start_time: float, end_time: float, output_p
         logger.error(f"Error creating segment: {e}")
         return False
 
+def filter_unwanted_phrases(text: str) -> str:
+    """
+    Filter out unwanted phrases from subtitle text.
+    
+    Args:
+        text (str): Original subtitle text
+        
+    Returns:
+        str: Filtered text, or empty string if text should be removed entirely
+    """
+    if not text or not text.strip():
+        return ""
+    
+    # Check for "Thank you for watching" and variations (case-insensitive)
+    text_lower = text.lower().strip()
+    
+    # List of phrases to completely remove
+    unwanted_phrases = [
+        "thank you for watching"
+    ]
+    
+    # Check if any unwanted phrase is in the text
+    for phrase in unwanted_phrases:
+        if phrase in text_lower:
+            # Only show filtering message in debug mode
+            if getattr(args, 'debug', False):
+                print(f"{Fore.YELLOW}🚫 Filtered out unwanted phrase: '{text}'{Style.RESET_ALL}")
+            return ""  # Remove the entire line
+    
+    return text.strip()
+
 def combine_segment_subtitles(segments_data: List[Dict], output_path: str) -> None:
     """
     Combine subtitle segments into a single SRT file with proper timing.
@@ -1122,12 +1153,17 @@ def combine_segment_subtitles(segments_data: List[Dict], output_path: str) -> No
                         end_time = segment.get("end", 0.0) + time_offset
                         text = segment.get("text", "").strip()
                         
-                        # Write SRT format
-                        f.write(f"{subtitle_index}\n")
-                        f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")
-                        f.write(f"{text}\n\n")
+                        # Filter unwanted phrases
+                        filtered_text = filter_unwanted_phrases(text)
                         
-                        subtitle_index += 1
+                        # Only write if text remains after filtering
+                        if filtered_text:
+                            # Write SRT format
+                            f.write(f"{subtitle_index}\n")
+                            f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")
+                            f.write(f"{filtered_text}\n\n")
+                            
+                            subtitle_index += 1
                         
         logger.info(f"Combined subtitles saved to: {output_path}")
         
@@ -1837,15 +1873,22 @@ def process_single_file(
         output_path = output_directory_obj / f"{output_name}.srt"
         
         with open(output_path, 'w', encoding='utf-8') as f:
-            for idx, segment in enumerate(filtered_segments):
+            subtitle_index = 1
+            for segment in filtered_segments:
                 # Write SRT format: index, timestamp, text, blank line
                 start_time = format_timestamp(segment.get("start", 0.0))
                 end_time = format_timestamp(segment.get("end", 0.0))
                 text = segment.get("text", "").strip()
                 
-                f.write(f"{idx + 1}\n")
-                f.write(f"{start_time} --> {end_time}\n")
-                f.write(f"{text}\n\n")
+                # Filter unwanted phrases
+                filtered_text = filter_unwanted_phrases(text)
+                
+                # Only write if text remains after filtering
+                if filtered_text:
+                    f.write(f"{subtitle_index}\n")
+                    f.write(f"{start_time} --> {end_time}\n")
+                    f.write(f"{filtered_text}\n\n")
+                    subtitle_index += 1
         
         logger.info("Subtitle file saved to: %s", output_path)
         
