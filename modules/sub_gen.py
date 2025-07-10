@@ -798,6 +798,77 @@ def detect_repeated_segments(segments: List[Dict], threshold: int = 3) -> Tuple[
     has_repetitions = max_consecutive >= threshold
     return has_repetitions, repeated_texts, max_consecutive
 
+def detect_internal_repetitions(segments: List[Dict], min_phrase_length: int = 3, repetition_threshold: int = 5) -> Tuple[bool, List[Dict], int]:
+    """
+    Detect if individual segments contain repeated phrases within them (internal hallucinations).
+    
+    Args:
+        segments (List[Dict]): List of segments from Whisper
+        min_phrase_length (int): Minimum number of words in a phrase to consider for repetition
+        repetition_threshold (int): Minimum number of repetitions to consider problematic
+        
+    Returns:
+        Tuple[bool, List[Dict], int]: (has_internal_repetitions, problematic_segments, max_repetitions_found)
+    """
+    problematic_segments = []
+    max_repetitions_found = 0
+    has_internal_repetitions = False
+    
+    for segment in segments:
+        if not isinstance(segment, dict):
+            continue
+            
+        text = segment.get("text", "").strip()
+        if len(text) < 20:  # Skip very short segments
+            continue
+        
+        words = text.split()
+        if len(words) < min_phrase_length * repetition_threshold:  # Not enough words to have meaningful repetitions
+            continue
+        
+        # Check for repeated phrases of different lengths
+        for phrase_len in range(min_phrase_length, min(8, len(words) // repetition_threshold + 1)):
+            phrase_counts = {}
+            
+            # Generate all phrases of this length
+            for i in range(len(words) - phrase_len + 1):
+                phrase = " ".join(words[i:i + phrase_len]).lower()
+                phrase_counts[phrase] = phrase_counts.get(phrase, 0) + 1
+            
+            # Check if any phrase is repeated too many times
+            for phrase, count in phrase_counts.items():
+                if count >= repetition_threshold:
+                    has_internal_repetitions = True
+                    max_repetitions_found = max(max_repetitions_found, count)
+                    
+                    # Add to problematic segments if not already added
+                    segment_info = {
+                        'segment': segment,
+                        'repeated_phrase': phrase,
+                        'repetition_count': count,
+                        'phrase_length': phrase_len
+                    }
+                    
+                    # Check if this segment is already in problematic_segments
+                    already_added = False
+                    for existing in problematic_segments:
+                        if existing['segment'] == segment:
+                            # Update if this repetition is worse
+                            if count > existing['repetition_count']:
+                                existing.update(segment_info)
+                            already_added = True
+                            break
+                    
+                    if not already_added:
+                        problematic_segments.append(segment_info)
+                    
+                    break  # Found a problematic phrase, no need to check longer phrases for this segment
+            
+            if problematic_segments and problematic_segments[-1].get('segment') == segment:
+                break  # Found repetition in this segment, move to next segment
+    
+    return has_internal_repetitions, problematic_segments, max_repetitions_found
+
 def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model, decode_options: Dict, task: str = "translate") -> List[Dict]:
     """
     Process speech regions and return combined segments with proper timestamps.
@@ -870,9 +941,12 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 # Check for repeated segments (hallucinations/loops)
                 has_repetitions, repeated_texts, max_consecutive = detect_repeated_segments(region_segments)
                 
+                # Check for internal repetitions within individual segments
+                has_internal_repetitions, problematic_segments, max_internal_repetitions = detect_internal_repetitions(region_segments)
+                
                 # Check if we should offer retry with higher model (if not in auto mode)
                 should_retry = (
-                    (region_confidence < 0.90 or has_repetitions) and  # Less than 90% confidence OR repetitions detected
+                    (region_confidence < 0.90 or has_repetitions or has_internal_repetitions) and  # Low confidence OR repetitions OR internal repetitions
                     not _auto_proceed_detection and  # Not in auto mode
                     hasattr(args, 'ram') and  # Has RAM setting
                     get_next_higher_model(args.ram) is not None  # Higher model available
@@ -895,7 +969,10 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             'confidence': region_confidence,
                             'has_repetitions': has_repetitions,
                             'repeated_texts': repeated_texts,
-                            'max_consecutive': max_consecutive
+                            'max_consecutive': max_consecutive,
+                            'has_internal_repetitions': has_internal_repetitions,
+                            'problematic_segments': problematic_segments,
+                            'max_internal_repetitions': max_internal_repetitions
                         }
                     ]
                     
@@ -912,6 +989,8 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             retry_reasons.append(f"Low confidence ({best_confidence*100:.1f}%)")
                         if has_repetitions:
                             retry_reasons.append(f"Repetitive segments detected ({max_consecutive} consecutive)")
+                        if has_internal_repetitions:
+                            retry_reasons.append(f"Internal repetitions detected (up to {max_internal_repetitions} times)")
                         
                         reason_text = " and ".join(retry_reasons)
                         print(f"\n{Fore.YELLOW}🤔 {reason_text} for region {i}{Style.RESET_ALL}")
@@ -920,18 +999,58 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         if current_test_model != args.ram:
                             print(f"   Previous attempts didn't improve confidence enough.")
                         
+                        # Show current transcription for context
+                        print(f"\n{Fore.CYAN}📝 Current transcription ({current_test_model} model):{Style.RESET_ALL}")
+                        segments_shown = 0
+                        for segment in best_result.get("segments", []):
+                            if isinstance(segment, dict) and segment.get("text", "").strip():
+                                seg_start = segment.get("start", 0.0) + region_start
+                                seg_end = segment.get("end", 0.0) + region_start
+                                seg_text = segment.get("text", "").strip()
+                                
+                                # Check if this segment has internal repetitions
+                                is_problematic = False
+                                if has_internal_repetitions:
+                                    for seg_info in problematic_segments:
+                                        if seg_info['segment'] == segment:
+                                            is_problematic = True
+                                            # Show truncated version for problematic segments
+                                            if len(seg_text) > 100:
+                                                seg_text = seg_text[:97] + "..."
+                                            break
+                                
+                                print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"{' (internal repetitions)' if is_problematic else ''}")
+                                segments_shown += 1
+                                
+                                # Limit display to prevent spam
+                                if segments_shown >= 5 and len(best_result.get("segments", [])) > 5:
+                                    remaining = len(best_result.get("segments", [])) - segments_shown
+                                    print(f"   ... and {remaining} more segments")
+                                    break
+                        
                         # Show repetition details if detected
                         if has_repetitions:
                             truncated_text = repeated_texts[0][:50] + ('...' if len(repeated_texts[0]) > 50 else '')
-                            print(f"   {Fore.RED}🔄 Repeated text detected: \"{truncated_text}\"{Style.RESET_ALL}")
+                            print(f"\n   {Fore.RED}🔄 Repeated text detected: \"{truncated_text}\"{Style.RESET_ALL}")
                             print(f"   {Fore.RED}   This appears {max_consecutive} times consecutively - likely a model hallucination{Style.RESET_ALL}")
+                        
+                        # Show internal repetition details if detected
+                        if has_internal_repetitions:
+                            print(f"\n   {Fore.RED}🔁 Internal repetition issues:{Style.RESET_ALL}")
+                            for seg_info in problematic_segments[:2]:  # Show first 2 problematic segments
+                                phrase = seg_info['repeated_phrase']
+                                count = seg_info['repetition_count']
+                                truncated_phrase = phrase[:30] + ('...' if len(phrase) > 30 else '')
+                                print(f"   {Fore.RED}   • \"{truncated_phrase}\" repeated {count} times in one segment{Style.RESET_ALL}")
+                            if len(problematic_segments) > 2:
+                                print(f"   {Fore.RED}   • ... and {len(problematic_segments) - 2} more segments with internal repetitions{Style.RESET_ALL}")
+                            print(f"   {Fore.RED}   This indicates model hallucination/looping within segments{Style.RESET_ALL}")
                         
                         # Skip asking if user already chose to continue automatically
                         if auto_continue:
-                            print(f"   {Fore.CYAN}🚀 Auto-continuing with {next_model} model...{Style.RESET_ALL}")
+                            print(f"\n   {Fore.CYAN}🚀 Auto-continuing with {next_model} model...{Style.RESET_ALL}")
                             retry_choice = 'y'
                         else:
-                            print(f"   Current transcription above - retry for better accuracy?")
                             retry_choice = input(f"\n{Fore.CYAN}Try this region with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
                         
                         if retry_choice not in ['y', 'yes']:
@@ -954,6 +1073,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                     
                                     # Check for repetitions in retry result
                                     retry_has_repetitions, retry_repeated_texts, retry_max_consecutive = detect_repeated_segments(retry_segments)
+                                    retry_has_internal_repetitions, retry_problematic_segments, retry_max_internal_repetitions = detect_internal_repetitions(retry_segments)
                                     
                                     # Add this attempt to our tracking list
                                     all_attempts.append({
@@ -963,20 +1083,36 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         'confidence': retry_confidence,
                                         'has_repetitions': retry_has_repetitions,
                                         'repeated_texts': retry_repeated_texts,
-                                        'max_consecutive': retry_max_consecutive
+                                        'max_consecutive': retry_max_consecutive,
+                                        'has_internal_repetitions': retry_has_internal_repetitions,
+                                        'problematic_segments': retry_problematic_segments,
+                                        'max_internal_repetitions': retry_max_internal_repetitions
                                     })
                                     
                                     # Show improvement summary
                                     print(f"   Original confidence: {original_confidence*100:.1f}% | Current confidence: {retry_confidence*100:.1f}%")
+                                    
+                                    # Show consecutive repetition improvements
                                     if has_repetitions and not retry_has_repetitions:
-                                        print(f"   {Fore.GREEN}✅ Repetitive segments resolved!{Style.RESET_ALL}")
+                                        print(f"   {Fore.GREEN}✅ Consecutive repetitive segments resolved!{Style.RESET_ALL}")
                                     elif not has_repetitions and retry_has_repetitions:
-                                        print(f"   {Fore.YELLOW}⚠️  New repetitive segments detected in retry{Style.RESET_ALL}")
+                                        print(f"   {Fore.YELLOW}⚠️  New consecutive repetitive segments detected in retry{Style.RESET_ALL}")
                                     elif has_repetitions and retry_has_repetitions:
                                         if retry_max_consecutive < max_consecutive:
-                                            print(f"   {Fore.YELLOW}🔄 Repetitions reduced: {max_consecutive} → {retry_max_consecutive}{Style.RESET_ALL}")
+                                            print(f"   {Fore.YELLOW}🔄 Consecutive repetitions reduced: {max_consecutive} → {retry_max_consecutive}{Style.RESET_ALL}")
                                         else:
-                                            print(f"   {Fore.RED}🔄 Repetitions persist or increased{Style.RESET_ALL}")
+                                            print(f"   {Fore.RED}🔄 Consecutive repetitions persist or increased{Style.RESET_ALL}")
+                                    
+                                    # Show internal repetition improvements
+                                    if has_internal_repetitions and not retry_has_internal_repetitions:
+                                        print(f"   {Fore.GREEN}✅ Internal segment repetitions resolved!{Style.RESET_ALL}")
+                                    elif not has_internal_repetitions and retry_has_internal_repetitions:
+                                        print(f"   {Fore.YELLOW}⚠️  New internal repetitions detected in retry{Style.RESET_ALL}")
+                                    elif has_internal_repetitions and retry_has_internal_repetitions:
+                                        if retry_max_internal_repetitions < max_internal_repetitions:
+                                            print(f"   {Fore.YELLOW}🔁 Internal repetitions reduced: {max_internal_repetitions} → {retry_max_internal_repetitions}{Style.RESET_ALL}")
+                                        else:
+                                            print(f"   {Fore.RED}🔁 Internal repetitions persist or increased{Style.RESET_ALL}")
                                     
                                     # Show comprehensive comparison of all attempts
                                     print(f"\n{Fore.CYAN}📋 Transcription Comparison - All Attempts:{Style.RESET_ALL}")
@@ -985,18 +1121,46 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         attempt_label = f"🔤 Version {idx + 1}" if len(all_attempts) > 2 else ("🔤 Original Version" if idx == 0 else "🔤 New Version")
                                         confidence_color = Fore.GREEN if attempt['confidence'] >= 0.90 else (Fore.YELLOW if attempt['confidence'] >= 0.75 else Fore.RED)
                                         
-                                        # Add repetition indicator to the label
-                                        repetition_info = ""
+                                        # Add repetition indicators to the label
+                                        repetition_indicators = []
                                         if attempt.get('has_repetitions', False):
-                                            repetition_info = f" {Fore.RED}[{attempt.get('max_consecutive', 0)} repetitions]{Style.RESET_ALL}"
+                                            repetition_indicators.append(f"{attempt.get('max_consecutive', 0)} consecutive")
+                                        if attempt.get('has_internal_repetitions', False):
+                                            repetition_indicators.append(f"{attempt.get('max_internal_repetitions', 0)} internal")
+                                        
+                                        repetition_info = ""
+                                        if repetition_indicators:
+                                            repetition_info = f" {Fore.RED}[{', '.join(repetition_indicators)} repetitions]{Style.RESET_ALL}"
                                         
                                         print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence){repetition_info}:{Style.RESET_ALL}")
+                                        
+                                        # Show segments, but limit display for internal repetitions
+                                        segments_shown = 0
                                         for segment in attempt['result'].get("segments", []):
                                             if isinstance(segment, dict) and segment.get("text", "").strip():
                                                 seg_start = segment.get("start", 0.0) + region_start
                                                 seg_end = segment.get("end", 0.0) + region_start
                                                 seg_text = segment.get("text", "").strip()
-                                                print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                                                
+                                                # Check if this segment has internal repetitions
+                                                is_problematic = False
+                                                if attempt.get('has_internal_repetitions', False):
+                                                    for prob_seg in attempt.get('problematic_segments', []):
+                                                        if prob_seg['segment'] == segment:
+                                                            is_problematic = True
+                                                            # Show truncated version for problematic segments
+                                                            if len(seg_text) > 100:
+                                                                seg_text = seg_text[:97] + "..."
+                                                            break
+                                                
+                                                print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"{' (internal repetitions)' if is_problematic else ''}")
+                                                segments_shown += 1
+                                                
+                                                # Limit display to prevent spam
+                                                if segments_shown >= 5 and len(attempt['result'].get("segments", [])) > 5:
+                                                    remaining = len(attempt['result'].get("segments", [])) - segments_shown
+                                                    print(f"   ... and {remaining} more segments")
+                                                    break
                                     
                                     # Let user choose which version to use
                                     print(f"\n{Fore.CYAN}🤔 Which transcription do you prefer?{Style.RESET_ALL}")
