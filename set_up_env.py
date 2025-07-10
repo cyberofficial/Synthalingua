@@ -33,8 +33,8 @@ from typing import Optional, List
 from tqdm import tqdm
 
 
-# Version number for the setup script
-VERSION_NUMBER = "0.0.41"
+# Version number for the setup script.
+VERSION_NUMBER = "0.0.45"
 
 @dataclass
 class Config:
@@ -270,8 +270,19 @@ class EnvironmentSetup:
             return self.config.YTDLP_PATH
 
     def check_miniconda_installed(self) -> bool:
-        """Check if miniconda is installed in the local directory."""
-        return self.config.MINICONDA_PATH.exists() and self.config.MINICONDA_PATH.is_dir()
+        """Check if miniconda is installed and conda executable is available."""
+        if not (self.config.MINICONDA_PATH.exists() and self.config.MINICONDA_PATH.is_dir()):
+            return False
+        
+        # Check if conda executable exists
+        possible_paths = [
+            self.config.MINICONDA_PATH / 'Scripts' / 'conda.exe', 
+            self.config.MINICONDA_PATH / 'condabin' / 'conda.bat'
+        ]
+        for path in possible_paths:
+            if path.exists():
+                return True
+        return False
 
     def download_miniconda(self) -> Optional[str]:
         """Download miniconda installer for Windows."""
@@ -303,7 +314,7 @@ class EnvironmentSetup:
 
     def install_miniconda(self, installer_path: str) -> bool:
         """Install miniconda using the downloaded installer."""
-        miniconda_install_path = r"C:\bin\Synthalingua\miniconda"
+        miniconda_install_path = str(self.config.MINICONDA_PATH)
         
         print("Installing miniconda for Windows...")
         print(f"Installation path: {miniconda_install_path}")
@@ -325,7 +336,7 @@ class EnvironmentSetup:
             if e.stderr: print(f"Installer stderr:\n{e.stderr}")
             print("\n💡 Suggestions:")
             print("   1. Check for leftover Miniconda/Anaconda installations or registry keys.")
-            print("   2. Make sure you have write permissions to C:\\bin\\Synthalingua.")
+            print(f"   2. Make sure you have write permissions to {Path(miniconda_install_path).parent}.")
             return False
 
         print("Miniconda installation completed.")
@@ -644,7 +655,7 @@ def main() -> None:
     miniconda_path: Path
     print(f"Miniconda will be installed to: {default_path}")
     while True:
-        agree = input("Do you agree to install Miniconda to this path? (yes/no): ").strip().lower()
+        agree = input("Do you agree to install Miniconda to this path? If not choose no and pick a new spot (yes/no): ").strip().lower()
         if agree in ('yes', 'y'):
             miniconda_path = Path(default_path)
             break
@@ -653,15 +664,18 @@ def main() -> None:
             print("   Changing the location is not recommended unless absolutely necessary.")
             print("   If you must choose a custom location, make sure the path contains NO SPACES.")
             print("   Paths with spaces can cause installation and runtime errors with Miniconda and other tools.")
+            print("   📁 Note: A 'miniconda' folder will be created inside your chosen directory.")
             while True:
-                custom_path = input("Please enter a custom path for Miniconda installation (NO SPACES, recommended to keep the default): ").strip()
+                custom_path = input("Please enter a custom base directory for Miniconda installation (NO SPACES): ").strip()
                 if ' ' in custom_path:
                     print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
                     continue
                 if not custom_path:
                     print("Path cannot be empty. Please try again.")
                     continue
-                miniconda_path = Path(custom_path)
+                # Always append 'miniconda' to the user's chosen directory
+                miniconda_path = Path(custom_path) / 'miniconda'
+                print(f"📁 Miniconda will be installed to: {miniconda_path}")
                 break
             break
         else:

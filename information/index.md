@@ -2,7 +2,10 @@
 
 Welcome to the Synthalingua documentation! This wiki provides detailed guides and explanations for every command-line argument (parser arg), feature, and usage scenario.
 
-- [Environment Setup Guide](./set_up_env_guide.md)
+- [Linux Setup Guide](../LINUX_SETUP.md) - Complete Linux installation and setup guide
+
+> **ℹ️ Note:** The Linux guide is not fully documented or tested. If you have trouble, please open an issue report on GitHub and I'll try to help.
+- [Environment Setup Guide](./set_up_env_guide.md) - Windows environment setup
 - [General Usage](./general.md)
 - [Model & Device Options](./model_device.md)
 - [Input & Microphone](./input_microphone.md)

@@ -1,12 +1,29 @@
 @echo off
 call data_whisper\Scripts\activate.bat
-python -m pip install nuitka pyinstaller
+:: python -m pip install nuitka pyinstaller
+
+
 :: python -m nuitka --enable-plugin=torch --follow-imports --windows-console-mode=force --include-package-data=whisper --include-data-dir=./html_data=html_data --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" transcribe_audio.py
 ::pyinstaller transcribe_audio.spec
 
-pyinstaller set_up_env.py --onefile
+pyinstaller set_up_env.py --onefile ^
+    --distpath dist\exes ^
+    --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
+    --hidden-import=os ^
+    --hidden-import=platform ^
+    --hidden-import=requests ^
+    --hidden-import=subprocess ^
+    --hidden-import=sys ^
+    --hidden-import=zipfile ^
+    --hidden-import=shutil ^
+    --hidden-import=dataclasses ^
+    --hidden-import=pathlib ^
+    --hidden-import=typing ^
+    --hidden-import=tqdm
 
-pyinstaller --onefile --distpath dist\publish_remote_microphone remote_microphone.py 
+pyinstaller remote_microphone.py --onefile ^
+    --distpath dist\exes ^
+    --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico"
 
 
 :: Will Build for Windows
@@ -17,7 +34,14 @@ python -m nuitka --standalone ^
     --include-package-data=whisper ^
     --include-package=librosa ^
     --include-package-data=librosa ^
-    --include-data-dir=./html_data=html_data ^
+    --include-package=shutil ^
+    --include-package-data=shutil ^
+    --include-package=tempfile ^
+    --include-package-data=tempfile ^
+    --include-package=warnings ^
+    --include-package-data=warnings ^
+    --include-package=glob ^
+    --include-package-data=glob ^
     --enable-plugin=torch ^
     --enable-plugin=numpy ^
     --plugin-enable=multiprocessing ^
