@@ -1,6 +1,9 @@
+
 # Web & Discord Integration
 
 These arguments control integration with Discord and the built-in web server.
+
+For full details on the browser-based web player (live stream viewer), see [Web Player (html_data)](./web_player.md).
 
 ## Arguments
 | Flag                    | Description                                                      |

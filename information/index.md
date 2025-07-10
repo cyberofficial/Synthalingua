@@ -1,3 +1,4 @@
+
 # Synthalingua Documentation Index
 
 Welcome to the Synthalingua documentation! This wiki provides detailed guides and explanations for every command-line argument (parser arg), feature, and usage scenario.
@@ -12,6 +13,7 @@ Welcome to the Synthalingua documentation! This wiki provides detailed guides an
 - [Streaming & File Input](./streaming_file.md)
 - [Language & Translation](./language_translation.md)
 - [Output, Captions, and Filtering](./output_filtering.md)
+- [Web Player (Live Stream Browser)](./web_player.md)
 - [Web & Discord Integration](./web_discord.md)
 - [Troubleshooting & FAQ](./troubleshooting.md)
 - [Usage Examples](./examples.md)
