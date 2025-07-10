@@ -407,7 +407,7 @@ class EnvironmentSetup:
             
             print("Installing demucs and diffq in data_whisper environment...")
             sys.stdout.flush()
-            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs', 'diffq'], text=True)
+            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs', 'diffq', 'Cython'], text=True)
             if result.returncode != 0:
                 print(f"Error installing demucs and diffq. Exit code: {result.returncode}")
                 return False
