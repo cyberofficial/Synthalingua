@@ -119,6 +119,12 @@ The captions mode now features advanced quality detection and intelligent model 
   - *Internal repetitions*: Repeated phrases within single segments (e.g., "the one who is the one who is the one who is...")
 - **Turbo Model Handling**: Special handling for 7GB Turbo model with translation compatibility warnings
 
+**Smart Model Testing:**
+- **Higher Models Only**: Auto mode intelligently tests only higher models in the hierarchy (never lower/weaker models)
+- **Efficiency Optimization**: If already using the highest available model, auto mode skips testing entirely
+- **Clear Communication**: Shows exactly which higher models will be tested (e.g., "Available higher models to test: 6gb, 7gb, 11gb-v2, 11gb-v3")
+- **Original vs Tested**: Clearly distinguishes the original model results from newly tested model results in performance summaries
+
 **User-Friendly Model Progression Options:**
 1. **Try Next Model Only**: Test just the next higher model (traditional approach)
 2. **Try All Remaining Models**: Automatically test all higher models and show comprehensive comparison
@@ -147,10 +153,10 @@ Model upgrade options:
 Enter your choice (1/2/n):
 ```
 
-After trying multiple models, users get a comprehensive comparison:
+After trying multiple models, users get a comprehensive comparison with clear original vs tested model indicators:
 ```
 🤔 Which transcription do you prefer?
-   A. Use Version 1 (2gb model - 83.9% confidence)
+   A. Use Version 1 (2gb model - 83.9% confidence) [original]
    B. Use Version 2 (3gb model - 91.6% confidence) 
    C. Use Version 3 (6gb model - 94.2% confidence)
    D. Use Version 4 (7gb model - 95.1% confidence)
@@ -159,6 +165,34 @@ After trying multiple models, users get a comprehensive comparison:
    G. Try all remaining models (11gb-v3) and compare
 
 Enter your choice (A/B/C/D/E/F/G):
+```
+
+**Auto Mode Example (when using automatic model testing):**
+```
+🤖 Auto mode: Low confidence (88.3%) or repetitions detected for region 18
+   Issues: Low confidence (88.3%)
+   Region: 253.7s - 255.6s (2.0s)
+   🚀 Automatically trying all available models to find best result...
+   Available higher models to test: 6gb, 7gb, 11gb-v2, 11gb-v3
+   ⚠️  Skipping 7gb (Turbo model - does not support translation to English)
+   🔄 Testing 6gb model...
+      Confidence: 91.9% ← New best!
+   🔄 Testing 11gb-v2 model...
+      Confidence: 91.5%
+   🔄 Testing 11gb-v3 model...
+      Confidence: 86.1%
+
+   📊 Model Performance Summary:
+      🟡 3gb (original): 88.3%
+      🟢 6gb: 91.9% ← SELECTED
+      🟢 11gb-v2: 91.5%
+      🟡 11gb-v3: 86.1%
+
+   🎯 Auto mode results:
+      Best model: 6gb
+      Best confidence: 91.9%
+      ℹ️  Selection prioritizes: 1) No repetitions, 2) High confidence, 3) Lower repetition counts
+      ✅ Excellent results achieved!
 ```
 
 ### `--word_timestamps`
@@ -260,6 +294,12 @@ This will create files like:
 2. When prompted with low confidence, choose "Try all remaining models"
 3. Review the comprehensive comparison and select the best version
 4. The system will remember your preferences for subsequent regions
+
+**For Auto Mode Efficiency:**
+- Auto mode only tests higher models (never wastes time on lower/weaker models)
+- If already using the highest model (11gb-v3), auto mode skips testing entirely
+- Clear performance summaries show original vs tested model results
+- Intelligent selection prioritizes: 1) No repetitions, 2) High confidence, 3) Lower repetition counts
 
 **For Efficiency:**
 - Use `--silent_detect` to skip processing silent regions

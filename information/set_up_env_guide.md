@@ -223,6 +223,126 @@ Do you want to use the system default yt-dlp? (yes/no): yes
 
 ---
 
+## Manual Environment Updates & Package Management
+
+Sometimes you may need to manually install or update packages in your `data_whisper` environment. This can happen when:
+- A package installation fails during setup
+- You need to reinstall corrupted packages
+- New dependencies are required for features
+- Conda fails to install a specific package
+
+### Accessing Your Environment Manually
+
+To manually work with your `data_whisper` environment:
+
+1. **Open a terminal** (PowerShell, Command Prompt, or Git Bash)
+2. **Navigate to your Synthalingua folder:**
+   ```bash
+   cd /path/to/your/Synthalingua_Main
+   ```
+3. **Activate the environment using the batch file:**
+   ```bash
+   ./ffmpeg_path.bat
+   ```
+   
+   After running this, you should see `(data_whisper)` in your terminal prompt, indicating the environment is active.
+
+### Installing Packages with pip
+
+When conda fails to install a package or you need to reinstall something, use pip:
+
+```bash
+# Example: Installing diffq package that failed during setup
+pip install diffq
+
+# Example: Reinstalling a corrupted package
+pip install --force-reinstall demucs
+
+# Example: Installing a specific version
+pip install torch==2.7.1
+
+# Example: Upgrading a package to latest version
+pip install --upgrade numpy
+```
+
+### Real-World Example
+
+Here's a common scenario where manual installation is needed:
+
+```bash
+((data_whisper) ) 
+Username@DESKTOP-TJ8OCSG MINGW64 /e/Synthalingua/Synthalingua_Main (refactor)
+$ pip install diffq
+Collecting diffq
+  Using cached diffq-0.2.4-cp312-cp312-win_amd64.whl
+Collecting Cython (from diffq)
+  Using cached cython-3.1.2-cp312-cp312-win_amd64.whl.metadata (6.0 kB)
+Requirement already satisfied: numpy in e:\synthalingua\synthalingua_main\data_whisper\lib\site-packages (from diffq) (1.26.4)
+Requirement already satisfied: torch in e:\synthalingua\synthalingua_main\data_whisper\lib\site-packages (from diffq) (2.7.1+cu128)
+[... installation continues ...]
+Successfully installed Cython-3.1.2 diffq-0.2.4
+((data_whisper) ) 
+```
+
+### Common Package Management Commands
+
+| Command | Purpose |
+|---------|---------|
+| `pip list` | Show all installed packages |
+| `pip show package_name` | Show details about a specific package |
+| `pip install package_name` | Install a new package |
+| `pip install --upgrade package_name` | Upgrade an existing package |
+| `pip install --force-reinstall package_name` | Force reinstall a package |
+| `pip uninstall package_name` | Remove a package |
+
+### Troubleshooting Package Issues
+
+**If a package won't install:**
+1. Make sure you're in the `data_whisper` environment (check for `(data_whisper)` in prompt)
+2. Try updating pip first: `pip install --upgrade pip`
+3. Clear pip cache: `pip cache purge`
+4. Try installing with no cache: `pip install --no-cache-dir package_name`
+
+**If you get permission errors:**
+- Don't run as administrator - this can break the environment
+- Make sure no Synthalingua programs are running
+- Check that your antivirus isn't blocking the installation
+
+**If packages are corrupted or missing:**
+1. Activate the environment: `./ffmpeg_path.bat`
+2. Reinstall the problematic package: `pip install --force-reinstall package_name`
+3. For demucs specifically: `pip install --force-reinstall demucs diffq`
+
+### Verifying Your Installation
+
+After installing packages manually, test that everything works:
+
+```bash
+# Test demucs installation
+python -c "import demucs; print('Demucs working!')"
+
+# Test diffq installation  
+python -c "import diffq; print('Diffq working!')"
+
+# Check torch and CUDA
+python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}')"
+```
+
+### When to Use Manual Installation
+
+**Use manual installation when:**
+- `set_up_env.exe` reports package installation failures
+- You get import errors when trying to use vocal isolation
+- Specific packages are missing or corrupted
+- You need to install additional dependencies for new features
+
+**Don't use manual installation for:**
+- Core tools like FFmpeg or yt-dlp (use `set_up_env.exe --reinstall` instead)
+- Major environment recreation (use the setup tool)
+- When you're unsure what went wrong (ask for help first)
+
+---
+
 ## Troubleshooting
 
 - If you encounter errors, check the `troubleshooting.md` in the `information` folder.
