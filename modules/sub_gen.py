@@ -540,6 +540,22 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                                 
                                 # Monitor progress in real-time
                                 stderr_output = ""
+                                current_phase = 0
+                                total_phases = 1  # Default to 1, will update when we detect multiple models
+                                last_progress = 0.0  # Track progress separately
+                                ensemble_detected = False  # Track if we've already detected ensemble
+                                
+                                # Check for known multi-model types upfront
+                                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
+                                    # These are known to be ensemble models based on testing
+                                    if selected_model == 'htdemucs_ft':
+                                        total_phases = 4  # htdemucs_ft is a bag of 4 models
+                                    elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
+                                        total_phases = 4  # These are bags of 4 models
+                                    elif selected_model == 'mdx_extra_q':
+                                        total_phases = 4  # Bag of 4 models but with more complex processing
+                                    print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
+                                    ensemble_detected = True
                                 
                                 print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
                                 
@@ -550,17 +566,81 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                                         if stderr_line:
                                             stderr_output += stderr_line
                                             line_stripped = stderr_line.strip()
+                                            
+                                            # Detect if this is a bag of models - check multiple patterns (only if not already detected)
+                                            if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
+                                                try:
+                                                    # Show debug info to understand the format
+                                                    if getattr(args, 'debug', False):
+                                                        print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
+                                                    
+                                                    # Try different extraction patterns
+                                                    if 'bag of' in line_stripped.lower():
+                                                        # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
+                                                        parts = line_stripped.lower().split('bag of')
+                                                        if len(parts) > 1:
+                                                            # Extract the number between "bag of" and "models"
+                                                            models_part = parts[1].split('models')[0].strip()
+                                                            if models_part.isdigit():
+                                                                detected_phases = int(models_part)
+                                                                # Only update if it's actually a multi-model (> 1)
+                                                                if detected_phases > 1:
+                                                                    total_phases = detected_phases
+                                                                    ensemble_detected = True
+                                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                                                    print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                                                    elif 'models:' in line_stripped.lower():
+                                                        # Look for patterns like "4 models:" or similar
+                                                        import re
+                                                        match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
+                                                        if match:
+                                                            detected_phases = int(match.group(1))
+                                                            if detected_phases > 1:
+                                                                total_phases = detected_phases
+                                                                ensemble_detected = True
+                                                                print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                                                print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                                                except Exception as e:
+                                                    if getattr(args, 'debug', False):
+                                                        print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
+                                                    total_phases = 1
+                                            
                                             if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
                                                 if '%|' in line_stripped:
                                                     try:
                                                         percent_part = line_stripped.split('%|')[0].strip()
                                                         if percent_part.replace('.', '').replace(' ', '').isdigit():
                                                             percent = float(percent_part)
-                                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                            
+                                                            # Check if we've moved to a new phase (progress reset to low value)
+                                                            if percent < last_progress - 15:  # More sensitive detection
+                                                                current_phase += 1                                                            # If we detect a reset and haven't detected it's a multi-model, update total_phases
+                                                            if total_phases == 1 and current_phase > 0:
+                                                                # Estimate total phases based on resets
+                                                                # Most ensemble models use 4 models based on our testing
+                                                                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
+                                                                    total_phases = 4  # Standard 4-model ensemble
+                                                                elif selected_model == 'mdx_extra_q':
+                                                                    total_phases = 4  # Also 4 models but more complex processing
+                                                                else:
+                                                                    # For unknown models, estimate conservatively
+                                                                    total_phases = current_phase + 2
+                                                                print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
+                                                            last_progress = percent
+                                                            
+                                                            # Show phase info if multiple phases detected or estimated
+                                                            if total_phases > 1 or current_phase > 0:
+                                                                effective_total = max(total_phases, current_phase + 1)
+                                                                phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
+                                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                            else:
+                                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
                                                     except:
                                                         pass
                                                 elif 'Separating track' in line_stripped:
                                                     print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
+                                                elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
+                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
                                     
                                     if process.poll() is not None:
                                         break
@@ -2658,6 +2738,8 @@ def process_single_file(
             print(f"\n{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs model: {selected_model}...{Style.RESET_ALL}")
             print(f"{Fore.CYAN}📊 Progress will be shown below:{Style.RESET_ALL}")
             
+            import time  # Import time for tracking progress timeouts
+            
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Run demucs CLI to separate vocals with real-time progress display
                 process = subprocess.Popen([
@@ -2671,6 +2753,24 @@ def process_single_file(
                 # Monitor progress in real-time
                 stderr_output = ""
                 stdout_output = ""
+                current_phase = 0
+                total_phases = 1  # Default to 1, will update when we detect multiple models
+                last_progress = 0.0  # Track progress separately
+                ensemble_detected = False  # Track if we've already detected ensemble
+                lost_track = False  # Track if we've lost sync with progress
+                last_progress_time = time.time()  # Track time since last progress update
+                
+                # Check for known multi-model types upfront
+                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
+                    # These are known to be ensemble models based on testing
+                    if selected_model == 'htdemucs_ft':
+                        total_phases = 4  # htdemucs_ft is a bag of 4 models
+                    elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
+                        total_phases = 4  # These are bags of 4 models
+                    elif selected_model == 'mdx_extra_q':
+                        total_phases = 4  # Bag of 4 models but with more complex processing
+                    print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
+                    ensemble_detected = True
                 
                 print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
                 
@@ -2682,7 +2782,51 @@ def process_single_file(
                             stderr_output += stderr_line
                             # Show progress lines that contain percentage or processing info
                             line_stripped = stderr_line.strip()
+                            
+                            # Detect if this is a bag of models - check multiple patterns (only if not already detected)
+                            if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
+                                try:
+                                    # Show debug info to understand the format
+                                    if getattr(args, 'debug', False):
+                                        print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
+                                    
+                                    # Try different extraction patterns
+                                    if 'bag of' in line_stripped.lower():
+                                        # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
+                                        parts = line_stripped.lower().split('bag of')
+                                        if len(parts) > 1:
+                                            # Extract the number between "bag of" and "models"
+                                            models_part = parts[1].split('models')[0].strip()
+                                            if models_part.isdigit():
+                                                detected_phases = int(models_part)
+                                                # Only update if it's actually a multi-model (> 1)
+                                                if detected_phases > 1:
+                                                    total_phases = detected_phases
+                                                    ensemble_detected = True
+                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                                    print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                                    elif 'models:' in line_stripped.lower():
+                                        # Look for patterns like "4 models:" or similar
+                                        import re
+                                        match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
+                                        if match:
+                                            detected_phases = int(match.group(1))
+                                            if detected_phases > 1:
+                                                total_phases = detected_phases
+                                                ensemble_detected = True
+                                                print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                                print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                                except Exception as e:
+                                    if getattr(args, 'debug', False):
+                                        print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
+                                    total_phases = 1
+                            
                             if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
+                                # Reset lost track flag if we see progress again
+                                if '%|' in line_stripped and lost_track:
+                                    lost_track = False
+                                    print(f"\n{Fore.GREEN}  🔄 Reconnected to progress tracking!{Style.RESET_ALL}")
+                                
                                 # Clean up progress bar display
                                 if '%|' in line_stripped:
                                     # Extract percentage and show clean progress
@@ -2690,17 +2834,54 @@ def process_single_file(
                                         percent_part = line_stripped.split('%|')[0].strip()
                                         if percent_part.replace('.', '').replace(' ', '').isdigit():
                                             percent = float(percent_part)
-                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
-                                    except:
-                                        pass
+                                            last_progress_time = time.time()  # Update last progress time
+                                            
+                                            # Check if we've moved to a new phase (progress reset to low value)
+                                            if percent < last_progress - 15:  # More sensitive detection
+                                                current_phase += 1
+                                                # If we detect a reset and haven't detected it's a multi-model, update total_phases
+                                                if total_phases == 1 and current_phase > 0:
+                                                    # Estimate total phases based on resets
+                                                    # Most ensemble models use 4 models based on our testing
+                                                    if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
+                                                        total_phases = 4  # Standard 4-model ensemble
+                                                    elif selected_model == 'mdx_extra_q':
+                                                        total_phases = 4  # Also 4 models but more complex processing
+                                                    else:
+                                                        # For unknown models, estimate conservatively
+                                                        total_phases = current_phase + 2
+                                                    print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
+                                            last_progress = percent
+                                            
+                                            # Show phase info if multiple phases detected or estimated
+                                            if total_phases > 1 or current_phase > 0:
+                                                effective_total = max(total_phases, current_phase + 1)
+                                                phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
+                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                            else:
+                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                    except Exception as e:
+                                        # If progress parsing fails, enable lost track mode
+                                        if not lost_track:
+                                            lost_track = True
+                                            print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
                                 elif 'Separating track' in line_stripped:
                                     print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
-                                elif 'Selected model' in line_stripped:
+                                elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
                                     print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
                     
                     # Check if process is done
                     if process.poll() is not None:
                         break
+                    
+                    # Check for timeout - if no progress updates for too long, show lost track message
+                    current_time = time.time()
+                    if not lost_track and (current_time - last_progress_time) > 30:  # 30 seconds without progress
+                        lost_track = True
+                        print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
+                    
+                    # Add a small delay to prevent excessive CPU usage
+                    time.sleep(0.1)
                 
                 # Get any remaining output
                 remaining_stdout, remaining_stderr = process.communicate()
