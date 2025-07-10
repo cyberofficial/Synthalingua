@@ -66,7 +66,10 @@ if getattr(args, 'word_timestamps', False):
 
 # Inform user if isolate_vocals is enabled
 if getattr(args, 'isolate_vocals', False):
-    print(f"{Fore.CYAN}ℹ️  Vocal isolation is enabled. The program will attempt to extract vocals from the input audio before generating subtitles. This may take additional time and requires the demucs package.{Style.RESET_ALL}")
+    jobs_info = ""
+    if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+        jobs_info = f" Using {args.demucs_jobs} parallel jobs for faster processing."
+    print(f"{Fore.CYAN}ℹ️  Vocal isolation is enabled. The program will attempt to extract vocals from the input audio before generating subtitles. This may take additional time and requires the demucs package.{jobs_info}{Style.RESET_ALL}")
 
 # Inform user if silent_detect is enabled
 if getattr(args, 'silent_detect', False):
@@ -531,14 +534,22 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             print(f"{Fore.CYAN}📊 Progress will be shown below:{Style.RESET_ALL}")
                             
                             with tempfile.TemporaryDirectory() as tmpdir:
-                                # Run demucs with selected model and real-time progress
-                                process = subprocess.Popen([
+                                # Build demucs command with optional jobs parameter
+                                demucs_cmd = [
                                     'demucs',
                                     '-n', selected_model,
                                     '-o', tmpdir,
-                                    '--two-stems', 'vocals',
-                                    original_audio_path
-                                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+                                    '--two-stems', 'vocals'
+                                ]
+                                
+                                # Add jobs parameter if specified
+                                if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                                    demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                                
+                                demucs_cmd.append(original_audio_path)
+                                
+                                # Run demucs with selected model and real-time progress
+                                process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
                                 
                                 # Monitor progress in real-time
                                 stderr_output = ""
@@ -2757,14 +2768,22 @@ def process_single_file(
             import time  # Import time for tracking progress timeouts
             
             with tempfile.TemporaryDirectory() as tmpdir:
-                # Run demucs CLI to separate vocals with real-time progress display
-                process = subprocess.Popen([
+                # Build demucs command with optional jobs parameter
+                demucs_cmd = [
                     'demucs',
                     '-n', selected_model,
                     '-o', tmpdir,
-                    '--two-stems', 'vocals',
-                    str(input_path_obj)
-                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+                    '--two-stems', 'vocals'
+                ]
+                
+                # Add jobs parameter if specified
+                if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                    demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                
+                demucs_cmd.append(str(input_path_obj))
+                
+                # Run demucs CLI to separate vocals with real-time progress display
+                process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
                 
                 # Monitor progress in real-time
                 stderr_output = ""

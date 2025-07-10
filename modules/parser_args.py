@@ -1,5 +1,6 @@
 import argparse
 import sys
+import os
 from colorama import Fore, Back, Style
 from modules.languages import get_valid_languages
 
@@ -11,6 +12,39 @@ def valid_port_number(value):
     if not 1 <= port <= 65535:
         raise argparse.ArgumentTypeError(f"Invalid port number: {value}. Please choose a number between 1 and 65535.")
     return port
+
+def get_cpu_count():
+    """Get the number of CPU cores available on the system."""
+    try:
+        return os.cpu_count() or 1
+    except:
+        return 1
+
+def valid_demucs_jobs(value):
+    """Validate demucs jobs parameter for --isolate_vocals argument."""
+    if value is None:
+        return 0  # Default: no parallel jobs
+    
+    if isinstance(value, bool):
+        return 0  # For backwards compatibility with store_true
+    
+    if value.lower() == 'all':
+        return get_cpu_count()
+    
+    try:
+        jobs = int(value)
+        max_cores = get_cpu_count()
+        
+        if jobs < 0:
+            raise argparse.ArgumentTypeError(f"Number of jobs cannot be negative. Got: {jobs}")
+        elif jobs == 0:
+            return 0  # Valid: use default (single-threaded)
+        elif jobs > max_cores:
+            raise argparse.ArgumentTypeError(f"Number of jobs ({jobs}) exceeds available CPU cores ({max_cores}). Maximum allowed: {max_cores}")
+        else:
+            return jobs
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid jobs value: '{value}'. Use 'all', a number (1-{get_cpu_count()}), or leave empty for default.")
 
 def set_model_by_ram(ram, language):
     ram = ram.lower()
@@ -93,7 +127,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ram", default="2gb", help="Model to use", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
     parser.add_argument("--word_timestamps", action='store_true', default=False, help="Enable word-level timestamps in output (default: False)")
-    parser.add_argument("--isolate_vocals", action='store_true', default=False, help="Attempt to isolate vocals from the input audio before generating subtitles. Use --demucs_model to specify which model to use.")
+    parser.add_argument("--isolate_vocals", nargs='?', const='0', default=False, type=valid_demucs_jobs, help="Attempt to isolate vocals from the input audio before generating subtitles. Optionally specify number of parallel jobs: 'all' for all CPU cores, a number for specific core count, or leave empty for default single-threaded processing. Use --demucs_model to specify which model to use.")
     parser.add_argument("--demucs_model", default="htdemucs", help="Demucs model to use for vocal isolation. Only used when --isolate_vocals is enabled.", choices=["htdemucs", "htdemucs_ft", "htdemucs_6s", "hdemucs_mmi", "mdx", "mdx_extra", "mdx_q", "mdx_extra_q", "hdemucs", "demucs"])
     parser.add_argument("--ramforce", action='store_true', help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
     parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, increases speed with a light decrease in accuracy.")
@@ -170,6 +204,14 @@ def parse_arguments():
         print(f"{Fore.RED}Error:{Style.RESET_ALL} --cookies and --cookies-from-browser cannot be used together.")
         print("Please use either --cookies to specify a cookies file or --cookies-from-browser to extract cookies from a browser.")
         sys.exit(1)
+
+    # Handle isolate_vocals argument - convert to boolean and add jobs attribute
+    if args.isolate_vocals is not False:
+        args.demucs_jobs = args.isolate_vocals  # Store the job count
+        args.isolate_vocals = True  # Convert to boolean for backward compatibility
+    else:
+        args.demucs_jobs = 0  # Default: no parallel jobs when not enabled
+        args.isolate_vocals = False
 
     # Restrict --word_timestamps to sub_gen usage only
     # If microphone or HLS/stream mode is enabled, warn and exit if --word_timestamps is set

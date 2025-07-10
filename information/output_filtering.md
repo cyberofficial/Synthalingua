@@ -15,13 +15,34 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--file_input`          | Path to input file for captioning. |
 | `--file_output`         | Folder to save generated captions (SRT) to. Used with `--makecaptions`. |
 | `--file_output_name`    | Output file name for captions (without extension, e.g. `MyCaptionsFile`). The program will add `.srt` automatically. |
-| `--isolate_vocals`      | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
+| `--isolate_vocals [jobs]` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. Optionally accepts a value: `all` (use all CPU cores), a number (set parallel jobs), or nothing (default, single job). |
 | `--demucs_model`        | Demucs model to use for vocal isolation (default: htdemucs). Choices: htdemucs, htdemucs_ft, htdemucs_6s, hdemucs_mmi, mdx, mdx_extra, mdx_q, mdx_extra_q, hdemucs, demucs. Only used when `--isolate_vocals` is enabled. |
 | `--silent_detect`       | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
 | `--silent_threshold`    | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
 | `--silent_duration`     | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
-### `--isolate_vocals`
+
+### `--isolate_vocals [jobs]`
 When enabled, the program will attempt to extract vocals from the input audio file before generating subtitles. This can improve subtitle accuracy for music or noisy audio, but may take additional time and requires the `demucs` package. If `demucs` is not installed, a warning will be shown.
+
+**Parallel Processing (NEW):**
+- You can now specify an optional value for `--isolate_vocals` to control the number of parallel jobs Demucs uses:
+  - `--isolate_vocals all` — Use all available CPU cores for maximum speed
+  - `--isolate_vocals N` — Use N parallel jobs (where N is a number, up to your CPU core count)
+  - `--isolate_vocals` (no value) — Use default (single job, no parallelism)
+- If you specify a number greater than your CPU core count, it will be capped automatically.
+- This can greatly speed up vocal isolation on multi-core systems.
+
+**Examples:**
+```bash
+# Use all CPU cores for Demucs (fastest, recommended for powerful systems)
+python transcribe_audio.py --makecaptions --isolate_vocals all --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
+
+# Use 4 parallel jobs for Demucs
+python transcribe_audio.py --makecaptions --isolate_vocals 4 --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
+
+# Use default (single job)
+python transcribe_audio.py --makecaptions --isolate_vocals --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
+```
 
 **Model Selection:**
 - By default, the program will prompt you to select which Demucs model to use
