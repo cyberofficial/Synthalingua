@@ -44,7 +44,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Parse command-line arguments
-
 args = parser_args.parse_arguments()
 
 # Inform user if word_timestamps is enabled
@@ -970,6 +969,172 @@ def unload_model(model: whisper.Whisper) -> None:
     except Exception as e:
         logger.warning("Failed to completely unload model: %s", str(e))
 
+def get_media_duration(file_path: str) -> Optional[float]:
+    """
+    Get the duration of a media file using ffprobe.
+    
+    Args:
+        file_path (str): Path to the media file
+        
+    Returns:
+        Optional[float]: Duration in seconds, or None if failed to detect
+    """
+    try:
+        import subprocess
+        result = subprocess.run([
+            'ffprobe', '-v', 'quiet', '-print_format', 'json', 
+            '-show_format', file_path
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            import json
+            data = json.loads(result.stdout)
+            duration_str = data.get('format', {}).get('duration')
+            if duration_str:
+                return float(duration_str)
+    except Exception as e:
+        logger.warning(f"Failed to get media duration: {e}")
+    
+    return None
+
+def parse_timestamp(timestamp: str) -> float:
+    """
+    Parse timestamp in HH:MM:SS.mmm or MM:SS.mmm format to seconds.
+    
+    Args:
+        timestamp (str): Timestamp string
+        
+    Returns:
+        float: Time in seconds
+        
+    Raises:
+        ValueError: If timestamp format is invalid
+    """
+    try:
+        parts = timestamp.split(':')
+        if len(parts) == 3:  # HH:MM:SS.mmm
+            hours, minutes, seconds = parts
+            return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
+        elif len(parts) == 2:  # MM:SS.mmm
+            minutes, seconds = parts
+            return float(minutes) * 60 + float(seconds)
+        else:
+            # Just seconds
+            return float(timestamp)
+    except ValueError:
+        raise ValueError(f"Invalid timestamp format: {timestamp}. Use HH:MM:SS.mmm, MM:SS.mmm, or seconds.")
+
+def suggest_split_points(duration: float, segment_length: int = 1800) -> List[float]:
+    """
+    Suggest split points for a long media file.
+    
+    Args:
+        duration (float): Total duration in seconds
+        segment_length (int): Target segment length in seconds (default: 30 minutes)
+        
+    Returns:
+        List[float]: List of suggested split points in seconds
+    """
+    split_points = []
+    current_time = 0
+    
+    while current_time + segment_length < duration:
+        current_time += segment_length
+        split_points.append(current_time)
+    
+    return split_points
+
+def format_seconds_to_timestamp(seconds: float) -> str:
+    """
+    Convert seconds to HH:MM:SS.mmm format.
+    
+    Args:
+        seconds (float): Time in seconds
+        
+    Returns:
+        str: Formatted timestamp
+    """
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:06.3f}"
+
+def create_segment(input_path: str, start_time: float, end_time: float, output_path: str) -> bool:
+    """
+    Create a segment of media file using FFmpeg.
+    
+    Args:
+        input_path (str): Path to input media file
+        start_time (float): Start time in seconds
+        end_time (float): End time in seconds
+        output_path (str): Path for output segment
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        import subprocess
+        
+        duration = end_time - start_time
+        
+        # Use FFmpeg to extract segment
+        cmd = [
+            'ffmpeg', '-y',  # -y to overwrite output files
+            '-ss', str(start_time),
+            '-i', input_path,
+            '-t', str(duration),
+            '-c', 'copy',  # Copy streams without re-encoding for speed
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            return True
+        else:
+            logger.error(f"FFmpeg failed: {result.stderr}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error creating segment: {e}")
+        return False
+
+def combine_segment_subtitles(segments_data: List[Dict], output_path: str) -> None:
+    """
+    Combine subtitle segments into a single SRT file with proper timing.
+    
+    Args:
+        segments_data (List[Dict]): List of segment data with results and timing info
+        output_path (str): Path for combined subtitle file
+    """
+    try:
+        with open(output_path, 'w', encoding='utf-8') as f:
+            subtitle_index = 1
+            
+            for segment_data in segments_data:
+                result = segment_data['result']
+                time_offset = segment_data['start_time']
+                
+                for segment in result.get("segments", []):
+                    if isinstance(segment, dict) and segment.get("text", "").strip():
+                        # Adjust timestamps to account for the segment's position in the original file
+                        start_time = segment.get("start", 0.0) + time_offset
+                        end_time = segment.get("end", 0.0) + time_offset
+                        text = segment.get("text", "").strip()
+                        
+                        # Write SRT format
+                        f.write(f"{subtitle_index}\n")
+                        f.write(f"{format_timestamp(start_time)} --> {format_timestamp(end_time)}\n")
+                        f.write(f"{text}\n\n")
+                        
+                        subtitle_index += 1
+                        
+        logger.info(f"Combined subtitles saved to: {output_path}")
+        
+    except Exception as e:
+        logger.error(f"Error combining subtitles: {e}")
+        raise
+
 def run_sub_gen(
     input_path: str, 
     output_name: str = "", 
@@ -1005,6 +1170,295 @@ def run_sub_gen(
     input_path_obj = Path(input_path)
     if not input_path_obj.exists():
         raise ValueError(f"Input file does not exist: {input_path_obj}")
+
+    # Check media duration and offer segmentation for long files
+    duration = get_media_duration(str(input_path_obj))
+    use_segmentation = False
+    split_points = []
+    
+    if duration and duration > 1800:  # 30 minutes
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+        seconds = duration % 60
+        
+        print(f"\n{Fore.YELLOW}⚠️  Long media file detected:{Style.RESET_ALL}")
+        print(f"   Duration: {hours:02d}:{minutes:02d}:{seconds:06.3f} ({duration:.1f} seconds)")
+        print(f"   File size: {input_path_obj.stat().st_size / (1024*1024*1024):.2f} GB")
+        
+        print(f"\n{Fore.CYAN}💡 Recommendation:{Style.RESET_ALL}")
+        print(f"   Large files can cause memory issues during processing.")
+        print(f"   Consider splitting into segments for better memory management.")
+        
+        # Suggest automatic split points
+        suggested_points = suggest_split_points(duration)
+        if suggested_points:
+            print(f"\n{Fore.CYAN}🎯 Suggested split points (every 30 minutes):{Style.RESET_ALL}")
+            for i, point in enumerate(suggested_points):
+                timestamp = format_seconds_to_timestamp(point)
+                print(f"   {i+1}. {timestamp}")
+        
+        print(f"\n{Fore.CYAN}Options:{Style.RESET_ALL}")
+        print(f"   1. {Fore.GREEN}Process entire file (may cause memory issues){Style.RESET_ALL}")
+        print(f"   2. {Fore.YELLOW}Use suggested split points{Style.RESET_ALL}")
+        print(f"   3. {Fore.CYAN}Enter custom split points{Style.RESET_ALL}")
+        
+        while True:
+            try:
+                choice = input(f"\n{Fore.CYAN}Select option (1-3): {Style.RESET_ALL}").strip()
+                
+                if choice == "1":
+                    print(f"{Fore.GREEN}✅ Processing entire file...{Style.RESET_ALL}")
+                    break
+                    
+                elif choice == "2":
+                    if suggested_points:
+                        use_segmentation = True
+                        split_points = suggested_points
+                        print(f"{Fore.GREEN}✅ Using suggested split points{Style.RESET_ALL}")
+                        break
+                    else:
+                        print(f"{Fore.RED}❌ No suggested points available{Style.RESET_ALL}")
+                        continue
+                        
+                elif choice == "3":
+                    print(f"\n{Fore.CYAN}Enter split points:{Style.RESET_ALL}")
+                    print(f"   Format: HH:MM:SS.mmm or MM:SS.mmm or seconds")
+                    print(f"   Example: 30:00,1:00:00,1:30:00,2:00:00")
+                    print(f"   Current duration: {format_seconds_to_timestamp(duration)}")
+                    
+                    split_input = input(f"\n{Fore.CYAN}Split points (comma-separated): {Style.RESET_ALL}").strip()
+                    
+                    if split_input:
+                        try:
+                            custom_points = []
+                            for point_str in split_input.split(','):
+                                point_str = point_str.strip()
+                                if point_str:
+                                    point_seconds = parse_timestamp(point_str)
+                                    if 0 < point_seconds < duration:
+                                        custom_points.append(point_seconds)
+                                    else:
+                                        print(f"{Fore.YELLOW}⚠️  Skipping invalid split point: {point_str} (out of range){Style.RESET_ALL}")
+                            
+                            if custom_points:
+                                custom_points.sort()  # Sort in chronological order
+                                use_segmentation = True
+                                split_points = custom_points
+                                
+                                print(f"{Fore.GREEN}✅ Using custom split points:{Style.RESET_ALL}")
+                                for i, point in enumerate(split_points):
+                                    print(f"   {i+1}. {format_seconds_to_timestamp(point)}")
+                                break
+                            else:
+                                print(f"{Fore.RED}❌ No valid split points provided{Style.RESET_ALL}")
+                                continue
+                                
+                        except ValueError as e:
+                            print(f"{Fore.RED}❌ Error parsing split points: {e}{Style.RESET_ALL}")
+                            continue
+                    else:
+                        print(f"{Fore.YELLOW}⚠️  No split points entered, processing entire file{Style.RESET_ALL}")
+                        break
+                        
+                else:
+                    print(f"{Fore.RED}❌ Invalid choice. Please select 1-3.{Style.RESET_ALL}")
+                    
+            except KeyboardInterrupt:
+                print(f"\n{Fore.YELLOW}⚠️  Operation cancelled. Processing entire file.{Style.RESET_ALL}")
+                break
+            except EOFError:
+                print(f"\n{Fore.YELLOW}⚠️  Input ended. Processing entire file.{Style.RESET_ALL}")
+                break
+    
+    # Process with segmentation if requested
+    if use_segmentation and split_points and duration is not None:
+        return process_with_segmentation(
+            input_path_obj, split_points, duration, output_name, 
+            output_directory, task, model_dir, ram_setting
+        )
+    
+    # Standard processing for non-segmented files
+    return process_single_file(
+        input_path_obj, output_name, output_directory, 
+        task, model_dir, ram_setting
+    )
+
+def process_with_segmentation(
+    input_path_obj: Path, split_points: List[float], total_duration: float,
+    output_name: str, output_directory: str, task: str, 
+    model_dir: Optional[str], ram_setting: Optional[str]
+) -> Tuple[Dict[str, Any], str]:
+    """
+    Process a long media file by splitting it into segments.
+    
+    Args:
+        input_path_obj (Path): Path object for input file
+        split_points (List[float]): List of split points in seconds
+        total_duration (float): Total duration of the media file
+        output_name (str): Base output name
+        output_directory (str): Output directory
+        task (str): Processing task type
+        model_dir (Optional[str]): Model directory
+        ram_setting (Optional[str]): RAM setting
+        
+    Returns:
+        Tuple[Dict[str, Any], str]: Combined result and output filename
+    """
+    try:
+        import tempfile
+        import shutil
+        
+        # Create temporary directory for segments
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            segments_data = []
+            
+            # Create segment boundaries (include start and end)
+            segment_boundaries = [0.0] + split_points + [total_duration]
+            
+            print(f"\n{Fore.CYAN}🔪 Creating {len(segment_boundaries) - 1} segments...{Style.RESET_ALL}")
+            
+            # Process each segment
+            for i in range(len(segment_boundaries) - 1):
+                start_time = segment_boundaries[i]
+                end_time = segment_boundaries[i + 1]
+                segment_duration = end_time - start_time
+                
+                print(f"\n{Fore.CYAN}📁 Segment {i + 1}/{len(segment_boundaries) - 1}:{Style.RESET_ALL}")
+                print(f"   Time: {format_seconds_to_timestamp(start_time)} → {format_seconds_to_timestamp(end_time)}")
+                print(f"   Duration: {format_human_time(segment_duration)}")
+                
+                # Create segment file
+                segment_filename = f"segment_{i+1:03d}_{input_path_obj.stem}.{input_path_obj.suffix[1:]}"
+                segment_path = temp_path / segment_filename
+                
+                print(f"   🔄 Extracting segment...")
+                if not create_segment(str(input_path_obj), start_time, end_time, str(segment_path)):
+                    raise RuntimeError(f"Failed to create segment {i + 1}")
+                
+                print(f"   ✅ Segment created: {segment_path.name}")
+                
+                # Process this segment
+                try:
+                    print(f"   🎵 Processing segment {i + 1}...")
+                    
+                    # Use the same processing logic as the main function
+                    segment_result, _ = process_single_file(
+                        segment_path, f"{output_name}_segment_{i+1:03d}", 
+                        str(temp_path), task, model_dir, ram_setting
+                    )
+                    
+                    # Store segment data with timing information
+                    segments_data.append({
+                        'result': segment_result,
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'segment_index': i + 1
+                    })
+                    
+                    print(f"   ✅ Segment {i + 1} processed: {len(segment_result.get('segments', []))} subtitles")
+                    
+                    # Free memory after each segment
+                    del segment_result
+                    gc.collect()
+                    
+                    # Clear CUDA cache if available
+                    try:
+                        import torch
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except ImportError:
+                        pass
+                        
+                except Exception as e:
+                    logger.error(f"Error processing segment {i + 1}: {e}")
+                    print(f"   {Fore.RED}❌ Segment {i + 1} failed: {e}{Style.RESET_ALL}")
+                    # Continue with other segments
+                    continue
+                
+                finally:
+                    # Clean up segment file
+                    try:
+                        if segment_path.exists():
+                            segment_path.unlink()
+                    except Exception:
+                        pass
+            
+            if not segments_data:
+                raise RuntimeError("No segments were successfully processed")
+            
+            print(f"\n{Fore.GREEN}🎉 All segments processed successfully!{Style.RESET_ALL}")
+            print(f"   Total segments: {len(segments_data)}")
+            
+            # Combine all segment results
+            print(f"{Fore.CYAN}🔗 Combining subtitles...{Style.RESET_ALL}")
+            
+            # Create combined result
+            combined_segments = []
+            combined_text_parts = []
+            
+            for segment_data in segments_data:
+                segment_result = segment_data['result']
+                time_offset = segment_data['start_time']
+                
+                # Adjust timing for each subtitle in this segment
+                for segment in segment_result.get("segments", []):
+                    if isinstance(segment, dict) and segment.get("text", "").strip():
+                        adjusted_segment = segment.copy()
+                        adjusted_segment["start"] = segment.get("start", 0.0) + time_offset
+                        adjusted_segment["end"] = segment.get("end", 0.0) + time_offset
+                        combined_segments.append(adjusted_segment)
+                        combined_text_parts.append(segment.get("text", "").strip())
+            
+            # Create combined result
+            combined_result = {
+                "segments": combined_segments,
+                "text": " ".join(combined_text_parts),
+                "language": segments_data[0]['result'].get('language', 'en') if segments_data else 'en'
+            }
+            
+            # Save combined subtitle file
+            output_directory_obj = Path(output_directory)
+            if not output_directory_obj.exists():
+                output_directory_obj.mkdir(parents=True, exist_ok=True)
+                
+            output_path = output_directory_obj / f"{output_name}.srt"
+            combine_segment_subtitles(segments_data, str(output_path))
+            
+            print(f"{Fore.GREEN}✅ Segmented processing complete!{Style.RESET_ALL}")
+            print(f"   Combined subtitles: {len(combined_segments)} entries")
+            print(f"   Output file: {output_path}")
+            
+            return combined_result, output_name
+            
+    except Exception as e:
+        logger.error(f"Segmentation processing failed: {e}")
+        raise RuntimeError(f"Segmented processing failed: {str(e)}")
+
+def process_single_file(
+    input_path_obj: Path, output_name: str, output_directory: str,
+    task: str, model_dir: Optional[str], ram_setting: Optional[str]
+) -> Tuple[Dict[str, Any], str]:
+    """
+    Process a single media file (original processing logic).
+    
+    Args:
+        input_path_obj (Path): Path to input file
+        output_name (str): Output name
+        output_directory (str): Output directory  
+        task (str): Processing task
+        model_dir (Optional[str]): Model directory
+        ram_setting (Optional[str]): RAM setting
+        
+    Returns:
+        Tuple[Dict[str, Any], str]: Result and output filename
+    """
+    if task not in ["transcribe", "translate"]:
+        raise ValueError("Task must be either 'transcribe' or 'translate'")
+    
+    output_directory_obj = Path(output_directory)
+    if not output_directory_obj.exists():
+        output_directory_obj.mkdir(parents=True, exist_ok=True)
 
     # Vocal isolation step if requested
     processed_audio_path = str(input_path_obj)
@@ -1178,8 +1632,6 @@ def run_sub_gen(
                 
                 # Set the demucs_out_dir for file copying
                 demucs_out_dir = os.path.dirname(vocals_path)
-                # Set the demucs_out_dir for file copying
-                demucs_out_dir = os.path.dirname(vocals_path)
 
                 # Use current UTC time for folder name to avoid Unicode issues
                 from datetime import datetime
@@ -1200,13 +1652,6 @@ def run_sub_gen(
                 print(f"{Fore.CYAN}Using vocals file: {processed_audio_path}{Style.RESET_ALL}")
         except Exception as e:
             raise RuntimeError(f"Vocal isolation failed: {str(e)}")
-    
-    if task not in ["transcribe", "translate"]:
-        raise ValueError("Task must be either 'transcribe' or 'translate'")
-    
-    output_directory_obj = Path(output_directory)
-    if not output_directory_obj.exists():
-        output_directory_obj.mkdir(parents=True, exist_ok=True)
 
     try:
         # Determine model type based on available RAM (skip warning for file input mode)
