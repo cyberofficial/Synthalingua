@@ -10,7 +10,7 @@ These arguments control output formatting, captions, and filtering of unwanted c
 | `--debug`               | Print debug output for blocked/suppressed messages.               |
 | `--save_transcript`     | Save the transcript to a file.                                    |
 | `--save_folder`         | Folder to save the transcript to (default: `out`). Used with `--save_transcript`. |
-| `--makecaptions`        | Enable captions mode. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). Only `compare` is a valid argument. |
+| `--makecaptions`        | Enable captions mode with intelligent model progression and quality detection. Use `--makecaptions compare` to generate captions with all RAM models (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb). Features automatic confidence scoring, repetition detection, and "try all models" option for optimal quality. Only `compare` is a valid argument. |
 | `--word_timestamps`     | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--file_input`          | Path to input file for captioning. |
 | `--file_output`         | Folder to save generated captions (SRT) to. Used with `--makecaptions`. |
@@ -109,6 +109,58 @@ Controls the minimum duration for a region to be considered silence versus a bri
 
 **Note:** This argument only has effect when used with `--silent_detect`.
 
+### `--makecaptions` - Intelligent Model Progression
+The captions mode now features advanced quality detection and intelligent model progression with multiple user-friendly options:
+
+**Quality Detection Features:**
+- **Confidence Scoring**: Automatically calculates confidence scores for each transcription region (90%+ = excellent, 75-89% = good, <75% = needs improvement)
+- **Repetition Detection**: Detects two types of model hallucinations:
+  - *Consecutive repetitions*: Same text repeated across multiple segments (e.g., "Hello" → "Hello" → "Hello")
+  - *Internal repetitions*: Repeated phrases within single segments (e.g., "the one who is the one who is the one who is...")
+- **Turbo Model Handling**: Special handling for 7GB Turbo model with translation compatibility warnings
+
+**User-Friendly Model Progression Options:**
+1. **Try Next Model Only**: Test just the next higher model (traditional approach)
+2. **Try All Remaining Models**: Automatically test all higher models and show comprehensive comparison
+3. **Skip Model Upgrades**: Use current results and continue
+
+**Enhanced User Experience:**
+- Shows current transcription before asking for upgrades (no more "Current transcription above" with nothing shown)
+- Displays exactly which models will be tested (e.g., "Try all remaining models (6gb, 7gb, 11gb-v2, 11gb-v3)")
+- Comprehensive comparison screens showing all attempts with confidence scores and repetition indicators
+- Intelligent auto-continue options to save time on multiple regions
+
+**Example Workflow:**
+```
+🤔 Low confidence (83.9%) for region 3
+   Current model: 2gb | Available upgrade: 3gb
+   Region: 15.9s - 18.8s (2.9s)
+
+📝 Current transcription (2gb model):
+   📝 15.9s-18.8s: "I'm not sure if I can eat it all"
+
+Model upgrade options:
+   1. Try 3gb model only
+   2. Try all remaining models (3gb, 6gb, 7gb, 11gb-v2, 11gb-v3) and compare
+   n. Skip model upgrades for this region
+
+Enter your choice (1/2/n):
+```
+
+After trying multiple models, users get a comprehensive comparison:
+```
+🤔 Which transcription do you prefer?
+   A. Use Version 1 (2gb model - 83.9% confidence)
+   B. Use Version 2 (3gb model - 91.6% confidence) 
+   C. Use Version 3 (6gb model - 94.2% confidence)
+   D. Use Version 4 (7gb model - 95.1% confidence)
+   E. Use Version 5 (11gb-v2 model - 96.8% confidence) [3 internal repetitions]
+   F. Continue trying higher models (one by one)
+   G. Try all remaining models (11gb-v3) and compare
+
+Enter your choice (A/B/C/D/E/F/G):
+```
+
 ### `--word_timestamps`
 When enabled, subtitles will include word-level timestamps for more precise alignment. This may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the `--word_timestamps` flag next time you run this command.
 
@@ -132,9 +184,12 @@ python transcribe_audio.py --save_transcript --save_folder "C:/transcripts"
 ```
 
 ### Captions Example
+Basic caption generation with intelligent model progression:
 ```python
 python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
+
+**What happens:** The system will automatically detect low confidence regions and offer to try higher models. You can choose to test models one-by-one or use the "try all models" option for comprehensive comparison.
 
 ### Advanced Captions with Vocal Isolation and Silence Detection (RECOMMENDED)
 For maximum efficiency and quality, combine vocal isolation with silence detection:
@@ -174,23 +229,48 @@ This combination:
 - Results in faster processing and higher accuracy
 
 ### Captions Compare Mode
-Generate captions with all available RAM models for quality comparison:
+Generate captions with all available RAM models for quality comparison (automated batch processing):
 ```python
 python transcribe_audio.py --makecaptions compare --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 
-With advanced features:
+**What happens:** Automatically generates captions using every model without user intervention, creating separate files for comparison.
+
+With advanced features for optimal quality and efficiency:
 ```python
 python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile"
 ```
 This will create files like:
-- `MyCaptionsFile.11gb-v3.srt`
+- `MyCaptionsFile.11gb-v3.srt` (highest quality)
 - `MyCaptionsFile.11gb-v2.srt`  
-- `MyCaptionsFile.7gb.srt`
+- `MyCaptionsFile.7gb.srt` (Turbo model)
 - `MyCaptionsFile.6gb.srt`
 - `MyCaptionsFile.3gb.srt`
 - `MyCaptionsFile.2gb.srt`
-- `MyCaptionsFile.1gb.srt`
+- `MyCaptionsFile.1gb.srt` (fastest)
+
+**Compare Mode vs. Interactive Mode:**
+- **Compare Mode**: Batch processes with all models automatically, creates multiple SRT files
+- **Interactive Mode**: Smart progression with user choices, creates single optimized SRT file
+
+### Quality Optimization Tips
+
+**For Best Results (Interactive Mode):**
+1. Start with a lower RAM model (2gb or 3gb)
+2. When prompted with low confidence, choose "Try all remaining models"
+3. Review the comprehensive comparison and select the best version
+4. The system will remember your preferences for subsequent regions
+
+**For Efficiency:**
+- Use `--silent_detect` to skip processing silent regions
+- Combine with `--isolate_vocals` for cleaner audio input
+- Use "try all models" option instead of testing one-by-one
+
+**For Different Content Types:**
+- **Music/Noisy Audio**: Always use `--isolate_vocals`
+- **Quiet Speech**: Use `--silent_threshold -45.0`
+- **Fast-Paced Content**: Use `--silent_duration 0.1`
+- **Long Files**: Use `--silent_detect` for significant time savings
 
 ---
 [Back to Index](./index.md)
