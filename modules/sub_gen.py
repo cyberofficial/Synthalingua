@@ -1051,7 +1051,42 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             print(f"\n   {Fore.CYAN}🚀 Auto-continuing with {next_model} model...{Style.RESET_ALL}")
                             retry_choice = 'y'
                         else:
-                            retry_choice = input(f"\n{Fore.CYAN}Try this region with {next_model} model for better accuracy? (y/n): {Style.RESET_ALL}").strip().lower()
+                            # Show options for trying models
+                            print(f"\n{Fore.CYAN}Model upgrade options:{Style.RESET_ALL}")
+                            print(f"   1. Try {next_model} model only")
+                            
+                            # Count all remaining models to show "try all" option
+                            remaining_models = []
+                            test_model = current_test_model
+                            while test_model:
+                                test_model = get_next_higher_model(test_model)
+                                if test_model:
+                                    remaining_models.append(test_model)
+                            
+                            if len(remaining_models) > 1:
+                                models_text = ", ".join(remaining_models)
+                                print(f"   2. Try all remaining models ({models_text}) and compare")
+                            
+                            print(f"   n. Skip to higher models for this region")
+                            
+                            if len(remaining_models) > 1:
+                                retry_choice = input(f"\n{Fore.CYAN}Enter your choice (1/2/n): {Style.RESET_ALL}").strip().lower()
+                            else:
+                                retry_choice = input(f"\n{Fore.CYAN}Enter your choice (1/n): {Style.RESET_ALL}").strip().lower()
+                            
+                            # Handle the choice
+                            if retry_choice == '2' and len(remaining_models) > 1:
+                                print(f"{Fore.CYAN}🚀 Trying all remaining models ({models_text})...{Style.RESET_ALL}")
+                                retry_choice = 'y'
+                                auto_continue = True  # Set flag to auto-continue through all models
+                            elif retry_choice == '1':
+                                retry_choice = 'y'
+                                auto_continue = False  # Only try one model at a time
+                            elif retry_choice == 'n':
+                                retry_choice = 'n'
+                            else:
+                                print(f"{Fore.YELLOW}❓ Invalid choice. Skipping to higher models for this region.{Style.RESET_ALL}")
+                                retry_choice = 'n'
                         
                         if retry_choice not in ['y', 'yes']:
                             print(f"{Fore.BLUE}ℹ️  Skipping further model upgrades. Using best results so far.{Style.RESET_ALL}")
@@ -1134,8 +1169,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         
                                         print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence){repetition_info}:{Style.RESET_ALL}")
                                         
-                                        # Show segments, but limit display for internal repetitions
-                                        segments_shown = 0
+                                        # Show all segments - no truncation for comparison
                                         for segment in attempt['result'].get("segments", []):
                                             if isinstance(segment, dict) and segment.get("text", "").strip():
                                                 seg_start = segment.get("start", 0.0) + region_start
@@ -1148,19 +1182,12 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                                     for prob_seg in attempt.get('problematic_segments', []):
                                                         if prob_seg['segment'] == segment:
                                                             is_problematic = True
-                                                            # Show truncated version for problematic segments
+                                                            # Show truncated version for problematic segments with internal repetitions
                                                             if len(seg_text) > 100:
                                                                 seg_text = seg_text[:97] + "..."
                                                             break
                                                 
                                                 print(f"   📝 {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"{' (internal repetitions)' if is_problematic else ''}")
-                                                segments_shown += 1
-                                                
-                                                # Limit display to prevent spam
-                                                if segments_shown >= 5 and len(attempt['result'].get("segments", [])) > 5:
-                                                    remaining = len(attempt['result'].get("segments", [])) - segments_shown
-                                                    print(f"   ... and {remaining} more segments")
-                                                    break
                                     
                                     # Let user choose which version to use
                                     print(f"\n{Fore.CYAN}🤔 Which transcription do you prefer?{Style.RESET_ALL}")
@@ -1169,12 +1196,27 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         print(f"   {choice_letter}. Use Version {idx + 1} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence)")
                                     
                                     next_choice = chr(65 + len(all_attempts))  # Next letter for "Continue"
+                                    all_choice = chr(65 + len(all_attempts) + 1)  # Letter for "Try all"
+                                    
                                     if get_next_higher_model(next_model):
-                                        print(f"   {next_choice}. Continue trying higher models (if available)")
+                                        print(f"   {next_choice}. Continue trying higher models (one by one)")
+                                        
+                                        # Count remaining models to show user what "try all" means
+                                        remaining_models = []
+                                        test_model = next_model
+                                        while test_model:
+                                            remaining_models.append(test_model)
+                                            test_model = get_next_higher_model(test_model)
+                                        
+                                        if len(remaining_models) > 1:
+                                            models_text = ", ".join(remaining_models)
+                                            print(f"   {all_choice}. Try all remaining models ({models_text}) and compare")
                                     
                                     valid_choices = [chr(65 + i) for i in range(len(all_attempts))]
                                     if get_next_higher_model(next_model):
                                         valid_choices.append(next_choice)
+                                        if len(remaining_models) > 1:
+                                            valid_choices.append(all_choice)
                                     
                                     choice_prompt = f"Enter your choice ({'/'.join(valid_choices)}): "
                                     choice = input(f"\n{Fore.CYAN}{choice_prompt}{Style.RESET_ALL}").strip().upper()
@@ -1196,8 +1238,12 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                                 unload_model(higher_model)
                                                 break
                                     elif choice == next_choice and get_next_higher_model(next_model):
-                                        print(f"{Fore.CYAN}➡️  Continuing to try higher models...{Style.RESET_ALL}")
-                                        auto_continue = True  # Set flag to auto-continue for remaining models
+                                        print(f"{Fore.CYAN}➡️  Continuing to try higher models one by one...{Style.RESET_ALL}")
+                                        auto_continue = False  # Keep asking for each model
+                                        current_test_model = next_model  # Continue to next model
+                                    elif choice == all_choice and get_next_higher_model(next_model) and len(remaining_models) > 1:
+                                        print(f"{Fore.CYAN}🚀 Trying all remaining models ({', '.join(remaining_models)})...{Style.RESET_ALL}")
+                                        auto_continue = True  # Auto-continue through all remaining models
                                         current_test_model = next_model  # Continue to next model
                                     else:
                                         print(f"{Fore.YELLOW}❓ Invalid choice. Using best results so far.{Style.RESET_ALL}")
