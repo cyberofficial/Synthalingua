@@ -525,19 +525,57 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             import os
                             import glob
                             
+                            print(f"\n{Fore.CYAN}🔄 Re-running vocal isolation with {selected_model} model...{Style.RESET_ALL}")
+                            print(f"{Fore.CYAN}📊 Progress will be shown below:{Style.RESET_ALL}")
+                            
                             with tempfile.TemporaryDirectory() as tmpdir:
-                                # Run demucs with selected model
-                                result = subprocess.run([
+                                # Run demucs with selected model and real-time progress
+                                process = subprocess.Popen([
                                     'demucs',
                                     '-n', selected_model,
                                     '-o', tmpdir,
                                     '--two-stems', 'vocals',
                                     original_audio_path
-                                ], capture_output=True, text=True, encoding='utf-8', errors='replace')
+                                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
                                 
-                                if result.returncode != 0:
-                                    print(f"{Fore.RED}❌ Demucs failed with model {selected_model}: {result.stderr}{Style.RESET_ALL}")
+                                # Monitor progress in real-time
+                                stderr_output = ""
+                                
+                                print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
+                                
+                                # Read stderr for progress updates
+                                while True:
+                                    if process.stderr is not None:
+                                        stderr_line = process.stderr.readline()
+                                        if stderr_line:
+                                            stderr_output += stderr_line
+                                            line_stripped = stderr_line.strip()
+                                            if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
+                                                if '%|' in line_stripped:
+                                                    try:
+                                                        percent_part = line_stripped.split('%|')[0].strip()
+                                                        if percent_part.replace('.', '').replace(' ', '').isdigit():
+                                                            percent = float(percent_part)
+                                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                    except:
+                                                        pass
+                                                elif 'Separating track' in line_stripped:
+                                                    print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
+                                    
+                                    if process.poll() is not None:
+                                        break
+                                
+                                # Get remaining output
+                                remaining_stdout, remaining_stderr = process.communicate()
+                                stderr_output += remaining_stderr
+                                
+                                print()  # New line after progress
+                                
+                                if process.returncode != 0:
+                                    print(f"{Fore.RED}❌ Demucs failed with model {selected_model}: {stderr_output}{Style.RESET_ALL}")
                                     continue
+                                
+                                print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
                                 
                                 # Find the vocals file
                                 base_name = os.path.splitext(os.path.basename(original_audio_path))[0]
@@ -2618,25 +2656,71 @@ def process_single_file(
         
         try:
             print(f"\n{Fore.CYAN}🔄 Isolating vocals from input audio using Demucs model: {selected_model}...{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📊 Progress will be shown below:{Style.RESET_ALL}")
+            
             with tempfile.TemporaryDirectory() as tmpdir:
-                # Run demucs CLI to separate vocals with proper encoding and selected model
-                result = subprocess.run([
+                # Run demucs CLI to separate vocals with real-time progress display
+                process = subprocess.Popen([
                     'demucs',
                     '-n', selected_model,
                     '-o', tmpdir,
                     '--two-stems', 'vocals',
                     str(input_path_obj)
-                ], capture_output=True, text=True, encoding='utf-8', errors='replace')
+                ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
                 
-                # Debug output
-                print(f"{Fore.YELLOW}Debug: Demucs return code: {result.returncode}{Style.RESET_ALL}")
-                if result.stdout:
-                    print(f"{Fore.YELLOW}Debug: Demucs stdout: {result.stdout[:500]}...{Style.RESET_ALL}")
-                if result.stderr:
-                    print(f"{Fore.YELLOW}Debug: Demucs stderr: {result.stderr[:500]}...{Style.RESET_ALL}")
+                # Monitor progress in real-time
+                stderr_output = ""
+                stdout_output = ""
                 
-                if result.returncode != 0:
-                    raise RuntimeError(f"Demucs failed with return code {result.returncode}: {result.stderr}")
+                print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
+                
+                # Read stderr for progress updates (Demucs shows progress on stderr)
+                while True:
+                    if process.stderr is not None:
+                        stderr_line = process.stderr.readline()
+                        if stderr_line:
+                            stderr_output += stderr_line
+                            # Show progress lines that contain percentage or processing info
+                            line_stripped = stderr_line.strip()
+                            if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
+                                # Clean up progress bar display
+                                if '%|' in line_stripped:
+                                    # Extract percentage and show clean progress
+                                    try:
+                                        percent_part = line_stripped.split('%|')[0].strip()
+                                        if percent_part.replace('.', '').replace(' ', '').isdigit():
+                                            percent = float(percent_part)
+                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                    except:
+                                        pass
+                                elif 'Separating track' in line_stripped:
+                                    print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
+                                elif 'Selected model' in line_stripped:
+                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                    
+                    # Check if process is done
+                    if process.poll() is not None:
+                        break
+                
+                # Get any remaining output
+                remaining_stdout, remaining_stderr = process.communicate()
+                stdout_output += remaining_stdout
+                stderr_output += remaining_stderr
+                
+                print()  # New line after progress
+                
+                # Debug output (only show if debug flag is enabled)
+                if getattr(args, 'debug', False):
+                    print(f"{Fore.YELLOW}Debug: Demucs return code: {process.returncode}{Style.RESET_ALL}")
+                    if stdout_output:
+                        print(f"{Fore.YELLOW}Debug: Demucs stdout: {stdout_output[:500]}{'...' if len(stdout_output) > 500 else ''}{Style.RESET_ALL}")
+                    if stderr_output:
+                        print(f"{Fore.YELLOW}Debug: Demucs stderr: {stderr_output[:500]}{'...' if len(stderr_output) > 500 else ''}{Style.RESET_ALL}")
+                
+                if process.returncode != 0:
+                    raise RuntimeError(f"Demucs failed with return code {process.returncode}: {stderr_output}")
+                
+                print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
                 
                 # Find the actual output directory structure
                 base_name = os.path.splitext(os.path.basename(str(input_path_obj)))[0]
