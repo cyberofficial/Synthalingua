@@ -1320,13 +1320,21 @@ def run_sub_gen(
                             
                             if custom_points:
                                 custom_points.sort()  # Sort in chronological order
-                                use_segmentation = True
-                                split_points = custom_points
                                 
-                                print(f"{Fore.GREEN}✅ Using custom split points:{Style.RESET_ALL}")
-                                for i, point in enumerate(split_points):
+                                print(f"{Fore.GREEN}✅ Parsed custom split points:{Style.RESET_ALL}")
+                                for i, point in enumerate(custom_points):
                                     print(f"   {i+1}. {format_seconds_to_timestamp(point)}")
-                                break
+                                
+                                # Ask for confirmation
+                                confirm = input(f"\n{Fore.CYAN}Are these split points correct? (y/n): {Style.RESET_ALL}").strip().lower()
+                                if confirm in ['y', 'yes']:
+                                    use_segmentation = True
+                                    split_points = custom_points
+                                    print(f"{Fore.GREEN}✅ Using custom split points{Style.RESET_ALL}")
+                                    break
+                                else:
+                                    print(f"{Fore.YELLOW}⚠️  Custom split points cancelled. Please try again.{Style.RESET_ALL}")
+                                    continue
                             else:
                                 print(f"{Fore.RED}❌ No valid split points provided{Style.RESET_ALL}")
                                 continue
