@@ -2665,8 +2665,8 @@ def process_single_file(
         # Determine which Demucs model to use
         selected_model = getattr(args, 'demucs_model', None)
         
-        if selected_model and selected_model != 'htdemucs':
-            # User specified a model via command line
+        if selected_model:
+            # User specified a model via command line (including default htdemucs)
             print(f"{Fore.GREEN}✅ Using specified Demucs model: {selected_model}{Style.RESET_ALL}")
             
             # Show model info
