@@ -761,6 +761,43 @@ def calculate_region_confidence(segments: List[Dict]) -> float:
     
     return total_confidence / segment_count if segment_count > 0 else 0.0
 
+def detect_repeated_segments(segments: List[Dict], threshold: int = 3) -> Tuple[bool, List[str], int]:
+    """
+    Detect if there are repeated segments in the transcription.
+    
+    Args:
+        segments (List[Dict]): List of segments from Whisper
+        threshold (int): Minimum number of repetitions to consider problematic
+        
+    Returns:
+        Tuple[bool, List[str], int]: (has_repetitions, repeated_texts, max_consecutive_count)
+    """
+    if len(segments) < threshold:
+        return False, [], 0
+    
+    repeated_texts = []
+    max_consecutive = 0
+    current_consecutive = 1
+    
+    for i in range(1, len(segments)):
+        current_text = segments[i].get("text", "").strip().lower()
+        previous_text = segments[i-1].get("text", "").strip().lower()
+        
+        # Only consider non-empty texts with reasonable length for repetition detection
+        if (current_text and previous_text and 
+            len(current_text) > 3 and len(previous_text) > 3 and  # Ignore very short segments
+            current_text == previous_text):
+            current_consecutive += 1
+            max_consecutive = max(max_consecutive, current_consecutive)
+            
+            if current_consecutive >= threshold and current_text not in repeated_texts:
+                repeated_texts.append(current_text)
+        else:
+            current_consecutive = 1
+    
+    has_repetitions = max_consecutive >= threshold
+    return has_repetitions, repeated_texts, max_consecutive
+
 def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model, decode_options: Dict, task: str = "translate") -> List[Dict]:
     """
     Process speech regions and return combined segments with proper timestamps.
@@ -830,9 +867,12 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 region_segments = region_result.get("segments", [])
                 region_confidence = calculate_region_confidence(region_segments)
                 
+                # Check for repeated segments (hallucinations/loops)
+                has_repetitions, repeated_texts, max_consecutive = detect_repeated_segments(region_segments)
+                
                 # Check if we should offer retry with higher model (if not in auto mode)
                 should_retry = (
-                    region_confidence < 0.90 and  # Less than 90% confidence
+                    (region_confidence < 0.90 or has_repetitions) and  # Less than 90% confidence OR repetitions detected
                     not _auto_proceed_detection and  # Not in auto mode
                     hasattr(args, 'ram') and  # Has RAM setting
                     get_next_higher_model(args.ram) is not None  # Higher model available
@@ -852,7 +892,10 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             'model': args.ram,
                             'model_type': get_model_type(args.ram, skip_warning=True),
                             'result': region_result,
-                            'confidence': region_confidence
+                            'confidence': region_confidence,
+                            'has_repetitions': has_repetitions,
+                            'repeated_texts': repeated_texts,
+                            'max_consecutive': max_consecutive
                         }
                     ]
                     
@@ -863,11 +906,25 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                 print(f"{Fore.YELLOW}📊 No more higher models available.{Style.RESET_ALL}")
                             break
                             
-                        print(f"\n{Fore.YELLOW}🤔 Low confidence detected for region {i} ({best_confidence*100:.1f}%){Style.RESET_ALL}")
+                        # Show why we're retrying - confidence and/or repetitions
+                        retry_reasons = []
+                        if best_confidence < 0.90:
+                            retry_reasons.append(f"Low confidence ({best_confidence*100:.1f}%)")
+                        if has_repetitions:
+                            retry_reasons.append(f"Repetitive segments detected ({max_consecutive} consecutive)")
+                        
+                        reason_text = " and ".join(retry_reasons)
+                        print(f"\n{Fore.YELLOW}🤔 {reason_text} for region {i}{Style.RESET_ALL}")
                         print(f"   Current model: {current_test_model} | Available upgrade: {next_model}")
                         print(f"   Region: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s)")
                         if current_test_model != args.ram:
                             print(f"   Previous attempts didn't improve confidence enough.")
+                        
+                        # Show repetition details if detected
+                        if has_repetitions:
+                            truncated_text = repeated_texts[0][:50] + ('...' if len(repeated_texts[0]) > 50 else '')
+                            print(f"   {Fore.RED}🔄 Repeated text detected: \"{truncated_text}\"{Style.RESET_ALL}")
+                            print(f"   {Fore.RED}   This appears {max_consecutive} times consecutively - likely a model hallucination{Style.RESET_ALL}")
                         
                         # Skip asking if user already chose to continue automatically
                         if auto_continue:
@@ -895,15 +952,31 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                 if isinstance(retry_segments, list):  # Type safety check
                                     retry_confidence = calculate_region_confidence(retry_segments)
                                     
+                                    # Check for repetitions in retry result
+                                    retry_has_repetitions, retry_repeated_texts, retry_max_consecutive = detect_repeated_segments(retry_segments)
+                                    
                                     # Add this attempt to our tracking list
                                     all_attempts.append({
                                         'model': next_model,
                                         'model_type': higher_model_type,
                                         'result': retry_result,
-                                        'confidence': retry_confidence
+                                        'confidence': retry_confidence,
+                                        'has_repetitions': retry_has_repetitions,
+                                        'repeated_texts': retry_repeated_texts,
+                                        'max_consecutive': retry_max_consecutive
                                     })
                                     
+                                    # Show improvement summary
                                     print(f"   Original confidence: {original_confidence*100:.1f}% | Current confidence: {retry_confidence*100:.1f}%")
+                                    if has_repetitions and not retry_has_repetitions:
+                                        print(f"   {Fore.GREEN}✅ Repetitive segments resolved!{Style.RESET_ALL}")
+                                    elif not has_repetitions and retry_has_repetitions:
+                                        print(f"   {Fore.YELLOW}⚠️  New repetitive segments detected in retry{Style.RESET_ALL}")
+                                    elif has_repetitions and retry_has_repetitions:
+                                        if retry_max_consecutive < max_consecutive:
+                                            print(f"   {Fore.YELLOW}🔄 Repetitions reduced: {max_consecutive} → {retry_max_consecutive}{Style.RESET_ALL}")
+                                        else:
+                                            print(f"   {Fore.RED}🔄 Repetitions persist or increased{Style.RESET_ALL}")
                                     
                                     # Show comprehensive comparison of all attempts
                                     print(f"\n{Fore.CYAN}📋 Transcription Comparison - All Attempts:{Style.RESET_ALL}")
@@ -912,7 +985,12 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         attempt_label = f"🔤 Version {idx + 1}" if len(all_attempts) > 2 else ("🔤 Original Version" if idx == 0 else "🔤 New Version")
                                         confidence_color = Fore.GREEN if attempt['confidence'] >= 0.90 else (Fore.YELLOW if attempt['confidence'] >= 0.75 else Fore.RED)
                                         
-                                        print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence):{Style.RESET_ALL}")
+                                        # Add repetition indicator to the label
+                                        repetition_info = ""
+                                        if attempt.get('has_repetitions', False):
+                                            repetition_info = f" {Fore.RED}[{attempt.get('max_consecutive', 0)} repetitions]{Style.RESET_ALL}"
+                                        
+                                        print(f"\n{confidence_color}{attempt_label} ({attempt['model']} model - {attempt['confidence']*100:.1f}% confidence){repetition_info}:{Style.RESET_ALL}")
                                         for segment in attempt['result'].get("segments", []):
                                             if isinstance(segment, dict) and segment.get("text", "").strip():
                                                 seg_start = segment.get("start", 0.0) + region_start
@@ -973,6 +1051,10 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                     region_confidence = best_confidence
                 
                 # Adjust all timestamps to match original audio timeline
+                displayed_segments = 0
+                repeated_segments_skipped = 0
+                last_displayed_text = ""
+                
                 for segment in region_result.get("segments", []):
                     if isinstance(segment, dict) and segment.get("text", "").strip():
                         # Adjust timestamps relative to original audio
@@ -984,7 +1066,18 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         seg_start = segment["start"]
                         seg_end = segment["end"]
                         seg_text = segment.get("text", "").strip()
-                        print(f"   📝 Segment: {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                        
+                        # Limit display of repeated segments to avoid spam
+                        if seg_text.lower() != last_displayed_text.lower() or displayed_segments < 3:
+                            print(f"   📝 Segment: {seg_start:.1f}s-{seg_end:.1f}s: \"{seg_text}\"")
+                            last_displayed_text = seg_text
+                            displayed_segments += 1
+                        else:
+                            repeated_segments_skipped += 1
+                
+                # Show summary if segments were skipped due to repetition
+                if repeated_segments_skipped > 0:
+                    print(f"   {Fore.YELLOW}... and {repeated_segments_skipped} more repeated segments (hidden for brevity){Style.RESET_ALL}")
                 
                 # Clean up temporary file
                 try:
@@ -2204,10 +2297,14 @@ def process_single_file(
             segments = result.get("segments", [])
             if isinstance(segments, list):  # Type safety check
                 overall_confidence = calculate_region_confidence(segments)
+                # Check for repeated segments in full file
+                file_has_repetitions, file_repeated_texts, file_max_consecutive = detect_repeated_segments(segments)
             else:
                 overall_confidence = 1.0  # Default to high confidence if segments aren't a list
+                file_has_repetitions, file_repeated_texts, file_max_consecutive = False, [], 0
+            
             should_retry_full_file = (
-                overall_confidence < 0.90 and  # Less than 90% confidence
+                (overall_confidence < 0.90 or file_has_repetitions) and  # Less than 90% confidence OR repetitions detected
                 not _auto_proceed_detection and  # Not in auto mode
                 hasattr(args, 'ram') and  # Has RAM setting
                 get_next_higher_model(args.ram) is not None  # Higher model available
