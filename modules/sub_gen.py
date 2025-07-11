@@ -1274,6 +1274,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             break
                             
                         print(f"{Fore.CYAN}🔄 Retrying region {i} with {next_model} model...{Style.RESET_ALL}")
+                        print(f"{Fore.YELLOW}⏳ Please wait: The program is now running the {next_model} model on this region to try to improve the result. This may take longer than previous steps, especially with larger models. Your computer may slow down or appear busy, but this is expected. The program is not stuck—just crunching numbers!{Style.RESET_ALL}")
                         
                         # Load the higher model
                         try:
@@ -1529,6 +1530,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                 
                                 model_type = get_model_type(model_name, skip_warning=True)
                                 print(f"   {Fore.CYAN}🔄 Testing {model_name} model...{Style.RESET_ALL}")
+                                print(f"{Fore.YELLOW}⏳ Please wait: The program is now running the {model_name} model on this region to try to improve the result. This may take longer than previous steps, especially with larger models. Your computer may slow down or appear busy, but this is expected. The program is not stuck—just crunching numbers!{Style.RESET_ALL}")
                                 
                                 # Load the model
                                 test_model_obj = load_whisper_model(model_type, decode_options.get('device', 'cuda'))
