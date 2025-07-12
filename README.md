@@ -49,21 +49,16 @@
 **For comprehensive guides and detailed documentation, visit the [information folder](./information/index.md)!**
 
 The wiki contains detailed guides for every feature:
-- **[Environment Setup Guide](./information/set_up_env_guide.md)** - Complete setup instructions and troubleshooting
-- **[General Usage](./information/general.md)** - Basic command-line arguments
-- **[Model & Device Options](./information/model_device.md)** - RAM models, GPU/CPU settings
-- **[Input & Microphone](./information/input_microphone.md)** - Microphone configuration
-- **[Streaming & File Input](./information/streaming_file.md)** - HLS streams and file processing
-- **[Language & Translation](./information/language_translation.md)** - Language settings and translation
-- **[Output, Captions, and Filtering](./information/output_filtering.md)** - Captions, vocal isolation, filtering
-- **[Web & Discord Integration](./information/web_discord.md)** - Web server and Discord webhooks
-- **[Troubleshooting & FAQ](./information/troubleshooting.md)** - Common issues and solutions
-- **[Usage Examples](./information/examples.md)** - Real-world usage scenarios
-- **[Using Cookies](./information/cookies.md)** - Cookie authentication for streams
-- **[Linux Guide](./LINUX_SETUP.md)** - Linux installation and setup guide
 > **ℹ️ Note:** The Linux guide is not fully documented or tested. If you have trouble, please open an issue report on GitHub and I'll try to help.
 
 💡 **The information folder is your go-to resource for in-depth help with any Synthalingua feature!**
+## 📚 Documentation Wiki
+
+**For comprehensive guides and detailed documentation, visit the official Synthalingua Wiki:**
+
+👉 [https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
+
+The GitHub Wiki contains detailed guides for every feature, including setup, usage, troubleshooting, and advanced options. Always check the wiki for the latest documentation and tips!
 
 ---
 
