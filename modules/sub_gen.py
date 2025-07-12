@@ -53,14 +53,16 @@ log_level = logging.DEBUG if getattr(args, 'debug', False) else logging.WARNING
 logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
+
 # Global variable to track auto-proceed mode for detection reviews
 _auto_proceed_detection = False
-
 # Global variable to track if user wants to skip Turbo model questions
 _skip_turbo_questions = False
-
 # Global variable to track intelligent mode (auto-testing higher models)
 _intelligent_mode = True
+# Global variables to persist custom silence detection settings in auto mode
+_last_silence_threshold = None
+_last_silence_duration = None
 
 # Inform user if word_timestamps is enabled
 if getattr(args, 'word_timestamps', False):
@@ -215,6 +217,13 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         List[Dict[str, Any]]: List of regions with type, start, and end times
                               [{'type': 'speech', 'start': 13.8, 'end': 42.3}, ...]
     """
+    global _last_silence_threshold, _last_silence_duration, _auto_proceed_detection, _intelligent_mode
+    # If in auto-proceed mode and custom values are set, always use them
+    if _auto_proceed_detection:
+        if _last_silence_threshold is not None:
+            silence_threshold_db = _last_silence_threshold
+        if _last_silence_duration is not None:
+            min_silence_duration = _last_silence_duration
     try:
         # Use Whisper's audio loading first (more reliable, fewer warnings)
         try:
@@ -449,7 +458,6 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             print(f"   {Fore.GREEN}✅ Current threshold ({silence_threshold_db:.1f}dB) seems well-tuned for this audio{Style.RESET_ALL}")
         
         # Interactive adjustment options
-        global _auto_proceed_detection
         
         # Check if auto-proceed is enabled
         if _auto_proceed_detection:
@@ -457,6 +465,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             # Show speech regions that will be processed (simplified now since detailed info is above)
             if speech_regions:
                 print(f"\n{Fore.GREEN}🎵 Speech regions to be processed: {len(speech_regions)}{Style.RESET_ALL}")
+                print(f"   {Fore.GREEN}   With the current threshold ({silence_threshold_db:.1f}dB) and Min duration: {min_silence_duration:.1f}s{Style.RESET_ALL}")
             return merged_regions
         
         while True:
@@ -524,7 +533,6 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     print(f"\n{Fore.CYAN}Current settings:{Style.RESET_ALL}")
                     print(f"   Threshold: {silence_threshold_db:.1f}dB")
                     print(f"   Min duration: {min_silence_duration:.1f}s")
-                    
                     # Get new threshold
                     new_threshold_input = input(f"\n{Fore.CYAN}Enter new threshold (current: {silence_threshold_db:.1f}dB) or press Enter to keep: {Style.RESET_ALL}").strip()
                     if new_threshold_input:
@@ -536,7 +544,6 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             new_threshold = silence_threshold_db
                     else:
                         new_threshold = silence_threshold_db
-                    
                     # Get new duration
                     new_duration_input = input(f"{Fore.CYAN}Enter new min duration (current: {min_silence_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
                     if new_duration_input:
@@ -548,7 +555,9 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             new_duration = min_silence_duration
                     else:
                         new_duration = min_silence_duration
-                    
+                    # Store custom values for auto mode
+                    _last_silence_threshold = new_threshold
+                    _last_silence_duration = new_duration
                     # Re-run analysis
                     print(f"\n{Fore.CYAN}🔄 Re-analyzing with new settings...{Style.RESET_ALL}")
                     return detect_silence_in_audio(audio_path, new_threshold, new_duration)
@@ -871,6 +880,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         # Show speech regions that will be processed (simplified now since detailed info is above)
         if speech_regions:
             print(f"\n{Fore.GREEN}🎵 Speech regions to be processed: {len(speech_regions)}{Style.RESET_ALL}")
+            print(f"   {Fore.GREEN}   With the current threshold ({silence_threshold_db:.1f}dB) and Min duration: {min_silence_duration:.1f}s{Style.RESET_ALL}")
         
         return merged_regions
         
@@ -1615,23 +1625,74 @@ def get_media_duration(file_path: str) -> Optional[float]:
     Returns:
         Optional[float]: Duration in seconds, or None if failed to detect
     """
+    import subprocess
+    import re
     try:
-        import subprocess
+        # Try ffprobe JSON first
         result = subprocess.run([
             'ffprobe', '-v', 'quiet', '-print_format', 'json', 
             '-show_format', file_path
-        ], capture_output=True, text=True)
-        
+        ], capture_output=True, text=True, encoding='utf-8', errors='replace')
         if result.returncode == 0:
             import json
-            data = json.loads(result.stdout)
-            duration_str = data.get('format', {}).get('duration')
-            if duration_str:
-                return float(duration_str)
+            try:
+                data = json.loads(result.stdout)
+                duration_str = data.get('format', {}).get('duration')
+                if duration_str:
+                    return float(duration_str)
+            except Exception:
+                pass
+        # Fallback: try ffprobe/ffmpeg raw output (text)
+        # Try ffprobe with default output
+        result2 = subprocess.run([
+            'ffprobe', file_path
+        ], capture_output=True, text=True, encoding='utf-8', errors='replace')
+        output = result2.stdout + '\n' + result2.stderr
+        # Look for Duration: 02:41:18.04 or Duration 022648.64
+        match = re.search(r'Duration[: ]+([0-9:.]+)', output)
+        if match:
+            dur_str = match.group(1)
+            # If format is HH:MM:SS(.mmm), parse as timestamp
+            if ':' in dur_str:
+                try:
+                    return parse_timestamp(dur_str)
+                except Exception:
+                    pass
+            # If format is like 022648.64, convert to seconds
+            if re.match(r'^[0-9]{5,}(\.[0-9]+)?$', dur_str):
+                # e.g. 022648.64 means 2 hours, 26 minutes, 48.64 seconds
+                return _convert_compact_duration_to_seconds(dur_str)
+        # As a last resort, try to find a line with 'Duration' and extract numbers
+        for line in output.splitlines():
+            if 'Duration' in line:
+                # Try to extract numbers
+                nums = re.findall(r'([0-9]+)', line)
+                if len(nums) >= 3:
+                    try:
+                        h, m, s = int(nums[0]), int(nums[1]), float(nums[2])
+                        return h*3600 + m*60 + s
+                    except Exception:
+                        continue
     except Exception as e:
         logger.warning(f"Failed to get media duration: {e}")
-    
     return None
+
+# Helper for compact duration like 022648.64 (HHMMSS.ss)
+def _convert_compact_duration_to_seconds(dur_str: str) -> float:
+    # Remove any non-digit/period chars
+    dur_str = dur_str.strip()
+    if '.' in dur_str:
+        main, frac = dur_str.split('.')
+        frac = float('0.' + frac)
+    else:
+        main = dur_str
+        frac = 0.0
+    # Pad with zeros if needed
+    main = main.zfill(6)  # Ensure at least HHMMSS
+    hours = int(main[:-4]) if len(main) > 4 else 0
+    minutes = int(main[-4:-2])
+    seconds = int(main[-2:])
+    return hours*3600 + minutes*60 + seconds + frac
 
 def parse_timestamp(timestamp: str) -> float:
     """
@@ -1723,7 +1784,8 @@ def create_segment(input_path: str, start_time: float, end_time: float, output_p
             output_path
         ]
         
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        # FIX: Added encoding='utf-8' and errors='replace' to prevent UnicodeDecodeError on Windows
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
         if result.returncode == 0:
             return True
