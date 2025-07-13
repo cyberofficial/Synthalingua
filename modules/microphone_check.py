@@ -7,7 +7,6 @@ It uses the speech_recognition library to perform the verification.
 """
 
 import speech_recognition as sr
-from speech_recognition.__main__ import r
 from colorama import Fore, Style
 
 def microphone_check():
@@ -29,9 +28,10 @@ def microphone_check():
     """
     # Check if the user has a microphone
     print("Checking for microphone...")
+    recognizer = sr.Recognizer()
     mic = sr.Microphone()
     with mic as source:
-        r.adjust_for_ambient_noise(source)
+        recognizer.adjust_for_ambient_noise(source)
     print("Microphone check complete.")
     print("\n\n")
     return True
