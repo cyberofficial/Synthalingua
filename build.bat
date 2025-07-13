@@ -40,15 +40,16 @@ python -m nuitka --standalone ^
     --include-package-data=librosa ^
     --include-module=modules.transcribe_worker ^
     --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py ^
+    --include-data-dir=html_data=html_data ^
     --enable-plugin=torch ^
     --enable-plugin=numpy ^
     --plugin-enable=multiprocessing ^
     --follow-imports ^
     --windows-icon-from-ico="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
-    --file-version="1.1.1.0" ^
-    --product-version="1.1.1.0" ^
+    --file-version="1.1.1.6" ^
+    --product-version="1.1.1.6" ^
     --company-name="Cyber's Apps" ^
-    --product-name="Synthalingua" ^
+    --product-name="Synthalingua Beta 6 " ^
     --file-description="Real-time Audio Transcription and Translation" ^
     --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" ^
     transcribe_audio.py
