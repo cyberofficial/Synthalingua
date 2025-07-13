@@ -1,4 +1,28 @@
 import sys
+
+# Check if this process is being launched as a worker for subtitle generation
+if '--run-worker' in sys.argv:
+    try:
+        # This branch is for the frozen executable to re-launch itself as a worker.
+        # It won't be triggered when running from source because sub_gen.py calls
+        # transcribe_worker.py directly in that case.
+        from modules.transcribe_worker import main as worker_main
+
+        # Re-arrange sys.argv for the worker's argument parser.
+        # Original: [exe_path, '--run-worker', '--arg1', 'val1', ...]
+        # New for worker: [exe_path, '--arg1', 'val1', ...]
+        # The worker's parser will parse from index 1 onwards.
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        worker_main()
+    except Exception as e:
+        # Log any errors to stderr for the parent process to capture
+        print(f"Worker process failed: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Ensure the worker process exits cleanly
+        sys.exit(0)
+
+# If not a worker, proceed with normal imports and execution
 import os
 import torch
 import speech_recognition as sr

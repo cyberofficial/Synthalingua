@@ -118,10 +118,6 @@ def run_transcription_in_process(
     Raises:
         RuntimeError: If the transcription worker process fails.
     """
-    worker_script_path = os.path.join(os.path.dirname(__file__), "transcribe_worker.py")
-    if not os.path.exists(worker_script_path):
-        raise FileNotFoundError(f"Transcription worker script not found at: {worker_script_path}")
-
     # Use a temporary file to get the JSON result back from the worker
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json', encoding='utf-8') as tmp_json_file:
         output_json_path = tmp_json_file.name
@@ -130,17 +126,41 @@ def run_transcription_in_process(
         # Serialize decode_options to a JSON string to pass as a single argument
         decode_options_json = json.dumps(decode_options)
 
-        # Construct the command to run the worker script
-        command = [
-            sys.executable,  # Use the same python interpreter that is running this script
-            worker_script_path,
-            "--audio_path", audio_path,
-            "--output_json_path", output_json_path,
-            "--model_type", model_type,
-            "--model_dir", model_dir,
-            "--device", device,
-            "--decode_options_json", decode_options_json
-        ]
+        # Check if running as a frozen executable (e.g., Nuitka, PyInstaller)
+        is_frozen = getattr(sys, 'frozen', False)
+
+        command = []
+        if is_frozen:
+            print(f"{Fore.CYAN}ℹ️  Running in portable (frozen) mode: launching worker as a subprocess...{Style.RESET_ALL}")
+            # When frozen, re-launch the executable with a special flag to act as a worker.
+            command = [
+                sys.executable,
+                '--run-worker',
+                "--audio_path", audio_path,
+                "--output_json_path", output_json_path,
+                "--model_type", model_type,
+                "--model_dir", model_dir,
+                "--device", device,
+                "--decode_options_json", decode_options_json
+            ]
+
+        else:
+            print(f"{Fore.CYAN}ℹ️  Running in source mode: launching worker script as a subprocess...{Style.RESET_ALL}")
+            # When running from source, execute the worker script directly.
+            worker_script_path = os.path.join(os.path.dirname(__file__), "transcribe_worker.py")
+            if not os.path.exists(worker_script_path):
+                raise FileNotFoundError(f"Transcription worker script not found at: {worker_script_path}")
+
+            command = [
+                sys.executable,  # This will be 'python.exe' or equivalent
+                worker_script_path,
+                "--audio_path", audio_path,
+                "--output_json_path", output_json_path,
+                "--model_type", model_type,
+                "--model_dir", model_dir,
+                "--device", device,
+                "--decode_options_json", decode_options_json
+            ]
 
         # Show the command if in debug mode
         if getattr(args, 'debug', False):
@@ -545,7 +565,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     else:
                         new_threshold = silence_threshold_db
                     # Get new duration
-                    new_duration_input = input(f"{Fore.CYAN}Enter new min duration (current: {min_silence_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    new_duration_input = input(f"\n{Fore.CYAN}Enter new min duration (current: {min_silence_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
                     if new_duration_input:
                         try:
                             new_duration = float(new_duration_input)
