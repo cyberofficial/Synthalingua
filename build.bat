@@ -26,6 +26,10 @@ pyinstaller remote_microphone.py --onefile ^
     --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico"
 
 
+
+:: pip install git+https://github.com/Nuitka/Nuitka.git@factory
+:: Keep for later use
+
 :: Will Build for Windows
 set CL=/Zm2000 /bigobj
 python -m nuitka --standalone ^
@@ -34,6 +38,8 @@ python -m nuitka --standalone ^
     --include-package-data=whisper ^
     --include-package=librosa ^
     --include-package-data=librosa ^
+    --include-module=modules.transcribe_worker ^
+    --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py ^
     --enable-plugin=torch ^
     --enable-plugin=numpy ^
     --plugin-enable=multiprocessing ^
