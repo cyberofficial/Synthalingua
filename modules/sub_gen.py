@@ -128,9 +128,12 @@ def run_transcription_in_process(
 
         # Check if running as a frozen executable (e.g., Nuitka, PyInstaller)
         is_frozen = getattr(sys, 'frozen', False)
+        # A more robust check for frozen executable, in case sys.frozen is not set correctly.
+        # This checks if the executable is not 'python.exe' or 'pythonw.exe'.
+        is_likely_frozen = is_frozen or ('python' not in os.path.basename(sys.executable).lower())
 
         command = []
-        if is_frozen:
+        if is_likely_frozen:
             print(f"{Fore.CYAN}ℹ️  Running in portable (frozen) mode: launching worker as a subprocess...{Style.RESET_ALL}")
             # When frozen, re-launch the executable with a special flag to act as a worker.
             command = [
