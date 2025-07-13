@@ -1320,8 +1320,15 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                     
                     all_segments.extend(region_segments)
                     print(f"{Fore.GREEN}✅ Region {i} processed: {len(region_segments)} segments added{Style.RESET_ALL}")
-                else:
-                    print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {i}{Style.RESET_ALL}")
+                    # Display generated subtitles for this region
+                    generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
+                    if generated_texts:
+                        display_text = ", ".join(f'"{text}"' for text in generated_texts)
+                        # Use ANSI escape code for bright magenta (pink-like)
+                        PINK = '\033[95m'
+                        print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
+                    else:
+                        print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {i}{Style.RESET_ALL}")
                     
             finally:
                 # Clean up temporary file
