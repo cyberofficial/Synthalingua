@@ -106,7 +106,7 @@ def main():
     if args.updatebranch != "disable":
         print("\nChecking for updates...")
         try:
-            check_for_updates(args.updatebranch)
+            check_for_updates()
         except Exception as e:
             print(f"Error checking for updates: {str(e)}")
             print("Continuing with script...\n\n")
