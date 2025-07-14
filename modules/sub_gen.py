@@ -91,6 +91,28 @@ if getattr(args, 'silent_detect', False):
     
     print(f"{Fore.CYAN}ℹ️  Silent detection is enabled{settings_info}. The program will skip processing silent audio chunks during caption generation. This may improve processing speed for files with long silent periods.{Style.RESET_ALL}")
 
+def group_speech_regions_by_silence(regions: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
+    """
+    Group consecutive speech regions separated by silence into batches.
+    Each group contains consecutive speech regions, and groups are separated by silence.
+    Args:
+        regions (List[Dict]): List of regions with 'type', 'start', 'end', etc.
+    Returns:
+        List[List[Dict]]: List of groups, each a list of consecutive speech regions.
+    """
+    groups = []
+    current_group = []
+    for region in regions:
+        if region['type'] == 'speech':
+            current_group.append(region)
+        else:
+            if current_group:
+                groups.append(current_group)
+                current_group = []
+    if current_group:
+        groups.append(current_group)
+    return groups
+
 # NEW HELPER FUNCTION TO RUN TRANSCRIPTION IN A SEPARATE PROCESS
 def run_transcription_in_process(
     audio_path: str,
@@ -2713,22 +2735,35 @@ def process_single_file(
         
         if use_silence_detection:
             print(f"{Fore.CYAN}🤫 Silence detection enabled. Processing only speech regions for efficiency...{Style.RESET_ALL}")
-            
             silence_threshold_db = getattr(args, 'silent_threshold', -35.0)
             min_silence_duration = getattr(args, 'silent_duration', 0.5)
             audio_regions = detect_silence_in_audio(
                 processed_audio_path, silence_threshold_db, min_silence_duration
             )
-            
-            speech_regions = [r for r in audio_regions if r['type'] == 'speech']
-            
-            if not speech_regions:
+
+            # Group consecutive speech regions separated by silence
+            speech_groups = group_speech_regions_by_silence(audio_regions)
+
+            if not speech_groups:
                 print(f"{Fore.YELLOW}⚠️ No speech detected in file. Output will be empty.{Style.RESET_ALL}")
                 result = {"segments": [], "text": ""}
             else:
-                all_segments = process_speech_regions(
-                    processed_audio_path, audio_regions, model_type, decode_options, task
-                )
+                all_segments = []
+                for group_idx, group in enumerate(speech_groups, 1):
+                    group_start = group[0]['start']
+                    group_end = group[-1]['end']
+                    print(f"{Fore.CYAN}--- Processing Group {group_idx} ({format_human_time(group_start)} - {format_human_time(group_end)}) with {len(group)} speech regions ---{Style.RESET_ALL}")
+                    # Merge group regions into a single region for batch processing
+                    merged_region = {
+                        'type': 'speech',
+                        'start': group_start,
+                        'end': group_end
+                    }
+                    # Use process_speech_regions with just this merged region
+                    group_segments = process_speech_regions(
+                        processed_audio_path, [merged_region], model_type, decode_options, task
+                    )
+                    all_segments.extend(group_segments)
                 result = {"segments": all_segments, "text": " ".join(s.get('text', '').strip() for s in all_segments)}
         else:
             # Process the entire file normally without silence detection
