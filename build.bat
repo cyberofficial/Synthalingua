@@ -49,7 +49,7 @@ python -m nuitka --standalone ^
     --file-version="1.1.1.6" ^
     --product-version="1.1.1.6" ^
     --company-name="Cyber's Apps" ^
-    --product-name="Synthalingua Beta 6 " ^
+    --product-name="Synthalingua Beta 6" ^
     --file-description="Real-time Audio Transcription and Translation" ^
     --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" ^
     transcribe_audio.py
