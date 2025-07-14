@@ -263,12 +263,11 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                               [{'type': 'speech', 'start': 13.8, 'end': 42.3}, ...]
     """
     global _last_silence_threshold, _last_silence_duration, _auto_proceed_detection, _intelligent_mode
-    # If in auto-proceed mode and custom values are set, always use them
-    if _auto_proceed_detection:
-        if _last_silence_threshold is not None:
-            silence_threshold_db = _last_silence_threshold
-        if _last_silence_duration is not None:
-            min_silence_duration = _last_silence_duration
+    # Always use the last set silence threshold and min duration if available
+    if _last_silence_threshold is not None:
+        silence_threshold_db = _last_silence_threshold
+    if _last_silence_duration is not None:
+        min_silence_duration = _last_silence_duration
     try:
         # Use Whisper's audio loading first (more reliable, fewer warnings)
         try:
@@ -530,32 +529,35 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             if getattr(args, 'isolate_vocals', False):
                 print(f"   4. {Fore.MAGENTA}Try different Demucs model and re-analyze{Style.RESET_ALL}")
             print(f"   5. {Fore.BLUE}Proceed with current detection and skip asking again{Style.RESET_ALL}")
-            
+
             max_choice = 5 if getattr(args, 'isolate_vocals', False) else 5
             max_choice_vocals = 4 if getattr(args, 'isolate_vocals', False) else 3
-            
+
+            # Always use the last set min_silence_duration if available
+            prompt_min_duration = _last_silence_duration if _last_silence_duration is not None else min_silence_duration
+
             try:
                 choice = input(f"\n{Fore.CYAN}Enter your choice (1-{max_choice}): {Style.RESET_ALL}").strip()
-                
+
                 if choice == "1":
                     break  # Proceed with current detection
-                    
+
                 elif choice == "5":
                     global _intelligent_mode
                     _auto_proceed_detection = True
                     print(f"{Fore.GREEN}✅ Auto-proceed mode enabled. Future segments will skip detection review.{Style.RESET_ALL}")
-                    
+
                     # Ask about intelligent mode unless they're already using the highest model
                     if hasattr(args, 'ram') and args.ram != "11gb-v3":
                         print(f"\n{Fore.CYAN}🧠 Intelligent Mode Options:{Style.RESET_ALL}")
                         print(f"   Your current model: {args.ram}")
                         print(f"   1. {Fore.GREEN}Enable Intelligent Mode{Style.RESET_ALL} - Automatically try higher models when confidence is low or repetitions detected")
                         print(f"   2. {Fore.YELLOW}Disable Intelligent Mode{Style.RESET_ALL} - Only use your current model ({args.ram}) for all segments")
-                        
+
                         while True:
                             try:
                                 intelligent_choice = input(f"\n{Fore.CYAN}Choose mode (1/2): {Style.RESET_ALL}").strip()
-                                
+
                                 if intelligent_choice == "1":
                                     _intelligent_mode = True
                                     print(f"{Fore.GREEN}✅ Intelligent mode enabled - will automatically test higher models when needed{Style.RESET_ALL}")
@@ -566,7 +568,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                                     break
                                 else:
                                     print(f"{Fore.RED}❌ Invalid choice. Please enter 1 or 2.{Style.RESET_ALL}")
-                                    
+
                             except KeyboardInterrupt:
                                 print(f"\n{Fore.YELLOW}⚠️ Defaulting to intelligent mode enabled.{Style.RESET_ALL}")
                                 _intelligent_mode = True
@@ -578,14 +580,14 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     else:
                         print(f"{Fore.BLUE}ℹ️ Using highest available model (11gb-v3) - no higher models to test{Style.RESET_ALL}")
                         _intelligent_mode = False
-                        
+
                     break  # Proceed and skip future reviews
-                    
+
                 elif choice == "2":
                     # Re-run with new settings
                     print(f"\n{Fore.CYAN}Current settings:{Style.RESET_ALL}")
                     print(f"   Threshold: {silence_threshold_db:.1f}dB")
-                    print(f"   Min duration: {min_silence_duration:.1f}s")
+                    print(f"   Min duration: {prompt_min_duration:.1f}s")
                     # Get new threshold
                     new_threshold_input = input(f"\n{Fore.CYAN}Enter new threshold (current: {silence_threshold_db:.1f}dB) or press Enter to keep: {Style.RESET_ALL}").strip()
                     if new_threshold_input:
@@ -598,17 +600,18 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     else:
                         new_threshold = silence_threshold_db
                     # Get new duration
-                    new_duration_input = input(f"\n{Fore.CYAN}Enter new min duration (current: {min_silence_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    new_duration_input = input(f"\n{Fore.CYAN}Enter new min duration (current: {prompt_min_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
                     if new_duration_input:
                         try:
                             new_duration = float(new_duration_input)
                             print(f"{Fore.GREEN}✅ New min duration: {new_duration:.1f}s{Style.RESET_ALL}")
+                            _last_silence_duration = new_duration  # Persist for next prompt
                         except ValueError:
-                            print(f"{Fore.RED}❌ Invalid duration. Keeping current: {min_silence_duration:.1f}s{Style.RESET_ALL}")
-                            new_duration = min_silence_duration
+                            print(f"{Fore.RED}❌ Invalid duration. Keeping current: {prompt_min_duration:.1f}s{Style.RESET_ALL}")
+                            new_duration = prompt_min_duration
                     else:
-                        new_duration = min_silence_duration
-                    # Store custom values for auto mode
+                        new_duration = prompt_min_duration
+                    # Store custom values for auto mode AND manual mode
                     _last_silence_threshold = new_threshold
                     _last_silence_duration = new_duration
                     # Re-run analysis
@@ -2760,7 +2763,15 @@ def process_single_file(
                 for group_idx, group in enumerate(speech_groups, 1):
                     group_start = group[0]['start']
                     group_end = group[-1]['end']
-                    print(f"{Fore.CYAN}--- Processing Group {group_idx} ({format_human_time(group_start)} - {format_human_time(group_end)}) with {len(group)} speech regions ---{Style.RESET_ALL}")
+                    print(f"{Fore.CYAN}--- Processing Group {group_idx} of {len(speech_groups)}  ({group_idx / len(speech_groups) * 100:.2f}%) | ({format_human_time(group_start)} - {format_human_time(group_end)}) with {len(group)} speech regions ---{Style.RESET_ALL}")
+                    # Show how much progress of the group has been processed
+                    group_progress = 0.0
+                    group_max = len(group)
+                    for i, region in enumerate(group):
+                        group_progress = (i + 1) / group_max if group_max > 0 else 0.0
+                        # Show readying file of max
+                        print(f"{Fore.CYAN}Processing region {i + 1}/{group_max} ({region['start']} - {region['end']})...{Style.RESET_ALL}")
+                        print(f"{Fore.CYAN}Group {group_idx} progress: {group_progress * 100:.2f}%{Style.RESET_ALL}")
                     # Merge group regions into a single region for batch processing
                     merged_region = {
                         'type': 'speech',
