@@ -49,13 +49,13 @@ logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
 
-# --- NEW: Temporary File Management System ---
 class TempFileManager:
     """
     Manages the creation and cleanup of temporary files and directories.
 
     This class creates a single base temporary directory for the application's
-    session and ensures it's cleaned up upon exit using the atexit module.
+    session inside a local 'temp' folder and ensures it's cleaned up upon exit,
+    unless the --keep_temp flag is used.
     It is implemented as a singleton to ensure a single instance.
     """
     _instance = None
@@ -69,8 +69,18 @@ class TempFileManager:
         # Initialize only once
         if not hasattr(self, 'initialized'):
             self.keep_temp = keep_temp
-            # Create a unique base directory in the system's temp folder
-            self.base_dir = tempfile.mkdtemp(prefix="sub_gen_")
+
+            # Get the project's root directory (assuming sub_gen.py is in a 'modules' subdir)
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # Define the local temp directory path within the project
+            local_temp_base = os.path.join(project_root, 'temp')
+            
+            # Create the local 'temp' directory if it doesn't exist
+            os.makedirs(local_temp_base, exist_ok=True)
+
+            # Create a unique session directory inside the local 'temp' folder
+            self.base_dir = tempfile.mkdtemp(prefix="sub_gen_session_", dir=local_temp_base)
+            
             self.initialized = True
             
             if self.keep_temp:
@@ -108,7 +118,6 @@ class TempFileManager:
 
 # Initialize the temporary file manager globally
 temp_manager = TempFileManager(keep_temp=getattr(args, 'keep_temp', False))
-# --- END NEW ---
 
 
 # Global variable to track auto-proceed mode for detection reviews
@@ -1981,10 +1990,10 @@ def combine_segment_subtitles(segments_data: List[Dict], output_path: str) -> No
                             
                             subtitle_index += 1
                         
-        logger.info(f"Combined subtitles saved to: {output_path}")
+        logger.info(f"Combined subtitles saved to: %s", output_path)
         
     except Exception as e:
-        logger.error(f"Error combining subtitles: {e}")
+        logger.error(f"Error combining subtitles: %s", e)
         raise
 
 def run_sub_gen(
