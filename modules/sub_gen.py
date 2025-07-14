@@ -12,13 +12,6 @@ Key features:
 - SRT format subtitle generation
 - Chunked processing for memory efficiency
 - Support for custom model directories
-
-The module uses a streaming approach to process long audio files in chunks,
-providing real-time feedback with confidence scores for each segment.
-Output is color-coded based on confidence levels:
-- Green: High confidence (≥90%)
-- Yellow: Medium confidence (≥75%)
-- Red: Low confidence (<75%)
 """
 
 import logging
@@ -28,6 +21,8 @@ import numpy as np
 import gc
 import shutil
 import tempfile
+import uuid
+import atexit
 
 import warnings
 import glob
@@ -52,6 +47,68 @@ args = parser_args.parse_arguments()
 log_level = logging.DEBUG if getattr(args, 'debug', False) else logging.WARNING
 logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
+
+
+# --- NEW: Temporary File Management System ---
+class TempFileManager:
+    """
+    Manages the creation and cleanup of temporary files and directories.
+
+    This class creates a single base temporary directory for the application's
+    session and ensures it's cleaned up upon exit using the atexit module.
+    It is implemented as a singleton to ensure a single instance.
+    """
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(TempFileManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self, keep_temp=False):
+        # Initialize only once
+        if not hasattr(self, 'initialized'):
+            self.keep_temp = keep_temp
+            # Create a unique base directory in the system's temp folder
+            self.base_dir = tempfile.mkdtemp(prefix="sub_gen_")
+            self.initialized = True
+            
+            if self.keep_temp:
+                print(f"{Fore.YELLOW}ℹ️  Temporary files will be kept at: {self.base_dir}{Style.RESET_ALL}")
+            else:
+                # Register the cleanup method to be called upon script exit
+                atexit.register(self.cleanup)
+            logger.info("Temporary file manager initialized. Base directory: %s", self.base_dir)
+
+    def get_temp_path(self, suffix="", prefix=""):
+        """Returns a unique path for a new temporary file."""
+        filename = f"{prefix}{uuid.uuid4()}{suffix}"
+        return os.path.join(self.base_dir, filename)
+
+    def mkdtemp(self, prefix=""):
+        """Creates and returns a new temporary directory inside the base directory."""
+        dir_path = os.path.join(self.base_dir, f"{prefix}{uuid.uuid4()}")
+        os.makedirs(dir_path, exist_ok=True)
+        return dir_path
+
+    def cleanup(self):
+        """Removes the base temporary directory and all its contents."""
+        if self.keep_temp:
+            logger.info("Skipping cleanup of temporary directory as requested: %s", self.base_dir)
+            return
+        
+        try:
+            if os.path.exists(self.base_dir):
+                shutil.rmtree(self.base_dir, ignore_errors=True)
+                print(f"{Fore.YELLOW}🗑️ Temporary files cleaned up from: {self.base_dir}{Style.RESET_ALL}")
+                logger.info("Successfully cleaned up temporary directory: %s", self.base_dir)
+        except Exception as e:
+            print(f"{Fore.RED}❌ Failed to clean up temporary files at {self.base_dir}: {e}{Style.RESET_ALL}")
+            logger.error("Failed to cleanup temporary directory %s: %s", self.base_dir, e, exc_info=True)
+
+# Initialize the temporary file manager globally
+temp_manager = TempFileManager(keep_temp=getattr(args, 'keep_temp', False))
+# --- END NEW ---
 
 
 # Global variable to track auto-proceed mode for detection reviews
@@ -140,92 +197,86 @@ def run_transcription_in_process(
     Raises:
         RuntimeError: If the transcription worker process fails.
     """
-    # Use a temporary file to get the JSON result back from the worker
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix='.json', encoding='utf-8') as tmp_json_file:
-        output_json_path = tmp_json_file.name
+    # Use the TempFileManager to get a path for the worker's JSON output.
+    # atexit will handle cleanup, so no 'finally' block is needed here.
+    output_json_path = temp_manager.get_temp_path(suffix='.json', prefix='worker_output_')
 
-    try:
-        # Serialize decode_options to a JSON string to pass as a single argument
-        decode_options_json = json.dumps(decode_options)
+    # Serialize decode_options to a JSON string to pass as a single argument
+    decode_options_json = json.dumps(decode_options)
 
-        # Check if running as a frozen executable (e.g., Nuitka, PyInstaller)
-        is_frozen = getattr(sys, 'frozen', False)
-        # A more robust check for frozen executable, in case sys.frozen is not set correctly.
-        # This checks if the executable is not 'python.exe' or 'pythonw.exe'.
-        is_likely_frozen = is_frozen or ('python' not in os.path.basename(sys.executable).lower())
+    # Check if running as a frozen executable (e.g., Nuitka, PyInstaller)
+    is_frozen = getattr(sys, 'frozen', False)
+    # A more robust check for frozen executable, in case sys.frozen is not set correctly.
+    # This checks if the executable is not 'python.exe' or 'pythonw.exe'.
+    is_likely_frozen = is_frozen or ('python' not in os.path.basename(sys.executable).lower())
 
-        command = []
-        if is_likely_frozen:
-            print(f"{Fore.CYAN}ℹ️  Running in portable (frozen) mode: launching worker as a subprocess...{Style.RESET_ALL}")
-            # When frozen, re-launch the executable with a special flag to act as a worker.
-            command = [
-                sys.executable,
-                '--run-worker',
-                "--audio_path", audio_path,
-                "--output_json_path", output_json_path,
-                "--model_type", model_type,
-                "--model_dir", model_dir,
-                "--device", device,
-                "--decode_options_json", decode_options_json
-            ]
+    command = []
+    if is_likely_frozen:
+        print(f"{Fore.CYAN}ℹ️  Running in portable (frozen) mode: launching worker as a subprocess...{Style.RESET_ALL}")
+        # When frozen, re-launch the executable with a special flag to act as a worker.
+        command = [
+            sys.executable,
+            '--run-worker',
+            "--audio_path", audio_path,
+            "--output_json_path", output_json_path,
+            "--model_type", model_type,
+            "--model_dir", model_dir,
+            "--device", device,
+            "--decode_options_json", decode_options_json
+        ]
 
-        else:
-            print(f"{Fore.CYAN}ℹ️  Running in source mode: launching worker script as a subprocess...{Style.RESET_ALL}")
-            # When running from source, execute the worker script directly.
-            worker_script_path = os.path.join(os.path.dirname(__file__), "transcribe_worker.py")
-            if not os.path.exists(worker_script_path):
-                raise FileNotFoundError(f"Transcription worker script not found at: {worker_script_path}")
+    else:
+        print(f"{Fore.CYAN}ℹ️  Running in source mode: launching worker script as a subprocess...{Style.RESET_ALL}")
+        # When running from source, execute the worker script directly.
+        worker_script_path = os.path.join(os.path.dirname(__file__), "transcribe_worker.py")
+        if not os.path.exists(worker_script_path):
+            raise FileNotFoundError(f"Transcription worker script not found at: {worker_script_path}")
 
-            command = [
-                sys.executable,  # This will be 'python.exe' or equivalent
-                worker_script_path,
-                "--audio_path", audio_path,
-                "--output_json_path", output_json_path,
-                "--model_type", model_type,
-                "--model_dir", model_dir,
-                "--device", device,
-                "--decode_options_json", decode_options_json
-            ]
+        command = [
+            sys.executable,  # This will be 'python.exe' or equivalent
+            worker_script_path,
+            "--audio_path", audio_path,
+            "--output_json_path", output_json_path,
+            "--model_type", model_type,
+            "--model_dir", model_dir,
+            "--device", device,
+            "--decode_options_json", decode_options_json
+        ]
 
-        # Show the command if in debug mode
-        if getattr(args, 'debug', False):
-            logger.debug("Running worker command: %s", " ".join(f'"{c}"' for c in command))
+    # Show the command if in debug mode
+    if getattr(args, 'debug', False):
+        logger.debug("Running worker command: %s", " ".join(f'"{c}"' for c in command))
 
-        # Run the worker process
-        process = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            errors='replace'
+    # Run the worker process
+    process = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace'
+    )
+
+    # Log worker's output
+    if process.stdout:
+        logger.info("Worker STDOUT:\n%s", process.stdout)
+    if process.stderr:
+        logger.warning("Worker STDERR:\n%s", process.stderr)
+
+    # Check if the process completed successfully
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"Transcription worker failed with exit code {process.returncode}.\n"
+            f"Stderr: {process.stderr}"
         )
 
-        # Log worker's output
-        if process.stdout:
-            logger.info("Worker STDOUT:\n%s", process.stdout)
-        if process.stderr:
-            logger.warning("Worker STDERR:\n%s", process.stderr)
+    # Read the result from the temporary JSON file
+    with open(output_json_path, 'r', encoding='utf-8') as f:
+        response = json.load(f)
 
-        # Check if the process completed successfully
-        if process.returncode != 0:
-            raise RuntimeError(
-                f"Transcription worker failed with exit code {process.returncode}.\n"
-                f"Stderr: {process.stderr}"
-            )
+    if response.get("status") == "error":
+        raise RuntimeError(f"Transcription worker reported an error: {response.get('message')}")
 
-        # Read the result from the temporary JSON file
-        with open(output_json_path, 'r', encoding='utf-8') as f:
-            response = json.load(f)
-
-        if response.get("status") == "error":
-            raise RuntimeError(f"Transcription worker reported an error: {response.get('message')}")
-
-        return response.get("result", {})
-
-    finally:
-        # Clean up the temporary JSON file
-        if os.path.exists(output_json_path):
-            os.unlink(output_json_path)
+    return response.get("result", {})
 
 def format_human_time(seconds: float) -> str:
     """
@@ -683,172 +734,171 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                         original_audio_path = audio_path.replace("_vocals.wav", "") if "_vocals" in audio_path else audio_path
                         
                         try:
-                            import tempfile
-                            import subprocess
-                            import os
-                            import glob
-                            
                             print(f"\n{Fore.CYAN}🔄 Re-running vocal isolation with {selected_model} model...{Style.RESET_ALL}")
                             print(f"{Fore.CYAN}📊 Progress will be shown below:{Style.RESET_ALL}")
                             
-                            with tempfile.TemporaryDirectory() as tmpdir:
-                                # Build demucs command with optional jobs parameter
-                                demucs_cmd = [
-                                    'demucs',
-                                    '-n', selected_model,
-                                    '-o', tmpdir,
-                                    '--two-stems', 'vocals'
-                                ]
-                                
-                                # Add jobs parameter if specified
-                                if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
-                                    demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-                                
-                                demucs_cmd.append(original_audio_path)
-                                
-                                # Run demucs with selected model and real-time progress
-                                process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
-                                
-                                # Monitor progress in real-time
-                                stderr_output = ""
-                                current_phase = 0
-                                total_phases = 1  # Default to 1, will update when we detect multiple models
-                                last_progress = 0.0  # Track progress separately
-                                ensemble_detected = False  # Track if we've already detected ensemble
-                                
-                                # Check for known multi-model types upfront
-                                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
-                                    # These are known to be ensemble models based on testing
-                                    if selected_model == 'htdemucs_ft':
-                                        total_phases = 4  # htdemucs_ft is a bag of 4 models
-                                    elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
-                                        total_phases = 4  # These are bags of 4 models
-                                    elif selected_model == 'mdx_extra_q':
-                                        total_phases = 4  # Bag of 4 models but with more complex processing
-                                    print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
-                                    ensemble_detected = True
-                                
-                                # Determine number of threads for Demucs message
-                                num_threads_for_message = getattr(args, 'demucs_jobs', 0)
-                                if num_threads_for_message == 0:
-                                    display_threads = 1
-                                else:
-                                    display_threads = num_threads_for_message
-                                print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
-                                
-                                # Read stderr for progress updates
-                                while True:
-                                    if process.stderr is not None:
-                                        stderr_line = process.stderr.readline()
-                                        if stderr_line:
-                                            stderr_output += stderr_line
-                                            line_stripped = stderr_line.strip()
-                                            
-                                            # Detect if this is a bag of models - check multiple patterns (only if not already detected)
-                                            if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
-                                                try:
-                                                    # Show debug info to understand the format
-                                                    if getattr(args, 'debug', False):
-                                                        print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
-                                                    
-                                                    # Try different extraction patterns
-                                                    if 'bag of' in line_stripped.lower():
-                                                        # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
-                                                        parts = line_stripped.lower().split('bag of')
-                                                        if len(parts) > 1:
-                                                            # Extract the number between "bag of" and "models"
-                                                            models_part = parts[1].split('models')[0].strip()
-                                                            if models_part.isdigit():
-                                                                detected_phases = int(models_part)
-                                                                # Only update if it's actually a multi-model (> 1)
-                                                                if detected_phases > 1:
-                                                                    total_phases = detected_phases
-                                                                    ensemble_detected = True
-                                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
-                                                                    print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
-                                                    elif 'models:' in line_stripped.lower():
-                                                        # Look for patterns like "4 models:" or similar
-                                                        import re
-                                                        match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
-                                                        if match:
-                                                            detected_phases = int(match.group(1))
+                            # Use the temp manager to create a directory for demucs output.
+                            # This directory will be cleaned up by atexit, fixing a bug where the
+                            # temp file was deleted before the recursive call could use it.
+                            tmpdir = temp_manager.mkdtemp(prefix='demucs_rerun_')
+                            
+                            # Build demucs command with optional jobs parameter
+                            demucs_cmd = [
+                                'demucs',
+                                '-n', selected_model,
+                                '-o', tmpdir,
+                                '--two-stems', 'vocals'
+                            ]
+                            
+                            # Add jobs parameter if specified
+                            if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                                demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                            
+                            demucs_cmd.append(original_audio_path)
+                            
+                            # Run demucs with selected model and real-time progress
+                            process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+                            
+                            # Monitor progress in real-time
+                            stderr_output = ""
+                            current_phase = 0
+                            total_phases = 1  # Default to 1, will update when we detect multiple models
+                            last_progress = 0.0  # Track progress separately
+                            ensemble_detected = False  # Track if we've already detected ensemble
+                            
+                            # Check for known multi-model types upfront
+                            if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
+                                # These are known to be ensemble models based on testing
+                                if selected_model == 'htdemucs_ft':
+                                    total_phases = 4  # htdemucs_ft is a bag of 4 models
+                                elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
+                                    total_phases = 4  # These are bags of 4 models
+                                elif selected_model == 'mdx_extra_q':
+                                    total_phases = 4  # Bag of 4 models but with more complex processing
+                                print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
+                                ensemble_detected = True
+                            
+                            # Determine number of threads for Demucs message
+                            num_threads_for_message = getattr(args, 'demucs_jobs', 0)
+                            if num_threads_for_message == 0:
+                                display_threads = 1
+                            else:
+                                display_threads = num_threads_for_message
+                            print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
+                            
+                            # Read stderr for progress updates
+                            while True:
+                                if process.stderr is not None:
+                                    stderr_line = process.stderr.readline()
+                                    if stderr_line:
+                                        stderr_output += stderr_line
+                                        line_stripped = stderr_line.strip()
+                                        
+                                        # Detect if this is a bag of models - check multiple patterns (only if not already detected)
+                                        if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
+                                            try:
+                                                # Show debug info to understand the format
+                                                if getattr(args, 'debug', False):
+                                                    print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
+                                                
+                                                # Try different extraction patterns
+                                                if 'bag of' in line_stripped.lower():
+                                                    # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
+                                                    parts = line_stripped.lower().split('bag of')
+                                                    if len(parts) > 1:
+                                                        # Extract the number between "bag of" and "models"
+                                                        models_part = parts[1].split('models')[0].strip()
+                                                        if models_part.isdigit():
+                                                            detected_phases = int(models_part)
+                                                            # Only update if it's actually a multi-model (> 1)
                                                             if detected_phases > 1:
                                                                 total_phases = detected_phases
                                                                 ensemble_detected = True
                                                                 print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
                                                                 print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
-                                                except Exception as e:
-                                                    if getattr(args, 'debug', False):
-                                                        print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
-                                                    total_phases = 1
-                                            
-                                            if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
-                                                if '%|' in line_stripped:
-                                                    try:
-                                                        percent_part = line_stripped.split('%|')[0].strip()
-                                                        if percent_part.replace('.', '').replace(' ', '').isdigit():
-                                                            percent = float(percent_part)
-                                                            
-                                                            # Check if we've moved to a new phase (progress reset to low value)
-                                                            if percent < last_progress - 15:  # More sensitive detection
-                                                                current_phase += 1                                                            # If we detect a reset and haven't detected it's a multi-model, update total_phases
-                                                            if total_phases == 1 and current_phase > 0:
-                                                                # Estimate total phases based on resets
-                                                                # Most ensemble models use 4 models based on our testing
-                                                                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
-                                                                    total_phases = 4  # Standard 4-model ensemble
-                                                                elif selected_model == 'mdx_extra_q':
-                                                                    total_phases = 4  # Also 4 models but more complex processing
-                                                                else:
-                                                                    # For unknown models, estimate conservatively
-                                                                    total_phases = current_phase + 2
-                                                                print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
-                                                            last_progress = percent
-                                                            
-                                                            # Show phase info if multiple phases detected or estimated
-                                                            if total_phases > 1 or current_phase > 0:
-                                                                effective_total = max(total_phases, current_phase + 1)
-                                                                phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
-                                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                elif 'models:' in line_stripped.lower():
+                                                    # Look for patterns like "4 models:" or similar
+                                                    import re
+                                                    match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
+                                                    if match:
+                                                        detected_phases = int(match.group(1))
+                                                        if detected_phases > 1:
+                                                            total_phases = detected_phases
+                                                            ensemble_detected = True
+                                                            print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                                            print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                                            except Exception as e:
+                                                if getattr(args, 'debug', False):
+                                                    print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
+                                                total_phases = 1
+                                        
+                                        if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
+                                            if '%|' in line_stripped:
+                                                try:
+                                                    percent_part = line_stripped.split('%|')[0].strip()
+                                                    if percent_part.replace('.', '').replace(' ', '').isdigit():
+                                                        percent = float(percent_part)
+                                                        
+                                                        # Check if we've moved to a new phase (progress reset to low value)
+                                                        if percent < last_progress - 15:  # More sensitive detection
+                                                            current_phase += 1                                                            # If we detect a reset and haven't detected it's a multi-model, update total_phases
+                                                        if total_phases == 1 and current_phase > 0:
+                                                            # Estimate total phases based on resets
+                                                            # Most ensemble models use 4 models based on our testing
+                                                            if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
+                                                                total_phases = 4  # Standard 4-model ensemble
+                                                            elif selected_model == 'mdx_extra_q':
+                                                                total_phases = 4  # Also 4 models but more complex processing
                                                             else:
-                                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
-                                                    except:
-                                                        pass
-                                                elif 'Separating track' in line_stripped:
-                                                    print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
-                                                elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
-                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
-                                    
-                                    if process.poll() is not None:
-                                        break
+                                                                # For unknown models, estimate conservatively
+                                                                total_phases = current_phase + 2
+                                                            print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
+                                                        last_progress = percent
+                                                        
+                                                        # Show phase info if multiple phases detected or estimated
+                                                        if total_phases > 1 or current_phase > 0:
+                                                            effective_total = max(total_phases, current_phase + 1)
+                                                            phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
+                                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                        else:
+                                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                                except:
+                                                    pass
+                                            elif 'Separating track' in line_stripped:
+                                                print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
+                                            elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
+                                                print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
                                 
-                                # Get remaining output
-                                remaining_stdout, remaining_stderr = process.communicate()
-                                stderr_output += remaining_stderr
-                                
-                                print()  # New line after progress
-                                
-                                if process.returncode != 0:
-                                    print(f"{Fore.RED}❌ Demucs failed with model {selected_model}: {stderr_output}{Style.RESET_ALL}")
-                                    continue
-                                
-                                print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
-                                
-                                # Find the vocals file
-                                base_name = os.path.splitext(os.path.basename(original_audio_path))[0]
-                                vocals_pattern = os.path.join(tmpdir, selected_model, base_name, "vocals.wav")
-                                vocals_files = glob.glob(vocals_pattern)
-                                
-                                if not vocals_files:
-                                    print(f"{Fore.RED}❌ Could not find vocals file after Demucs processing{Style.RESET_ALL}")
-                                    continue
-                                
-                                new_vocals_path = vocals_files[0]
-                                print(f"{Fore.GREEN}✅ Vocal isolation complete with {selected_model} model{Style.RESET_ALL}")
-                                
-                                # Re-analyze with the new vocals file
-                                print(f"\n{Fore.CYAN}🔄 Re-analyzing audio with new vocal isolation...{Style.RESET_ALL}")
-                                return detect_silence_in_audio(new_vocals_path, silence_threshold_db, min_silence_duration)
+                                if process.poll() is not None:
+                                    break
+                            
+                            # Get remaining output
+                            remaining_stdout, remaining_stderr = process.communicate()
+                            stderr_output += remaining_stderr
+                            
+                            print()  # New line after progress
+                            
+                            if process.returncode != 0:
+                                print(f"{Fore.RED}❌ Demucs failed with model {selected_model}: {stderr_output}{Style.RESET_ALL}")
+                                continue
+                            
+                            print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
+                            
+                            # Find the vocals file
+                            base_name = os.path.splitext(os.path.basename(original_audio_path))[0]
+                            vocals_pattern = os.path.join(tmpdir, selected_model, base_name, "vocals.wav")
+                            vocals_files = glob.glob(vocals_pattern)
+                            
+                            if not vocals_files:
+                                print(f"{Fore.RED}❌ Could not find vocals file after Demucs processing{Style.RESET_ALL}")
+                                continue
+                            
+                            new_vocals_path = vocals_files[0]
+                            print(f"{Fore.GREEN}✅ Vocal isolation complete with {selected_model} model{Style.RESET_ALL}")
+                            
+                            # Re-analyze with the new vocals file
+                            print(f"\n{Fore.CYAN}🔄 Re-analyzing audio with new vocal isolation...{Style.RESET_ALL}")
+                            return detect_silence_in_audio(new_vocals_path, silence_threshold_db, min_silence_duration)
                                 
                         except Exception as e:
                             print(f"{Fore.RED}❌ Error running Demucs with {selected_model}: {e}{Style.RESET_ALL}")
@@ -1235,6 +1285,9 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
     original_model_type = model_type
     original_ram_setting = args.ram
     
+    # Create a temporary subdirectory for all region files to avoid clutter and simplify cleanup.
+    regions_temp_dir = temp_manager.mkdtemp(prefix='speech_regions_')
+    
     try:
         print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions...{Style.RESET_ALL}")
         
@@ -1249,131 +1302,124 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
             current_model_type = original_model_type
             current_ram = original_ram_setting
             
-            # Create a temporary file for this speech region
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
-                temp_audio_path = temp_audio_file.name
+            # Create a temporary file for this speech region inside our dedicated folder
+            temp_audio_path = os.path.join(regions_temp_dir, f"region_{i}.wav")
             
-            try:
-                # Use FFmpeg to extract the speech region with high precision
-                ffmpeg_command = [
-                    'ffmpeg', '-y', '-i', audio_path,
-                    '-ss', str(region_start),
-                    '-to', str(region_end),
-                    '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
-                    temp_audio_path
-                ]
-                
-                result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
-                if result.returncode != 0:
-                    print(f"{Fore.RED}❌ FFmpeg failed for region {i}: {result.stderr}{Style.RESET_ALL}")
-                    continue
-                
-                # Transcribe this speech region with intelligent retry
-                best_result = None
-                retry_count = 0
-                max_retries = 3 if _intelligent_mode else 1
-                
-                while retry_count < max_retries:
-                    try:
-                        print(f"{Fore.CYAN}🎯 Transcribing region {i} with {current_model_type} model...{Style.RESET_ALL}")
-                        
-                        result = run_transcription_in_process(
-                            audio_path=temp_audio_path,
-                            model_type=current_model_type,
-                            decode_options=decode_options,
-                            model_dir=str(args.model_dir),
-                            device=args.device
-                        )
-                        
-                        segments = result.get("segments", [])
-                        if not segments:
-                            print(f"{Fore.YELLOW}⚠️  No segments generated for region {i}. Skipping.{Style.RESET_ALL}")
-                            break
-                        
-                        # Calculate confidence for this region
-                        region_confidence = calculate_region_confidence(segments)
-                        
-                        # Check for repetitions in this region
-                        has_repetitions, repeated_texts, max_consecutive = detect_repeated_segments(segments)
-                        
-                        print(f"{Fore.CYAN}📊 Region {i} results: {len(segments)} segments, {region_confidence:.1%} confidence{Style.RESET_ALL}")
-                        
-                        if has_repetitions:
-                            print(f"{Fore.YELLOW}🔄 Detected repetitions in region {i}: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
-                        
-                        # Determine if we should retry with a higher model
-                        should_retry = (
-                            _intelligent_mode and 
-                            (region_confidence < 0.85 or has_repetitions) and
-                            retry_count < max_retries - 1
-                        )
-                        
-                        if should_retry:
-                            next_ram = get_next_higher_model_with_turbo_handling(current_ram, task, auto_continue=True)
-                            if next_ram:
-                                print(f"{Fore.YELLOW}🔄 Low confidence ({region_confidence:.1%}) or repetitions detected. Retrying region {i} with {next_ram} model...{Style.RESET_ALL}")
-                                current_ram = next_ram
-                                current_model_type = get_model_type(current_ram, skip_warning=True)
-                                retry_count += 1
-                                continue
-                        
-                        # Accept this result
-                        best_result = result
+            # Use FFmpeg to extract the speech region with high precision
+            ffmpeg_command = [
+                'ffmpeg', '-y', '-i', audio_path,
+                '-ss', str(region_start),
+                '-to', str(region_end),
+                '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
+                temp_audio_path
+            ]
+            
+            result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"{Fore.RED}❌ FFmpeg failed for region {i}: {result.stderr}{Style.RESET_ALL}")
+                continue
+            
+            # Transcribe this speech region with intelligent retry
+            best_result = None
+            retry_count = 0
+            max_retries = 3 if _intelligent_mode else 1
+            
+            while retry_count < max_retries:
+                try:
+                    print(f"{Fore.CYAN}🎯 Transcribing region {i} with {current_model_type} model...{Style.RESET_ALL}")
+                    
+                    result = run_transcription_in_process(
+                        audio_path=temp_audio_path,
+                        model_type=current_model_type,
+                        decode_options=decode_options,
+                        model_dir=str(args.model_dir),
+                        device=args.device
+                    )
+                    
+                    segments = result.get("segments", [])
+                    if not segments:
+                        print(f"{Fore.YELLOW}⚠️  No segments generated for region {i}. Skipping.{Style.RESET_ALL}")
                         break
-                        
-                    except Exception as e:
-                        print(f"{Fore.RED}❌ Error transcribing region {i} with {current_model_type}: {e}{Style.RESET_ALL}")
-                        retry_count += 1
-                        
-                        if retry_count < max_retries:
-                            # Try next higher model
-                            next_ram = get_next_higher_model(current_ram)
-                            if next_ram:
-                                current_ram = next_ram
-                                current_model_type = get_model_type(current_ram, skip_warning=True)
-                                print(f"{Fore.YELLOW}🔄 Retrying region {i} with {current_model_type} model...{Style.RESET_ALL}")
-                            else:
-                                break
+                    
+                    # Calculate confidence for this region
+                    region_confidence = calculate_region_confidence(segments)
+                    
+                    # Check for repetitions in this region
+                    has_repetitions, repeated_texts, max_consecutive = detect_repeated_segments(segments)
+                    
+                    print(f"{Fore.CYAN}📊 Region {i} results: {len(segments)} segments, {region_confidence:.1%} confidence{Style.RESET_ALL}")
+                    
+                    if has_repetitions:
+                        print(f"{Fore.YELLOW}🔄 Detected repetitions in region {i}: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
+                    
+                    # Determine if we should retry with a higher model
+                    should_retry = (
+                        _intelligent_mode and 
+                        (region_confidence < 0.85 or has_repetitions) and
+                        retry_count < max_retries - 1
+                    )
+                    
+                    if should_retry:
+                        next_ram = get_next_higher_model_with_turbo_handling(current_ram, task, auto_continue=True)
+                        if next_ram:
+                            print(f"{Fore.YELLOW}🔄 Low confidence ({region_confidence:.1%}) or repetitions detected. Retrying region {i} with {next_ram} model...{Style.RESET_ALL}")
+                            current_ram = next_ram
+                            current_model_type = get_model_type(current_ram, skip_warning=True)
+                            retry_count += 1
+                            continue
+                    
+                    # Accept this result
+                    best_result = result
+                    break
+                    
+                except Exception as e:
+                    print(f"{Fore.RED}❌ Error transcribing region {i} with {current_model_type}: {e}{Style.RESET_ALL}")
+                    retry_count += 1
+                    
+                    if retry_count < max_retries:
+                        # Try next higher model
+                        next_ram = get_next_higher_model(current_ram)
+                        if next_ram:
+                            current_ram = next_ram
+                            current_model_type = get_model_type(current_ram, skip_warning=True)
+                            print(f"{Fore.YELLOW}🔄 Retrying region {i} with {current_model_type} model...{Style.RESET_ALL}")
                         else:
                             break
-                
-                # Process the best result for this region
-                if best_result and best_result.get("segments"):
-                    region_segments = best_result["segments"]
-                    
-                    # Correct timestamps by adding the region start time
-                    for segment in region_segments:
-                        if isinstance(segment, dict):
-                            # Add region start time to correct the timestamps
-                            segment["start"] = segment.get("start", 0.0) + region_start
-                            segment["end"] = segment.get("end", 0.0) + region_start
-                            
-                            # Also correct word-level timestamps if they exist
-                            if "words" in segment and isinstance(segment["words"], list):
-                                for word in segment["words"]:
-                                    if isinstance(word, dict):
-                                        if "start" in word:
-                                            word["start"] = word["start"] + region_start
-                                        if "end" in word:
-                                            word["end"] = word["end"] + region_start
-                    
-                    all_segments.extend(region_segments)
-                    print(f"{Fore.GREEN}✅ Region {i} processed: {len(region_segments)} segments added{Style.RESET_ALL}")
-                    # Display generated subtitles for this region
-                    generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
-                    if generated_texts:
-                        display_text = ", ".join(f'"{text}"' for text in generated_texts)
-                        # Use ANSI escape code for bright magenta (pink-like)
-                        PINK = '\033[95m'
-                        print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
                     else:
-                        print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {i}{Style.RESET_ALL}")
-                    
-            finally:
-                # Clean up temporary file
-                if os.path.exists(temp_audio_path):
-                    os.unlink(temp_audio_path)
-    
+                        break
+            
+            # Process the best result for this region
+            if best_result and best_result.get("segments"):
+                region_segments = best_result["segments"]
+                
+                # Correct timestamps by adding the region start time
+                for segment in region_segments:
+                    if isinstance(segment, dict):
+                        # Add region start time to correct the timestamps
+                        segment["start"] = segment.get("start", 0.0) + region_start
+                        segment["end"] = segment.get("end", 0.0) + region_start
+                        
+                        # Also correct word-level timestamps if they exist
+                        if "words" in segment and isinstance(segment["words"], list):
+                            for word in segment["words"]:
+                                if isinstance(word, dict):
+                                    if "start" in word:
+                                        word["start"] = word["start"] + region_start
+                                    if "end" in word:
+                                        word["end"] = word["end"] + region_start
+                
+                all_segments.extend(region_segments)
+                print(f"{Fore.GREEN}✅ Region {i} processed: {len(region_segments)} segments added{Style.RESET_ALL}")
+                # Display generated subtitles for this region
+                generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
+                if generated_texts:
+                    display_text = ", ".join(f'"{text}"' for text in generated_texts)
+                    # Use ANSI escape code for bright magenta (pink-like)
+                    PINK = '\033[95m'
+                    print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
+                else:
+                    print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {i}{Style.RESET_ALL}")
+
     except Exception as e:
         print(f"{Fore.RED}❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
         # Fallback to processing entire file
@@ -1385,6 +1431,9 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
             device=args.device
         )
         all_segments = full_result.get("segments", [])
+    finally:
+        # Clean up the subdirectory for region files immediately to free up space.
+        shutil.rmtree(regions_temp_dir, ignore_errors=True)
     
     print(f"{Fore.GREEN}🎉 Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
     return all_segments
@@ -2207,136 +2256,130 @@ def process_with_segmentation(
     Returns:
         Tuple[Dict[str, Any], str]: Combined result and output filename
     """
+    # Create a temporary directory for this specific segmentation task.
+    # It will be cleaned up immediately after this function completes.
+    temp_dir = temp_manager.mkdtemp(prefix='segmentation_')
+    
     try:
-        import tempfile
-        import shutil
+        segments_data = []
         
-        # Create temporary directory for segments
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-            segments_data = []
+        # Create segment boundaries (include start and end)
+        segment_boundaries = [0.0] + split_points + [total_duration]
+        
+        print(f"\n{Fore.CYAN}🔪 Creating {len(segment_boundaries) - 1} segments...{Style.RESET_ALL}")
+        
+        # Process each segment
+        for i in range(len(segment_boundaries) - 1):
+            start_time = segment_boundaries[i]
+            end_time = segment_boundaries[i + 1]
+            segment_duration = end_time - start_time
             
-            # Create segment boundaries (include start and end)
-            segment_boundaries = [0.0] + split_points + [total_duration]
+            print(f"\n{Fore.CYAN}📁 Segment {i + 1}/{len(segment_boundaries) - 1}:{Style.RESET_ALL}")
+            print(f"   Time: {format_seconds_to_timestamp(start_time)} → {format_seconds_to_timestamp(end_time)}")
+            print(f"   Duration: {format_human_time(segment_duration)}")
             
-            print(f"\n{Fore.CYAN}🔪 Creating {len(segment_boundaries) - 1} segments...{Style.RESET_ALL}")
+            # Create segment file in our temporary directory
+            segment_filename = f"segment_{i+1:03d}_{input_path_obj.stem}.{input_path_obj.suffix[1:]}"
+            segment_path = Path(temp_dir) / segment_filename
             
-            # Process each segment
-            for i in range(len(segment_boundaries) - 1):
-                start_time = segment_boundaries[i]
-                end_time = segment_boundaries[i + 1]
-                segment_duration = end_time - start_time
+            print(f"   🔄 Extracting segment...")
+            if not create_segment(str(input_path_obj), start_time, end_time, str(segment_path)):
+                raise RuntimeError(f"Failed to create segment {i + 1}")
+            
+            print(f"   ✅ Segment created: {segment_path.name}")
+            
+            # Process this segment
+            try:
+                print(f"   🎵 Processing segment {i + 1}...")
                 
-                print(f"\n{Fore.CYAN}📁 Segment {i + 1}/{len(segment_boundaries) - 1}:{Style.RESET_ALL}")
-                print(f"   Time: {format_seconds_to_timestamp(start_time)} → {format_seconds_to_timestamp(end_time)}")
-                print(f"   Duration: {format_human_time(segment_duration)}")
+                # Use the same processing logic as the main function
+                segment_result, _ = process_single_file(
+                    segment_path, f"{output_name}_segment_{i+1:03d}", 
+                    str(temp_dir), task, model_dir, ram_setting
+                )
                 
-                # Create segment file
-                segment_filename = f"segment_{i+1:03d}_{input_path_obj.stem}.{input_path_obj.suffix[1:]}"
-                segment_path = temp_path / segment_filename
+                # Store segment data with timing information
+                segments_data.append({
+                    'result': segment_result,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'segment_index': i + 1
+                })
                 
-                print(f"   🔄 Extracting segment...")
-                if not create_segment(str(input_path_obj), start_time, end_time, str(segment_path)):
-                    raise RuntimeError(f"Failed to create segment {i + 1}")
+                print(f"   ✅ Segment {i + 1} processed: {len(segment_result.get('segments', []))} subtitles")
                 
-                print(f"   ✅ Segment created: {segment_path.name}")
+                # Free memory after each segment
+                del segment_result
+                gc.collect()
                 
-                # Process this segment
+                # Clear CUDA cache if available
                 try:
-                    print(f"   🎵 Processing segment {i + 1}...")
+                    import torch
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                except ImportError:
+                    pass
                     
-                    # Use the same processing logic as the main function
-                    segment_result, _ = process_single_file(
-                        segment_path, f"{output_name}_segment_{i+1:03d}", 
-                        str(temp_path), task, model_dir, ram_setting
-                    )
-                    
-                    # Store segment data with timing information
-                    segments_data.append({
-                        'result': segment_result,
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'segment_index': i + 1
-                    })
-                    
-                    print(f"   ✅ Segment {i + 1} processed: {len(segment_result.get('segments', []))} subtitles")
-                    
-                    # Free memory after each segment
-                    del segment_result
-                    gc.collect()
-                    
-                    # Clear CUDA cache if available
-                    try:
-                        import torch
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
-                    except ImportError:
-                        pass
-                        
-                except Exception as e:
-                    logger.error(f"Error processing segment {i + 1}: {e}")
-                    print(f"   {Fore.RED}❌ Segment {i + 1} failed: {e}{Style.RESET_ALL}")
-                    # Continue with other segments
-                    continue
-                
-                finally:
-                    # Clean up segment file
-                    try:
-                        if segment_path.exists():
-                            segment_path.unlink()
-                    except Exception:
-                        pass
+            except Exception as e:
+                logger.error(f"Error processing segment {i + 1}: {e}")
+                print(f"   {Fore.RED}❌ Segment {i + 1} failed: {e}{Style.RESET_ALL}")
+                # Continue with other segments
+                continue
+        
+        if not segments_data:
+            raise RuntimeError("No segments were successfully processed")
+        
+        print(f"\n{Fore.GREEN}🎉 All segments processed successfully!{Style.RESET_ALL}")
+        print(f"   Total segments: {len(segments_data)}")
+        
+        # Combine all segment results
+        print(f"{Fore.CYAN}🔗 Combining subtitles...{Style.RESET_ALL}")
+        
+        # Create combined result
+        combined_segments = []
+        combined_text_parts = []
+        
+        for segment_data in segments_data:
+            segment_result = segment_data['result']
+            time_offset = segment_data['start_time']
             
-            if not segments_data:
-                raise RuntimeError("No segments were successfully processed")
+            # Adjust timing for each subtitle in this segment
+            for segment in segment_result.get("segments", []):
+                if isinstance(segment, dict) and segment.get("text", "").strip():
+                    adjusted_segment = segment.copy()
+                    adjusted_segment["start"] = segment.get("start", 0.0) + time_offset
+                    adjusted_segment["end"] = segment.get("end", 0.0) + time_offset
+                    combined_segments.append(adjusted_segment)
+                    combined_text_parts.append(segment.get("text", "").strip())
+        
+        # Create combined result
+        combined_result = {
+            "segments": combined_segments,
+            "text": " ".join(combined_text_parts),
+            "language": segments_data[0]['result'].get('language', 'en') if segments_data else 'en'
+        }
+        
+        # Save combined subtitle file
+        output_directory_obj = Path(output_directory)
+        if not output_directory_obj.exists():
+            output_directory_obj.mkdir(parents=True, exist_ok=True)
             
-            print(f"\n{Fore.GREEN}🎉 All segments processed successfully!{Style.RESET_ALL}")
-            print(f"   Total segments: {len(segments_data)}")
-            
-            # Combine all segment results
-            print(f"{Fore.CYAN}🔗 Combining subtitles...{Style.RESET_ALL}")
-            
-            # Create combined result
-            combined_segments = []
-            combined_text_parts = []
-            
-            for segment_data in segments_data:
-                segment_result = segment_data['result']
-                time_offset = segment_data['start_time']
-                
-                # Adjust timing for each subtitle in this segment
-                for segment in segment_result.get("segments", []):
-                    if isinstance(segment, dict) and segment.get("text", "").strip():
-                        adjusted_segment = segment.copy()
-                        adjusted_segment["start"] = segment.get("start", 0.0) + time_offset
-                        adjusted_segment["end"] = segment.get("end", 0.0) + time_offset
-                        combined_segments.append(adjusted_segment)
-                        combined_text_parts.append(segment.get("text", "").strip())
-            
-            # Create combined result
-            combined_result = {
-                "segments": combined_segments,
-                "text": " ".join(combined_text_parts),
-                "language": segments_data[0]['result'].get('language', 'en') if segments_data else 'en'
-            }
-            
-            # Save combined subtitle file
-            output_directory_obj = Path(output_directory)
-            if not output_directory_obj.exists():
-                output_directory_obj.mkdir(parents=True, exist_ok=True)
-                
-            output_path = output_directory_obj / f"{output_name}.srt"
-            combine_segment_subtitles(segments_data, str(output_path))
-            
-            print(f"{Fore.GREEN}✅ Segmented processing complete!{Style.RESET_ALL}")
-            print(f"   Combined subtitles: {len(combined_segments)} entries")
-            print(f"   Output file: {output_path}")
-            
-            return combined_result, output_name
+        output_path = output_directory_obj / f"{output_name}.srt"
+        combine_segment_subtitles(segments_data, str(output_path))
+        
+        print(f"{Fore.GREEN}✅ Segmented processing complete!{Style.RESET_ALL}")
+        print(f"   Combined subtitles: {len(combined_segments)} entries")
+        print(f"   Output file: {output_path}")
+        
+        return combined_result, output_name
             
     except Exception as e:
         logger.error(f"Segmentation processing failed: {e}")
         raise RuntimeError(f"Segmented processing failed: {str(e)}")
+    finally:
+        # Clean up the temp dir for this segmentation task immediately.
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 def process_single_file(
     input_path_obj: Path, output_name: str, output_directory: str,
@@ -2366,7 +2409,6 @@ def process_single_file(
     # Vocal isolation step if requested
     processed_audio_path = str(input_path_obj)
     if getattr(args, 'isolate_vocals', False):
-        import shutil, tempfile, os
         if not shutil.which('demucs'):
             raise RuntimeError("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
         
@@ -2475,245 +2517,232 @@ def process_single_file(
             
             import time  # Import time for tracking progress timeouts
             
-            with tempfile.TemporaryDirectory() as tmpdir:
-                # Build demucs command with optional jobs parameter
-                demucs_cmd = [
-                    'demucs',
-                    '-n', selected_model,
-                    '-o', tmpdir,
-                    '--two-stems', 'vocals'
-                ]
-                
-                # Add jobs parameter if specified
-                if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
-                    demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-                
-                demucs_cmd.append(str(input_path_obj))
-                
-                # Run demucs CLI to separate vocals with real-time progress display
-                process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
-                
-                # Monitor progress in real-time
-                stderr_output = ""
-                stdout_output = ""
-                current_phase = 0
-                total_phases = 1  # Default to 1, will update when we detect multiple models
-                last_progress = 0.0  # Track progress separately
-                ensemble_detected = False  # Track if we've already detected ensemble
-                lost_track = False  # Track if we've lost sync with progress
-                last_progress_time = time.time()  # Track time since last progress update
-                
-                # Check for known multi-model types upfront
-                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
-                    # These are known to be ensemble models based on testing
-                    if selected_model == 'htdemucs_ft':
-                        total_phases = 4  # htdemucs_ft is a bag of 4 models
-                    elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
-                        total_phases = 4  # These are bags of 4 models
-                    elif selected_model == 'mdx_extra_q':
-                        total_phases = 4  # Bag of 4 models but with more complex processing
-                    print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
-                    ensemble_detected = True
-                
-                # Determine number of threads for Demucs message
-                num_threads_for_message = getattr(args, 'demucs_jobs', 0)
-                if num_threads_for_message == 0:
-                    display_threads = 1
-                else:
-                    display_threads = num_threads_for_message
-                print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
-                
-                # Read stderr for progress updates (Demucs shows progress on stderr)
-                while True:
-                    if process.stderr is not None:
-                        stderr_line = process.stderr.readline()
-                        if stderr_line:
-                            stderr_output += stderr_line
-                            # Show progress lines that contain percentage or processing info
-                            line_stripped = stderr_line.strip()
-                            
-                            # Detect if this is a bag of models - check multiple patterns (only if not already detected)
-                            if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
-                                try:
-                                    # Show debug info to understand the format
-                                    if getattr(args, 'debug', False):
-                                        print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
-                                    
-                                    # Try different extraction patterns
-                                    if 'bag of' in line_stripped.lower():
-                                        # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
-                                        parts = line_stripped.lower().split('bag of')
-                                        if len(parts) > 1:
-                                            # Extract the number between "bag of" and "models"
-                                            models_part = parts[1].split('models')[0].strip()
-                                            if models_part.isdigit():
-                                                detected_phases = int(models_part)
-                                                # Only update if it's actually a multi-model (> 1)
-                                                if detected_phases > 1:
-                                                    total_phases = detected_phases
-                                                    ensemble_detected = True
-                                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
-                                                    print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
-                                    elif 'models:' in line_stripped.lower():
-                                        # Look for patterns like "4 models:" or similar
-                                        import re
-                                        match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
-                                        if match:
-                                            detected_phases = int(match.group(1))
+            # Create a managed temp directory for demucs output. It will be cleaned on script exit.
+            tmpdir = temp_manager.mkdtemp(prefix='demucs_')
+
+            # Build demucs command with optional jobs parameter
+            demucs_cmd = [
+                'demucs',
+                '-n', selected_model,
+                '-o', tmpdir,
+                '--two-stems', 'vocals'
+            ]
+            
+            # Add jobs parameter if specified
+            if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+            
+            demucs_cmd.append(str(input_path_obj))
+            
+            # Run demucs CLI to separate vocals with real-time progress display
+            process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+            
+            # Monitor progress in real-time
+            stderr_output = ""
+            stdout_output = ""
+            current_phase = 0
+            total_phases = 1  # Default to 1, will update when we detect multiple models
+            last_progress = 0.0  # Track progress separately
+            ensemble_detected = False  # Track if we've already detected ensemble
+            lost_track = False  # Track if we've lost sync with progress
+            last_progress_time = time.time()  # Track time since last progress update
+            
+            # Check for known multi-model types upfront
+            if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q', 'mdx_extra_q']:
+                # These are known to be ensemble models based on testing
+                if selected_model == 'htdemucs_ft':
+                    total_phases = 4  # htdemucs_ft is a bag of 4 models
+                elif selected_model in ['mdx', 'mdx_extra', 'mdx_q']:
+                    total_phases = 4  # These are bags of 4 models
+                elif selected_model == 'mdx_extra_q':
+                    total_phases = 4  # Bag of 4 models but with more complex processing
+                print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
+                ensemble_detected = True
+            
+            # Determine number of threads for Demucs message
+            num_threads_for_message = getattr(args, 'demucs_jobs', 0)
+            if num_threads_for_message == 0:
+                display_threads = 1
+            else:
+                display_threads = num_threads_for_message
+            print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
+            
+            # Read stderr for progress updates (Demucs shows progress on stderr)
+            while True:
+                if process.stderr is not None:
+                    stderr_line = process.stderr.readline()
+                    if stderr_line:
+                        stderr_output += stderr_line
+                        # Show progress lines that contain percentage or processing info
+                        line_stripped = stderr_line.strip()
+                        
+                        # Detect if this is a bag of models - check multiple patterns (only if not already detected)
+                        if not ensemble_detected and any(phrase in line_stripped.lower() for phrase in ['bag of', 'ensemble of', 'bag_of', 'selected model is']):
+                            try:
+                                # Show debug info to understand the format
+                                if getattr(args, 'debug', False):
+                                    print(f"{Fore.MAGENTA}Debug: Detected bag line: '{line_stripped}'{Style.RESET_ALL}")
+                                
+                                # Try different extraction patterns
+                                if 'bag of' in line_stripped.lower():
+                                    # Pattern: "Selected model is a bag of X models. You will see that many progress bars per track."
+                                    parts = line_stripped.lower().split('bag of')
+                                    if len(parts) > 1:
+                                        # Extract the number between "bag of" and "models"
+                                        models_part = parts[1].split('models')[0].strip()
+                                        if models_part.isdigit():
+                                            detected_phases = int(models_part)
+                                            # Only update if it's actually a multi-model (> 1)
                                             if detected_phases > 1:
                                                 total_phases = detected_phases
                                                 ensemble_detected = True
                                                 print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
                                                 print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
-                                except Exception as e:
-                                    if getattr(args, 'debug', False):
-                                        print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
-                                    total_phases = 1
+                                elif 'models:' in line_stripped.lower():
+                                    # Look for patterns like "4 models:" or similar
+                                    import re
+                                    match = re.search(r'(\d+)\s*models?:', line_stripped.lower())
+                                    if match:
+                                        detected_phases = int(match.group(1))
+                                        if detected_phases > 1:
+                                            total_phases = detected_phases
+                                            ensemble_detected = True
+                                            print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                                            print(f"{Fore.CYAN}  📋 This model will run {total_phases} internal models and combine results{Style.RESET_ALL}")
+                            except Exception as e:
+                                if getattr(args, 'debug', False):
+                                    print(f"{Fore.MAGENTA}Debug: Bag detection error: {e}{Style.RESET_ALL}")
+                                total_phases = 1
+                        
+                        if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
+                            # Reset lost track flag if we see progress again
+                            if '%|' in line_stripped and lost_track:
+                                lost_track = False
+                                print(f"\n{Fore.GREEN}  🔄 Reconnected to progress tracking!{Style.RESET_ALL}")
                             
-                            if any(indicator in line_stripped for indicator in ['%|', 'seconds/s', 'Separating track', 'Selected model']):
-                                # Reset lost track flag if we see progress again
-                                if '%|' in line_stripped and lost_track:
-                                    lost_track = False
-                                    print(f"\n{Fore.GREEN}  🔄 Reconnected to progress tracking!{Style.RESET_ALL}")
-                                
-                                # Clean up progress bar display
-                                if '%|' in line_stripped:
-                                    # Extract percentage and show clean progress
-                                    try:
-                                        percent_part = line_stripped.split('%|')[0].strip()
-                                        if percent_part.replace('.', '').replace(' ', '').isdigit():
-                                            percent = float(percent_part)
-                                            last_progress_time = time.time()  # Update last progress time
-                                            
-                                            # Check if we've moved to a new phase (progress reset to low value)
-                                            if percent < last_progress - 15:  # More sensitive detection
-                                                current_phase += 1
-                                                # If we detect a reset and haven't detected it's a multi-model, update total_phases
-                                                if total_phases == 1 and current_phase > 0:
-                                                    # Estimate total phases based on resets
-                                                    # Most ensemble models use 4 models based on our testing
-                                                    if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
-                                                        total_phases = 4  # Standard 4-model ensemble
-                                                    elif selected_model == 'mdx_extra_q':
-                                                        total_phases = 4  # Also 4 models but more complex processing
-                                                    else:
-                                                        # For unknown models, estimate conservatively
-                                                        total_phases = current_phase + 2
-                                                    print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
-                                            last_progress = percent
-                                            
-                                            # Show phase info if multiple phases detected or estimated
-                                            if total_phases > 1 or current_phase > 0:
-                                                effective_total = max(total_phases, current_phase + 1)
-                                                phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
-                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
-                                            else:
-                                                print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
-                                    except Exception as e:
-                                        # If progress parsing fails, enable lost track mode
-                                        if not lost_track:
-                                            lost_track = True
-                                            print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
-                                elif 'Separating track' in line_stripped:
-                                    print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
-                                elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
-                                    print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
-                    
-                    # Check if process is done
-                    if process.poll() is not None:
+                            # Clean up progress bar display
+                            if '%|' in line_stripped:
+                                # Extract percentage and show clean progress
+                                try:
+                                    percent_part = line_stripped.split('%|')[0].strip()
+                                    if percent_part.replace('.', '').replace(' ', '').isdigit():
+                                        percent = float(percent_part)
+                                        last_progress_time = time.time()  # Update last progress time
+                                        
+                                        # Check if we've moved to a new phase (progress reset to low value)
+                                        if percent < last_progress - 15:  # More sensitive detection
+                                            current_phase += 1
+                                            # If we detect a reset and haven't detected it's a multi-model, update total_phases
+                                            if total_phases == 1 and current_phase > 0:
+                                                # Estimate total phases based on resets
+                                                # Most ensemble models use 4 models based on our testing
+                                                if selected_model in ['htdemucs_ft', 'mdx', 'mdx_extra', 'mdx_q']:
+                                                    total_phases = 4  # Standard 4-model ensemble
+                                                elif selected_model == 'mdx_extra_q':
+                                                    total_phases = 4  # Also 4 models but more complex processing
+                                                else:
+                                                    # For unknown models, estimate conservatively
+                                                    total_phases = current_phase + 2
+                                                print(f"\n{Fore.CYAN}  🔍 Detected multi-model processing (estimated {total_phases} models){Style.RESET_ALL}")
+                                        last_progress = percent
+                                        
+                                        # Show phase info if multiple phases detected or estimated
+                                        if total_phases > 1 or current_phase > 0:
+                                            effective_total = max(total_phases, current_phase + 1)
+                                            phase_info = f" (Model {min(current_phase + 1, effective_total)}/{effective_total})"
+                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}%{phase_info} {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                        else:
+                                            print(f"\r{Fore.GREEN}  Progress: {percent:5.1f}% {Fore.CYAN}🎵{Style.RESET_ALL}", end="", flush=True)
+                                except Exception as e:
+                                    # If progress parsing fails, enable lost track mode
+                                    if not lost_track:
+                                        lost_track = True
+                                        print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
+                            elif 'Separating track' in line_stripped:
+                                print(f"\n{Fore.CYAN}  🎯 {line_stripped}{Style.RESET_ALL}")
+                            elif 'Selected model' in line_stripped and 'bag of' not in line_stripped:
+                                print(f"{Fore.YELLOW}  ℹ️  {line_stripped}{Style.RESET_ALL}")
+                
+                # Check if process is done
+                if process.poll() is not None:
+                    break
+                
+                # Check for timeout - if no progress updates for too long, show lost track message
+                current_time = time.time()
+                if not lost_track and (current_time - last_progress_time) > 30:  # 30 seconds without progress
+                    lost_track = True
+                    print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
+                
+                # Add a small delay to prevent excessive CPU usage
+                time.sleep(0.1)
+            
+            # Get any remaining output
+            remaining_stdout, remaining_stderr = process.communicate()
+            stdout_output += remaining_stdout
+            stderr_output += remaining_stderr
+            
+            print()  # New line after progress
+            
+            # Debug output (only show if debug flag is enabled)
+            if getattr(args, 'debug', False):
+                print(f"{Fore.YELLOW}Debug: Demucs return code: {process.returncode}{Style.RESET_ALL}")
+                if stdout_output:
+                    print(f"{Fore.YELLOW}Debug: Demucs stdout: {stdout_output[:500]}{'...' if len(stdout_output) > 500 else ''}{Style.RESET_ALL}")
+                if stderr_output:
+                    print(f"{Fore.YELLOW}Debug: Demucs stderr: {stderr_output[:500]}{'...' if len(stderr_output) > 500 else ''}{Style.RESET_ALL}")
+            
+            if process.returncode != 0:
+                raise RuntimeError(f"Demucs failed with return code {process.returncode}: {stderr_output}")
+            
+            print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
+            
+            # Find the actual output directory structure
+            base_name = os.path.splitext(os.path.basename(str(input_path_obj)))[0]
+            
+            # Demucs might create different directory structures, let's search for vocals.wav
+            vocals_path = None
+            
+            # Try different possible output locations based on selected model
+            possible_locations = [
+                os.path.join(tmpdir, selected_model, base_name, 'vocals.wav'),  # Model-specific location
+                os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),  # Standard location
+                os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),  # HTDemucs model
+                os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),  # MDX model
+                os.path.join(tmpdir, base_name, 'vocals.wav'),  # Direct output
+            ]
+            
+            # Search recursively for vocals.wav in case structure is different
+            for root, dirs, files in os.walk(tmpdir):
+                if 'vocals.wav' in files:
+                    vocals_path = os.path.join(root, 'vocals.wav')
+                    print(f"{Fore.GREEN}Found vocals.wav at: {vocals_path}{Style.RESET_ALL}")
+                    break
+            
+            # Try the predefined locations if recursive search didn't work
+            if not vocals_path:
+                for location in possible_locations:
+                    if os.path.exists(location):
+                        vocals_path = location
+                        print(f"{Fore.GREEN}Found vocals.wav at predefined location: {vocals_path}{Style.RESET_ALL}")
                         break
-                    
-                    # Check for timeout - if no progress updates for too long, show lost track message
-                    current_time = time.time()
-                    if not lost_track and (current_time - last_progress_time) > 30:  # 30 seconds without progress
-                        lost_track = True
-                        print(f"\n{Fore.YELLOW}  ⚠️  Lost track but don't worry it's still going...{Style.RESET_ALL}")
-                    
-                    # Add a small delay to prevent excessive CPU usage
-                    time.sleep(0.1)
-                
-                # Get any remaining output
-                remaining_stdout, remaining_stderr = process.communicate()
-                stdout_output += remaining_stdout
-                stderr_output += remaining_stderr
-                
-                print()  # New line after progress
-                
-                # Debug output (only show if debug flag is enabled)
-                if getattr(args, 'debug', False):
-                    print(f"{Fore.YELLOW}Debug: Demucs return code: {process.returncode}{Style.RESET_ALL}")
-                    if stdout_output:
-                        print(f"{Fore.YELLOW}Debug: Demucs stdout: {stdout_output[:500]}{'...' if len(stdout_output) > 500 else ''}{Style.RESET_ALL}")
-                    if stderr_output:
-                        print(f"{Fore.YELLOW}Debug: Demucs stderr: {stderr_output[:500]}{'...' if len(stderr_output) > 500 else ''}{Style.RESET_ALL}")
-                
-                if process.returncode != 0:
-                    raise RuntimeError(f"Demucs failed with return code {process.returncode}: {stderr_output}")
-                
-                print(f"{Fore.GREEN}✅ Demucs processing complete!{Style.RESET_ALL}")
-                
-                # Find the actual output directory structure
-                base_name = os.path.splitext(os.path.basename(str(input_path_obj)))[0]
-                
-                # Demucs might create different directory structures, let's search for vocals.wav
-                vocals_path = None
-                
-                # Try different possible output locations based on selected model
-                possible_locations = [
-                    os.path.join(tmpdir, selected_model, base_name, 'vocals.wav'),  # Model-specific location
-                    os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),  # Standard location
-                    os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),  # HTDemucs model
-                    os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),  # MDX model
-                    os.path.join(tmpdir, base_name, 'vocals.wav'),  # Direct output
-                ]
-                
-                # Search recursively for vocals.wav in case structure is different
+            
+            if not vocals_path or not os.path.exists(vocals_path):
+                # List all files in tmpdir for debugging
+                print(f"{Fore.RED}Debug: Contents of tmpdir ({tmpdir}):{Style.RESET_ALL}")
                 for root, dirs, files in os.walk(tmpdir):
-                    if 'vocals.wav' in files:
-                        vocals_path = os.path.join(root, 'vocals.wav')
-                        print(f"{Fore.GREEN}Found vocals.wav at: {vocals_path}{Style.RESET_ALL}")
-                        break
-                
-                # Try the predefined locations if recursive search didn't work
-                if not vocals_path:
-                    for location in possible_locations:
-                        if os.path.exists(location):
-                            vocals_path = location
-                            print(f"{Fore.GREEN}Found vocals.wav at predefined location: {vocals_path}{Style.RESET_ALL}")
-                            break
-                
-                if not vocals_path or not os.path.exists(vocals_path):
-                    # List all files in tmpdir for debugging
-                    print(f"{Fore.RED}Debug: Contents of tmpdir ({tmpdir}):{Style.RESET_ALL}")
-                    for root, dirs, files in os.walk(tmpdir):
-                        level = root.replace(tmpdir, '').count(os.sep)
-                        indent = ' ' * 2 * level
-                        print(f"{indent}{os.path.basename(root)}/")
-                        subindent = ' ' * 2 * (level + 1)
-                        for file in files:
-                            print(f"{subindent}{file}")
-                    raise RuntimeError(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
-                
-                # Set the demucs_out_dir for file copying
-                demucs_out_dir = os.path.dirname(vocals_path)
+                    level = root.replace(tmpdir, '').count(os.sep)
+                    indent = ' ' * 2 * level
+                    print(f"{indent}{os.path.basename(root)}/")
+                    subindent = ' ' * 2 * (level + 1)
+                    for file in files:
+                        print(f"{subindent}{file}")
+                raise RuntimeError(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
+            
+            # No need to copy files. Just update the path to the temporary vocals file.
+            # The TempFileManager will handle cleanup at script exit.
+            processed_audio_path = vocals_path
+            print(f"{Fore.GREEN}✅ Vocal isolation complete. Using isolated vocals from temp dir for transcription.{Style.RESET_ALL}")
 
-                # Use current UTC time for folder name to avoid Unicode issues
-                from datetime import datetime
-                utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                
-                # Use absolute path to ensure files are saved in the correct location
-                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up two levels from modules/
-                dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
-                os.makedirs(dest_dir, exist_ok=True)
-                for file in os.listdir(demucs_out_dir):
-                    src_file = os.path.join(demucs_out_dir, file)
-                    if os.path.isfile(src_file):
-                        shutil.copy2(src_file, os.path.join(dest_dir, file))
-                
-                # Update processed_audio_path to point to the copied vocals file
-                processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
-                print(f"{Fore.GREEN}✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}{Style.RESET_ALL}")
-                print(f"{Fore.CYAN}Using vocals file: {processed_audio_path}{Style.RESET_ALL}")
         except Exception as e:
             raise RuntimeError(f"Vocal isolation failed: {str(e)}")
 
@@ -2892,20 +2921,8 @@ def process_single_file(
         print(f"{Fore.GREEN}✅ Subtitle generation complete!{Style.RESET_ALL}")
         print(f"{Fore.CYAN}📁 Subtitle file saved to: {output_path}{Style.RESET_ALL}")
 
-        # Clean the temp folder unless the "--keep_temp" flag is set
-        if not args.keep_temp:
-            # Current script directory\temp
-            # the current directory is modules/sub_gen.py, so we need to go up one level
-            temp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'temp', 'audio')
-            if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir, ignore_errors=True)
-                logger.info("Temporary files cleaned up.")
-                print(f"{Fore.YELLOW}🗑️ Cleaning up the folder: {temp_dir}{Style.RESET_ALL}")
-                print(f"{Fore.YELLOW}🗑️ Temporary files cleaned up.{Style.RESET_ALL}")
-            else:
-                print(f"{Fore.YELLOW}🗑️ Cleaning up the folder: {temp_dir}{Style.RESET_ALL}")
-                logger.warning("Temporary directory does not exist, skipping cleanup.")
-                print(f"{Fore.YELLOW}⚠️ Temporary directory does not exist, skipping cleanup.{Style.RESET_ALL}")
+        # The old cleanup logic is no longer needed here.
+        # The TempFileManager's atexit hook will handle it.
         
         return result, output_name
 
