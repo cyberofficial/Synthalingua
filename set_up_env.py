@@ -62,22 +62,32 @@ class DownloadManager:
     def download_file(url: str, filename: str) -> None:
         """Download a file from a URL with progress display."""
         print(f"Downloading {Path(filename).name} from {url}...")
-        response = requests.get(url, stream=True)
-        response.raise_for_status()
+        try:
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
 
-        total_size = int(response.headers.get('content-length', 0))
-        with open(filename, 'wb') as file, tqdm(
-                desc=Path(filename).name,
-                total=total_size,
-                unit='iB',
-                unit_scale=True,
-                unit_divisor=1024,
-        ) as bar:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-                bar.update(len(chunk))
+            total_size = int(response.headers.get('content-length', 0))
+            with open(filename, 'wb') as file, tqdm(
+                    desc=Path(filename).name,
+                    total=total_size,
+                    unit='iB',
+                    unit_scale=True,
+                    unit_divisor=1024,
+            ) as bar:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+                    bar.update(len(chunk))
 
-        print(f"{Path(filename).name} downloaded successfully.")
+            print(f"{Path(filename).name} downloaded successfully.")
+        except requests.exceptions.RequestException as e:
+            print(f"\n❌ Error downloading {Path(filename).name}: {e}")
+            raise # Re-raise the exception to be caught by the caller
+        except IOError as e:
+            print(f"\n❌ Error writing file {filename}: {e}")
+            raise # Re-raise the exception to be caught by the caller
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred during download: {e}")
+            raise # Re-raise the exception to be caught by the caller
 
     @staticmethod
     def extract_7z(file_path: str, extract_to: str, seven_zip_exec: str) -> None:
@@ -119,128 +129,211 @@ class EnvironmentSetup:
         # Create assets directory if it doesn't exist
         self.config.ASSETS_PATH.mkdir(exist_ok=True)
         seven_zip_path = self.config.ASSETS_PATH / '7zr.exe'
-        
+
         # Check if 7zr.exe exists in downloaded_assets and ask user
         if seven_zip_path.exists():
             while True:
-                reuse = input(f"Found existing 7zr.exe. Use it or download fresh? (use/download): ").strip().lower()
+                reuse = input(f"Found existing 7zr.exe at {seven_zip_path}. Use it or download fresh? (use/download): ").strip().lower()
                 if reuse in ("use", "u"):
                     print(f"Using existing 7zr.exe: {seven_zip_path}")
                     return str(seven_zip_path)
                 elif reuse in ("download", "d"):
                     print("Downloading fresh 7zr.exe...")
-                    seven_zip_path.unlink()  # Remove old file first
+                    try:
+                        seven_zip_path.unlink()  # Remove old file first
+                    except OSError as e:
+                        print(f"Warning: Could not remove existing 7zr.exe: {e}")
                     break
                 else:
                     print("Please answer 'use' or 'download'.")
         else:
             # Only ask about providing own version if no downloaded version exists
-            use_own_7zr = input("Do you want to provide your own version of 7zr.exe? (yes/no): ").strip().lower()
-            if use_own_7zr == 'yes':
-                sevens_zip_path = input("Please enter the path to your 7zr.exe file: ").strip()
-                if os.path.isfile(sevens_zip_path):
-                    print(f"Using provided 7zr.exe at {sevens_zip_path}.")
-                    return sevens_zip_path
-                print("The specified 7zr.exe file does not exist.")
-                return None
-        
+            while True:
+                use_own_7zr = input("Do you want to provide your own version of 7zr.exe? (yes/no): ").strip().lower()
+                if use_own_7zr in ('yes', 'y'):
+                    sevens_zip_path = input("Please enter the full path to your 7zr.exe file: ").strip()
+                    if os.path.isfile(sevens_zip_path):
+                        print(f"Using provided 7zr.exe at {sevens_zip_path}.")
+                        return sevens_zip_path
+                    else:
+                        print("The specified 7zr.exe file does not exist. Please try again.")
+                elif use_own_7zr in ('no', 'n'):
+                    print("Proceeding with download.")
+                    break
+                else:
+                    print("Please answer 'yes' or 'no'.")
+
         try:
             self.downloader.download_file(self.config.SEVEN_ZIP_URL, str(seven_zip_path))
             return str(seven_zip_path)
         except requests.exceptions.RequestException as e:
-            print(f"Failed to download 7zr.exe: {e}")
+            print(f"\n❌ Error downloading 7zr.exe: {e}")
+            print("Please check your internet connection or try providing your own 7zr.exe.")
             return None
 
-    def setup_ffmpeg(self, seven_zip_exec: str) -> Optional[Path]:
+    def setup_ffmpeg(self, seven_zip_exec: str, force_download: bool = False) -> Optional[Path]:
         """Set up FFmpeg either from user input or download."""
-        use_own_ffmpeg = input("Do you already have FFmpeg? (yes/no): ").strip().lower()
-        if use_own_ffmpeg == 'yes':
-            use_system_ffmpeg = input("Do you want to use the system default FFmpeg? (yes/no): ").strip().lower()
-            if use_system_ffmpeg == 'yes':
-                return None
-            ffmpeg_path = input("Please enter the path to your FFmpeg bin folder: ").strip()
-            if os.path.isdir(ffmpeg_path):
-                return self.find_ffmpeg_bin_path(Path(ffmpeg_path))
-            print("The specified FFmpeg folder does not exist.")
-            return None
-        if not self.config.FFMPEG_ROOT_PATH.is_dir():
+        while True:
+            use_own_ffmpeg = input("Do you already have FFmpeg installed and in your PATH? (yes/no): ").strip().lower()
+            if use_own_ffmpeg in ('yes', 'y'):
+                print("Assuming FFmpeg is available in your PATH.")
+                return None # Indicate using system FFmpeg
+            elif use_own_ffmpeg in ('no', 'n'):
+                break
+            else:
+                print("Please answer 'yes' or 'no'.")
+
+        while True:
+            provide_path = input("Do you want to provide the path to your FFmpeg bin folder? (yes/no): ").strip().lower()
+            if provide_path in ('yes', 'y'):
+                ffmpeg_path = input("Please enter the full path to your FFmpeg bin folder: ").strip()
+                if os.path.isdir(ffmpeg_path):
+                    ffmpeg_bin_path = self.find_ffmpeg_bin_path(Path(ffmpeg_path))
+                    if ffmpeg_bin_path:
+                        print(f"Using provided FFmpeg bin folder at {ffmpeg_bin_path}.")
+                        return ffmpeg_bin_path
+                    else:
+                        print("Could not find ffmpeg.exe in the specified folder. Please check the path and try again.")
+                else:
+                    print("The specified FFmpeg folder does not exist. Please try again.")
+            elif provide_path in ('no', 'n'):
+                print("Proceeding with download.")
+                break
+            else:
+                print("Please answer 'yes' or 'no'.")
+
+        # Only download/extract if force_download is True or the folder doesn't exist
+        if force_download or not self.config.FFMPEG_ROOT_PATH.is_dir():
             try:
                 self.config.ASSETS_PATH.mkdir(exist_ok=True)
-                
-                # Check if archive exists and ask user
+
+                # Check if archive exists and ask user (only if not forcing download)
                 ffmpeg_archive_path = Path(self.config.FFMPEG_ARCHIVE)
-                if ffmpeg_archive_path.exists():
+                if not force_download and ffmpeg_archive_path.exists():
                     while True:
-                        reuse = input(f"Found existing FFmpeg archive. Use it or download fresh? (use/download): ").strip().lower()
+                        reuse = input(f"Found existing FFmpeg archive at {self.config.FFMPEG_ARCHIVE}. Use it or download fresh? (use/download): ").strip().lower()
                         if reuse in ("use", "u"):
                             print(f"Using existing FFmpeg archive: {self.config.FFMPEG_ARCHIVE}")
                             break
                         elif reuse in ("download", "d"):
                             print("Downloading fresh FFmpeg archive...")
-                            ffmpeg_archive_path.unlink()  # Remove old archive first
+                            try:
+                                ffmpeg_archive_path.unlink()  # Remove old archive first
+                            except OSError as e:
+                                print(f"Warning: Could not remove existing FFmpeg archive: {e}")
                             self.downloader.download_file(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE)
                             break
                         else:
                             print("Please answer 'use' or 'download'.")
                 else:
                     self.downloader.download_file(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE)
-                
+
                 temp_extract_path = self.config.ASSETS_PATH / "_temp_ffmpeg"
                 temp_extract_path.mkdir(exist_ok=True)
-                self.downloader.extract_7z(self.config.FFMPEG_ARCHIVE, str(temp_extract_path), seven_zip_exec)
-                
+                # Use capture_output=True for better error reporting
+                subprocess.run([seven_zip_exec, 'x', self.config.FFMPEG_ARCHIVE, f'-o{temp_extract_path}'], check=True, capture_output=True)
+                print(f"{Path(self.config.FFMPEG_ARCHIVE).name} extracted successfully.")
+
                 extracted_folders = [d for d in temp_extract_path.iterdir() if d.is_dir()]
                 if not extracted_folders:
                     raise FileNotFoundError("Could not find the main folder inside the FFmpeg archive.")
-                
-                extracted_folders[0].rename(self.config.FFMPEG_ROOT_PATH)
-                
-                import shutil
-                shutil.rmtree(temp_extract_path)
-                # Keep the archive for reuse: os.remove(self.config.FFMPEG_ARCHIVE)
-                
+
+                # Find the actual ffmpeg folder inside the extracted content
+                ffmpeg_extracted_path = None
+                for item in temp_extract_path.iterdir():
+                    if item.is_dir() and "ffmpeg" in item.name.lower():
+                        ffmpeg_extracted_path = item
+                        break
+
+                if not ffmpeg_extracted_path:
+                     raise FileNotFoundError("Could not find the FFmpeg folder inside the extracted archive.")
+
+                ffmpeg_extracted_path.rename(self.config.FFMPEG_ROOT_PATH)
+
+                try:
+                    shutil.rmtree(temp_extract_path)
+                except OSError as e:
+                    print(f"Warning: Could not remove temporary extraction folder: {e}")
+
                 return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
-            except (requests.exceptions.RequestException, subprocess.CalledProcessError, FileNotFoundError) as e:
-                print(f"Failed to set up FFmpeg: {e}")
+            except (requests.exceptions.RequestException, FileNotFoundError) as e:
+                print(f"\n❌ Error setting up FFmpeg: {e}")
+                print("Please check your internet connection or try providing your own FFmpeg.")
+                return None
+            except subprocess.CalledProcessError as e:
+                print(f"\n❌ Error extracting FFmpeg archive: {e}")
+                print(f"Command: {' '.join(e.cmd)}")
+                print(f"Return Code: {e.returncode}")
+                if e.stdout:
+                    print(f"Stdout:\n{e.stdout.decode()}")
+                if e.stderr:
+                    print(f"Stderr:\n{e.stderr.decode()}")
+                print("Please check the error messages and try again.")
+                return None
+            except Exception as e:
+                print(f"\n❌ An unexpected error occurred during FFmpeg setup: {e}")
                 return None
         else:
-            print("FFmpeg folder already exists, skipping download.")
+            print("FFmpeg folder already exists, skipping download and extraction.")
             return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
 
-    def setup_ytdlp(self) -> Optional[Path]:
+    def setup_ytdlp(self, force_download: bool = False) -> Optional[Path]:
         """Set up yt-dlp either from user input or download."""
-        use_own_ytdlp = input("Do you already have yt-dlp? (yes/no): ").strip().lower()
-        if use_own_ytdlp == 'yes':
-            use_system_ytdlp = input("Do you want to use the system default yt-dlp? (yes/no): ").strip().lower()
-            if use_system_ytdlp == 'yes':
-                return None
-            ytdlp_path = input("Please enter the path to your yt-dlp folder: ").strip()
-            if os.path.isdir(ytdlp_path):
-                return Path(ytdlp_path)
-            print("The specified yt-dlp folder does not exist.")
-            return None
-        if not self.config.YTDLP_PATH.is_dir():
+        while True:
+            use_own_ytdlp = input("Do you already have yt-dlp installed and in your PATH? (yes/no): ").strip().lower()
+            if use_own_ytdlp in ('yes', 'y'):
+                print("Assuming yt-dlp is available in your PATH.")
+                return None # Indicate using system yt-dlp
+            elif use_own_ytdlp in ('no', 'n'):
+                break
+            else:
+                print("Please answer 'yes' or 'no'.")
+
+        while True:
+            provide_path = input("Do you want to provide the path to your yt-dlp folder? (yes/no): ").strip().lower()
+            if provide_path in ('yes', 'y'):
+                ytdlp_path = input("Please enter the full path to your yt-dlp folder: ").strip()
+                if os.path.isdir(ytdlp_path):
+                    ytdlp_exe = Path(ytdlp_path) / 'yt-dlp.exe'
+                    if ytdlp_exe.exists():
+                        print(f"Using provided yt-dlp folder at {ytdlp_path}.")
+                        return Path(ytdlp_path)
+                    else:
+                        print("Could not find yt-dlp.exe in the specified folder. Please check the path and try again.")
+                else:
+                    print("The specified yt-dlp folder does not exist. Please try again.")
+            elif provide_path in ('no', 'n'):
+                print("Proceeding with download.")
+                break
+            else:
+                print("Please answer 'yes' or 'no'.")
+
+        # Only download/extract if force_download is True or the folder doesn't exist
+        if force_download or not self.config.YTDLP_PATH.is_dir():
             try:
                 self.config.ASSETS_PATH.mkdir(exist_ok=True)
-                
-                # Check if archive exists and ask user
+
+                # Check if archive exists and ask user (only if not forcing download)
                 ytdlp_archive_path = Path(self.config.YTDLP_ARCHIVE)
-                if ytdlp_archive_path.exists():
+                if not force_download and ytdlp_archive_path.exists():
                     while True:
-                        reuse = input(f"Found existing yt-dlp archive. Use it or download fresh? (use/download): ").strip().lower()
+                        reuse = input(f"Found existing yt-dlp archive at {self.config.YTDLP_ARCHIVE}. Use it or download fresh? (use/download): ").strip().lower()
                         if reuse in ("use", "u"):
                             print(f"Using existing yt-dlp archive: {self.config.YTDLP_ARCHIVE}")
                             break
                         elif reuse in ("download", "d"):
                             print("Downloading fresh yt-dlp archive...")
-                            ytdlp_archive_path.unlink()  # Remove old archive first
+                            try:
+                                ytdlp_archive_path.unlink()  # Remove old archive first
+                            except OSError as e:
+                                print(f"Warning: Could not remove existing yt-dlp archive: {e}")
                             self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
                             break
                         else:
                             print("Please answer 'use' or 'download'.")
                 else:
                     self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
-                
+
                 self.config.YTDLP_PATH.mkdir(exist_ok=True)
                 self.downloader.extract_zip(self.config.YTDLP_ARCHIVE, str(self.config.YTDLP_PATH))
                 # Keep the archive for reuse: os.remove(self.config.YTDLP_ARCHIVE)
@@ -251,10 +344,21 @@ class EnvironmentSetup:
                         if update_choice in ("yes", "y"):
                             print("Updating yt-dlp to the latest version...")
                             try:
+                                # Use capture_output=True for better error reporting
                                 subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
                                 print("yt-dlp updated to the latest version.")
+                            except subprocess.CalledProcessError as e:
+                                print(f"\n❌ Warning: Failed to auto-update yt-dlp: {e}")
+                                print(f"Command: {' '.join(e.cmd)}")
+                                print(f"Return Code: {e.returncode}")
+                                if e.stdout:
+                                    print(f"Stdout:\n{e.stdout.decode()}")
+                                if e.stderr:
+                                    print(f"Stderr:\n{e.stderr.decode()}")
+                            except FileNotFoundError as e:
+                                print(f"\n❌ Warning: Could not find yt-dlp executable to update: {e}")
                             except Exception as e:
-                                print(f"Warning: Failed to auto-update yt-dlp: {e}")
+                                print(f"\n❌ An unexpected error occurred during yt-dlp update: {e}")
                             break
                         elif update_choice in ("no", "n"):
                             print("Skipping yt-dlp update check.")
@@ -263,7 +367,11 @@ class EnvironmentSetup:
                             print("Please answer 'yes' or 'no'.")
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
-                print(f"Failed to set up yt-dlp: {e}")
+                print(f"\n❌ Error setting up yt-dlp: {e}")
+                print("Please check your internet connection or try providing your own yt-dlp.")
+                return None
+            except Exception as e:
+                print(f"\n❌ An unexpected error occurred during yt-dlp setup: {e}")
                 return None
         else:
             print("yt-dlp folder already exists, skipping download.")
@@ -315,11 +423,17 @@ class EnvironmentSetup:
     def install_miniconda(self, installer_path: str) -> bool:
         """Install miniconda using the downloaded installer."""
         miniconda_install_path = str(self.config.MINICONDA_PATH)
-        
+
         print("Installing miniconda for Windows...")
         print(f"Installation path: {miniconda_install_path}")
         # Ensure parent directories exist
-        Path(miniconda_install_path).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            Path(miniconda_install_path).parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(f"\n❌ Error creating parent directory for Miniconda installation: {e}")
+            print(f"Please ensure you have write permissions to {Path(miniconda_install_path).parent}.")
+            return False
+
         command = [
             installer_path,
             '/InstallationType=JustMe',
@@ -329,22 +443,33 @@ class EnvironmentSetup:
             f'/D={miniconda_install_path}'
         ]
         try:
-            subprocess.run(command, check=True, capture_output=True, text=True)
+            # Capture stdout and stderr for better error reporting
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+            print("Miniconda installation completed.")
+            if Path(miniconda_install_path).exists():
+                print(f"✅ Miniconda successfully installed to: {Path(miniconda_install_path).resolve()}")
+                return True
+            else:
+                print(f"❌ ERROR: Miniconda installation directory not found at: {Path(miniconda_install_path).resolve()}")
+                print("Please check the installer output for details.")
+                return False
+        except FileNotFoundError:
+             print(f"\n❌ Error: Miniconda installer not found at {installer_path}.")
+             print("Please ensure the installer file exists.")
+             return False
         except subprocess.CalledProcessError as e:
-            print(f"❌ Error installing miniconda. Exit code: {e.returncode}")
-            if e.stdout: print(f"Installer stdout:\n{e.stdout}")
-            if e.stderr: print(f"Installer stderr:\n{e.stderr}")
+            print(f"\n❌ Error installing miniconda. Exit code: {e.returncode}")
+            print(f"Command: {' '.join(e.cmd)}")
+            if e.stdout:
+                print(f"Installer stdout:\n{e.stdout}")
+            if e.stderr:
+                print(f"Installer stderr:\n{e.stderr}")
             print("\n💡 Suggestions:")
             print("   1. Check for leftover Miniconda/Anaconda installations or registry keys.")
             print(f"   2. Make sure you have write permissions to {Path(miniconda_install_path).parent}.")
             return False
-
-        print("Miniconda installation completed.")
-        if Path(miniconda_install_path).exists():
-            print(f"✅ Miniconda successfully installed to: {Path(miniconda_install_path).resolve()}")
-            return True
-        else:
-            print(f"❌ ERROR: Miniconda installation directory not found at: {Path(miniconda_install_path).resolve()}")
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred during Miniconda installation: {e}")
             return False
 
     def _get_conda_exe(self) -> Optional[str]:
@@ -363,21 +488,41 @@ class EnvironmentSetup:
     def create_data_whisper_env(self) -> bool:
         """Create the data_whisper environment using miniconda (in the default envs folder)."""
         conda_exe = self._get_conda_exe()
-        if not conda_exe: return False
+        if not conda_exe:
+            print("❌ Error: conda executable not found. Cannot create environment.")
+            return False
         try:
             print("Creating data_whisper environment with Python 3.12...")
-            subprocess.run([conda_exe, 'create', '-n', 'data_whisper', 'python=3.12', '-y'], check=True, text=True)
+            # Capture stdout and stderr for better error reporting
+            result = subprocess.run([conda_exe, 'create', '-n', 'data_whisper', 'python=3.12', '-y'], check=True, capture_output=True, text=True)
             print("data_whisper environment created successfully.")
             return True
+        except FileNotFoundError:
+            print(f"\n❌ Error: conda executable not found at {conda_exe}.")
+            print("Please ensure Miniconda is installed correctly and the path is accessible.")
+            return False
         except subprocess.CalledProcessError as e:
-            print(f"Error creating environment: {e}")
+            print(f"\n❌ Error creating data_whisper environment. Exit code: {e.returncode}")
+            print(f"Command: {' '.join(e.cmd)}")
+            if e.stdout:
+                print(f"Stdout:\n{e.stdout}")
+            if e.stderr:
+                print(f"Stderr:\n{e.stderr}")
+            print("\n💡 Suggestions:")
+            print("   1. Check if an environment with the same name already exists.")
+            print("   2. Check your internet connection.")
+            return False
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred during environment creation: {e}")
             return False
 
     def install_demucs_in_env(self) -> bool:
         """Install demucs package in the data_whisper environment with appropriate PyTorch version."""
         conda_exe = self._get_conda_exe()
-        if not conda_exe: return False
-        
+        if not conda_exe:
+            print("❌ Error: conda executable not found. Cannot install packages.")
+            return False
+
         # Ask user about their preferred device for Synthalingua processing
         print("\nSynthalingua supports both CPU and GPU (CUDA) processing.")
         print("This affects both transcription and vocal isolation (demucs) performance.")
@@ -389,59 +534,67 @@ class EnvironmentSetup:
                 break
             elif device_choice in ("cpu"):
                 use_cuda = False
-                print("CPU selected - This will install CPU-only PyTorch (slower but more compatible).")
+                print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                 break
             else:
                 print("Please answer 'cpu' or 'cuda'.")
-        
+
         try:
             if use_cuda:
                 print("Installing CUDA-enabled PyTorch in data_whisper environment...")
                 print("This may take several minutes depending on your internet connection...")
                 print("You should see pip download progress below:")
                 sys.stdout.flush()
-                result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128'], text=True)
-                if result.returncode != 0:
-                    print(f"Error installing CUDA PyTorch. Exit code: {result.returncode}")
-                    return False
+                # Capture stdout and stderr for better error reporting
+                result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128'], check=True, capture_output=True, text=True)
                 print("CUDA PyTorch installation completed successfully.")
             else:
                 print("Installing CPU-only PyTorch in data_whisper environment...")
                 print("This may take several minutes depending on your internet connection...")
                 print("You should see pip download progress below:")
                 sys.stdout.flush()
-                result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'torch', 'torchaudio'], text=True)
-                if result.returncode != 0:
-                    print(f"Error installing CPU PyTorch. Exit code: {result.returncode}")
-                    return False
+                # Capture stdout and stderr for better error reporting
+                result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'torch', 'torchaudio'], check=True, capture_output=True, text=True)
                 print("CPU PyTorch installation completed successfully.")
-            
+
             print("Installing demucs and diffq in data_whisper environment...")
             sys.stdout.flush()
-            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs', 'diffq', 'Cython'], text=True)
-            if result.returncode != 0:
-                print(f"Error installing demucs and diffq. Exit code: {result.returncode}")
-                return False
-            
+            # Capture stdout and stderr for better error reporting
+            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', '-U', 'demucs', 'diffq', 'Cython'], check=True, capture_output=True, text=True)
+            print("Demucs and diffq installation completed successfully.")
+
             print("Installing additional audio backend support for demucs...")
             sys.stdout.flush()
             # Install conda audio packages first for better compatibility
-            result = subprocess.run([conda_exe, 'install', '-n', 'data_whisper', '-c', 'conda-forge', 'libsndfile', 'ffmpeg', '-y'], text=True)
+            # Capture stdout and stderr for better error reporting
+            result = subprocess.run([conda_exe, 'install', '-n', 'data_whisper', '-c', 'conda-forge', 'libsndfile', 'ffmpeg', '-y'], capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"Warning: Could not install conda audio packages. Exit code: {result.returncode}")
-            
+                print(f"\n⚠️  Warning: Could not install conda audio packages. Exit code: {result.returncode}")
+                print(f"Command: {' '.join(result.args)}")
+                if result.stdout:
+                    print(f"Stdout:\n{result.stdout}")
+                if result.stderr:
+                    print(f"Stderr:\n{result.stderr}")
+            else:
+                 print("Conda audio packages installed successfully.")
+
             # Install pip audio packages
-            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'soundfile', 'librosa'], text=True)
+            # Capture stdout and stderr for better error reporting
+            result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'soundfile', 'librosa'], capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"Warning: Could not install additional audio backends. Exit code: {result.returncode}")
+                print(f"\n⚠️  Warning: Could not install additional audio backends. Exit code: {result.returncode}")
+                print(f"Command: {' '.join(result.args)}")
+                if result.stdout:
+                    print(f"Stdout:\n{result.stdout}")
+                if result.stderr:
+                    print(f"Stderr:\n{result.stderr}")
                 print("Demucs may have audio backend issues.")
             else:
                 print("Additional audio backend support installed successfully.")
-            
-            print("Demucs installation completed successfully.")
-            
+
             if use_cuda:
                 print("Verifying CUDA availability...")
+                # Capture stdout and stderr for better error reporting
                 result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'python', '-c', 'import torch; print(f"CUDA available: {torch.cuda.is_available()}")'], check=True, capture_output=True, text=True)
                 print(result.stdout.strip())
                 if "CUDA available: False" in result.stdout:
@@ -454,10 +607,23 @@ class EnvironmentSetup:
             else:
                 print("ℹ️  PyTorch configured for CPU processing.")
                 print("   Use --device cpu when running Synthalingua (default behavior).")
-            
+
             return True
+        except FileNotFoundError:
+            print(f"\n❌ Error: conda executable not found at {conda_exe}. Cannot install packages.")
+            print("Please ensure Miniconda is installed correctly and the path is accessible.")
+            return False
         except subprocess.CalledProcessError as e:
-            print(f"Error installing packages: {e}")
+            print(f"\n❌ Error installing packages in data_whisper environment. Exit code: {e.returncode}")
+            print(f"Command: {' '.join(e.cmd)}")
+            if e.stdout:
+                print(f"Stdout:\n{e.stdout}")
+            if e.stderr:
+                print(f"Stderr:\n{e.stderr}")
+            print("Please check the error messages and your internet connection.")
+            return False
+        except Exception as e:
+            print(f"\n❌ An unexpected error occurred during package installation: {e}")
             return False
 
     def setup_vocal_isolation(self) -> None:
@@ -593,7 +759,7 @@ class EnvironmentSetup:
             file.write(config_content)
         print(f"\n{self.config.CONFIG_FILE} created with path settings and conda activation.")
 
-    def run(self, using_vocal_isolation: bool = False) -> None:
+    def run(self, using_vocal_isolation: bool = False, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False) -> None:
         """Run the environment setup process."""
         print("This script will download the following tools to 'downloaded_assets/' folder:")
         print("1. FFmpeg, 2. yt-dlp, 3. 7zr")
@@ -606,18 +772,18 @@ class EnvironmentSetup:
             print("Failed to set up 7zr.exe. Exiting...")
             return
 
-        ffmpeg_path = self.setup_ffmpeg(seven_zip_exec)
-        ytdlp_path = self.setup_ytdlp()
-        
+        ffmpeg_path = self.setup_ffmpeg(seven_zip_exec, force_download=force_ffmpeg_download)
+        ytdlp_path = self.setup_ytdlp(force_download=force_ytdlp_download)
+
         if using_vocal_isolation:
             self.setup_vocal_isolation()
-        
+
         self.create_config_file(ffmpeg_path, ytdlp_path)
 
 
 def main() -> None:
     """Main entry point of the script."""
-    print(f"Version {VERSION_NUMBER}")
+    print(f"Synthalingua Environment Setup Version {VERSION_NUMBER}")
     parser = argparse.ArgumentParser(description="Synthalingua Environment Setup")
     parser.add_argument('--reinstall', action='store_true', help='Wipe all tool folders/files and redownload fresh')
     parser.add_argument('--using_vocal_isolation', action='store_true', help='Install miniconda environment with demucs for vocal isolation features')
@@ -626,10 +792,10 @@ def main() -> None:
     # Check if this is a fresh install (no config file exists)
     config_exists = os.path.exists("ffmpeg_path.bat")
     is_fresh_install = not config_exists
-    
+
     # If fresh install and no arguments provided, enable vocal isolation by default
     if is_fresh_install and not args.reinstall and not args.using_vocal_isolation:
-        print("🆕 Fresh installation detected!")
+        print("\n🆕 Fresh installation detected!")
         print("For the best experience, we recommend setting up vocal isolation features.")
         while True:
             setup_vocal = input("Would you like to set up vocal isolation (demucs) along with the basic tools? (yes/no): ").strip().lower()
@@ -647,137 +813,131 @@ def main() -> None:
 
     # Early exit if config already exists and no reinstall or extra setup requested
     if config_exists and not args.reinstall and not args.using_vocal_isolation:
-        print("Config file already exists. Use --reinstall to set up again, or --using_vocal_isolation to add vocal isolation.")
+        print("\nConfig file already exists. Use --reinstall to set up again, or --using_vocal_isolation to add vocal isolation.")
         return
 
-    # Prompt for Miniconda path ONCE
-    default_path = 'C:\\bin\\Synthalingua\\miniconda'
-    miniconda_path: Path
-    print(f"Miniconda will be installed to: {default_path}")
-    while True:
-        agree = input("Do you agree to install Miniconda to this path? If not choose no and pick a new spot (yes/no): ").strip().lower()
-        if agree in ('yes', 'y'):
-            miniconda_path = Path(default_path)
-            break
-        elif agree in ('no', 'n'):
-            print("\n⚠️  It is strongly recommended to use the default installation path for Miniconda.")
-            print("   Changing the location is not recommended unless absolutely necessary.")
-            print("   If you must choose a custom location, make sure the path contains NO SPACES.")
-            print("   Paths with spaces can cause installation and runtime errors with Miniconda and other tools.")
-            print("   📁 Note: A 'miniconda' folder will be created inside your chosen directory.")
-            while True:
-                custom_path = input("Please enter a custom base directory for Miniconda installation (NO SPACES): ").strip()
-                if ' ' in custom_path:
-                    print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
-                    continue
-                if not custom_path:
-                    print("Path cannot be empty. Please try again.")
-                    continue
-                # Always append 'miniconda' to the user's chosen directory
-                miniconda_path = Path(custom_path) / 'miniconda'
-                print(f"📁 Miniconda will be installed to: {miniconda_path}")
+    # Prompt for Miniconda path ONCE if vocal isolation is requested
+    miniconda_path: Optional[Path] = None
+    if args.using_vocal_isolation:
+        default_path = 'C:\\bin\\Synthalingua\\miniconda'
+        print(f"\nMiniconda is required for vocal isolation.")
+        print(f"The recommended installation path is: {default_path}")
+        while True:
+            agree = input("Do you agree to install Miniconda to this path? (yes/no): ").strip().lower()
+            if agree in ('yes', 'y'):
+                miniconda_path = Path(default_path)
                 break
-            break
-        else:
-            print("Please answer 'yes', 'no', 'y', or 'n'.")
+            elif agree in ('no', 'n'):
+                print("\n⚠️  It is strongly recommended to use the default installation path for Miniconda.")
+                print("   Changing the location is not recommended unless absolutely necessary.")
+                print("   If you must choose a custom location, make sure the path contains NO SPACES.")
+                print("   Paths with spaces can cause installation and runtime errors with Miniconda and other tools.")
+                print("   📁 Note: A 'miniconda' folder will be created inside your chosen directory.")
+                while True:
+                    custom_path = input("Please enter a custom base directory for Miniconda installation (NO SPACES): ").strip()
+                    if ' ' in custom_path:
+                        print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
+                        continue
+                    if not custom_path:
+                        print("Path cannot be empty. Please try again.")
+                        continue
+                    # Always append 'miniconda' to the user's chosen directory
+                    miniconda_path = Path(custom_path) / 'miniconda'
+                    print(f"📁 Miniconda will be installed to: {miniconda_path}")
+                    break
+                break
+            else:
+                print("Please answer 'yes' or 'no'.")
 
-    # Individual asset reuse logic
-    assets_to_check = []
-    cfg = Config(miniconda_path)
-    # FFmpeg
-    if cfg.FFMPEG_ROOT_PATH.exists():
-        assets_to_check.append(('FFmpeg', cfg.FFMPEG_ROOT_PATH))
-    # FFmpeg archive
-    ffmpeg_archive_path = Path(cfg.FFMPEG_ARCHIVE)
-    if ffmpeg_archive_path.exists():
-        assets_to_check.append(('FFmpeg archive', ffmpeg_archive_path))
-    # yt-dlp
-    if cfg.YTDLP_PATH.exists():
-        assets_to_check.append(('yt-dlp', cfg.YTDLP_PATH))
-    # yt-dlp archive
-    ytdlp_archive_path = Path(cfg.YTDLP_ARCHIVE)
-    if ytdlp_archive_path.exists():
-        assets_to_check.append(('yt-dlp archive', ytdlp_archive_path))
-    # 7zr.exe
-    seven_zip_path = cfg.ASSETS_PATH / '7zr.exe'
-    if seven_zip_path.exists():
-        assets_to_check.append(('7zr.exe', seven_zip_path))
-    # Miniconda installer
-    miniconda_installer_path = cfg.ASSETS_PATH / 'miniconda_installer.exe'
-    if miniconda_installer_path.exists():
-        assets_to_check.append(('Miniconda installer', miniconda_installer_path))
+    # Determine config path based on whether miniconda path was set
+    cfg = Config(miniconda_path if miniconda_path else Path.cwd() / 'miniconda_placeholder')
+
+    assets_to_check = [
+        ('FFmpeg folder', cfg.FFMPEG_ROOT_PATH),
+        ('FFmpeg archive', Path(cfg.FFMPEG_ARCHIVE)),
+        ('yt-dlp folder', cfg.YTDLP_PATH),
+        ('yt-dlp archive', Path(cfg.YTDLP_ARCHIVE)),
+        ('7zr.exe', cfg.ASSETS_PATH / '7zr.exe'),
+        ('Miniconda installer', cfg.ASSETS_PATH / 'miniconda_installer.exe'),
+    ]
 
     assets_to_remove = []
-    if not args.reinstall:
+    if args.reinstall:
+        print("\n--reinstall specified: Removing all tool folders/files for a fresh setup...")
+        # Add all existing assets to the removal list if --reinstall is used
         for name, path in assets_to_check:
-            while True:
-                reuse = input(f"Detected existing {name} at {path}. Reuse this asset? (yes/no): ").strip().lower()
-                if reuse in ("yes", "y"):
-                    break
-                elif reuse in ("no", "n"):
-                    assets_to_remove.append(path)
-                    break
-                else:
-                    print("Please answer 'yes', 'no', 'y', or 'n'.")
-
-    if args.reinstall or assets_to_remove:
-        print("--reinstall specified or selected assets for removal: Removing tool folders/files for a fresh setup...")
-        import shutil
-        folders_to_remove = []
-        files_to_remove = []
-        # Remove folders for FFmpeg and yt-dlp if selected
-        if args.reinstall or (cfg.FFMPEG_ROOT_PATH in assets_to_remove):
-            folders_to_remove.append(cfg.FFMPEG_ROOT_PATH)
-        if args.reinstall or (cfg.YTDLP_PATH in assets_to_remove):
-            folders_to_remove.append(cfg.YTDLP_PATH)
-        # Miniconda: prompt before removing, even with --reinstall
-        minconda_should_remove = False
-        if args.using_vocal_isolation and (args.reinstall or (cfg.MINICONDA_PATH in assets_to_remove)):
-            if cfg.MINICONDA_PATH.exists():
-                print(f"Miniconda is already installed at {cfg.MINICONDA_PATH}.")
+            if path.exists():
+                assets_to_remove.append(path)
+        # Also add the miniconda installation path if vocal isolation is requested and it exists
+        if args.using_vocal_isolation and miniconda_path and miniconda_path.exists():
+             assets_to_remove.append(miniconda_path)
+    else:
+        print("\nChecking for existing assets...")
+        for name, path in assets_to_check:
+            if path.exists():
                 while True:
-                    wipe_choice = input(f"Do you want to (w)ipe and reinstall Miniconda, or (k)eep and reuse it? (wipe/keep): ").strip().lower()
-                    if wipe_choice in ("wipe", "w"):
-                        minconda_should_remove = True
-                        print("Vocal isolation flag detected - will reinstall miniconda environment.")
+                    reuse = input(f"Detected existing {name} at {path}. Reuse this asset? (yes/no): ").strip().lower()
+                    if reuse in ("yes", "y"):
                         break
-                    elif wipe_choice in ("keep", "k"):
-                        print("Keeping existing Miniconda installation. Will reuse and update environments as needed.")
-                        minconda_should_remove = False
+                    elif reuse in ("no", "n"):
+                        assets_to_remove.append(path)
                         break
                     else:
-                        print("Please answer 'wipe' or 'keep'.")
-            else:
-                minconda_should_remove = False
-        # Only add Miniconda to folders_to_remove if user confirmed wipe
-        if minconda_should_remove:
-            folders_to_remove.append(cfg.MINICONDA_PATH)
-        # Remove files for 7zr.exe and ffmpeg_path.bat if selected
-        if args.reinstall or (seven_zip_path in assets_to_remove):
-            files_to_remove.append(seven_zip_path)
-        files_to_remove.append(Path.cwd() / 'ffmpeg_path.bat')
-        # Remove archives if selected
-        ffmpeg_archive_path = Path(cfg.FFMPEG_ARCHIVE)
-        if ffmpeg_archive_path in assets_to_remove:
-            files_to_remove.append(ffmpeg_archive_path)
-        ytdlp_archive_path = Path(cfg.YTDLP_ARCHIVE)
-        if ytdlp_archive_path in assets_to_remove:
-            files_to_remove.append(ytdlp_archive_path)
-        # Remove Miniconda installer ONLY if user said no to reuse
-        if (miniconda_installer_path in assets_to_remove):
-            files_to_remove.append(miniconda_installer_path)
-        for path in folders_to_remove:
-            if path.exists() and path.is_dir():
-                print(f"Removing folder: {path}")
-                shutil.rmtree(path, ignore_errors=True)
-        for path in files_to_remove:
-            if path.exists():
-                try: path.unlink()
-                except Exception as e: print(f"Warning: Could not remove {path}: {e}")
-        print("Selected tool folders/files have been removed for a fresh setup. Installers in downloaded_assets/ are preserved unless you chose not to reuse them.")
+                        print("Please answer 'yes', 'no', 'y', or 'n'.")
+        # Special handling for Miniconda installation directory reuse
+        if args.using_vocal_isolation and miniconda_path and miniconda_path.exists():
+             while True:
+                wipe_choice = input(f"Miniconda is already installed at {miniconda_path}. Do you want to (w)ipe and reinstall, or (k)eep and reuse it? (wipe/keep): ").strip().lower()
+                if wipe_choice in ("wipe", "w"):
+                    assets_to_remove.append(miniconda_path)
+                    print("Vocal isolation flag detected - will reinstall miniconda environment.")
+                    break
+                elif wipe_choice in ("keep", "k"):
+                    print("Keeping existing Miniconda installation. Will reuse and update environments as needed.")
+                    break
+                else:
+                    print("Please answer 'wipe' or 'keep'.")
 
-    setup = EnvironmentSetup(miniconda_path)
-    setup.run(using_vocal_isolation=args.using_vocal_isolation)
+    if assets_to_remove:
+        print("\nRemoving selected tool folders/files...")
+        import shutil
+        for path in assets_to_remove:
+            if path.exists():
+                if path.is_dir():
+                    print(f"Attempting to remove folder: {path}")
+                    try:
+                        shutil.rmtree(path)
+                        print(f"Successfully removed folder: {path}")
+                    except OSError as e:
+                        print(f"❌ Error removing folder {path}: {e}")
+                        print("Please ensure you have the necessary permissions to delete this folder.")
+                else:
+                    print(f"Attempting to remove file: {path}")
+                    try:
+                        path.unlink()
+                        print(f"Successfully removed file: {path}")
+                    except OSError as e:
+                        print(f"❌ Error removing file {path}: {e}")
+                        print("Please ensure you have the necessary permissions to delete this file.")
+        print("Finished attempting to remove selected tool folders/files.")
+
+    # Always include ffmpeg_path.bat for removal if it exists
+    config_file_path = Path.cwd() / 'ffmpeg_path.bat'
+    if config_file_path.exists():
+        print(f"Attempting to remove existing config file: {config_file_path}")
+        try:
+            config_file_path.unlink()
+            print(f"Successfully removed config file: {config_file_path}")
+        except OSError as e:
+            print(f"❌ Error removing config file {config_file_path}: {e}")
+            print("Please ensure you have the necessary permissions to delete this file.")
+
+    # Determine if FFmpeg and yt-dlp should be force downloaded
+    force_ffmpeg = cfg.FFMPEG_ROOT_PATH in assets_to_remove
+    force_ytdlp = cfg.YTDLP_PATH in assets_to_remove
+
+    setup = EnvironmentSetup(miniconda_path if miniconda_path else Path.cwd() / 'miniconda_placeholder') # Pass placeholder if no miniconda path selected
+    setup.run(using_vocal_isolation=args.using_vocal_isolation, force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp)
 
 if __name__ == "__main__":
     from multiprocessing import freeze_support
