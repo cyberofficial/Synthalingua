@@ -695,7 +695,13 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                                     print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
                                     ensemble_detected = True
                                 
-                                print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
+                                # Determine number of threads for Demucs message
+                                num_threads_for_message = getattr(args, 'demucs_jobs', 0)
+                                if num_threads_for_message == 0:
+                                    display_threads = 1
+                                else:
+                                    display_threads = num_threads_for_message
+                                print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
                                 
                                 # Read stderr for progress updates
                                 while True:
@@ -2476,7 +2482,13 @@ def process_single_file(
                     print(f"{Fore.CYAN}  📋 {selected_model} is a multi-model ensemble ({total_phases} internal models){Style.RESET_ALL}")
                     ensemble_detected = True
                 
-                print(f"{Fore.CYAN}🎵 Demucs processing:{Style.RESET_ALL}")
+                # Determine number of threads for Demucs message
+                num_threads_for_message = getattr(args, 'demucs_jobs', 0)
+                if num_threads_for_message == 0:
+                    display_threads = 1
+                else:
+                    display_threads = num_threads_for_message
+                print(f"{Fore.CYAN}🎵 Demucs processing using {display_threads} thread{'s' if display_threads != 1 else ''}:{Style.RESET_ALL}")
                 
                 # Read stderr for progress updates (Demucs shows progress on stderr)
                 while True:
