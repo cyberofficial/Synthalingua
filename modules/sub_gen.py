@@ -2929,9 +2929,6 @@ def process_single_file(
         logger.info("Subtitle file saved to: %s", output_path)
         print(f"{Fore.GREEN}✅ Subtitle generation complete!{Style.RESET_ALL}")
         print(f"{Fore.CYAN}📁 Subtitle file saved to: {output_path}{Style.RESET_ALL}")
-
-        # The old cleanup logic is no longer needed here.
-        # The TempFileManager's atexit hook will handle it.
         
         return result, output_name
 
