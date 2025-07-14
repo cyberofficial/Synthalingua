@@ -431,10 +431,18 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         total_speech_duration = sum(r['end'] - r['start'] for r in speech_regions)
         total_silence_duration = sum(r['end'] - r['start'] for r in silence_regions)
         
+        # Calculate speech groups for batch processing
+        speech_groups = group_speech_regions_by_silence(merged_regions)
+        total_groups_duration = sum(
+            sum(region['end'] - region['start'] for region in group) 
+            for group in speech_groups
+        )
+        
         # Calculate workload reduction
         workload_reduction = (total_silence_duration / audio_duration) * 100
         
         print(f"{Fore.GREEN}✓ Audio analysis complete:{Style.RESET_ALL}")
+        print(f"   • Speech Groups: {len(speech_groups)} ({total_groups_duration:.1f}s)")
         print(f"   • Speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
         print(f"   • Silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
         print(f"   • Processing efficiency: {100 * total_speech_duration / audio_duration:.1f}% of audio contains speech")
