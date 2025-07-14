@@ -59,7 +59,7 @@ _auto_proceed_detection = False
 # Global variable to track if user wants to skip Turbo model questions
 _skip_turbo_questions = False
 # Global variable to track intelligent mode (auto-testing higher models)
-_intelligent_mode = True
+_intelligent_mode = False
 # Global variables to persist custom silence detection settings in auto mode
 _last_silence_threshold = None
 _last_silence_duration = None
@@ -2891,6 +2891,21 @@ def process_single_file(
         logger.info("Subtitle file saved to: %s", output_path)
         print(f"{Fore.GREEN}✅ Subtitle generation complete!{Style.RESET_ALL}")
         print(f"{Fore.CYAN}📁 Subtitle file saved to: {output_path}{Style.RESET_ALL}")
+
+        # Clean the temp folder unless the "--keep_temp" flag is set
+        if not args.keep_temp:
+            # Current script directory\temp
+            # the current directory is modules/sub_gen.py, so we need to go up one level
+            temp_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'temp', 'audio')
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                logger.info("Temporary files cleaned up.")
+                print(f"{Fore.YELLOW}🗑️ Cleaning up the folder: {temp_dir}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}🗑️ Temporary files cleaned up.{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}🗑️ Cleaning up the folder: {temp_dir}{Style.RESET_ALL}")
+                logger.warning("Temporary directory does not exist, skipping cleanup.")
+                print(f"{Fore.YELLOW}⚠️ Temporary directory does not exist, skipping cleanup.{Style.RESET_ALL}")
         
         return result, output_name
 
