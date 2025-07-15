@@ -45,3 +45,5 @@ docs/
 *.xml
 /downloaded_assets
 /Synthalingua.wiki
+/downloads
+/miniconda
