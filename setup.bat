@@ -6,24 +6,24 @@ Title Realtime Whisper Translation App Setup
 
 if NOT exist transcribe_audio.py goto EoF_Error
 
-Echo Checking for Python 3.10.x
+Echo Checking for Python 3.12.x
 echo Running command: python -V
 python -V
 echo.
 
 rem Prompt user to verify the Python version
-set /p user_check="Does this show Python 3.10.x? (Y/N): "
+set /p user_check="Does this show Python 3.12.x? (Y/N): "
 if /i "%user_check%" neq "Y" (
-    echo It seems you do not have Python 3.10.x installed.
-    echo Please download and install Python 3.10.10 from the following link:
-    echo https://www.python.org/downloads/release/python-31010/
+    echo It seems you do not have Python 3.12.x installed.
+    echo Please download and install Python 3.12 from the following link:
+    echo https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe
     echo.
-    set /p filepath="If you have Python 3.10.x installed but not in PATH, enter the path to the file python.exe for 3.10.x (e.g., C:\path\to\python\python.exe): "
+    set /p filepath="If you have Python 3.12.x installed but not in PATH, enter the path to the file python.exe for 3.12.x (e.g., C:\path\to\python\python.exe): "
 
     echo Using this for python: !filepath!
     set "python=!filepath!"
 ) else (
-    rem Set default python if user confirms Python 3.10.x is installed
+    rem Set default python if user confirms Python 3.12.x is installed
     set "python=python"
 )
 
@@ -69,10 +69,31 @@ echo Installing requirements from 'requirements.txt'...
 pip install -r requirements.txt
 
 :cuda_patch
-echo Applying CUDA patch to install GPU versions of PyTorch packages...
-pip uninstall --yes torch torchvision torchaudio
+set /p has_cuda_gpu="Do you have an Nvidia GPU with CUDA cores? [Y/N]: "
+if /i "!has_cuda_gpu!"=="Y" (
+    set /p use_cuda="Do you want to use your Nvidia GPU for acceleration? [Y/N]: "
+    if /i "!use_cuda!"=="Y" (
+        echo Applying CUDA patch to install GPU versions of PyTorch packages...
+        pip uninstall --yes torch 
+        pip install torch --index-url https://download.pytorch.org/whl/cu128
+        echo CUDA patch applied for Nvidia GPU support.
+    ) else (
+        echo Skipping CUDA patch. Using default CPU versions of torch, torchvision, and torchaudio.
+    )
+) else (
+    echo Not using Nvidia GPU. Keeping default CPU versions of torch, torchvision, and torchaudio.
+)
 
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+rem === Ask about vocal isolation (demucs) ===
+set /p install_demucs="Do you plan to use the vocal isolation feature (requires demucs, ~1GB download)? [Y/N]: "
+if /i "!install_demucs!"=="Y" (
+    echo Installing demucs for vocal isolation support...
+    pip install demucs
+    if %errorlevel% neq 0 (
+        echo Failed to install demucs. Please install manually if needed.
+    )
+    echo Demucs installation complete.
+)
 
 echo Whisper translation environment setup completed!
 
@@ -83,7 +104,9 @@ echo Creating a shortcut batch file for the translation app...
     echo cls
     echo call "data_whisper\Scripts\activate.bat"
     echo call ffmpeg_path.bat
-    echo python "transcribe_audio.py" --ram 4gb --non_english --translate
+            echo rem Example: Generate English captions for a video file
+            echo python "transcribe_audio.py" --ram 3gb --makecaptions --file_input "C:\path\to\your\video.mp4" --file_output "C:\path\to\output\folder" --file_output_name "output_captions" --language Japanese --device cuda
+            echo rem Edit the above paths and options as needed
     echo pause
 ) > "livetranslation.bat"
 
@@ -91,8 +114,10 @@ echo Shortcut 'livetranslation.bat' created in the current directory.
 echo You can edit this file with notepad if necessary.
 pause
 
+:setup_env
 Echo Setting up Environment Stuff.
-!python! set_up_env.py
+call data_whisper\Scripts\activate.bat
+python set_up_env.py --reinstall
 
 exit /b
 

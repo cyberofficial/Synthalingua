@@ -5,9 +5,10 @@ livetranslation.bat
 temp
 desktop.ini
 models
-build.bat
 build
 dist
+server.pid
+wiki
 .vscode/settings.json
 last_saved_timestamp.txt
 last_checked_timestamp.txt
@@ -39,3 +40,10 @@ ffmpeg_path.bat
 yt-dlp_win
 models.bk/
 docs/
+/audiofile_tests
+/data_whisper-backup
+*.xml
+/downloaded_assets
+/Synthalingua.wiki
+/downloads
+/miniconda

@@ -55,6 +55,7 @@ pefile==2023.2.7
 pillow==10.2.0
 prettytable==3.10.0
 protobuf==5.29.3
+psutil==7.0.0
 PyAudio==0.2.14
 pycparser==2.21
 pycryptodomex==3.20.0
@@ -78,6 +79,7 @@ rich==13.7.1
 semantic-version==2.10.0
 setuptools-rust==1.9.0
 simple-websocket==1.1.0
+simpleaudio
 six==1.16.0
 sounddevice==0.4.7
 soundfile==0.12.1
@@ -101,4 +103,5 @@ Werkzeug==3.0.1
 whisper==1.1.10
 wrapt==1.17.2
 wsproto==1.2.0
-yt-dlp==2024.3.10
+yt-dlp
+librosa=
