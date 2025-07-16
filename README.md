@@ -1,5 +1,6 @@
 # Synthalingua
-> **Note:** The Synthalingua Wrapper code has been moved to aBy using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
+> **Note:** The Synthalingua Wrapper code has been moved to a new repo here: https://github.com/cyberofficial/Synthalingua_Wrapper
+> By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
 
 - **Real-time translation & transcription** (stream, mic, file)
 - **Multilingual**: Translate between dozens of languages
