@@ -6,6 +6,8 @@ call data_whisper\Scripts\activate.bat
 :: python -m nuitka --enable-plugin=torch --follow-imports --windows-console-mode=force --include-package-data=whisper --include-data-dir=./html_data=html_data --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" transcribe_audio.py
 ::pyinstaller transcribe_audio.spec
 
+Echo Building Set Up Environment
+
 pyinstaller set_up_env.py --onefile ^
     --distpath dist\exes ^
     --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
@@ -21,6 +23,8 @@ pyinstaller set_up_env.py --onefile ^
     --hidden-import=typing ^
     --hidden-import=tqdm
 
+Echo Building Remote Microphone
+
 pyinstaller remote_microphone.py --onefile ^
     --distpath dist\exes ^
     --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico"
@@ -29,6 +33,8 @@ pyinstaller remote_microphone.py --onefile ^
 
 :: pip install git+https://github.com/Nuitka/Nuitka.git@factory
 :: Keep for later use
+
+Echo Building Transcribe Audio
 
 :: Will Build for Windows
 set CL=/Zm2000 /bigobj
