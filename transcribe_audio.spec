@@ -6,7 +6,7 @@ import glob
 block_cipher = None
 
 # Define CUDA paths
-CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.6'
+CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8'
 cuda_bin = os.path.join(CUDA_PATH, 'bin')
 cupti_path = os.path.join(CUDA_PATH, 'extras', 'CUPTI', 'lib64')
 
@@ -52,11 +52,11 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['cookies'],
+    excludes=['cookies', 'tensorflow'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
-    noarchive=False,
+    noarchive=True,
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -72,14 +72,16 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     console=True,
-    icon=None,
+    icon=r'E:\Synthalingua\Synthalingua_Wrapper\syntha.ico',
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    onefile=True,
+    onefile=False,
+    collection_format='ZIP',
+    distpath='dist\\main_release',
 )

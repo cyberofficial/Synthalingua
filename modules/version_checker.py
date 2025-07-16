@@ -3,164 +3,167 @@ Version Checker Module
 
 This module provides functionality to check and compare version numbers between
 local and remote instances of the application. It supports semantic versioning
-with major.minor.patch format.
+with major.minor.patch format (e.g., 1.2.3).
 
 Features:
-- Remote version checking from GitHub repository
-- Semantic version comparison (major, minor, patch)
-- Colored output for better readability
-- Detailed error handling for various HTTP status codes
-- User-friendly update notifications
+- Fetches the latest release version directly from a specified GitHub repository
+  using the GitHub API.
+- Performs semantic version comparison (major, minor, and patch levels).
+- Provides colored output for better readability of update notifications and errors.
+- Includes basic error handling for network issues and API response problems.
+- Notifies the user if a newer version is available, if they are using the latest
+  version, or if their local version is newer than the latest release.
 
-The module uses GitHub's raw content URLs to fetch the remote version and
-provides appropriate feedback for various network conditions and version
-mismatches.
+The module uses the GitHub API's 'releases/latest' endpoint to get the most
+recent tagged release and extracts the tag name as the remote version.
 """
 
 import requests
 import re
+import json
 from typing import Optional
-from colorama import Fore, Style
+from colorama import Fore, Style, init
 
-version = "1.1.0"
+# Initialize colorama for colored output
+init()
+
+# --- Configuration --- #
+# Local version of the script
+version = "1.1.1"
+# Creator of the script (for display purposes)
 ScriptCreator = "cyberofficial"
+# URL of the GitHub repository
 GitHubRepo = "https://github.com/cyberofficial/Synthalingua"
+# Owner of the GitHub repository
 repo_owner = "cyberofficial"
+# Name of the GitHub repository
 repo_name = "Synthalingua"
 
-def get_remote_version(repo_owner: str, repo_name: str, updatebranch: str, file_path: str) -> Optional[str]:
-    """
-    Fetch and extract version number from a file in a GitHub repository.
+# --- Functions --- #
 
-    Args:
-        repo_owner (str): GitHub repository owner username
-        repo_name (str): Name of the GitHub repository
-        updatebranch (str): Branch name to check for updates
-        file_path (str): Path to the file containing version information
+def get_remote_version() -> Optional[str]:
+    """
+    Fetches the latest release version tag from the configured GitHub repository
+    using the GitHub API.
+
+    This function constructs the API URL for the latest release endpoint and sends
+    a GET request. It handles potential network errors, non-200 HTTP responses,
+    and issues with parsing the JSON response or finding the 'tag_name'.
 
     Returns:
-        Optional[str]: Version string if found and successfully retrieved,
-                      None if any error occurs (network, parsing, etc.)
-
-    The function handles various HTTP error cases with appropriate user feedback:
-    - 200: Success, attempts to parse version
-    - 404: File not found
-    - 500: Internal server error
-    - 502: Bad gateway
-    - 503: Service unavailable
-    - 504: Gateway timeout
-    Other status codes result in a generic error message
+        Optional[str]: The latest version string (tag name) from the GitHub release
+                      if successfully retrieved and parsed. Returns None if any error
+                      occurs during the process.
     """
-    url = f"https://raw.githubusercontent.com/{repo_owner}/{repo_name}/{updatebranch}/{file_path}"
-    response = requests.get(url)
+    # Construct the API URL for fetching the latest release
+    api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+    print(f"Attempting to fetch latest release from: {Fore.CYAN}{api_url}{Style.RESET_ALL}")
+    try:
+        # Send GET request to the GitHub API
+        response = requests.get(api_url)
+        # Raise an HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status()
 
-    # if the response failed then return None
-    if response.status_code != 200:
-        print(f"{Fore.RED}An error occurred when checking for updates. Status code: {response.status_code}{Style.RESET_ALL}")
-        print(f"Could not fetch remote version from: {Fore.YELLOW}{url}{Style.RESET_ALL}")
-        print(f"Please check your internet connection and try again.")
-        print("\n\n")
-        return None
+        # Parse the JSON response
+        release_data = response.json()
+        # Extract the tag name, which represents the version
+        remote_version = release_data.get("tag_name")
 
-    if response.status_code == 200:
-        remote_file_content = response.text
-        version_search = re.search(r'version\s*=\s*"([\d.]+)"', remote_file_content)
-        if version_search:
-            remote_version = version_search.group(1)
+        if remote_version:
+            # Remove 'v' prefix if it exists (e.g., v1.2.3 -> 1.2.3) to match local format
+            if remote_version.startswith('v'):
+                remote_version = remote_version[1:]
+            print(f"Successfully fetched remote version: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
             return remote_version
         else:
-            print(f"{Fore.RED}Error: Version not found in the remote file.{Style.RESET_ALL}")
+            # Handle case where 'tag_name' is not found in the response
+            print(f"{Fore.RED}Error: Could not find 'tag_name' in the latest release data from {api_url}.{Style.RESET_ALL}")
             return None
-    if response.status_code == 404:
-        print(f"{Fore.RED}Error: The file was not found on the remote repository.{Style.RESET_ALL}")
-        return None
-    if response.status_code == 503:
-        print(f"{Fore.RED}Error: The server is temporarily unavailable.{Style.RESET_ALL}")
-        return None
-    if response.status_code == 502:
-        print(f"{Fore.RED}Error: Bad gateway.{Style.RESET_ALL}")
-        return None
-    if response.status_code == 504:
-        print(f"{Fore.RED}Error: Gateway timeout.{Style.RESET_ALL}")
-        return None
-    if response.status_code == 500:
-        print(f"{Fore.RED}Error: Internal server error.{Style.RESET_ALL}")
-        return None
-    else:
-        print(f"{Fore.RED}An error occurred when checking for updates. Status code: {response.status_code}{Style.RESET_ALL}")
-        print(f"Could not fetch remote version from: {Fore.YELLOW}{url}{Style.RESET_ALL}")
-        print(f"Please check your internet connection and try again.")
-        print("\n\n")
-        # return with None to indicate an error
-        return None
-        
 
-def check_for_updates(updatebranch: str) -> None:
+    except requests.exceptions.RequestException as e:
+        # Handle network-related errors (e.g., connection refused, timeout)
+        print(f"{Fore.RED}An error occurred while fetching the latest release from GitHub API ({api_url}): {e}{Style.RESET_ALL}")
+        return None
+    except json.JSONDecodeError:
+        # Handle errors during JSON parsing
+        print(f"{Fore.RED}Error: Could not decode JSON response from GitHub API. Received unexpected data.{Style.RESET_ALL}")
+        return None
+    except Exception as e:
+        # Catch any other unexpected errors
+        print(f"{Fore.RED}An unexpected error occurred during remote version check: {e}{Style.RESET_ALL}")
+        return None
+
+
+def check_for_updates() -> None:
     """
-    Check and compare local version against remote version from GitHub.
+    Checks for updates by comparing the local script version with the latest
+    release version fetched from the configured GitHub repository.
 
-    Args:
-        updatebranch (str): Branch name to check for updates (e.g., 'main', 'master')
-
-    This function performs semantic version comparison following major.minor.patch format:
-    1. First compares major version numbers
-    2. If major versions match, compares minor version numbers
-    3. If minor versions match, compares patch version numbers
-
-    Output includes:
-    - Version mismatch notifications (major, minor, or patch level)
-    - Update recommendations with GitHub repository link
-    - Confirmation when using latest version
-    - Notification if local version is newer than remote
-
-    The function uses colored output for better readability:
-    - Yellow: Version numbers
-    - Red: Error messages
-    Standard output for status messages
+    This function calls `get_remote_version` to get the latest remote tag.
+    If successful, it performs a semantic comparison (major.minor.patch).
+    It prints messages indicating whether an update is available (major, minor,
+    or patch mismatch), if the user is on the latest version, or if their local
+    version is newer than the latest release.
+    Handles potential errors during version string parsing.
     """
     local_version = version
-    remote_version = get_remote_version(repo_owner, repo_name, updatebranch, "modules/version_checker.py")
+    print(f"Local version: {Fore.YELLOW}{local_version}{Style.RESET_ALL}")
+    remote_version = get_remote_version()
 
-    # if the response failed then return None
+    # If fetching the remote version failed, exit the update check
     if remote_version is None:
+        print(f"{Fore.YELLOW}Skipping update check due to error fetching remote version.{Style.RESET_ALL}")
+        print("\n") # Add some spacing
         return
 
+    # Proceed with version comparison if remote version was successfully fetched
     if remote_version is not None:
-        # Split the version numbers into parts (major, minor, patch)
-        local_version_parts = [int(part) for part in local_version.split(".")]
-        remote_version_parts = [int(part) for part in remote_version.split(".")]
+        try:
+            # Split the version numbers into parts (major, minor, patch) for comparison
+            local_version_parts = [int(part) for part in local_version.split(".")]
+            remote_version_parts = [int(part) for part in remote_version.split(".")]
+        except ValueError:
+            # Handle cases where version strings are not in the expected format
+            print(f"{Fore.RED}Error: Could not parse version strings for comparison.{Style.RESET_ALL}")
+            print(f"Local format: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, Remote format: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}Skipping version comparison.{Style.RESET_ALL}")
+            print("\n") # Add some spacing
+            return
+
+        # --- Semantic Version Comparison (Major.Minor.Patch) ---
 
         # Compare major versions
         if remote_version_parts[0] > local_version_parts[0]:
-            print(f"Major version mismatch. Local version: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, remote version: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
-            print("Consider updating to the latest version.")
-            print(f"Update available at: {GitHubRepo}")
-            print("\n\n")
+            print(f"Major version mismatch. Local: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, Remote: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}A significant update is available!{Style.RESET_ALL}")
+            print(f"Consider updating to the latest version from: {Fore.CYAN}{GitHubRepo}{Style.RESET_ALL}")
+            print("\n") # Add some spacing
         elif remote_version_parts[0] == local_version_parts[0]:
-            # Compare minor versions
+            # If major versions match, compare minor versions
             if remote_version_parts[1] > local_version_parts[1]:
-                print(f"Minor version mismatch. Local version: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, remote version: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
-                print("Consider updating to the latest version.")
-                print(f"Update available at: {GitHubRepo}")
-                print("\n\n")
+                print(f"Minor version mismatch. Local: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, Remote: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}A minor update is available.{Style.RESET_ALL}")
+                print(f"Consider updating to the latest version from: {Fore.CYAN}{GitHubRepo}{Style.RESET_ALL}")
+                print("\n") # Add some spacing
             elif remote_version_parts[1] == local_version_parts[1]:
-                # Compare patch versions
+                # If minor versions match, compare patch versions
                 if remote_version_parts[2] > local_version_parts[2]:
-                    print(f"Patch version mismatch. Local version: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, remote version: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
-                    print("Consider updating to the latest version.")
-                    print(f"Update available at: {GitHubRepo}")
-                    print("\n\n")
+                    print(f"Patch version mismatch. Local: {Fore.YELLOW}{local_version}{Style.RESET_ALL}, Remote: {Fore.YELLOW}{remote_version}{Style.RESET_ALL}")
+                    print(f"{Fore.GREEN}A patch update is available.{Style.RESET_ALL}")
+                    print(f"Consider updating to the latest version from: {Fore.CYAN}{GitHubRepo}{Style.RESET_ALL}")
+                    print("\n") # Add some spacing
                 else:
-                    print("You are already using the latest version.")
-                    print(f"Current version: {local_version}")
-                    print("\n\n")
+                    # If all parts are equal or local patch is newer, user is on latest or newer
+                    print(f"{Fore.GREEN}You are already using the latest version ({Fore.YELLOW}{local_version}{Style.RESET_ALL}).{Style.RESET_ALL}")
+                    print("\n") # Add some spacing
             else:
-                print("You are already using a newer version.")
-                print(f"Current version: {local_version}")
-                print("\n\n")
+                # Local minor version is newer than remote minor version
+                print(f"{Fore.YELLOW}You are using a newer version ({Fore.YELLOW}{local_version}{Style.RESET_ALL}) than the latest release ({Fore.YELLOW}{remote_version}{Style.RESET_ALL}).{Style.RESET_ALL}")
+                print("\n") # Add some spacing
         else:
-            print("You are already using a newer version.")
-            print(f"Current version: {local_version}")
-            print("\n\n")
+            # Local major version is newer than remote major version
+            print(f"{Fore.YELLOW}You are using a newer version ({Fore.YELLOW}{local_version}{Style.RESET_ALL}) than the latest release ({Fore.YELLOW}{remote_version}{Style.RESET_ALL}).{Style.RESET_ALL}")
+            print("\n") # Add some spacing
 
-print("Version Checker Module Loaded")
+# Initial print to indicate the module is loaded
+print(f"{Fore.GREEN}✅ Version Checker Module Loaded{Style.RESET_ALL}")

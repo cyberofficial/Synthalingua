@@ -8,6 +8,7 @@ It handles platform-specific implementations for setting console window titles.
 
 import sys
 import ctypes
+from colorama import Fore, Style
 
 def set_window_title(detected_language, confidence, model):
     """
@@ -34,4 +35,4 @@ def set_window_title(detected_language, confidence, model):
         sys.stdout.write(f"]2;{title}")
         sys.stdout.flush()
 
-print("Console Settings Module Loaded")
+print(f"{Fore.GREEN}✅ Console Settings Module Loaded{Style.RESET_ALL}")

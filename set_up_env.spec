@@ -6,7 +6,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['os', 'platform', 'requests', 'subprocess', 'sys', 'zipfile', 'shutil', 'dataclasses', 'pathlib', 'typing', 'tqdm'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -34,4 +34,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['e:\\Synthalingua\\Synthalingua_Wrapper\\syntha.ico'],
 )
