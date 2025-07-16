@@ -2925,11 +2925,30 @@ def process_single_file(
                     f.write(f"{start_time_str} --> {end_time_str}\n")
                     f.write(f"{filtered_text}\n\n")
                     subtitle_index += 1
-        
+
         logger.info("Subtitle file saved to: %s", output_path)
         print(f"{Fore.GREEN}✅ Subtitle generation complete!{Style.RESET_ALL}")
         print(f"{Fore.CYAN}📁 Subtitle file saved to: {output_path}{Style.RESET_ALL}")
-        
+
+        # Print all generated subtitles to the console only if --print_srt_to_console is set
+        if getattr(args, 'print_srt_to_console', False):
+            print(f"\n{Fore.CYAN}📝 Generated Subtitles:{Style.RESET_ALL}")
+            subtitle_index = 1
+            for segment in filtered_segments:
+                start_time_str = format_timestamp(segment.get("start", 0.0))
+                end_time_str = format_timestamp(segment.get("end", 0.0))
+                text = segment.get("text", "").strip()
+                filtered_text = filter_unwanted_phrases(text)
+                if filtered_text:
+                    conf = segment.get("avg_logprob", None)
+                    confidence = None
+                    if conf is not None:
+                        confidence = 1.0 - min(1.0, max(0.0, -conf / 10))
+                    color = get_color_for_confidence(confidence) if confidence is not None else ''
+                    reset = Style.RESET_ALL if confidence is not None else ''
+                    print(f"{subtitle_index}. {start_time_str} --> {end_time_str} : {color}{filtered_text}{reset}")
+                    subtitle_index += 1
+
         return result, output_name
 
     except Exception as e:
