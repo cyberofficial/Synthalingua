@@ -2379,7 +2379,17 @@ def process_with_segmentation(
         print(f"{Fore.GREEN}✅ Segmented processing complete!{Style.RESET_ALL}")
         print(f"   Combined subtitles: {len(combined_segments)} entries")
         print(f"   Output file: {output_path}")
-        
+
+        # Print the final combined SRT file to the console if --print_srt_to_console is set
+        if getattr(args, 'print_srt_to_console', False):
+            print(f"\n{Fore.CYAN}📝 Final Combined SRT:{Style.RESET_ALL}")
+            try:
+                with open(output_path, 'r', encoding='utf-8') as srt_file:
+                    for line in srt_file:
+                        print(line.rstrip())
+            except Exception as e:
+                print(f"{Fore.RED}Failed to print combined SRT: {e}{Style.RESET_ALL}")
+
         return combined_result, output_name
             
     except Exception as e:
