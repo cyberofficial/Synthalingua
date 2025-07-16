@@ -227,12 +227,21 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--silent_detect` | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
 | `--silent_threshold` | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
 | `--silent_duration` | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
+| `--print_srt_to_console` | Print the final generated SRT subtitles to the console after file creation (captions mode only). |
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
 | `--ignorelist` | Blocklist file (words/phrases) |
 | `--auto_blocklist` | Auto-add frequently blocked phrases to blocklist |
 | `--debug` | Print debug info for blocked/suppressed messages |
+### Print SRT to Console
+The `--print_srt_to_console` flag prints the final, fully combined SRT subtitles to the console after the SRT file is created (captions mode only). This is useful for quickly viewing the generated subtitles without opening the SRT file manually. It only prints the final combined SRT (not per-segment SRTs) and works with `--makecaptions`.
+
+**Example:**
+```sh
+python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile" --print_srt_to_console
+```
+This will save the SRT file as usual and also print its contents to the console at the end of processing.
 
 ### Web & Discord
 | Flag | Description |
