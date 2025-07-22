@@ -52,12 +52,23 @@ def install_or_reinstall_python(assets_dir):
             return None
 
     try:
-        print(f"\nAttempting to silently uninstall Python {python_version}...")
+        print("\n" + "="*80)
+        print("WARNING: The next step will UNINSTALL the existing Python 3.12 installation.")
+        print("This is a potentially destructive action that may require Admin privileges.")
+        print("If other projects depend on this installation, they may break.")
+        print("="*80)
+        
+        confirm = input('To confirm you wish to proceed, please type "yes": ')
+        if confirm.lower() != 'yes':
+            print("\nPython re-installation cancelled by the user.")
+            return None
+        
+        print(f"\nUninstalling existing Python {python_version}...")
         uninstall_command = [installer_path, "/uninstall", "/quiet"]
         subprocess.run(uninstall_command)
         print("Pre-emptive uninstall command finished.")
 
-        print(f"Now, proceeding with installation of Python {python_version}...")
+        print(f"Now, proceeding with fresh installation of Python {python_version}...")
         install_command = [
             installer_path, "/quiet", "InstallAllUsers=1",
             f"TargetDir={install_path}", "PrependPath=1"
@@ -74,20 +85,18 @@ def install_or_reinstall_python(assets_dir):
     
     return install_path
 
-def create_python_environment(base_python_install_path, env_name):
+def create_python_environment(base_python_exe, env_name):
     """
     Creates a Python virtual environment using the specified base interpreter.
     Returns the path to the new environment's python.exe.
     """
     print(f"\n--- Creating Python Virtual Environment: '{env_name}' ---")
-    if not base_python_install_path or not os.path.isdir(base_python_install_path):
-        print("Cannot create virtual environment: Base Python installation path is invalid or not provided.")
+    if not base_python_exe or not os.path.isfile(base_python_exe):
+        print("Cannot create virtual environment: Base Python executable is invalid or not provided.")
+        print(f"  Attempted to use: {base_python_exe}")
         return None
-
-    base_python_exe = os.path.join(base_python_install_path, 'python.exe')
-    if not os.path.isfile(base_python_exe):
-        print(f"Error: Base Python executable not found at '{base_python_exe}'.")
-        return None
+    
+    print(f"Using base interpreter: {base_python_exe}")
 
     env_path = os.path.join(os.getcwd(), env_name)
     env_python_exe = os.path.join(env_path, 'Scripts', 'python.exe')
@@ -128,10 +137,13 @@ def install_packages(venv_python_exe):
     """Installs required packages into the specified virtual environment."""
     print("\n--- Installing Packages into Virtual Environment ---")
     if not venv_python_exe or not os.path.isfile(venv_python_exe):
-        print("Cannot install packages: Invalid virtual environment Python path provided.")
+        print("Cannot install packages: Invalid or non-existent virtual environment Python path provided.")
+        print(f"  Attempted to use: {venv_python_exe}")
         return
 
-    # Stage 1: Install PyTorch packages from the special CUDA index URL
+    print(f"Using interpreter for pip: {venv_python_exe}")
+    
+    # Stage 1: Install PyTorch packages
     pytorch_index_url = "https://download.pytorch.org/whl/cu128"
     pytorch_packages = ["torch", "torchaudio"]
     print(f"\n--- Installing PyTorch packages from {pytorch_index_url} ---")
@@ -143,7 +155,7 @@ def install_packages(venv_python_exe):
         print(f"ERROR: Failed to install PyTorch packages. Aborting.")
         return
 
-    # Stage 2: Install remaining packages from the default PyPI
+    # Stage 2: Install remaining packages
     print("\n--- Installing remaining packages from PyPI ---")
     pypi_packages = ["demucs", "diffq", "Cython", "soundfile", "librosa", "ffmpeg-python"]
     try:
@@ -156,35 +168,55 @@ def install_packages(venv_python_exe):
 def setup_ffmpeg(assets_dir):
     """Handles getting 7zr, extracting FFmpeg, and returns the path to the FFmpeg bin directory."""
     print("\n--- Setting up FFmpeg ---")
-    ffmpeg_bin_path = None
+    
+    # Ask user if they want to provide their own path first
+    if input("Do you want to provide a path to an existing FFmpeg 'bin' directory? (y/n): ").lower().startswith('y'):
+        user_path = input("Enter the full path to the FFmpeg 'bin' directory: ").strip('"')
+        if os.path.isdir(user_path):
+            print(f"Using user-provided FFmpeg path: {user_path}")
+            return user_path
+        else:
+            print("Invalid path provided. Proceeding with script-managed setup...")
+
+    # If they didn't provide a path, continue with the automated setup
     seven_zip_url = 'https://www.7-zip.org/a/7zr.exe'
     seven_zip_local_path = os.path.join(assets_dir, '7zr.exe')
     seven_zip_exe_path = None
 
     while not seven_zip_exe_path:
+        action = None
         if os.path.exists(seven_zip_local_path):
             choice = input(f"7zr.exe found. [U]se it, [d]ownload new, or [p]rovide path? (u/d/p): ").lower()
             if choice.startswith('u'):
                 seven_zip_exe_path = seven_zip_local_path
-                continue
-            elif choice.startswith('p'): pass
-            else:
-                try: os.remove(seven_zip_local_path)
-                except OSError as e: print(f"Could not remove old 7zr.exe: {e}")
+            elif choice.startswith('d'):
+                action = 'download'
+            elif choice.startswith('p'):
+                action = 'provide'
+        else:
+            choice = input(f"7zr.exe is needed. [D]ownload or [p]rovide path? (d/p): ").lower()
+            if choice.startswith('d'):
+                action = 'download'
+            elif choice.startswith('p'):
+                action = 'provide'
         
-        choice = input(f"7zr.exe is needed. [D]ownload or [p]rovide path? (d/p): ").lower()
-        if choice.startswith('d'):
+        if not seven_zip_exe_path and not action:
+            print("Invalid choice. Please try again.")
+            continue
+
+        if action == 'download':
             try:
                 print(f"Downloading 7zr.exe to '{seven_zip_local_path}'...")
                 urllib.request.urlretrieve(seven_zip_url, seven_zip_local_path, _download_reporthook)
                 seven_zip_exe_path = seven_zip_local_path
-            except Exception as e: print(f"Failed to download 7zr.exe: {e}")
-        elif choice.startswith('p'):
+            except Exception as e:
+                print(f"Failed to download 7zr.exe: {e}")
+        elif action == 'provide':
             user_path = input("Enter full path to your 7zr.exe or 7z.exe: ").strip('"')
             if os.path.isfile(user_path) and user_path.lower().endswith('.exe'):
                 seven_zip_exe_path = user_path
-            else: print("Invalid file path.")
-        else: print("Invalid choice.")
+            else:
+                print("Invalid file path.")
 
     ffmpeg_url = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
     ffmpeg_archive_path = os.path.join(assets_dir, 'ffmpeg-git-full.7z')
@@ -213,22 +245,39 @@ def setup_ffmpeg(assets_dir):
         print("Skipping FFmpeg extraction.")
 
     try:
-        subdirectories = [d for d in os.listdir(ffmpeg_extract_path) if os.path.isdir(os.path.join(ffmpeg_extract_path, d))]
+        if not os.path.isdir(ffmpeg_extract_path):
+             print(f"Error: FFmpeg extraction directory '{ffmpeg_extract_path}' does not exist.")
+             return None
+        # BUG FIX: Be more specific when looking for the directory
+        subdirectories = [d for d in os.listdir(ffmpeg_extract_path) if os.path.isdir(os.path.join(ffmpeg_extract_path, d)) and d.startswith('ffmpeg-')]
         if not subdirectories:
-            print("Error: No subdirectory found in the FFmpeg extraction folder.")
+            print("Error: No versioned 'ffmpeg-' subdirectory found in the FFmpeg extraction folder.")
             return None
+        
         versioned_folder_name = subdirectories[0]
         potential_bin_path = os.path.join(ffmpeg_extract_path, versioned_folder_name, "bin")
+        
         if os.path.isdir(potential_bin_path):
-            ffmpeg_bin_path = potential_bin_path
-    except FileNotFoundError:
-        print(f"Error: Directory '{ffmpeg_extract_path}' not found.")
-    
-    return ffmpeg_bin_path
+            return potential_bin_path
+        else:
+            print(f"Error: 'bin' directory not found inside '{versioned_folder_name}'.")
+            return None
+    except Exception as e:
+        print(f"An unexpected error occurred while locating the FFmpeg path: {e}")
+        return None
 
 def setup_yt_dlp(assets_dir):
     """Downloads and extracts yt-dlp, returning the path to its directory."""
     print("\n--- Setting up yt-dlp ---")
+    
+    if input("Do you want to provide a path to an existing yt-dlp directory? (y/n): ").lower().startswith('y'):
+        user_path = input("Enter the full path to the directory containing yt-dlp.exe: ").strip('"')
+        if os.path.isfile(os.path.join(user_path, 'yt-dlp.exe')):
+            print(f"Using user-provided yt-dlp path: {user_path}")
+            return user_path
+        else:
+            print("Invalid path (yt-dlp.exe not found). Proceeding with script-managed setup...")
+
     yt_dlp_url = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_win.zip'
     archive_path = os.path.join(assets_dir, 'yt-dlp_win.zip')
     extract_path = os.path.join(assets_dir, 'yt-dlp')
@@ -273,7 +322,6 @@ def create_launcher_bat(file_name, ffmpeg_path, ytdlp_path, venv_name):
     """Creates a batch file to set up the environment and activate the venv."""
     print(f"\n--- Creating Launcher: {file_name} ---")
     
-    # Ensure we have the paths needed.
     if not ffmpeg_path or not ytdlp_path:
         print("Warning: Skipping launcher creation because FFmpeg or yt-dlp path is missing.")
         return
@@ -285,7 +333,6 @@ def create_launcher_bat(file_name, ffmpeg_path, ytdlp_path, venv_name):
         print(f"Warning: Skipping launcher creation because venv '{venv_name}' does not exist.")
         return
 
-    # Using f-string for a multi-line string. The curly braces for batch variables must be doubled.
     bat_content = f"""@echo off
 setlocal
 
@@ -304,11 +351,7 @@ if not exist "%VENV_ACTIVATE_SCRIPT%" (
 
 echo.
 echo Activating the '{venv_name}' Python virtual environment...
-call "%VENV_ACTIVATE_SCRIPT%"
-
-echo.
-echo Environment is ready. The command prompt should now start with ({venv_name}).
-echo All required Python packages like demucs and torch are now available.
+cmd /k "%VENV_ACTIVATE_SCRIPT%"
 
 :eof
 """
@@ -329,13 +372,43 @@ if __name__ == "__main__":
         os.makedirs(assets_dir)
     
     VENV_NAME = "data_whisper"
+    base_python_exe_path = None
 
-    # Run setup functions and capture their output paths
-    python_install_dir = install_or_reinstall_python(assets_dir)
-    
+    while True:
+        has_python = input("Do you already have a Python 3.12 version installed? (y/n): ").lower()
+        if has_python.startswith('y'):
+            python_version = "3.12.10"
+            default_install_dir = f"C:\\bin\\python\\{python_version}"
+            default_python_exe = os.path.join(default_install_dir, "python.exe")
+            
+            use_manual_path = True
+            if os.path.isfile(default_python_exe):
+                print(f"Found a Python installation in the script's default location.")
+                choice = input(f"Do you want to use this one? ({default_python_exe}) (y/n): ").lower()
+                if choice.startswith('y'):
+                    base_python_exe_path = default_python_exe
+                    use_manual_path = False
+            
+            if use_manual_path:
+                while True:
+                    user_path = input("Please enter the full path to your python.exe: ").strip('"')
+                    if os.path.isfile(user_path) and user_path.lower().endswith("python.exe"):
+                        base_python_exe_path = user_path
+                        break
+                    else:
+                        print("Invalid path. Please ensure it points to a valid python.exe file.")
+            break 
+        elif has_python.startswith('n'):
+            install_dir = install_or_reinstall_python(assets_dir)
+            if install_dir:
+                base_python_exe_path = os.path.join(install_dir, "python.exe")
+            break
+        else:
+            print("Invalid input. Please enter 'y' or 'n'.")
+
     venv_python_exe_path = None
-    if python_install_dir:
-         venv_python_exe_path = create_python_environment(python_install_dir, VENV_NAME)
+    if base_python_exe_path:
+         venv_python_exe_path = create_python_environment(base_python_exe_path, VENV_NAME)
 
     if venv_python_exe_path:
         install_packages(venv_python_exe_path)
@@ -343,12 +416,11 @@ if __name__ == "__main__":
     found_ffmpeg_bin_path = setup_ffmpeg(assets_dir)
     found_yt_dlp_path = setup_yt_dlp(assets_dir)
     
-    # Create the launcher script as the final step
     create_launcher_bat("ffmpeg_path.bat", found_ffmpeg_bin_path, found_yt_dlp_path, VENV_NAME)
 
     print("\n--- Setup Summary ---")
-    if python_install_dir and os.path.isdir(python_install_dir):
-        print(f"Base Python installation confirmed: {python_install_dir}")
+    if base_python_exe_path and os.path.isfile(base_python_exe_path):
+        print(f"Base Python executable used: {base_python_exe_path}")
     else:
         print("Base Python setup was skipped or failed.")
 
