@@ -581,79 +581,77 @@ def start_stream_transcription(
         # --- Vocal isolation for HLS chunk (Demucs) ---
         processed_audio_path = file_path
         if getattr(args, 'isolate_vocals', False):
-            if not shutil.which('demucs'):
-                print_error_message("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
-            else:
-                try:
+            try:
+                if args.debug:
+                    print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    demucs_cmd = [
+                        os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                        '-m', 'demucs',
+                        '-n', getattr(args, 'demucs_model', 'htdemucs'),
+                        '-o', tmpdir,
+                        '--two-stems', 'vocals',
+                    ]
+                    if getattr(args, 'device', None) == 'cuda':
+                        demucs_cmd += ['-d', 'cuda']
+                    # Add jobs parameter if specified
+                    if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                        demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                    demucs_cmd.append(str(file_path))
+                    result = subprocess.run(
+                        demucs_cmd,
+                        capture_output=True, text=True, encoding='utf-8', errors='replace')
                     if args.debug:
-                        print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        demucs_cmd = [
-                            'demucs',
-                            '-n', getattr(args, 'demucs_model', 'htdemucs'),
-                            '-o', tmpdir,
-                            '--two-stems', 'vocals',
+                        print_debug_message(f"Demucs return code: {result.returncode}")
+                        if result.stdout:
+                            print_debug_message(f"Demucs stdout: {result.stdout[:500]}...")
+                        if result.stderr:
+                            print_debug_message(f"Demucs stderr: {result.stderr[:500]}...")
+                    if result.returncode != 0:
+                        print_error_message(f"Demucs failed with return code {result.returncode}: {result.stderr}")
+                    else:
+                        base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
+                        vocals_path = None
+                        demucs_model = getattr(args, 'demucs_model', 'htdemucs')
+                        possible_locations = [
+                            os.path.join(tmpdir, demucs_model, base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, base_name, 'vocals.wav'),
                         ]
-                        if getattr(args, 'device', None) == 'cuda':
-                            demucs_cmd += ['-d', 'cuda']
-                        # Add jobs parameter if specified
-                        if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
-                            demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-                        demucs_cmd.append(str(file_path))
-                        result = subprocess.run(
-                            demucs_cmd,
-                            capture_output=True, text=True, encoding='utf-8', errors='replace')
-                        if args.debug:
-                            print_debug_message(f"Demucs return code: {result.returncode}")
-                            if result.stdout:
-                                print_debug_message(f"Demucs stdout: {result.stdout[:500]}...")
-                            if result.stderr:
-                                print_debug_message(f"Demucs stderr: {result.stderr[:500]}...")
-                        if result.returncode != 0:
-                            print_error_message(f"Demucs failed with return code {result.returncode}: {result.stderr}")
-                        else:
-                            base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
-                            vocals_path = None
-                            demucs_model = getattr(args, 'demucs_model', 'htdemucs')
-                            possible_locations = [
-                                os.path.join(tmpdir, demucs_model, base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, base_name, 'vocals.wav'),
-                            ]
-                            for root, dirs, files in os.walk(tmpdir):
-                                if 'vocals.wav' in files:
-                                    vocals_path = os.path.join(root, 'vocals.wav')
-                                    if args.debug:
-                                        print_success_message(f"Found vocals.wav at: {vocals_path}")
-                                    break
-                            if not vocals_path:
-                                for location in possible_locations:
-                                    if os.path.exists(location):
-                                        vocals_path = location
-                                        if args.debug:
-                                            print_success_message(f"Found vocals.wav at predefined location: {vocals_path}")
-                                        break
-                            if not vocals_path or not os.path.exists(vocals_path):
-                                print_error_message(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
-                            else:
-                                # Use absolute path for temp/audio/ folder
-                                from datetime import datetime
-                                utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                                dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
-                                os.makedirs(dest_dir, exist_ok=True)
-                                for file in os.listdir(os.path.dirname(vocals_path)):
-                                    src_file = os.path.join(os.path.dirname(vocals_path), file)
-                                    if os.path.isfile(src_file):
-                                        shutil.copy2(src_file, os.path.join(dest_dir, file))
-                                processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
+                        for root, dirs, files in os.walk(tmpdir):
+                            if 'vocals.wav' in files:
+                                vocals_path = os.path.join(root, 'vocals.wav')
                                 if args.debug:
-                                    print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
-                                    print_info_message(f"Using vocals file: {processed_audio_path}")
-                except Exception as e:
-                    print_error_message(f"Vocal isolation failed: {str(e)}")
+                                    print_success_message(f"Found vocals.wav at: {vocals_path}")
+                                break
+                        if not vocals_path:
+                            for location in possible_locations:
+                                if os.path.exists(location):
+                                    vocals_path = location
+                                    if args.debug:
+                                        print_success_message(f"Found vocals.wav at predefined location: {vocals_path}")
+                                    break
+                        if not vocals_path or not os.path.exists(vocals_path):
+                            print_error_message(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
+                        else:
+                            # Use absolute path for temp/audio/ folder
+                            from datetime import datetime
+                            utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                            dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
+                            os.makedirs(dest_dir, exist_ok=True)
+                            for file in os.listdir(os.path.dirname(vocals_path)):
+                                src_file = os.path.join(os.path.dirname(vocals_path), file)
+                                if os.path.isfile(src_file):
+                                    shutil.copy2(src_file, os.path.join(dest_dir, file))
+                            processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
+                            if args.debug:
+                                print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
+                                print_info_message(f"Using vocals file: {processed_audio_path}")
+            except Exception as e:
+                print_error_message(f"Vocal isolation failed: {str(e)}")
 
         transcription = None
         translation = None
