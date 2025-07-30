@@ -16,6 +16,7 @@ cookiecutter==2.6.0
 cookiejar==0.0.3
 cryptography==42.0.5
 Deprecated==1.2.18
+diffq==0.2.4
 dnspython==2.7.0
 eventlet==0.33.3
 expecttest==0.3.0

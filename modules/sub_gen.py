@@ -231,7 +231,9 @@ def run_transcription_in_process(
             "--model_type", model_type,
             "--model_dir", model_dir,
             "--device", device,
-            "--decode_options_json", decode_options_json
+            "--decode_options_json", decode_options_json,
+            "--model_source", args.model_source,
+            "--compute_type", args.compute_type
         ]
 
     else:
@@ -249,7 +251,9 @@ def run_transcription_in_process(
             "--model_type", model_type,
             "--model_dir", model_dir,
             "--device", device,
-            "--decode_options_json", decode_options_json
+            "--decode_options_json", decode_options_json,
+            "--model_source", args.model_source,
+            "--compute_type", args.compute_type
         ]
 
     # Show the command if in debug mode
@@ -2026,6 +2030,9 @@ def run_sub_gen(
     if not input_path:
         raise ValueError("Input path cannot be empty")
     
+    # Check for OpenVINO requirement
+    if args.model_source == 'openvino' and not args.language:
+        raise ValueError("OpenVINO model source requires a language to be specified with the --language flag, as automatic language detection is not supported.")
 
     input_path_obj = Path(input_path)
     if not input_path_obj.exists():
