@@ -28,10 +28,12 @@ class FasterWhisperModel:
 
         # Could not find log_mel_spectrogram() method in faster_whisper library
         # Whisper library's implementation replacement
-        if self.model == "large-v3":
-            mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(self.device)
-        else:
-            mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(self.device)
+        # similarly to (if ram == "11gb-v3")
+        n_mels = 128 if self.model in ["large-v3", "large"] else 80
+        mel = whisper.log_mel_spectrogram(
+            audio,
+            n_mels=n_mels
+        ).to(self.device)
 
         _, _, language_probs = self.audio_model.detect_language(features=mel)
         return dict(language_probs)
