@@ -59,11 +59,30 @@ class FasterWhisperModel:
         task = kwargs.get("task")
 
         # Pycountry library used to convert language to the required format (English -> en)
-        language = pycountry.languages.get(language).alpha_2
+        # Convert language name to ISO 639-1 code if needed
+        if language and len(language) > 2:
+            try:
+                lang_obj = pycountry.languages.get(name=language)
+                if lang_obj and hasattr(lang_obj, 'alpha_2'):
+                    language = lang_obj.alpha_2
+                else:
+                    raise ValueError(f"Could not find ISO code for language: {language}")
+            except Exception as e:
+                raise ValueError(f"Language conversion error: {e}")
+        # else, assume language is already a code
+        # Ensure task and condition_on_previous_text have valid defaults
+        if task is None:
+            task = "transcribe"
+        if condition_on_previous_text is None:
+            condition_on_previous_text = False
         segments, _ = self.audio_model.transcribe(audio=file_path, task=task, condition_on_previous_text=condition_on_previous_text, language=language)
 
         result = ""
         for segment in segments:
-            result += segment
+            # Only append the transcribed text, not the full Segment object
+            if hasattr(segment, 'text'):
+                result += segment.text
+            else:
+                result += str(segment)  # fallback, but should not happen
         # First segment starts with a space (ex " text text text...") strip() used to remove it
         return result.strip()

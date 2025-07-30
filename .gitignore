@@ -4,7 +4,7 @@ out
 livetranslation.bat
 temp
 desktop.ini
-/models/
+models
 build
 dist
 server.pid
