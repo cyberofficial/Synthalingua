@@ -18,7 +18,8 @@
 4. **Windows**: Run `setup.bat` | **Linux**: See [LINUX_SETUP.md](./LINUX_SETUP.md) for detailed setup instructions
 5. Edit and run the generated batch/bash file, or use the GUI portable version:
 
-[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)ository: [Synthalingua_Wrapper](https://github.com/cyberofficial/Synthalingua_Wrapper)
+Repository: [Synthalingua_Wrapper](https://github.com/cyberofficial/Synthalingua_Wrapper)
+[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
 
