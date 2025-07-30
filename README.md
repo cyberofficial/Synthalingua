@@ -129,8 +129,8 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 |-----------------|--------------------------------------------|-------------------------------------|----------------------------------------------|-----------------------------------------|
 | CPU             | 2 cores, 2.0 GHz+                          | 4 cores, 3.0 GHz+                   | 8 cores, 3.5 GHz+                            | 16+ cores, 4.0 GHz+                     |
 | RAM             | 4 GB                                       | 8 GB                                | 16 GB                                        | 32+ GB                                  |
-| GPU (Nvidia)    | 2GB GRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
-| GPU (AMD/Linux) | 4GB VRAM (experimental)                    | 8GB VRAM                            | 12GB+ GRAM                                   | 16GB+ VRAM                              |
+| GPU (Nvidia)    | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
+| GPU (AMD/Linux) | 4GB VRAM (experimental)                    | 8GB VRAM                            | 12GB+ VRAM                                   | 16GB+ VRAM                              |
 | OS              | Windows 10+, Linux                         | Windows 10+, Linux                  | Windows 10+, Linux                           | Windows 10+, Linux                      |
 | Storage         | 2 GB free                                  | 10 GB free                          | 20 GB+ free                                  | SSD/NVMe recommended                    |
 
