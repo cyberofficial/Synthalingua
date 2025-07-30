@@ -47,3 +47,5 @@ docs/
 /Synthalingua.wiki
 /downloads
 /miniconda
+/tests
+synthalingua_env.bat
