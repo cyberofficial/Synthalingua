@@ -125,12 +125,14 @@ def set_model_by_ram(ram, language):
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model_source", type=str.lower, default="whisper", help="Source of the model", choices=["whisper", "fasterwhisper", "openvino"])
     parser.add_argument("--ram", default="2gb", help="Model to use", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
     parser.add_argument("--word_timestamps", action='store_true', default=False, help="Enable word-level timestamps in output (default: False)")
     parser.add_argument("--isolate_vocals", nargs='?', const='0', default=False, type=valid_demucs_jobs, help="Attempt to isolate vocals from the input audio before generating subtitles. Optionally specify number of parallel jobs: 'all' for all CPU cores, a number for specific core count, or leave empty for default single-threaded processing. Use --demucs_model to specify which model to use.")
     parser.add_argument("--demucs_model", default="htdemucs", help="Demucs model to use for vocal isolation. Only used when --isolate_vocals is enabled.", choices=["htdemucs", "htdemucs_ft", "htdemucs_6s", "hdemucs_mmi", "mdx", "mdx_extra", "mdx_q", "mdx_extra_q", "hdemucs", "demucs"])
     parser.add_argument("--ramforce", action='store_true', help="Force the model to use the RAM setting provided. Warning: This may cause the model to crash.")
     parser.add_argument("--fp16", action='store_true', default=False, help="Sets Models to FP16 Mode, increases speed with a light decrease in accuracy.")
+    parser.add_argument("--compute_type", default="default", help="Quantization of model while loading", choices=["default", "int8", "int8_float32", "int8_float16", "int8_float16", "int8_bfloat16", "int16", "float16", "bfloat16", "float32"])
     parser.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
     parser.add_argument("--mic_calibration_time", help="How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds.", type=int)
     parser.add_argument("--record_timeout", default=1, help="How real time the recording is in seconds.", type=float)
@@ -142,7 +144,7 @@ def parse_arguments():
     parser.add_argument("--transcribe", action='store_true', help="transcribe the text into the desired language.")
     parser.add_argument("--language", help="Language to translate from.", type=str, choices=VALID_LANGUAGES)
     parser.add_argument("--target_language", help="Language to translate to.", type=str, choices=VALID_LANGUAGES)
-    parser.add_argument("--device", default="cuda", help="Device to use for model. If not specified, will use CUDA if available. Available options: cpu, cuda")
+    parser.add_argument("--device", default="auto", help="Device to use for model. If not specified, most performant available device will automatically be chosen. Available options: auto, cpu, cuda, intel-igpu, intel-dgpu, intel-npu")
     parser.add_argument("--cuda_device", default=0, help="CUDA device to use for model. If not specified, will use CUDA device 0.", type=int)
     parser.add_argument("--discord_webhook", default=None, help="Discord webhook to send transcription to.", type=str)
     parser.add_argument("--list_microphones", action='store_true', help="List available microphones and exit.")
