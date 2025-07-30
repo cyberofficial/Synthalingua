@@ -105,3 +105,7 @@ wrapt==1.17.2
 wsproto==1.2.0
 yt-dlp
 librosa
+faster-whisper==1.1.1
+pycountry==24.6.1
+transformers==4.52.4
+optimum-intel
