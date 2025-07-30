@@ -4,7 +4,9 @@ import whisper
 
 class BaseWhisperModel:
     def __init__(self, model: str, device, download_root: str) -> None:
-        download_root = os.path.join(download_root, "Whisper")
+        ## Removed so it doesn't redownload models over again for users, only creates annoyances for existing users. Will re-enable next major update.
+        #download_root = os.path.join(download_root, "Whisper")
+        print("Whisper Models will be moved to 'Whisper' in the models folder next update. Please move your existing models accordingly upon next major update.")
 
         self.model = model
         self.device = device
