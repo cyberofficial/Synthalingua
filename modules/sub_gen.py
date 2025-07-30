@@ -125,7 +125,8 @@ _auto_proceed_detection = False
 # Global variable to track if user wants to skip Turbo model questions
 _skip_turbo_questions = False
 # Global variable to track intelligent mode (auto-testing higher models)
-_intelligent_mode = False
+# Pulls true from intelligent_mode from arg parse, if not set then assume false
+_intelligent_mode = getattr(args, 'intelligent_mode', False)
 # Global variables to persist custom silence detection settings in auto mode
 _last_silence_threshold = None
 _last_silence_duration = None
@@ -607,45 +608,9 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     break  # Proceed with current detection
 
                 elif choice == "5":
-                    global _intelligent_mode
                     _auto_proceed_detection = True
                     print(f"{Fore.GREEN}✅ Auto-proceed mode enabled. Future segments will skip detection review.{Style.RESET_ALL}")
-
-                    # Ask about intelligent mode unless they're already using the highest model
-                    if hasattr(args, 'ram') and args.ram != "11gb-v3":
-                        print(f"\n{Fore.CYAN}🧠 Intelligent Mode Options:{Style.RESET_ALL}")
-                        print(f"   Your current model: {args.ram}")
-                        print(f"   1. {Fore.GREEN}Enable Intelligent Mode{Style.RESET_ALL} - Automatically try higher models when confidence is low or repetitions detected")
-                        print(f"   2. {Fore.YELLOW}Disable Intelligent Mode{Style.RESET_ALL} - Only use your current model ({args.ram}) for all segments")
-
-                        while True:
-                            try:
-                                intelligent_choice = input(f"\n{Fore.CYAN}Choose mode (1/2): {Style.RESET_ALL}").strip()
-
-                                if intelligent_choice == "1":
-                                    _intelligent_mode = True
-                                    print(f"{Fore.GREEN}✅ Intelligent mode enabled - will automatically test higher models when needed{Style.RESET_ALL}")
-                                    break
-                                elif intelligent_choice == "2":
-                                    _intelligent_mode = False
-                                    print(f"{Fore.YELLOW}⚠️ Intelligent mode disabled - will only use {args.ram} model for all segments{Style.RESET_ALL}")
-                                    break
-                                else:
-                                    print(f"{Fore.RED}❌ Invalid choice. Please enter 1 or 2.{Style.RESET_ALL}")
-
-                            except KeyboardInterrupt:
-                                print(f"\n{Fore.YELLOW}⚠️ Defaulting to intelligent mode enabled.{Style.RESET_ALL}")
-                                _intelligent_mode = True
-                                break
-                            except EOFError:
-                                print(f"\n{Fore.YELLOW}⚠️ Defaulting to intelligent mode enabled.{Style.RESET_ALL}")
-                                _intelligent_mode = True
-                                break
-                    else:
-                        print(f"{Fore.BLUE}ℹ️ Using highest available model (11gb-v3) - no higher models to test{Style.RESET_ALL}")
-                        _intelligent_mode = False
-
-                    break  # Proceed and skip future reviews
+                    break
 
                 elif choice == "2":
                     # Re-run with new settings
@@ -755,7 +720,6 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             # temp file was deleted before the recursive call could use it.
                             tmpdir = temp_manager.mkdtemp(prefix='demucs_rerun_')
                             
-                            # Build demucs command with optional jobs parameter
                             demucs_cmd = [
                                 os.path.join('data_whisper', 'Scripts', 'python.exe'),
                                 '-m', 'demucs',
@@ -763,9 +727,11 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                                 '-o', tmpdir,
                                 '--two-stems', 'vocals'
                             ]
+                            
                             # Add jobs parameter if specified
                             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
                                 demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                            
                             demucs_cmd.append(original_audio_path)
                             
                             # Run demucs with selected model and real-time progress
@@ -921,7 +887,6 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                         continue
                     
                 elif choice == "3":
-                    # Manual region modification - this should loop back to menu
                     while True:
                         print(f"\n{Fore.CYAN}Manual Region Modification:{Style.RESET_ALL}")
                         print(f"Enter region numbers to toggle (e.g., '1,3,5' to toggle regions 1, 3, and 5)")
@@ -1151,9 +1116,11 @@ def calculate_region_confidence(segments: List[Dict]) -> float:
     segment_count = 0
     
     for segment in segments:
-        if isinstance(segment, dict) and "avg_logprob" in segment:
+        if isinstance(segment, dict) and "avg_logprob" in segment and segment["avg_logprob"] is not None:
             # Convert log probability to confidence score
-            confidence = 1.0 - min(1.0, max(0.0, -segment["avg_logprob"] / 10))
+            # A lower avg_logprob means higher confidence. 0 is perfect.
+            # We can map it to a 0-1 range. A simple way is exponential.
+            confidence = np.exp(segment["avg_logprob"])
             total_confidence += confidence
             segment_count += 1
     
@@ -1333,6 +1300,10 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
             
             # Transcribe this speech region with intelligent retry
             best_result = None
+            best_confidence = -1.0
+            best_has_repetitions = True
+            best_model_name = ""
+            
             retry_count = 0
             max_retries = 3 if _intelligent_mode else 1
             
@@ -1340,7 +1311,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 try:
                     print(f"{Fore.CYAN}🎯 Transcribing region {i} with {current_model_type} model...{Style.RESET_ALL}")
                     
-                    result = run_transcription_in_process(
+                    current_result = run_transcription_in_process(
                         audio_path=temp_audio_path,
                         model_type=current_model_type,
                         decode_options=decode_options,
@@ -1348,48 +1319,79 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         device=args.device
                     )
                     
-                    segments = result.get("segments", [])
+                    segments = current_result.get("segments", [])
                     if not segments:
                         print(f"{Fore.YELLOW}⚠️  No segments generated for region {i}. Skipping.{Style.RESET_ALL}")
+                        if retry_count == 0: # If first attempt fails, still try again
+                            best_result = {"segments": [], "text": ""}
+                        # Otherwise, we keep the previous best_result
                         break
                     
-                    # Calculate confidence for this region
-                    region_confidence = calculate_region_confidence(segments)
+                    # Calculate quality metrics for the current result
+                    current_confidence = calculate_region_confidence(segments)
+                    has_ext_reps, repeated_texts, max_consecutive = detect_repeated_segments(segments)
+                    has_int_reps, problematic_segments, max_internal_reps = detect_internal_repetitions(segments)
+                    current_has_repetitions = has_ext_reps or has_int_reps
                     
-                    # Check for repetitions in this region
-                    has_repetitions, repeated_texts, max_consecutive = detect_repeated_segments(segments)
+                    print(f"{Fore.CYAN}📊 Region {i} results ({current_model_type}): {len(segments)} segments, {current_confidence:.1%} confidence{Style.RESET_ALL}")
                     
-                    print(f"{Fore.CYAN}📊 Region {i} results: {len(segments)} segments, {region_confidence:.1%} confidence{Style.RESET_ALL}")
-                    
-                    if has_repetitions:
-                        print(f"{Fore.YELLOW}🔄 Detected repetitions in region {i}: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
-                    
-                    # Determine if we should retry with a higher model
+                    if has_ext_reps:
+                        print(f"{Fore.YELLOW}🔄 Detected external repetitions: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
+                    if has_int_reps:
+                        problematic_phrase = problematic_segments[0]['repeated_phrase']
+                        print(f"{Fore.YELLOW}🔄 Detected internal repetitions: \"{problematic_phrase}\" repeated {max_internal_reps} times.{Style.RESET_ALL}")
+
+                    # --- NEW LOGIC: Compare and select the best result ---
+                    is_better = False
+                    if best_result is None:
+                        is_better = True # First result is always the "best" so far
+                    else:
+                        # New result is better if it has no repetitions and the old one did
+                        if not current_has_repetitions and best_has_repetitions:
+                            is_better = True
+                            print(f"{Fore.GREEN}✅ New result is better (fixed repetitions).{Style.RESET_ALL}")
+                        # Or if confidence is significantly higher (e.g., >5% absolute improvement) and it doesn't introduce new repetitions
+                        elif current_confidence > best_confidence + 0.05 and not (current_has_repetitions and not best_has_repetitions):
+                            is_better = True
+                            print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}).{Style.RESET_ALL}")
+                        # If both have repetitions, prefer higher confidence
+                        elif current_has_repetitions and best_has_repetitions and current_confidence > best_confidence:
+                            is_better = True
+                            print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}, though both have repetitions).{Style.RESET_ALL}")
+
+                    if is_better:
+                        print(f"{Fore.GREEN}🏆 Keeping result from {current_model_type} as the new best.{Style.RESET_ALL}")
+                        best_result = current_result
+                        best_confidence = current_confidence
+                        best_has_repetitions = current_has_repetitions
+                        best_model_name = current_model_type
+                    else:
+                        print(f"{Fore.YELLOW}⚠️ New result from {current_model_type} is not an improvement. Keeping previous result from {best_model_name}.{Style.RESET_ALL}")
+
+                    # --- Determine if we should retry ---
                     should_retry = (
-                        _intelligent_mode and 
-                        (region_confidence < 0.85 or has_repetitions) and
+                        _intelligent_mode and
+                        (best_confidence < 0.85 or best_has_repetitions) and
                         retry_count < max_retries - 1
                     )
-                    
+
                     if should_retry:
                         next_ram = get_next_higher_model_with_turbo_handling(current_ram, task, auto_continue=True)
                         if next_ram:
-                            print(f"{Fore.YELLOW}🔄 Low confidence ({region_confidence:.1%}) or repetitions detected. Retrying region {i} with {next_ram} model...{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}🔄 Low confidence or repetitions detected. Retrying region {i} with {next_ram} model...{Style.RESET_ALL}")
                             current_ram = next_ram
                             current_model_type = get_model_type(current_ram, skip_warning=True)
                             retry_count += 1
                             continue
                     
-                    # Accept this result
-                    best_result = result
+                    # If no retry, break the loop
                     break
-                    
+
                 except Exception as e:
                     print(f"{Fore.RED}❌ Error transcribing region {i} with {current_model_type}: {e}{Style.RESET_ALL}")
                     retry_count += 1
                     
                     if retry_count < max_retries:
-                        # Try next higher model
                         next_ram = get_next_higher_model(current_ram)
                         if next_ram:
                             current_ram = next_ram
@@ -1407,11 +1409,9 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 # Correct timestamps by adding the region start time
                 for segment in region_segments:
                     if isinstance(segment, dict):
-                        # Add region start time to correct the timestamps
                         segment["start"] = segment.get("start", 0.0) + region_start
                         segment["end"] = segment.get("end", 0.0) + region_start
                         
-                        # Also correct word-level timestamps if they exist
                         if "words" in segment and isinstance(segment["words"], list):
                             for word in segment["words"]:
                                 if isinstance(word, dict):
@@ -1421,12 +1421,11 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                         word["end"] = word["end"] + region_start
                 
                 all_segments.extend(region_segments)
-                print(f"{Fore.GREEN}✅ Region {i} processed: {len(region_segments)} segments added{Style.RESET_ALL}")
-                # Display generated subtitles for this region
+                print(f"{Fore.GREEN}✅ Region {i} processed with '{best_model_name}' model: {len(region_segments)} segments added{Style.RESET_ALL}")
+                
                 generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
                 if generated_texts:
                     display_text = ", ".join(f'"{text}"' for text in generated_texts)
-                    # Use ANSI escape code for bright magenta (pink-like)
                     PINK = '\033[95m'
                     print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
                 else:
@@ -1434,7 +1433,6 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
 
     except Exception as e:
         print(f"{Fore.RED}❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
-        # Fallback to processing entire file
         full_result = run_transcription_in_process(
             audio_path=audio_path,
             model_type=original_model_type,
@@ -1444,7 +1442,6 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
         )
         all_segments = full_result.get("segments", [])
     finally:
-        # Clean up the subdirectory for region files immediately to free up space.
         shutil.rmtree(regions_temp_dir, ignore_errors=True)
     
     print(f"{Fore.GREEN}🎉 Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
@@ -2052,7 +2049,7 @@ def run_sub_gen(
         if duration > 3600:  # Over 1 hour
             file_category = "Very long"
             warning_color = Fore.RED
-            default_segment_length = 1800  # 30 minutes for very long files
+            default_segment_length = 600   # 10 minutes for very long files
             recommendation = "Strongly recommended to use segmentation to avoid memory issues."
         elif duration > 1800:  # Over 30 minutes
             file_category = "Long"
@@ -2434,8 +2431,9 @@ def process_single_file(
     # Vocal isolation step if requested
     processed_audio_path = str(input_path_obj)
     if getattr(args, 'isolate_vocals', False):
-        if not shutil.which('demucs'):
-            raise RuntimeError("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
+        demucs_python_path = os.path.join('data_whisper', 'Scripts', 'python.exe')
+        if not os.path.exists(demucs_python_path):
+            raise RuntimeError(f"The required Python interpreter for Demucs was not found at your mandatory path: {demucs_python_path}")
         
         # Determine which Demucs model to use
         selected_model = getattr(args, 'demucs_model', None)
@@ -2545,7 +2543,6 @@ def process_single_file(
             # Create a managed temp directory for demucs output. It will be cleaned on script exit.
             tmpdir = temp_manager.mkdtemp(prefix='demucs_')
 
-            # Build demucs command with optional jobs parameter
             demucs_cmd = [
                 os.path.join('data_whisper', 'Scripts', 'python.exe'),
                 '-m', 'demucs',
@@ -2553,9 +2550,11 @@ def process_single_file(
                 '-o', tmpdir,
                 '--two-stems', 'vocals'
             ]
+            
             # Add jobs parameter if specified
             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
                 demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+            
             demucs_cmd.append(str(input_path_obj))
             
             # Run demucs CLI to separate vocals with real-time progress display

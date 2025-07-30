@@ -47,14 +47,6 @@
 
 ## 📚 Documentation Wiki
 
-**For comprehensive guides and detailed documentation, visit the [information folder](./information/index.md)!**
-
-The wiki contains detailed guides for every feature:
-> **ℹ️ Note:** The Linux guide is not fully documented or tested. If you have trouble, please open an issue report on GitHub and I'll try to help.
-
-💡 **The information folder is your go-to resource for in-depth help with any Synthalingua feature!**
-## 📚 Documentation Wiki
-
 **For comprehensive guides and detailed documentation, visit the official Synthalingua Wiki:**
 
 👉 [https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
@@ -403,6 +395,7 @@ python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_
 - [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
 - [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org
 - [@Adenser](https://github.com/Adenser)
+- [@YuumiPie](https://github.com/YuumiPie)
 
 ---
 
