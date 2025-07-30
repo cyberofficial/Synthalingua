@@ -176,9 +176,11 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--ram` | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3) |
 | `--ramforce` | Force RAM/VRAM model |
 | `--fp16` | Enable FP16 mode |
-| `--device` | Device: cpu/cuda |
+| `--device` | Device: (auto/cpu/cuda/intel-igpu/intel-dgpu/intel-npu) |
 | `--cuda_device` | CUDA device index |
 | `--model_dir` | Model directory |
+| `--model_source` | Source of the model (Whisper, FasterWhisper, OpenVINO) |
+| `--compute_type` | Quantization of the model |
 
 ### Input & Microphone
 | Flag | Description |
