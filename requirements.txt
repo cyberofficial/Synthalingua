@@ -110,3 +110,4 @@ pycountry==24.6.1
 transformers==4.52.4
 optimum-intel
 openvino==2025.1.0
+optimum==1.26.1

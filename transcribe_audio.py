@@ -252,8 +252,6 @@ def main():
     print("Model loaded.\n")
     print(f"Using {model} model.")
 
-    if device.type == "cuda" and "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
-        print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")      # Initialize transcription core
     args.model = model  # Add the model name to args
     transcription_core = TranscriptionCore(args, device, audio_model, blacklist, temp_dir)
 
