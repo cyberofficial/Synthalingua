@@ -23,11 +23,12 @@ class BaseWhisperModel:
         audio = whisper.load_audio(file_path)
         audio = whisper.pad_or_trim(audio)
 
-        # similarly (if ram == "11gb-v3")
-        if self.model == "large-v3":
-            mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(self.device)
-        else:
-            mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(self.device)
+        # similarly to (if ram == "11gb-v3")
+        n_mels = 128 if self.model in ["large-v3", "large"] else 80
+        mel = whisper.log_mel_spectrogram(
+            audio,
+            n_mels=n_mels
+        ).to(self.device)
         _, language_probs = self.audio_model.detect_language(mel)
         return language_probs
 

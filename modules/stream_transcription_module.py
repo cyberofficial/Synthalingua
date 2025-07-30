@@ -220,7 +220,7 @@ def start_stream_transcription(
     Args:
         task_id (str): Unique identifier for this transcription task
         hls_url (str): URL of the HLS stream to process
-        model_name (whisper.Whisper): Loaded Whisper model instance
+        model_name (object): Loaded Whisper model instance
         temp_dir (str): Directory path for temporary files
         segments_max (int): Maximum number of segments to process at once
         target_language (str): Target language code for transcription
@@ -468,15 +468,14 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to translate
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
 
         Returns:
             str: Translated text in English, or empty string if translation fails        Uses Whisper's translate task to directly translate audio to English text.
         Includes fp16 optimization and previous text conditioning based on arguments.
         """
         try:
-            result = model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
-            return result["text"]
+            return model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
         except RuntimeError as e:
             print_error_message(f"Error translating audio: {e}")
             return ""
@@ -487,7 +486,7 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to transcribe
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
             language (str): Language code for transcription
 
         Returns:
@@ -495,8 +494,7 @@ def start_stream_transcription(
         and previous text conditioning based on arguments.
         """
         try:
-            result = model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
-            return result["text"]
+            return model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
         except RuntimeError as e:
             print_error_message(f"Error transcribing audio: {e}")
             return ""
@@ -507,8 +505,8 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to analyze
-            model (whisper.Whisper): Loaded Whisper model instance
-            device (str): Device to run inference on (CPU/CUDA). Defaults to args.device
+            model (object): Loaded Whisper model instance
+            device (str): Device to run inference on (CPU/CUDA/iGPU/dGPU/NPU). Defaults to args.device
 
         Returns:
             str: Detected language code, or "n/a" if detection fails
@@ -518,16 +516,7 @@ def start_stream_transcription(
         performing language detection.
         """
         try:
-            audio = whisper.load_audio(file_path)
-            audio = whisper.pad_or_trim(audio)
-            
-            # Use 128 mel bands for large-v3 model
-            if args.ram == "11gb-v3":
-                mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
-            else:
-                mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
-
-            _, language_probs = model.detect_language(mel)
+            language_probs = model.detect_language(file_path, ram=args.ram, device=device)
             detected_language = max(language_probs, key=language_probs.get)
             return detected_language
         except RuntimeError as e:
@@ -542,7 +531,7 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to process
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
 
         This function orchestrates the complete audio processing workflow:
         1. Original language transcription (if enabled)
