@@ -159,8 +159,10 @@ def setup_device(args):
         dedicated = ov.properties.device.Type.DISCRETE
         integrated = ov.properties.device.Type.INTEGRATED
 
+        if device == "cuda":
+            print("OpenVINO does not support CUDA devices. Falling back to default device.")
         # Input is a specific device (ex. CPU.0, GPU.5)
-        if re.match(device.upper(), r"^(CPU|GPU|NPU)(\.\d+)$"):
+        elif re.match(device.upper(), r"^(CPU|GPU|NPU)(\.\d+)$"):
             # Raise device case to match OpenVINO devices case (gpu.2 -> GPU.2)
             _device = device.upper().removesuffix(".0")
             if _device in devices:
