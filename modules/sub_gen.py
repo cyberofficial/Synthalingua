@@ -753,16 +753,15 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             
                             # Build demucs command with optional jobs parameter
                             demucs_cmd = [
-                                'demucs',
+                                os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                                '-m', 'demucs',
                                 '-n', selected_model,
                                 '-o', tmpdir,
                                 '--two-stems', 'vocals'
                             ]
-                            
                             # Add jobs parameter if specified
                             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
                                 demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-                            
                             demucs_cmd.append(original_audio_path)
                             
                             # Run demucs with selected model and real-time progress
@@ -2541,16 +2540,15 @@ def process_single_file(
 
             # Build demucs command with optional jobs parameter
             demucs_cmd = [
-                'demucs',
+                os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                '-m', 'demucs',
                 '-n', selected_model,
                 '-o', tmpdir,
                 '--two-stems', 'vocals'
             ]
-            
             # Add jobs parameter if specified
             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
                 demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-            
             demucs_cmd.append(str(input_path_obj))
             
             # Run demucs CLI to separate vocals with real-time progress display
