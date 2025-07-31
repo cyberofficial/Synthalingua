@@ -29,8 +29,8 @@
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
 ## Table of Contents
-- [About](#about)
-- [📚 Documentation Wiki](#-documentation-wiki)
+- [About](#about-synthalingua)
+- [Documentation Wiki](#documentation-wiki)
 - [Quick Start](#quick-start)
 - [Feature Highlights](#feature-highlights)
 - [System Requirements](#system-requirements)
@@ -42,24 +42,28 @@
 - [Troubleshooting](#troubleshooting)
 - [Contributors](#contributors)
 - [Video Demonstration](#video-demonstration)
+- [Support Synthalingua](#support-synthalingua) 
 
 ---
 
-## 📚 Documentation Wiki
+## Documentation Wiki
 
 **For comprehensive guides and detailed documentation, visit the official Synthalingua Wiki:**
 
-👉 [https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
+[https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
 
 The GitHub Wiki contains detailed guides for every feature, including setup, usage, troubleshooting, and advanced options. Always check the wiki for the latest documentation and tips!
 
 ---
 
-## About
-Synthalingua is a self-hosted AI tool for real-time audio translation and transcription. It supports multilingual input and output, streaming, microphone, and file modes, and is optimized for both GPU and CPU. The project is in active development and open source.
+## About Synthalingua
+Synthalingua is an advanced, self-hosted tool that leverages the power of artificial intelligence to translate audio from various languages into English in near real time, offering the possibility of multilingual outputs. This innovative solution utilizes both GPU and CPU resources to handle input transcription and translation, ensuring optimized performance.
 
-## Legal & Friendly Disclaimer
-Synthalingua is a self-hosted AI tool for real-time audio translation and transcription. It supports multilingual input and output, streaming, microphone, and file modes, and is optimized for both GPU and CPU. The project is in active development and open source.
+While currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
+
+Synthalingua started as a very personal project for me. I was inspired by my love for VTubers, many of whom I could only understand through translated clips on YouTube. I wanted to experience their streams live, in real time, with the same depth and connection that native speakers enjoyed. While I could already watch live, it just wasn’t the same without fully understanding what was being said in the moment. That frustration turned into motivation, and I began working on a tool that could break through improve the experience.
+
+What started as a small, personal endeavor quickly grew into something much larger than I could have imagined. The idea that language should never be a barrier to connection, whether in the VTuber community or beyond, really resonated with me. I wanted to create something that would allow anyone, anywhere, to fully experience the rich conversations, emotions, and stories that come from people speaking in their own native tongue - and that’s how Synthalingua was born.
 
 ## Legal & Friendly Disclaimer
 Hey there! Synthalingua is a fun and powerful tool for exploring languages, learning, and enjoying live translations. But just like any tool, it comes with a few important guidelines to keep things safe, legal, and friendly for everyone.
@@ -117,14 +121,14 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ---
 
 ## System Requirements
-| Requirement     | Minimum                                    | Moderate                            | Recommended                                  | Best Performance                        |
-|-----------------|--------------------------------------------|-------------------------------------|----------------------------------------------|-----------------------------------------|
-| CPU             | 2 cores, 2.0 GHz+                          | 4 cores, 3.0 GHz+                   | 8 cores, 3.5 GHz+                            | 16+ cores, 4.0 GHz+                     |
-| RAM             | 4 GB                                       | 8 GB                                | 16 GB                                        | 32+ GB                                  |
-| GPU (Nvidia)    | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
-| GPU (AMD/Linux) | 4GB VRAM (experimental)                    | 8GB VRAM                            | 12GB+ VRAM                                   | 16GB+ VRAM                              |
-| OS              | Windows 10+, Linux                         | Windows 10+, Linux                  | Windows 10+, Linux                           | Windows 10+, Linux                      |
-| Storage         | 2 GB free                                  | 10 GB free                          | 20 GB+ free                                  | SSD/NVMe recommended                    |
+| Requirement | Minimum | Moderate | Recommended | Best Performance | 
+|-----|-----|-----|-----|-----|
+| CPU | 2 cores, 2.0 GHz+ | 4 cores, 3.0 GHz+ | 8 cores, 3.5 GHz+ | 16+ cores, 4.0 GHz+ | 
+| RAM | 4 GB | 8 GB | 16 GB | 32+ GB | 
+| GPU (Nvidia) | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
+| GPU (AMD/Linux) | 4GB VRAM (experimental) | 8GB VRAM | 12GB+ VRAM | 16GB+ VRAM |
+| OS | Windows 10+, Linux | Windows 10+, Linux | Windows 10+, Linux | Windows 10+, Linux |
+| Storage | 2 GB free | 10 GB free | 20 GB+ free | SSD/NVMe recommended | 
 
 **Supported GPUs:**
 - Nvidia: Most CUDA-capable cards (Kepler, Maxwell, Pascal, Turing, Ampere, Ada; e.g. GTX 750 Ti, 1050 Ti, 1660, RTX 2060/2070/2080/3060/3070/3080/3090/40xx, A6000, etc.)
@@ -153,82 +157,82 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ## Command-Line Arguments
 
 ### General
-| Flag                | Description                                                    |
-|---------------------|----------------------------------------------------------------|
-| `--about`           | Show app info                                                  |
-| `--updatebranch`    | Update branch (master/dev-testing/bleeding-under-work/disable) |
-| `--no_log`          | Only show last line of output                                  |
-| `--keep_temp`       | Keep temp audio files                                          |
-| `--save_transcript` | Save transcript to file                                        |
-| `--save_folder`     | Set transcript save folder                                     |
+| Flag | Description |
+|-----|-----|
+| `--about` | Show app info |
+| `--updatebranch` | Update branch (master/dev-testing/bleeding-under-work/disable) |
+| `--no_log` | Only show last line of output |
+| `--keep_temp` | Keep temp audio files |
+| `--save_transcript` | Save transcript to file |
+| `--save_folder` | Set transcript save folder |
 
 ### Model & Device
-| Flag             | Description                                             |
-|------------------|---------------------------------------------------------|
-| `--ram`          | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3)       |
-| `--ramforce`     | Force RAM/VRAM model                                    |
-| `--fp16`         | Enable FP16 mode                                        |
-| `--device`       | Device: (auto/cpu/cuda/intel-igpu/intel-dgpu/intel-npu) |
-| `--cuda_device`  | CUDA device index                                       |
-| `--model_dir`    | Model directory                                         |
+| Flag | Description |
+|-----|------|
+| `--ram` | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3) |
+| `--ramforce` | Force RAM/VRAM model |
+| `--fp16` | Enable FP16 mode |
+| `--device` | Device: (auto/cpu/cuda/intel-igpu/intel-dgpu/intel-npu) |
+| `--cuda_device` | CUDA device index |
+| `--model_dir` | Model directory |
 | `--model_source` | Source of the model (Whisper, FasterWhisper, OpenVINO)  |
-| `--compute_type` | Quantization of the model                               |
+| `--compute_type` | Quantization of the model |
 
 ### Input & Microphone
-| Flag                     | Description              |
-|--------------------------|--------------------------|
-| `--microphone_enabled`   | Enable microphone input  |
-| `--list_microphones`     | List microphones         |
-| `--set_microphone`       | Set mic by name or index |
-| `--energy_threshold`     | Mic energy threshold     |
-| `--mic_calibration_time` | Mic calibration time     |
-| `--record_timeout`       | Recording chunk length   |
-| `--phrase_timeout`       | Silence before new line  |
+| Flag | Description |
+|-----|-----|
+| `--microphone_enabled` | Enable microphone input |
+| `--list_microphones` | List microphones |
+| `--set_microphone` | Set mic by name or index |
+| `--energy_threshold` | Mic energy threshold |
+| `--mic_calibration_time` | Mic calibration time |
+| `--record_timeout` | Recording chunk length |
+| `--phrase_timeout` | Silence before new line |
 
 ### Streaming & File
-| Flag                             | Description                                                                                                        |
-|----------------------------------|--------------------------------------------------------------------------------------------------------------------|
-| `--selectsource`                 | Select the stream audio source (interactive.)                                                                      |
-| `--stream`                       | HLS stream input                                                                                                   |
-| `--stream_language`              | Stream language                                                                                                    |
-| `--stream_target_language`       | [DEPRECATED - WILL BE REMOVED SOON] Stream translation target (use --stream_transcribe <language> instead)         |
-| `--stream_translate`             | Enable stream translation                                                                                          |
-| `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English)                      |
-| `--stream_original_text`         | Show original stream text                                                                                          |
-| `--stream_chunks`                | Stream chunk size                                                                                                  |
-| `--paddedaudio`                  | Number of chunks to overlap from previous batch for better context (works with both --stream and microphone input) |
-| `--auto_hls`                     | Auto HLS chunk tuning                                                                                              |
-| `--cookies`                      | Cookies file (supports absolute paths, current dir, or cookies/ folder)                                            |
-| `--remote_hls_password_id`       | Webserver password ID                                                                                              |
-| `--remote_hls_password`          | Webserver password                                                                                                 |
+| Flag | Description |
+|-----|-----|
+| `--selectsource` | Select the stream audio source (interactive.) |
+| `--stream` | HLS stream input |
+| `--stream_language` | Stream language |
+| `--stream_target_language` | [DEPRECATED - WILL BE REMOVED SOON] Stream translation target (use --stream_transcribe <language> instead) |
+| `--stream_translate` | Enable stream translation |
+| `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English) |
+| `--stream_original_text` | Show original stream text |
+| `--stream_chunks` | Stream chunk size |
+| `--paddedaudio` | Number of chunks to overlap from previous batch for better context (works with both --stream and microphone input) |
+| `--auto_hls` | Auto HLS chunk tuning |
+| `--cookies` | Cookies file (supports absolute paths, current dir, or cookies/ folder) |
+| `--remote_hls_password_id` | Webserver password ID |
+| `--remote_hls_password` | Webserver password for|
 
 ### Language & Translation
-| Flag                           | Description                        |
-|--------------------------------|------------------------------------|
-| `--language`                   | Source language                    |
-| `--target_language`            | Target language                    |
-| `--translate`                  | Enable translation                 |
-| `--transcribe`                 | Transcribe to target language      |
-| `--auto_language_lock`         | Auto language lock                 |
+| Flag | Description |
+|-----|-----|
+| `--language` | Source language |
+| `--target_language` | Target language |
+| `--translate` | Enable translation |
+| `--transcribe` | Transcribe to target language |
+| `--auto_language_lock` | Auto language lock |
 | `--condition_on_previous_text` | Suppress repeated/similar messages |
 
 ### Output, Captions, and Filtering
-| Flag                     | Description                                                                                                                                                                                                                                                                                                      |
-|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--makecaptions`         | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models                                                                                                                                                                                                                             |
-| `--word_timestamps`      | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes.                                                                  |
-| `--isolate_vocals`       | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package.                                                                                                                                                                                          |
-| `--demucs_model`         | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled.                                                                              |
-| `--silent_detect`        | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
-| `--silent_threshold`     | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`.                                                                                                    |
-| `--silent_duration`      | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`.                                                                              |
-| `--print_srt_to_console` | Print the final generated SRT subtitles to the console after file creation (captions mode only).                                                                                                                                                                                                                 |
-| `--file_input`           | Input file for captions                                                                                                                                                                                                                                                                                          |
-| `--file_output`          | Output folder for captions                                                                                                                                                                                                                                                                                       |
-| `--file_output_name`     | Output file name                                                                                                                                                                                                                                                                                                 |
-| `--ignorelist`           | Blocklist file (words/phrases)                                                                                                                                                                                                                                                                                   |
-| `--auto_blocklist`       | Auto-add frequently blocked phrases to blocklist                                                                                                                                                                                                                                                                 |
-| `--debug`                | Print debug info for blocked/suppressed messages                                                                                                                                                                                                                                                                 |
+| Flag | Description |
+|-----|-----|
+| `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
+| `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
+| `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
+| `--demucs_model` | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled. |
+| `--silent_detect` | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
+| `--silent_threshold` | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
+| `--silent_duration` | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
+| `--print_srt_to_console` | Print the final generated SRT subtitles to the console after file creation (captions mode only). |
+| `--file_input` | Input file for captions |
+| `--file_output` | Output folder for captions |
+| `--file_output_name` | Output file name |
+| `--ignorelist` | Blocklist file (words/phrases) |
+| `--auto_blocklist` | Auto-add frequently blocked phrases to blocklist |
+| `--debug` | Print debug info for blocked/suppressed messages |
 ### Print SRT to Console
 The `--print_srt_to_console` flag prints the final, fully combined SRT subtitles to the console after the SRT file is created (captions mode only). This is useful for quickly viewing the generated subtitles without opening the SRT file manually. It only prints the final combined SRT (not per-segment SRTs) and works with `--makecaptions`.
 
@@ -239,9 +243,9 @@ python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --fil
 This will save the SRT file as usual and also print its contents to the console at the end of processing.
 
 ### Web & Discord
-| Flag                | Description         |
-|---------------------|---------------------|
-| `--portnumber`      | Web server port     |
+| Flag | Description |
+|-----|-----|
+| `--portnumber` | Web server port |
 | `--discord_webhook` | Discord webhook URL |
 
 ---
@@ -296,13 +300,13 @@ This will save the SRT file as usual and also print its contents to the console 
 ### Advanced Caption Features
 For the best caption generation experience, Synthalingua offers several advanced features that can be combined:
 
-#### **🎯 Silent Detection (`--silent_detect`)**
+#### **Silent Detection (`--silent_detect`)**
 - **What it does:** Intelligently skips silent regions in audio files
 - **Benefits:** Faster processing, reduced resource usage, better transcription quality
 - **Best for:** Podcasts, lectures, videos with long pauses or intro/outro music
 - **Usage:** Only works with `--makecaptions` (caption generation mode)
-- **⚠️ Not supported:** HLS/streaming modes or microphone input
-- **🔧 Customizable settings:**
+- **Not supported:** HLS/streaming modes or microphone input
+- **Customizable settings:**
   - **Threshold (`--silent_threshold`):** Controls volume sensitivity
     - **Default:** -35.0dB (good for normal speech)
     - **Quiet speech/whispers:** -45.0dB or lower (more sensitive)
@@ -312,13 +316,13 @@ For the best caption generation experience, Synthalingua offers several advanced
     - **Ignore short pauses:** 2.0s+ (only long silences count)
     - **Detect quick breaks:** 0.1s (very sensitive to gaps)
 
-#### **🎵 Vocal Isolation (`--isolate_vocals`)**
+#### **Vocal Isolation (`--isolate_vocals`)**
 - **What it does:** Separates vocals from background music/noise using AI (requires demucs)
 - **Benefits:** Cleaner transcription, better accuracy in noisy environments
 - **Best for:** Music videos, podcasts with background music, noisy recordings
 - **Requires:** `pip install demucs` or included in some distributions
 
-#### **⚡ Maximum Efficiency Combo (RECOMMENDED)**
+#### ** Maximum Efficiency Combo (RECOMMENDED)**
 Combine both features for optimal results:
 ```sh
 python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input="your_file.mp4"
@@ -329,19 +333,19 @@ python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --fil
 2. **Silent detection** analyzes the cleaned audio for more accurate silence detection
 3. **Result:** Only speech regions from isolated vocals are processed
 4. **Benefits:** 
-   - ⚡ **Fastest processing** (skips silence and noise)
-   - 🎯 **Highest accuracy** (clean vocal-only audio)
-   - 💰 **Resource efficient** (processes less audio overall)
-   - 🎪 **Natural boundaries** (respects speech patterns, no mid-word cuts)
+   - **Fastest processing** (skips silence and noise)
+   - **Highest accuracy** (clean vocal-only audio)
+   - **Resource efficient** (processes less audio overall)
+   - **Natural boundaries** (respects speech patterns, no mid-word cuts)
 
-#### **📊 Processing Workflow**
+#### **Processing Workflow**
 1. **Input:** Original audio/video file
 2. **Vocal Isolation:** Extracts clean vocals (if `--isolate_vocals`)
 3. **Silence Detection:** Finds speech regions in vocal track (if `--silent_detect`)
 4. **Transcription:** Processes only speech regions with natural boundaries
 5. **Output:** High-quality SRT captions with perfect timestamps
 
-#### **💡 Pro Tips**
+#### ** Pro Tips**
 - Use `--makecaptions compare` with both flags to test all models efficiently
 - Silent detection works on any audio, but is most effective with vocal isolation
 - Both features maintain perfect timestamp accuracy in final SRT files
@@ -405,6 +409,24 @@ Command line arguments used: `--ram 6gb --record_timeout 2 --language ja --energ
 
 Command line arguments used: `--ram 11gb-v2 --record_timeout 5 --language id --energy_threshold 500`
 [<img src="https://i.imgur.com/2WbWpH4.jpg" width="50%">](https://streamable.com/skuhoh)
+
+---
+
+## Support Synthalingua
+If Synthalingua has made a difference in your life and you find yourself using it regularly, I would be truly grateful if you considered supporting its continued development. 😁 Running a GPU at full power day in and day out requires a lot of resources, and the cost of electricity and maintenance adds up over time. Any contribution, no matter how small, would help tremendously in keeping this project going strong and ensuring that I can continue to improve and expand it for everyone.
+
+Your support would not just help cover the costs of running and maintaining Synthalingua, it would also be a vote of confidence in this vision — a world where language doesn’t stand in the way of connection and understanding. I believe that no one should feel left out of a new experience just because it’s in a different language. Every conversation, every voice, deserves to be understood and appreciated. If you can not support through monetary means, just sharing the application would also be a great benefit to those who want the same experience I wanted but don't know where to begin.
+
+Synthalingua will always remain free, because I want this tool to be available to anyone who needs it, regardless of their financial situation. But if it has enriched your experience, opened up new possibilities for you, or simply made your world a little bigger, your support would mean the world to me. It helps keep this project alive and ensures that others can also benefit from this tool and the vision behind it.
+
+Thank you for being part of this journey. Your belief in Synthalingua and its mission is what drives me to keep going, and I’m incredibly grateful for every one of you who uses and believes in this project. Together, we can help build a future where communication knows no boundaries, and language is a bridge rather than a barrier.
+
+
+**Support via:**
+
+[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
+
+[<img src="https://i.imgur.com/ghRdIqe.png" alt="Support me on Ko-fi" width="200">](https://ko-fi.com/cyberofficial)
 
 ---
 
