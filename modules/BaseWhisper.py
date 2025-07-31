@@ -4,13 +4,36 @@ import whisper
 
 class BaseWhisperModel:
     def __init__(self, model: str, device, download_root: str) -> None:
-        ## Removed so it doesn't redownload models over again for users, only creates annoyances for existing users. Will re-enable next major update.
-        #download_root = os.path.join(download_root, "Whisper")
-        print("Whisper Models will be moved to 'Whisper' in the models folder next update. Please move your existing models accordingly upon next major update.")
-
+        # Ensure model files are in the correct folder before loading
+        self._move_model_files_to_whisper_folder()
+        
+        download_root = os.path.join(download_root, "Whisper")
         self.model = model
         self.device = device
         self.audio_model = whisper.load_model(model, device=device, download_root=download_root)
+
+    def _move_model_files_to_whisper_folder(self):
+        """
+        Detects specified model files in the models directory and moves them into models/Whisper.
+        Will be removed in future update.
+        """
+        import shutil
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models'))
+        whisper_dir = os.path.join(base_dir, 'Whisper')
+        os.makedirs(whisper_dir, exist_ok=True)
+        model_files = [
+            "base.en.pt", "base.pt", "large-v2.pt", "large-v3-turbo.pt", "large-v3.pt",
+            "medium.en.pt", "medium.pt", "small.en.pt", "small.pt", "tiny.en.pt", "tiny.pt"
+        ]
+        for fname in model_files:
+            src = os.path.join(base_dir, fname)
+            dst = os.path.join(whisper_dir, fname)
+            if os.path.isfile(src):
+                print(f"Auto Migration of {fname} to {whisper_dir} in progress, please wait...")
+                try:
+                    shutil.move(src, dst)
+                except Exception as e:
+                    print(f"Failed to move {fname}: {e}")
 
     def detect_language(self, file_path: str) -> dict:
         """
@@ -32,7 +55,13 @@ class BaseWhisperModel:
             n_mels=n_mels
         ).to(self.device)
         _, language_probs = self.audio_model.detect_language(mel)
-        return language_probs
+        # Ensure return type is dict
+        if isinstance(language_probs, dict):
+            return language_probs
+        elif isinstance(language_probs, list) and language_probs and isinstance(language_probs[0], dict):
+            return language_probs[0]
+        else:
+            return {}
 
     def transcribe(self, file_path: str, **kwargs) -> str:
         """
@@ -53,7 +82,15 @@ class BaseWhisperModel:
         language = kwargs.get("language")
         fp16 = kwargs.get("fp16")
         condition_on_previous_text = kwargs.get("condition_on_previous_text")
+        if condition_on_previous_text is None:
+            condition_on_previous_text = False
         task = kwargs.get("task")
 
         result = self.audio_model.transcribe(audio=file_path, language=language, fp16=fp16, condition_on_previous_text=condition_on_previous_text, task=task)
-        return result["text"]
+        text = result.get("text", "")
+        if isinstance(text, str):
+            return text
+        elif isinstance(text, list):
+            return " ".join(str(t) for t in text)
+        else:
+            return str(text)
