@@ -36,6 +36,7 @@ from collections import deque
 from colorama import Fore, Back, Style, init
 from urllib.parse import urlparse
 from modules.rate_limiter import global_rate_limiter
+from modules.file_handlers import is_phrase_in_blocklist, add_phrase_to_blocklist
 
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
@@ -654,21 +655,26 @@ def start_stream_transcription(
 
         transcription = None
         translation = None
+        detected_language = stream_language if stream_language else 'en'
+
         if args.stream_original_text:
-            if args.stream_language:
-                detected_language = stream_language
-            else:
+            if not stream_language:
                 detected_language = detect_language(processed_audio_path, model)
+            
             transcription = transcribe_audio(
                 processed_audio_path, model, language=detected_language
             )
-            # If the phrase is in the blocklist, skip printing and updating last_transcription
+
+            # Check original transcription against blocklist
             if is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
-                return
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Original transcription blocked by list: '{transcription}'")
+                transcription = ""  # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = transcription and not is_similar(transcription, process_audio.last_transcription)
             else:
                 is_new = bool(transcription)
+            
             if is_new:
                 print_transcription_result(detected_language, transcription, "Original")
                 process_audio.last_transcription = transcription
@@ -682,16 +688,22 @@ def start_stream_transcription(
                     blocked_phrase_history["original"].append(msg)
                     if blocked_phrase_history["original"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and transcription:
                     print(f"[DEBUG] Blocked similar original message: {transcription}")
-                pass
 
         if tasktranslate_task:
             translation = translate_audio(processed_audio_path, model)
+
+            # Check translation against blocklist
+            if is_phrase_in_blocklist(translation, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Translation blocked by list: '{translation}'")
+                translation = "" # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = translation and not is_similar(translation, process_audio.last_translation)
             else:
                 is_new = bool(translation)
+            
             if is_new:
                 print_transcription_result("EN", translation, "Translation")
                 process_audio.last_translation = translation
@@ -709,18 +721,24 @@ def start_stream_transcription(
                     blocked_phrase_history["translation"].append(msg)
                     if blocked_phrase_history["translation"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(translation, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and translation:
                     print(f"[DEBUG] Blocked similar translation message: {translation}")
-                pass
 
         if tasktranscribe_task:
             transcription = transcribe_audio(
                 processed_audio_path, model, language=target_language
             )
+            
+            # Check target transcription against blocklist
+            if is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Target transcription blocked by list: '{transcription}'")
+                transcription = "" # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = transcription and not is_similar(transcription, process_audio.last_target_transcription)
             else:
                 is_new = bool(transcription)
+
             if is_new:
                 print_transcription_result(target_language, transcription, "Transcription")
                 process_audio.last_target_transcription = transcription
@@ -738,9 +756,9 @@ def start_stream_transcription(
                     blocked_phrase_history["target"].append(msg)
                     if blocked_phrase_history["target"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and transcription:
                     print(f"[DEBUG] Blocked similar target transcription message: {transcription}")
-                pass
+
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -962,36 +980,3 @@ blocked_phrase_history = {
 # Check if auto-blocking is enabled and blocklist is set
 AUTO_BLOCKLIST_ENABLED = getattr(args, 'auto_blocklist', False)
 BLOCKLIST_PATH = getattr(args, 'ignorelist', None)
-
-# Helper to add a phrase to the blocklist file
-def add_phrase_to_blocklist(phrase, blocklist_path):
-    phrase = phrase.strip()
-    if not phrase:
-        return True  # treat as already blocked for debug logic
-    
-    # Check if already in blocklist (case-insensitive, trimmed)
-    try:
-        if os.path.exists(blocklist_path):
-            with open(blocklist_path, 'r', encoding='utf-8') as f:
-                lines = [line.strip().lower() for line in f.readlines()]
-            if phrase.lower() in lines:
-                return True  # Already present, do not add again
-            
-        with open(blocklist_path, 'a', encoding='utf-8') as f:
-            f.write(phrase + '\n')
-        print_info_message(f"Auto-added phrase to blocklist: {phrase}", "🚫")
-        return False
-    except Exception as e:
-        print_error_message(f"Could not add phrase to blocklist: {e}", "❌")
-        return False
-
-def is_phrase_in_blocklist(phrase, blocklist_path):
-    phrase = phrase.strip()
-    if not phrase or not blocklist_path or not os.path.exists(blocklist_path):
-        return False
-    try:
-        with open(blocklist_path, 'r', encoding='utf-8') as f:
-            lines = [line.strip().lower() for line in f.readlines()]
-        return phrase.lower() in lines
-    except Exception:
-        return False
