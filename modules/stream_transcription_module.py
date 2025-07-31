@@ -495,9 +495,19 @@ def start_stream_transcription(
         """
         try:
             return model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
-        except RuntimeError as e:
-            print_error_message(f"Error transcribing audio: {e}")
+        except IndexError:
+            print_error_message(f"Audio decoding error for segment: {os.path.basename(file_path)} (IndexError).")
+            print_warning_message("This is likely due to a corrupted or empty audio segment from the stream. Skipping this chunk.")
             return ""
+        except Exception as e:
+            # Catch other potential decoding errors from PyAV
+            if "av." in str(e):
+                print_error_message(f"Audio decoding error for segment: {os.path.basename(file_path)} ({type(e).__name__}).")
+                print_warning_message("This is likely due to a corrupted audio segment from the stream. Skipping this chunk.")
+                return ""
+            else:
+                print_error_message(f"An unexpected error occurred during transcription: {e}")
+                return ""
 
     def detect_language(file_path, model, device=args.device):
         """
