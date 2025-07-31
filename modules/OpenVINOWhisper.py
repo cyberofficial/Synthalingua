@@ -42,6 +42,7 @@ class OpenVINOWhisperModel:
             model=audio_model,
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
+            device=device.lower(),
         )
 
 
@@ -85,8 +86,19 @@ class OpenVINOWhisperModel:
         """
         language = kwargs.get("language")
         task = kwargs.get("task")
+        
         # Pycountry library used to convert language to the required format (English -> en)
-        language = pycountry.languages.get(language).alpha_2
+        if language and len(language) > 2:  # Check if it's a full name like "English"
+            try:
+                lang_obj = pycountry.languages.get(name=language)
+                if lang_obj and hasattr(lang_obj, 'alpha_2'):
+                    language = lang_obj.alpha_2
+                else:
+                    raise ValueError(f"Could not find ISO code for language: {language}")
+            except Exception as e:
+                raise ValueError(f"Language conversion error: {e}")
+        # else, assume it's already a code like 'en'
+
         language = f"<|{language}|>"
 
         generate_kwargs = {
@@ -97,6 +109,8 @@ class OpenVINOWhisperModel:
         outputs = self.pipe(file_path, generate_kwargs=generate_kwargs)
 
         result = ""
-        for output in outputs.values():
-            result += output
+        # The output from the pipeline is a dictionary with a 'text' key
+        if isinstance(outputs, dict) and 'text' in outputs:
+            result = outputs['text']
+
         return result
