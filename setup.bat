@@ -4,7 +4,7 @@ Title Realtime Whisper Translation App Setup
 
 :prechecks
 
-if NOT exist transcribe_audio.py goto EoF_Error
+if NOT exist synthalingua.py goto EoF_Error
 
 Echo Checking for Python 3.12.x
 echo Running command: python -V
@@ -112,7 +112,7 @@ echo Creating a shortcut batch file for the translation app...
     echo call "data_whisper\Scripts\activate.bat"
     echo call ffmpeg_path.bat
             echo rem Example: Generate English captions for a video file
-            echo python "transcribe_audio.py" --ram 3gb --makecaptions --file_input "C:\path\to\your\video.mp4" --file_output "C:\path\to\output\folder" --file_output_name "output_captions" --language Japanese --device cuda
+            echo python "synthalingua.py" --ram 3gb --makecaptions --file_input "C:\path\to\your\video.mp4" --file_output "C:\path\to\output\folder" --file_output_name "output_captions" --language Japanese --device cuda
             echo rem Edit the above paths and options as needed
     echo pause
 ) > "livetranslation.bat"
@@ -129,7 +129,7 @@ python set_up_env.py --reinstall
 exit /b
 
 :EoF_Error
-Echo can not fnd transcribe_audio.py
+Echo can not fnd synthalingua.py
 Echo Did you run as admin? If so DO NOT run as admin!
 Echo. Please make sure you run setup in the same location as the source code.
 Echo. If you are using powershell, Do not. Use command prompt instead.
