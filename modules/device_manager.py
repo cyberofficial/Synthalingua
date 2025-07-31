@@ -2,7 +2,7 @@
 Device management module for audio input and processing devices.
 
 This module handles the configuration and management of both audio input devices
-(microphones) and processing devices (CPU/CUDA). It provides functionality for:
+(microphones) and processing devices (CPU/CUDA/iGPU/dGPU/NPU). It provides functionality for:
 - Detecting and selecting microphone devices
 - Managing CUDA device selection for GPU processing
 - Validating device configurations
@@ -10,8 +10,10 @@ This module handles the configuration and management of both audio input devices
 """
 
 import torch
+import re
 import speech_recognition as sr
 import pyaudio
+import openvino as ov
 from prettytable import PrettyTable
 from colorama import Fore, Style
 import sys
@@ -122,29 +124,100 @@ def list_microphones():
 
 def setup_device(args):
     """
-    Set up and configure the processing device (CPU/CUDA).
+    Set up and configure the processing device (CPU/CUDA/iGPU/dGPU/NPU).
 
     Configures the processing device based on availability and user preferences.
     Handles CUDA device selection when multiple GPUs are available.
+    General flow of the device setup:
+        Declare model_source with checks ->
+        Declare device with checks ->
+        If device is not stated, default to highest preforming supported device.
 
     Args:
         args: Command line arguments containing device preferences
 
     Returns:
-        torch.device: Configured processing device
+        object: Configured processing device
 
     Note:
         Prints relevant device information including VRAM availability for CUDA devices.
+        The OpenVino backend only accepts devices in full caps (ex. GPU.1, NPU.2, CPU.0)
+        Full info on how OpenVINO handles devices: https://docs.openvino.ai/2025/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html.
+        Full list of supported OpenVINO devices: https://docs.openvino.ai/2025/about-openvino/release-notes-openvino/system-requirements.html
     """
-    if args.device:
-        device = torch.device(args.device)
-    else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        if args.device == "cuda" and not torch.cuda.is_available():
-            print("WARNING: CUDA was chosen but it is not available. Falling back to CPU.")
-    print(f"Using device: {device}")
+    # Default device priority (NPU -> dGPU -> iGPU -> CPU)
+    if args.model_source == "openvino":
+        core = ov.Core()
+        devices = core.available_devices
 
-    if device.type == "cuda":
+        if not devices:
+            raise ValueError(f"No valid devices found for OpenVINO. Please pick another --model_source.")
+
+        # Convert CPU.0/GPU.0/NPU.0 to more easily handled CPU/GPU/NPU
+        devices = [x.removesuffix(".0") for x in devices]
+        device = args.device.lower()
+        dedicated = ov.properties.device.Type.DISCRETE
+        integrated = ov.properties.device.Type.INTEGRATED
+
+        if device == "cuda":
+            print("OpenVINO does not support CUDA devices. Falling back to default device.")
+        # Input is a specific device (ex. CPU.0, GPU.5)
+        elif re.match(device.upper(), r"^(CPU|GPU|NPU)(\.\d+)$"):
+            # Raise device case to match OpenVINO devices case (gpu.2 -> GPU.2)
+            _device = device.upper().removesuffix(".0")
+            if _device in devices:
+                return _device
+        elif device == "cpu":
+            if "CPU" in devices:
+                return "CPU"
+        elif device == "intel-igpu":
+            if "GPU" in devices and core.get_property("GPU", "DEVICE_TYPE") == integrated:
+                return "GPU"
+        elif device == "intel-dgpu":
+            for _device in devices:
+                if _device.startswith("GPU") and core.get_property(_device, "DEVICE_TYPE") == dedicated:
+                    return _device
+        elif device == "intel-npu":
+            if "NPU" in devices:
+                return "NPU"
+        elif device != "auto":
+            raise ValueError(f"\"{args.device}\" is not an valid device for OpenVINO. Please pick another --device.")
+
+        print("Setting default device")
+
+        priority = 0
+        best_device = "CPU"
+        for _device in devices:
+            if _device.startswith("NPU"):
+                return _device
+            device_type = core.get_property(_device, "DEVICE_TYPE")
+            if _device.startswith("GPU") and device_type == dedicated:
+                priority = 2
+                best_device = _device
+            elif _device.startswith("GPU") and device_type == integrated and priority < 1:
+                priority = 1
+                best_device = _device
+        return best_device
+    # Since Whisper and FasterWhisper both have similar accepted devices, device selection can be combined
+    # Default device priority (CUDA (Nvidia GPU) -> CPU)
+    elif args.model_source == "whisper" or args.model_source == "fasterwhisper":
+        device = args.device.lower()
+
+        if device != "auto" and device != "cuda" and device != "cpu":
+            raise ValueError(f"\"{args.device}\" is not a valid device for {args.model_source}.")
+
+        if device == "cpu":
+            return "cpu"
+
+        if device == "cuda" and not torch.cuda.is_available():
+            print("CUDA was chosen but it is not available. Reverting to cpu")
+            return "cpu"
+
+        print("Setting default device")
+
+        if not torch.cuda.is_available():
+            return "cpu"
+
         cuda_device_count = torch.cuda.device_count()
         if cuda_device_count > 1 and args.cuda_device == 0:
             selected_device = select_cuda_device(cuda_device_count)
@@ -155,7 +228,11 @@ def setup_device(args):
         print(f"CUDA device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
         print(f"VRAM available: {torch.cuda.get_device_properties(torch.cuda.current_device()).total_memory / 1024 / 1024} MB")
 
-    return device
+        if "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
+            print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")
+
+        return "cuda"
+    raise ValueError(f"\"{args.model_source}\" is not a valid model source")
 
 def select_cuda_device(cuda_device_count):
     """
