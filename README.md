@@ -238,7 +238,7 @@ The `--print_srt_to_console` flag prints the final, fully combined SRT subtitles
 
 **Example:**
 ```sh
-python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile" --print_srt_to_console
+python synthalingua.py --makecaptions --file_input="C:/path/video.mp4" --file_output="C:/output" --file_output_name="MyCaptionsFile" --print_srt_to_console
 ```
 This will save the SRT file as usual and also print its contents to the console at the end of processing.
 
@@ -253,44 +253,44 @@ This will save the SRT file as usual and also print its contents to the console 
 ## Usage Examples
 - **Stream translation:**
   ```sh
-  python transcribe_audio.py --ram 11gb-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
+  python synthalingua.py --ram 11gb-v3 --stream_translate --stream_language Japanese --stream https://www.twitch.tv/somestreamerhere
   ```
 - **Microphone translation:**
   ```sh
-  python transcribe_audio.py --ram 6gb --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300
+  python synthalingua.py --ram 6gb --translate --language ja --discord_webhook "https://discord.com/api/webhooks/1234567890/1234567890" --energy_threshold 300
   ```
 - **Captions mode:**
   ```sh
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With word-level timestamps (may be slower):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation (requires demucs):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation using specific model (skip interactive prompt):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With silence detection (faster processing for long silent periods):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With custom silence threshold for quiet speech (e.g., whispers):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --silent_detect --silent_threshold -45.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --silent_detect --silent_threshold -45.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With custom duration to ignore brief pauses (e.g., 2s minimum):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --silent_detect --silent_duration 2.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --silent_detect --silent_duration 2.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
-  python transcribe_audio.py --ram 11gb-v3 --makecaptions --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --ram 11gb-v3 --makecaptions --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Captions compare mode (all models):**
   ```sh
-  python transcribe_audio.py --makecaptions compare --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --makecaptions compare --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With word-level timestamps (may be slower):
-  python transcribe_audio.py --makecaptions compare --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --makecaptions compare --word_timestamps --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # With vocal isolation (requires demucs):
-  python transcribe_audio.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
-  python transcribe_audio.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  python synthalingua.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Set microphone by name or index:**
   ```sh
-  python transcribe_audio.py --set_microphone "Microphone (Realtek USB2.0 Audi)"
-  python transcribe_audio.py --set_microphone 4
+  python synthalingua.py --set_microphone "Microphone (Realtek USB2.0 Audi)"
+  python synthalingua.py --set_microphone 4
   ```
 
 ---
@@ -325,7 +325,7 @@ For the best caption generation experience, Synthalingua offers several advanced
 #### ** Maximum Efficiency Combo (RECOMMENDED)**
 Combine both features for optimal results:
 ```sh
-python transcribe_audio.py --makecaptions --isolate_vocals --silent_detect --file_input="your_file.mp4"
+python synthalingua.py --makecaptions --isolate_vocals --silent_detect --file_input="your_file.mp4"
 ```
 
 **Why this combination works so well:**
@@ -376,10 +376,10 @@ Once you've launched Synthalingua with the `--portnumber` parameter:
 **Example usage:**
 ```sh
 # Start Synthalingua with a web server on port 8080
-python transcribe_audio.py --ram 6gb --translate --language ja --portnumber 8080
+python synthalingua.py --ram 6gb --translate --language ja --portnumber 8080
 
 # For remote HLS password protection
-python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
+python synthalingua.py --ram 6gb --translate --portnumber 8080 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
 ```
 
 ---
@@ -471,16 +471,16 @@ The `--isolate_vocals` flag attempts to isolate vocals from the input audio befo
 **Examples:**
 ```sh
 # Interactive model selection (default behavior)
-python transcribe_audio.py --makecaptions --isolate_vocals --file_input="video.mp4"
+python synthalingua.py --makecaptions --isolate_vocals --file_input="video.mp4"
 
 # Specify model directly (no prompt)
-python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
+python synthalingua.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
 
 # For best quality (slower)
-python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
+python synthalingua.py --makecaptions --isolate_vocals --demucs_model htdemucs_ft --file_input="video.mp4"
 
 # For fastest processing
-python transcribe_audio.py --makecaptions --isolate_vocals --demucs_model mdx_q --file_input="video.mp4"
+python synthalingua.py --makecaptions --isolate_vocals --demucs_model mdx_q --file_input="video.mp4"
 ```
 
 **Note:** This flag has no effect in microphone or HLS/stream modes.

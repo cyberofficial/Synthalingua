@@ -3,8 +3,8 @@ call data_whisper\Scripts\activate.bat
 python -m pip install wheel git+https://github.com/Nuitka/Nuitka.git@factory pyinstaller
 
 
-:: python -m nuitka --enable-plugin=torch --follow-imports --windows-console-mode=force --include-package-data=whisper --include-data-dir=./html_data=html_data --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" transcribe_audio.py
-::pyinstaller transcribe_audio.spec
+:: python -m nuitka --enable-plugin=torch --follow-imports --windows-console-mode=force --include-package-data=whisper --include-data-dir=./html_data=html_data --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" synthalingua.py
+::pyinstaller synthalingua.spec
 
 Echo Building Set Up Environment
 
@@ -62,7 +62,7 @@ python -m nuitka --standalone ^
     --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" ^
     --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\faster_whisper"=faster_whisper ^
     --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\optimum"=optimum ^
-    transcribe_audio.py
+    synthalingua.py
 
 ::    --include-package=demucs ^
 ::    --include-package-data=demucs ^
