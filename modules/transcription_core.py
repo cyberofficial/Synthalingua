@@ -30,7 +30,7 @@ except ImportError:
         return False
 
 class TranscriptionCore:
-    def __init__(self, args: Any, device: torch.device, audio_model: whisper.Whisper, blacklist: List[str], temp_dir: str) -> None:
+    def __init__(self, args: Any, device, audio_model, blacklist: List[str], temp_dir: str) -> None:
         self.args = args
         self.device = device
         self.audio_model = audio_model
@@ -353,16 +353,7 @@ class TranscriptionCore:
                 shutil.copyfileobj(wav_data, f)
 
     def _perform_transcription(self, temp_file: str) -> None:
-        audio = whisper.load_audio(temp_file)
-        audio = whisper.pad_or_trim(audio)
-        
-        n_mels = 128 if self.args.ram in ["11gb-v3", "7gb"] else 80
-        mel = whisper.log_mel_spectrogram(
-            audio,
-            n_mels=n_mels
-        ).to(self.device)
-
-        self._detect_language(mel)        
+        self._detect_language(temp_file)
         if self.args.language:
             self.detected_language = self.args.language
         
@@ -372,7 +363,7 @@ class TranscriptionCore:
         else:
             self.original_text = ""
 
-    def _detect_language(self, mel: torch.Tensor) -> None:
+    def _detect_language(self, temp_file: str) -> None:
         if ".en" in self.args.model:
             self.detected_language = "en"
         elif hasattr(self.args, 'stream_language') and self.args.stream_language:
@@ -383,7 +374,7 @@ class TranscriptionCore:
             if not self.args.no_log:
                 print(f"Detecting Language...")
             try:
-                _, language_probs = self.audio_model.detect_language(mel)
+                language_probs = self.audio_model.detect_language(temp_file)
                 if isinstance(language_probs, dict) and language_probs:
                     self.detected_language = max(language_probs.items(), key=lambda x: x[1])[0]
                     self._update_language_confidence(language_probs)
@@ -414,6 +405,7 @@ class TranscriptionCore:
 
     def _transcribe_audio(self, temp_file: str) -> Dict[str, Any]:
         dtype = torch.float16 if self.args.fp16 else torch.float32
+        # Conveniently ignores case if device is of type string, though a more explicit check might be better
         if self.device == torch.device("cpu"):
             if torch.cuda.is_available(): print("Warning: Performing inference on CPU when CUDA is available")
             if dtype == torch.float16:
@@ -459,6 +451,7 @@ class TranscriptionCore:
             print(f"Translating from {source_lang_for_translate or 'unknown'} to English...")
         
         dtype = torch.float16 if self.args.fp16 else torch.float32
+        # Conveniently ignores case if device is of type string, though a more explicit check might be better
         if self.device == torch.device("cpu"):
             if torch.cuda.is_available(): print("Warning: Performing inference on CPU when CUDA is available")
             if dtype == torch.float16:
@@ -498,6 +491,7 @@ class TranscriptionCore:
             print(f"Transcribing to {target_lang}...")
             
         dtype = torch.float16 if self.args.fp16 else torch.float32
+        # Conveniently ignores case if device is of type string, though a more explicit check might be better
         if self.device == torch.device("cpu"):
             if torch.cuda.is_available(): print("Warning: Performing inference on CPU when CUDA is available")
             if dtype == torch.float16:

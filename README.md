@@ -47,14 +47,6 @@
 
 ## 📚 Documentation Wiki
 
-**For comprehensive guides and detailed documentation, visit the [information folder](./information/index.md)!**
-
-The wiki contains detailed guides for every feature:
-> **ℹ️ Note:** The Linux guide is not fully documented or tested. If you have trouble, please open an issue report on GitHub and I'll try to help.
-
-💡 **The information folder is your go-to resource for in-depth help with any Synthalingua feature!**
-## 📚 Documentation Wiki
-
 **For comprehensive guides and detailed documentation, visit the official Synthalingua Wiki:**
 
 👉 [https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
@@ -125,14 +117,14 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ---
 
 ## System Requirements
-| Requirement      | Minimum                | Moderate                | Recommended           | Best Performance      |
-|------------------|------------------------|-------------------------|-----------------------|----------------------|
-| CPU              | 2 cores, 2.0 GHz+      | 4 cores, 3.0 GHz+       | 8 cores, 3.5 GHz+     | 16+ cores, 4.0 GHz+  |
-| RAM              | 4 GB                   | 8 GB                    | 16 GB                 | 32+ GB               |
-| GPU (Nvidia)     | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
-| GPU (AMD/Linux)  | 4GB VRAM (experimental) | 8GB VRAM                | 12GB+ VRAM            | 16GB+ VRAM           |
-| OS               | Windows 10+, Linux     | Windows 10+, Linux      | Windows 10+, Linux    | Windows 10+, Linux   |
-| Storage          | 2 GB free              | 10 GB free              | 20 GB+ free           | SSD/NVMe recommended |
+| Requirement     | Minimum                                    | Moderate                            | Recommended                                  | Best Performance                        |
+|-----------------|--------------------------------------------|-------------------------------------|----------------------------------------------|-----------------------------------------|
+| CPU             | 2 cores, 2.0 GHz+                          | 4 cores, 3.0 GHz+                   | 8 cores, 3.5 GHz+                            | 16+ cores, 4.0 GHz+                     |
+| RAM             | 4 GB                                       | 8 GB                                | 16 GB                                        | 32+ GB                                  |
+| GPU (Nvidia)    | 2GB VRAM (Kepler/Maxwell, e.g. GTX 750 Ti) | 4GB VRAM (Pascal, e.g. GTX 1050 Ti) | 8GB VRAM (Turing/Ampere, e.g. RTX 2070/3070) | 12GB+ VRAM (RTX 3080/3090, A6000, etc.) |
+| GPU (AMD/Linux) | 4GB VRAM (experimental)                    | 8GB VRAM                            | 12GB+ VRAM                                   | 16GB+ VRAM                              |
+| OS              | Windows 10+, Linux                         | Windows 10+, Linux                  | Windows 10+, Linux                           | Windows 10+, Linux                      |
+| Storage         | 2 GB free                                  | 10 GB free                          | 20 GB+ free                                  | SSD/NVMe recommended                    |
 
 **Supported GPUs:**
 - Nvidia: Most CUDA-capable cards (Kepler, Maxwell, Pascal, Turing, Ampere, Ada; e.g. GTX 750 Ti, 1050 Ti, 1660, RTX 2060/2070/2080/3060/3070/3080/3090/40xx, A6000, etc.)
@@ -161,80 +153,82 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ## Command-Line Arguments
 
 ### General
-| Flag | Description |
-|------|-------------|
-| `--about` | Show app info |
-| `--updatebranch` | Update branch (master/dev-testing/bleeding-under-work/disable) |
-| `--no_log` | Only show last line of output |
-| `--keep_temp` | Keep temp audio files |
-| `--save_transcript` | Save transcript to file |
-| `--save_folder` | Set transcript save folder |
+| Flag                | Description                                                    |
+|---------------------|----------------------------------------------------------------|
+| `--about`           | Show app info                                                  |
+| `--updatebranch`    | Update branch (master/dev-testing/bleeding-under-work/disable) |
+| `--no_log`          | Only show last line of output                                  |
+| `--keep_temp`       | Keep temp audio files                                          |
+| `--save_transcript` | Save transcript to file                                        |
+| `--save_folder`     | Set transcript save folder                                     |
 
 ### Model & Device
-| Flag | Description |
-|------|-------------|
-| `--ram` | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3) |
-| `--ramforce` | Force RAM/VRAM model |
-| `--fp16` | Enable FP16 mode |
-| `--device` | Device: cpu/cuda |
-| `--cuda_device` | CUDA device index |
-| `--model_dir` | Model directory |
+| Flag             | Description                                             |
+|------------------|---------------------------------------------------------|
+| `--ram`          | Model size (1gb, 2gb, 3gb, 6gb, 11gb-v2, 11gb-v3)       |
+| `--ramforce`     | Force RAM/VRAM model                                    |
+| `--fp16`         | Enable FP16 mode                                        |
+| `--device`       | Device: (auto/cpu/cuda/intel-igpu/intel-dgpu/intel-npu) |
+| `--cuda_device`  | CUDA device index                                       |
+| `--model_dir`    | Model directory                                         |
+| `--model_source` | Source of the model (Whisper, FasterWhisper, OpenVINO)  |
+| `--compute_type` | Quantization of the model                               |
 
 ### Input & Microphone
-| Flag | Description |
-|------|-------------|
-| `--microphone_enabled` | Enable microphone input |
-| `--list_microphones` | List microphones |
-| `--set_microphone` | Set mic by name or index |
-| `--energy_threshold` | Mic energy threshold |
-| `--mic_calibration_time` | Mic calibration time |
-| `--record_timeout` | Recording chunk length |
-| `--phrase_timeout` | Silence before new line |
+| Flag                     | Description              |
+|--------------------------|--------------------------|
+| `--microphone_enabled`   | Enable microphone input  |
+| `--list_microphones`     | List microphones         |
+| `--set_microphone`       | Set mic by name or index |
+| `--energy_threshold`     | Mic energy threshold     |
+| `--mic_calibration_time` | Mic calibration time     |
+| `--record_timeout`       | Recording chunk length   |
+| `--phrase_timeout`       | Silence before new line  |
 
 ### Streaming & File
-| Flag | Description |
-|------|-------------|
-| `--selectsource` | Select the stream audio source (interactive.) |
-| `--stream` | HLS stream input |
-| `--stream_language` | Stream language |
-| `--stream_target_language` | [DEPRECATED - WILL BE REMOVED SOON] Stream translation target (use --stream_transcribe <language> instead) |
-| `--stream_translate` | Enable stream translation |
-| `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English) |
-| `--stream_original_text` | Show original stream text |
-| `--stream_chunks` | Stream chunk size |
-| `--paddedaudio` | Number of chunks to overlap from previous batch for better context (works with both --stream and microphone input) |
-| `--auto_hls` | Auto HLS chunk tuning |
-| `--cookies` | Cookies file (supports absolute paths, current dir, or cookies/ folder) |
-| `--remote_hls_password_id` | Webserver password ID |
-| `--remote_hls_password` | Webserver password |
+| Flag                             | Description                                                                                                        |
+|----------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| `--selectsource`                 | Select the stream audio source (interactive.)                                                                      |
+| `--stream`                       | HLS stream input                                                                                                   |
+| `--stream_language`              | Stream language                                                                                                    |
+| `--stream_target_language`       | [DEPRECATED - WILL BE REMOVED SOON] Stream translation target (use --stream_transcribe <language> instead)         |
+| `--stream_translate`             | Enable stream translation                                                                                          |
+| `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English)                      |
+| `--stream_original_text`         | Show original stream text                                                                                          |
+| `--stream_chunks`                | Stream chunk size                                                                                                  |
+| `--paddedaudio`                  | Number of chunks to overlap from previous batch for better context (works with both --stream and microphone input) |
+| `--auto_hls`                     | Auto HLS chunk tuning                                                                                              |
+| `--cookies`                      | Cookies file (supports absolute paths, current dir, or cookies/ folder)                                            |
+| `--remote_hls_password_id`       | Webserver password ID                                                                                              |
+| `--remote_hls_password`          | Webserver password                                                                                                 |
 
 ### Language & Translation
-| Flag | Description |
-|------|-------------|
-| `--language` | Source language |
-| `--target_language` | Target language |
-| `--translate` | Enable translation |
-| `--transcribe` | Transcribe to target language |
-| `--auto_language_lock` | Auto language lock |
+| Flag                           | Description                        |
+|--------------------------------|------------------------------------|
+| `--language`                   | Source language                    |
+| `--target_language`            | Target language                    |
+| `--translate`                  | Enable translation                 |
+| `--transcribe`                 | Transcribe to target language      |
+| `--auto_language_lock`         | Auto language lock                 |
 | `--condition_on_previous_text` | Suppress repeated/similar messages |
 
 ### Output, Captions, and Filtering
-| Flag | Description |
-|------|-------------|
-| `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
-| `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
-| `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
-| `--demucs_model` | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled. |
-| `--silent_detect` | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
-| `--silent_threshold` | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`. |
-| `--silent_duration` | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`. |
-| `--print_srt_to_console` | Print the final generated SRT subtitles to the console after file creation (captions mode only). |
-| `--file_input` | Input file for captions |
-| `--file_output` | Output folder for captions |
-| `--file_output_name` | Output file name |
-| `--ignorelist` | Blocklist file (words/phrases) |
-| `--auto_blocklist` | Auto-add frequently blocked phrases to blocklist |
-| `--debug` | Print debug info for blocked/suppressed messages |
+| Flag                     | Description                                                                                                                                                                                                                                                                                                      |
+|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--makecaptions`         | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models                                                                                                                                                                                                                             |
+| `--word_timestamps`      | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes.                                                                  |
+| `--isolate_vocals`       | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package.                                                                                                                                                                                          |
+| `--demucs_model`         | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled.                                                                              |
+| `--silent_detect`        | Skip processing silent audio chunks during caption generation (sub_gen only). Improves processing speed for files with long silent periods. Highly recommended with `--isolate_vocals` for maximum efficiency. **Note:** Only works with `--makecaptions` - not supported for HLS/streaming or microphone modes. |
+| `--silent_threshold`     | dB threshold for silence detection (default: -35.0). Lower values (e.g., -45.0) detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder speech. Only used with `--silent_detect`.                                                                                                    |
+| `--silent_duration`      | Minimum duration in seconds for a region to be considered silence (default: 0.5). Higher values (e.g., 2.0) treat brief pauses as speech. Lower values (e.g., 0.1) detect shorter silent periods. Only used with `--silent_detect`.                                                                              |
+| `--print_srt_to_console` | Print the final generated SRT subtitles to the console after file creation (captions mode only).                                                                                                                                                                                                                 |
+| `--file_input`           | Input file for captions                                                                                                                                                                                                                                                                                          |
+| `--file_output`          | Output folder for captions                                                                                                                                                                                                                                                                                       |
+| `--file_output_name`     | Output file name                                                                                                                                                                                                                                                                                                 |
+| `--ignorelist`           | Blocklist file (words/phrases)                                                                                                                                                                                                                                                                                   |
+| `--auto_blocklist`       | Auto-add frequently blocked phrases to blocklist                                                                                                                                                                                                                                                                 |
+| `--debug`                | Print debug info for blocked/suppressed messages                                                                                                                                                                                                                                                                 |
 ### Print SRT to Console
 The `--print_srt_to_console` flag prints the final, fully combined SRT subtitles to the console after the SRT file is created (captions mode only). This is useful for quickly viewing the generated subtitles without opening the SRT file manually. It only prints the final combined SRT (not per-segment SRTs) and works with `--makecaptions`.
 
@@ -245,9 +239,9 @@ python transcribe_audio.py --makecaptions --file_input="C:/path/video.mp4" --fil
 This will save the SRT file as usual and also print its contents to the console at the end of processing.
 
 ### Web & Discord
-| Flag | Description |
-|------|-------------|
-| `--portnumber` | Web server port |
+| Flag                | Description         |
+|---------------------|---------------------|
+| `--portnumber`      | Web server port     |
 | `--discord_webhook` | Discord webhook URL |
 
 ---
@@ -401,6 +395,7 @@ python transcribe_audio.py --ram 6gb --translate --portnumber 8080 --remote_hls_
 - [@DaniruKun](https://github.com/DaniruKun) - https://watsonindustries.live
 - [@Expletive](https://github.com/Expletive) - https://evitelpxe.neocities.org
 - [@Adenser](https://github.com/Adenser)
+- [@YuumiPie](https://github.com/YuumiPie)
 
 ---
 
