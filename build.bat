@@ -1,6 +1,6 @@
 @echo off
 call data_whisper\Scripts\activate.bat
-:: python -m pip install nuitka pyinstaller
+python -m pip install wheel git+https://github.com/Nuitka/Nuitka.git@factory pyinstaller
 
 
 :: python -m nuitka --enable-plugin=torch --follow-imports --windows-console-mode=force --include-package-data=whisper --include-data-dir=./html_data=html_data --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" transcribe_audio.py
@@ -42,6 +42,8 @@ python -m nuitka --standalone ^
     --windows-console-mode=force ^
     --include-package=whisper ^
     --include-package-data=whisper ^
+    --include-package=openvino ^
+    --include-package-data=openvino ^
     --include-package=librosa ^
     --include-package-data=librosa ^
     --include-module=modules.transcribe_worker ^
@@ -52,12 +54,14 @@ python -m nuitka --standalone ^
     --plugin-enable=multiprocessing ^
     --follow-imports ^
     --windows-icon-from-ico="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
-    --file-version="1.1.1.6" ^
-    --product-version="1.1.1.6" ^
+    --file-version="1.1.1.7" ^
+    --product-version="1.1.1.7" ^
     --company-name="Cyber's Apps" ^
-    --product-name="Synthalingua Beta 6" ^
+    --product-name="Synthalingua Beta 7" ^
     --file-description="Real-time Audio Transcription and Translation" ^
     --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" ^
+    --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\faster_whisper"=faster_whisper ^
+    --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\optimum"=optimum ^
     transcribe_audio.py
 
 ::    --include-package=demucs ^
