@@ -1,7 +1,9 @@
 import os
 import pycountry
 from optimum.intel import OVModelForSpeechSeq2Seq, OVWeightQuantizationConfig
-from transformers import pipeline, AutoProcessor, GenerationConfig
+from transformers import AutoProcessor
+from transformers.pipelines import pipeline
+from transformers.generation.configuration_utils import GenerationConfig
 
 
 class OpenVINOWhisperModel:
@@ -32,14 +34,14 @@ class OpenVINOWhisperModel:
         processor = AutoProcessor.from_pretrained(model)
         generation_config = GenerationConfig.from_pretrained(model)
 
-        audio_model.generation_config = generation_config
+        audio_model.generation_config = generation_config  # type: ignore
 
-        audio_model.to(device)
-        audio_model.compile()
+        audio_model.to(device)  # type: ignore
+        audio_model.compile()  # type: ignore
 
         self.pipe = pipeline(
             "automatic-speech-recognition",
-            model=audio_model,
+            model=audio_model,  # type: ignore
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
             device=device.lower(),

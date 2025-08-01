@@ -50,9 +50,13 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
         lang_option = transcribe_options.get('language')
         if lang_option and len(lang_option) > 2:
             try:
-                lang_code = pycountry.languages.get(name=lang_option).alpha_2
-                transcribe_options['language'] = lang_code
-                logger.info(f"Converted language '{lang_option}' to code '{lang_code}' for faster-whisper.")
+                language_obj = pycountry.languages.get(name=lang_option)
+                if language_obj and hasattr(language_obj, 'alpha_2'):
+                    lang_code = language_obj.alpha_2
+                    transcribe_options['language'] = lang_code
+                    logger.info(f"Converted language '{lang_option}' to code '{lang_code}' for faster-whisper.")
+                else:
+                    logger.warning(f"Could not find alpha_2 code for language '{lang_option}'. Transcription may fail if the code is not already valid.")
             except (AttributeError, KeyError):
                 logger.warning(f"Could not convert language '{lang_option}' to a 2-letter code. Transcription may fail if the code is not already valid.")
 
@@ -86,7 +90,9 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
 
     elif model_source == "openvino":
         from optimum.intel import OVModelForSpeechSeq2Seq
-        from transformers import pipeline, AutoProcessor, GenerationConfig
+        from transformers import AutoProcessor
+        from transformers.pipelines import pipeline
+        from transformers.generation.configuration_utils import GenerationConfig
 
         model_id = f"openai/whisper-{model_type}"
         ov_model_path = os.path.join(model_dir, "OpenVINO", model_id)
@@ -94,13 +100,13 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
         logger.info(f"Loading OpenVINO model: {model_id} from {ov_model_path}")
         
         ov_model = OVModelForSpeechSeq2Seq.from_pretrained(ov_model_path, device=device, compile=False)
-        ov_model.compile()
+        ov_model.compile()  # type: ignore
         
         processor = AutoProcessor.from_pretrained(model_id)
         
         pipe = pipeline(
             "automatic-speech-recognition",
-            model=ov_model,
+            model=ov_model,  # type: ignore
             tokenizer=processor.tokenizer,
             feature_extractor=processor.feature_extractor,
         )
@@ -121,8 +127,9 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
         
         # Convert pipeline output to Whisper format
         result_segments = []
-        if "chunks" in outputs:
-            for i, chunk in enumerate(outputs.get("chunks", [])):
+        if isinstance(outputs, dict) and "chunks" in outputs:
+            chunks = outputs.get("chunks", [])
+            for i, chunk in enumerate(chunks):
                 result_segments.append({
                     "id": i, "seek": 0,
                     "start": chunk["timestamp"][0],
@@ -131,7 +138,7 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
                 })
         
         return {
-            "text": outputs.get("text", "").strip(),
+            "text": outputs.get("text", "").strip() if isinstance(outputs, dict) else "",
             "segments": result_segments,
             "language": transcribe_options.get("language", "unknown")
         }

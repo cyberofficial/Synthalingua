@@ -427,15 +427,34 @@ class TranscriptionCore:
             
         result = self.audio_model.transcribe(temp_file, **kwargs)
         
+        # Handle both string and dictionary return types from different model implementations
+        if isinstance(result, str):
+            # For models that return strings directly (FasterWhisper, OpenVINO, etc.)
+            result_dict = {'text': result}
+            text_content = result
+        else:
+            # For models that return dictionaries (BaseWhisper via whisper library)
+            result_dict = result
+            text_content = result.get('text', '')
+        
         if not self.args.no_log:
-            print(f"Detected Speech: {result.get('text', '')}")
+            print(f"Detected Speech: {text_content}")
             
-        if not result.get('text', '') and self.args.retry:
+        if not text_content and self.args.retry:
             if not self.args.no_log: print("Transcription failed, trying again...")
-            result = self.audio_model.transcribe(temp_file, **kwargs)
-            if not self.args.no_log: print(f"Detected Speech (retry): {result.get('text', '')}")
+            retry_result = self.audio_model.transcribe(temp_file, **kwargs)
+            
+            # Handle retry result type as well
+            if isinstance(retry_result, str):
+                result_dict = {'text': retry_result}
+                text_content = retry_result
+            else:
+                result_dict = retry_result
+                text_content = retry_result.get('text', '')
                 
-        return result
+            if not self.args.no_log: print(f"Detected Speech (retry): {text_content}")
+                
+        return result_dict
 
     def _perform_translation(self, temp_file: str) -> None:
         self.translated_text = "" 
@@ -467,13 +486,20 @@ class TranscriptionCore:
         try:
             translated_result = self.audio_model.transcribe(temp_file, **kwargs)
 
-            if isinstance(translated_result, dict) and 'text' in translated_result:
+            # Handle both string and dictionary return types
+            if isinstance(translated_result, str):
+                self.translated_text = translated_result.strip()
+            elif isinstance(translated_result, dict) and 'text' in translated_result:
                 self.translated_text = str(translated_result['text']).strip()
             
             if not self.translated_text and self.args.retry:
                 if not self.args.no_log: print("Translation failed or produced empty text, trying again...")
                 translated_result_retry = self.audio_model.transcribe(temp_file, **kwargs) 
-                if isinstance(translated_result_retry, dict) and 'text' in translated_result_retry:
+                
+                # Handle retry result type as well
+                if isinstance(translated_result_retry, str):
+                    self.translated_text = translated_result_retry.strip()
+                elif isinstance(translated_result_retry, dict) and 'text' in translated_result_retry:
                     self.translated_text = str(translated_result_retry['text']).strip()
                              
         except Exception as e:

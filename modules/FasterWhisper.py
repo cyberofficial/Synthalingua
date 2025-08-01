@@ -1,8 +1,8 @@
 import os
-import faster_whisper
 import pycountry
 import whisper
 from faster_whisper import WhisperModel
+from faster_whisper.audio import decode_audio, pad_or_trim
 
 
 class FasterWhisperModel:
@@ -23,8 +23,18 @@ class FasterWhisperModel:
         Returns:
             dict[str, float]: List of languages with their percentage likelihood of being the language of the audio
         """
-        audio = faster_whisper.audio.decode_audio(file_path)
-        audio = faster_whisper.audio.pad_or_trim(audio)
+        audio = decode_audio(file_path, split_stereo=False)
+        
+        # Ensure audio is a 1D numpy array with proper format for whisper
+        if isinstance(audio, tuple):
+            # If split_stereo returned a tuple, take the first channel
+            audio = audio[0]
+        
+        # Ensure audio is properly formatted (1D float32 array)
+        if audio.ndim > 1:
+            audio = audio.flatten()
+        
+        audio = pad_or_trim(audio)
 
         # Could not find log_mel_spectrogram() method in faster_whisper library
         # Whisper library's implementation replacement
@@ -35,7 +45,7 @@ class FasterWhisperModel:
             n_mels=n_mels
         ).to(self.device)
 
-        _, _, language_probs = self.audio_model.detect_language(features=mel)
+        _, _, language_probs = self.audio_model.detect_language(features=mel.numpy())  # type: ignore
         return dict(language_probs)
 
     def transcribe(self, file_path: str, **kwargs) -> str:
