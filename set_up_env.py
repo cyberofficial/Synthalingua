@@ -433,6 +433,10 @@ class EnvironmentSetup:
             print(f"\n❌ Error creating parent directory for Miniconda installation: {e}")
             print(f"Please ensure you have write permissions to {Path(miniconda_install_path).parent}.")
             return False
+        
+        env = os.environ.copy()
+        env['CONDA_YES'] = 'true'
+        env['CONDA_ALWAYS_YES'] = 'true'
 
         command = [
             installer_path,

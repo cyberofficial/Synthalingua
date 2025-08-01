@@ -36,7 +36,7 @@ If the command includes sensitive information like a stream key, please redact i
 
 ```bash
 # PASTE THE FULL COMMAND YOU RAN HERE
-python transcribe_audio.py ...
+python synthalingua.py ...
 ```
 
 ---
@@ -66,7 +66,7 @@ Providing this information is crucial for us to reproduce and solve the bug.
 - **Python Version:** [e.g., 3.12.8 (run `python --version` to find out)]
 - **GPU:** [e.g., NVIDIA RTX 3080, AMD RX 6700 XT, or "CPU only"]
 - **Installation Method:** [e.g., `pip`, `conda`, or "Used `set_up_env.py`"]
-- **Synthalingua Version:** [e.g., v1.1.1 (run `transcribe_audio --about` if possible)]
+- **Synthalingua Version:** [e.g., v1.1.1 (run `synthalingua --about` if possible)]
 
 ---
 

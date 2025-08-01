@@ -110,7 +110,10 @@ def contributors(ScriptCreator, GitHubRepo):
     contributors_list = [
         ("@DaniruKun", "https://watsonindustries.live", ""),
         ("[Expletive Deleted]", "https://evitelpxe.neocities.org", ""),
+        ("YuumiPie", "https://github.com/YuumiPie", ""),
         ("OpenAI Team", "https://openai.com", "🧠 Whisper Models"),
+        ("SYSTRAN", "https://www.systransoft.com", "🧠 Faster Whisper backend"),
+        ("OpenVINO", "https://github.com/openvinotoolkit/openvino", "🧠 OpenVINO Whisper backend"),
         ("Community", "GitHub Issues & PRs", "🤝 Support")
     ]
     for name, url, role in contributors_list:

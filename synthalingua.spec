@@ -40,7 +40,7 @@ for dll in critical_dlls:
         binaries.append((dll, '.'))
 
 a = Analysis(
-    ['transcribe_audio.py'],
+    ['synthalingua.py'],
     pathex=['.', './modules', './html_data'],
     binaries=binaries,
     datas=[('data_whisper\\Lib\\site-packages\\whisper\\assets\\mel_filters.npz', 'whisper\\assets'),
@@ -68,7 +68,7 @@ exe = EXE(
     a.datas,
     [],
     exclude_binaries=False,
-    name='transcribe_audio',
+    name='synthalingua',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

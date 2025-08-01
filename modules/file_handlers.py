@@ -12,6 +12,7 @@ This module provides utilities for file operations including:
 import os
 import tempfile
 import subprocess
+import re  # Import regex for normalization
 from datetime import datetime
 from modules.discord import send_to_discord_webhook, send_error_notification
 from colorama import Fore, Style, init
@@ -318,3 +319,76 @@ def resolve_cookie_file_path(cookies_arg, cookies_from_browser=None):
     
     # If none of the above locations work, return None
     return None
+
+# Caching the blocklist to avoid reading the file on every check
+_blocklist_cache = {}
+_blocklist_mtime = {}
+
+def is_phrase_in_blocklist(phrase: str, blocklist_path: str | None) -> bool:
+    """
+    Robustly check if any phrase from the blocklist is present in the text.
+    This check is case-insensitive and ignores punctuation.
+    """
+    if not phrase or not blocklist_path:
+        return False
+    
+    try:
+        # Check if the file needs to be reloaded
+        current_mtime = os.path.getmtime(blocklist_path)
+        if blocklist_path not in _blocklist_cache or _blocklist_mtime.get(blocklist_path) != current_mtime:
+            with open(blocklist_path, 'r', encoding='utf-8') as f:
+                # Normalize and store the blocklist phrases
+                lines = [re.sub(r'[^a-z0-9\s]', '', line.lower()).strip() for line in f]
+                _blocklist_cache[blocklist_path] = [line for line in lines if line] # Filter out empty lines
+            _blocklist_mtime[blocklist_path] = current_mtime
+            
+        blocklist = _blocklist_cache.get(blocklist_path, [])
+        if not blocklist:
+            return False
+
+        # Normalize the input phrase for comparison
+        normalized_phrase = re.sub(r'[^a-z0-9\s]', '', phrase.lower()).strip()
+        
+        # Check if any blocked phrase is a substring of the normalized phrase
+        for blocked_item in blocklist:
+            if blocked_item in normalized_phrase:
+                return True
+                
+        return False
+    except FileNotFoundError:
+        # If the file doesn't exist, it can't contain the phrase
+        return False
+    except Exception as e:
+        print_error_message(f"Error checking blocklist: {e}")
+        return False
+
+def add_phrase_to_blocklist(phrase: str, blocklist_path: str | None) -> bool:
+    """Adds a phrase to the blocklist file if it's not already there."""
+    if not phrase or not blocklist_path:
+        # Cannot add to blocklist if path is not provided
+        return False
+
+    phrase = phrase.strip()
+    if not phrase:
+        return True  # Treat empty as already blocked
+
+    try:
+        # Use the same robust checking logic to see if it's already blocked
+        if is_phrase_in_blocklist(phrase, blocklist_path):
+            return True  # Already present, do not add again
+
+        # If not present, append the original (non-normalized) phrase
+        with open(blocklist_path, 'a', encoding='utf-8') as f:
+            f.write(f"\n{phrase}")
+
+        # Invalidate cache so it gets reloaded on next check
+        if blocklist_path in _blocklist_cache:
+            del _blocklist_cache[blocklist_path]
+        if blocklist_path in _blocklist_mtime:
+            del _blocklist_mtime[blocklist_path]
+
+        print_info_message(f"Auto-added phrase to blocklist: '{phrase}'", "🚫")
+        return False # Indicates the phrase was newly added
+    except Exception as e:
+        print_error_message(f"Could not add phrase to blocklist: {e}", "❌")
+        return False
