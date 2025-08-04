@@ -50,6 +50,12 @@ python -m nuitka --standalone ^
     --include-package-data=librosa ^
     --include-distribution-metadata=librosa ^
     --include-module=modules.transcribe_worker ^
+    --include-distribution-metadata=onnx ^
+    --include-distribution-metadata=optimum ^
+    --include-distribution-metadata=faster_whisper ^
+    --include-distribution-metadata=torchaudio ^
+    --include-distribution-metadata=numpy ^
+    --include-distribution-metadata=tiktoken ^
     --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py ^
     --include-data-dir=html_data=html_data ^
     --enable-plugin=torch ^
@@ -66,7 +72,6 @@ python -m nuitka --standalone ^
     --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\faster_whisper"=faster_whisper ^
     --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\optimum"=optimum ^
     --nofollow-import-to=yt_dlp.lazy_extractors ^
-    --lto=no ^
     --mingw64 ^
     --clang ^
     --show-progress ^
