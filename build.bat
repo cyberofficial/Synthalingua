@@ -38,50 +38,17 @@ Echo Building Transcribe Audio
 
 :: Will Build for Windows
 set CL=/Zm5000 /bigobj
-python -m nuitka --standalone ^
-    --windows-console-mode=force ^
-    --include-package=whisper ^
-    --include-package-data=whisper ^
-    --include-distribution-metadata=whisper ^
-    --include-package=openvino ^
-    --include-package-data=openvino ^
-    --include-distribution-metadata=openvino ^
-    --include-package=librosa ^
-    --include-package-data=librosa ^
-    --include-distribution-metadata=librosa ^
-    --include-module=modules.transcribe_worker ^
-    --include-distribution-metadata=onnx ^
-    --include-distribution-metadata=optimum ^
-    --include-distribution-metadata=faster_whisper ^
-    --include-distribution-metadata=torchaudio ^
-    --include-distribution-metadata=numpy ^
-    --include-distribution-metadata=tiktoken ^
-    --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py ^
-    --include-data-dir=html_data=html_data ^
-    --include-package=optimum ^
-    --include-distribution-metadata=optimum ^
-    --include-package=optimum.intel.openvino ^
-    --enable-plugin=torch ^
-    --enable-plugin=numpy ^
-    --plugin-enable=multiprocessing ^
-    --follow-imports ^
-    --windows-icon-from-ico="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
-    --file-version="1.1.1.7" ^
-    --product-version="1.1.1.7" ^
-    --company-name="Cyber's Apps" ^
-    --product-name="Synthalingua Beta 7" ^
-    --file-description="Real-time Audio Transcription and Translation" ^
-    --output-dir="E:\Synthalingua\Synthalingua_Main\dist\main_release" ^
-    --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\faster_whisper"=faster_whisper ^
-    --include-data-dir="E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\optimum"=optimum ^
-    --nofollow-import-to=yt_dlp.lazy_extractors ^
-    --mingw64 ^
-    --clang ^
-    --show-progress ^
-    synthalingua.py
+REM All metadata args are injected via PowerShell below; no batch loop needed
+REM Update list: python -m pip list --format=freeze | ForEach-Object { $_.Split('==')[0] } | ForEach-Object { "--include-distribution-metadata=$_" } | Set-Content nuitka_metadata_args.txt
+REM Use PowerShell to avoid command line length limits and preserve argument quoting
+PowerShell -Command "python -m nuitka --standalone --windows-console-mode=force --include-package=whisper --include-package-data=whisper --include-package=openvino --include-package-data=openvino --include-package=librosa --include-package-data=librosa --include-module=modules.transcribe_worker --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py --include-data-dir=html_data=html_data --include-package=optimum --include-package=optimum.intel.openvino --enable-plugin=torch --enable-plugin=numpy --plugin-enable=multiprocessing --follow-imports --windows-icon-from-ico='e:\Synthalingua\Synthalingua_Wrapper\syntha.ico' --file-version='1.1.1.7' --product-version='1.1.1.7' --company-name='Cyber''s Apps' --product-name='Synthalingua Beta 7' --file-description='Real-time Audio Transcription and Translation' --output-dir='E:\Synthalingua\Synthalingua_Main\dist\main_release' --include-data-dir='E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\faster_whisper'=faster_whisper --include-data-dir='E:\Synthalingua\Synthalingua_Main\data_whisper\Lib\site-packages\optimum'=optimum --nofollow-import-to=yt_dlp.lazy_extractors --mingw64 --clang --show-progress $((Get-Content nuitka_metadata_args.txt) -join ' ') synthalingua.py"
 
     --low-memory ^
 goto :eof
+::     
+:: python -m pip list --format=freeze | ForEach-Object { $_.Split('==')[0] } | ForEach-Object { "--include-distribution-metadata=$_" } | Set-Content nuitka_metadata_args.txt
+::
+
 ::    --include-package=demucs ^
 ::    --include-package-data=demucs ^
 
