@@ -58,6 +58,9 @@ python -m nuitka --standalone ^
     --include-distribution-metadata=tiktoken ^
     --include-data-file=modules/transcribe_worker.py=modules/transcribe_worker.py ^
     --include-data-dir=html_data=html_data ^
+    --include-package=optimum ^
+    --include-distribution-metadata=optimum ^
+    --include-package=optimum.intel.openvino ^
     --enable-plugin=torch ^
     --enable-plugin=numpy ^
     --plugin-enable=multiprocessing ^
