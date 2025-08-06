@@ -40,6 +40,13 @@ $env:CL = "/Zm5000 /bigobj"; python -m nuitka --standalone --windows-console-mod
 
     --low-memory ^
 goto :eof
+:: run: python: find_metadata_packages_mkfile.py
+
+$env:CL = "/Zm5000 /bigobj"; python -m nuitka --standalone --windows-console-mode=force --output-dir="dist\main_release" --enable-plugin=torch --enable-plugin=numpy --plugin-enable=multiprocessing --include-package=whisper --include-package=openvino --include-package=librosa --include-package=optimum --include-package=optimum.intel.openvino $(Get-Content nuitka_metadata_args.txt) --include-module=modules.transcribe_worker --include-data-file="modules/transcribe_worker.py=modules/transcribe_worker.py" --include-data-dir="html_data=html_data" --include-data-dir="data_whisper\Lib\site-packages\faster_whisper=faster_whisper" --include-data-dir="data_whisper\Lib\site-packages\optimum=optimum" --follow-imports --nofollow-import-to=yt_dlp.lazy_extractors --windows-icon-from-ico="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" --file-version="1.1.1.7" --product-version="1.1.1.7" --company-name="Cyber's Apps" --product-name="Synthalingua Beta 7" --file-description="Real-time Audio Transcription and Translation" --mingw64 --clang --show-progress synthalingua.py
+
+
+goto :eof
+
 ::     
 :: python -m pip list --format=freeze | ForEach-Object { $_.Split('==')[0] } | ForEach-Object { "--include-distribution-metadata=$_" } | Set-Content nuitka_metadata_args.txt
 ::
