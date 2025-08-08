@@ -144,64 +144,31 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
 
 def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     """Set up and initialize stream processing.
-    
+
     This function handles the complete setup process for stream transcription:
     1. Extracts stream parameters from arguments
     2. Handles cookie-based authentication if needed
     3. Extracts the HLS stream URL using yt-dlp
     4. Initializes and starts the stream transcription thread
-    
+
     Args:
-        args: Command line arguments containing stream configuration
+        args: Command line arguments containing stream configuration (uses --stream_transcribe for target language)
         audio_model: Loaded Whisper model instance for transcription
         temp_dir: Directory for temporary files
         webhook_url (str, optional): URL for webhook notifications
-        
+
     Returns:
         threading.Thread: The started stream processing thread
-        
+
     Raises:
         subprocess.CalledProcessError: If stream URL extraction fails
         Exception: For other unexpected errors during setup
+    Note:
+        --stream_target_language is no longer supported. Use --stream_transcribe <language> instead.
     """
-      # Get stream parameters
-    stream_language = args.stream_language      # Handle target language (support both deprecated and new format)
-    if args.stream_target_language:
-        # Create a dramatic warning box
-        import shutil
-        import textwrap
-        
-        # Get terminal width (default to 80 if can't determine)
-        terminal_width = shutil.get_terminal_size(fallback=(80, 24)).columns
-        box_width = min(terminal_width - 4, 80)  # Keep readable
-        
-        # Create a row of red exclamation marks
-        exclamation_row = f"{Fore.RED}{'!' * box_width}{Style.RESET_ALL}"
-        
-        # Warning message
-        warning_message = "--stream_target_language is deprecated and will be removed in a future update. Please update your scripts/commands to use --stream_transcribe <language> instead."
-        
-        # Wrap the text to fit within the box
-        wrapped_lines = textwrap.wrap(warning_message, width=box_width-4)  # -4 for padding
-        
-        # Print the warning box
-        print("\n" + exclamation_row)
-        print(f"{Fore.RED}┌{'─' * box_width}┐{Style.RESET_ALL}")
-        print(f"{Fore.RED}│ {Style.BRIGHT}⚠️  IMPORTANT DEPRECATION WARNING{' ' * (box_width - 32)} │{Style.RESET_ALL}")
-        print(f"{Fore.RED}├{'─' * box_width}┤{Style.RESET_ALL}")
-        
-        for line in wrapped_lines:
-            padding = box_width - len(line) - 2
-            print(f"{Fore.RED}│ {Style.RESET_ALL}{line}{' ' * padding}{Fore.RED}│{Style.RESET_ALL}")
-        
-        print(f"{Fore.RED}└{'─' * box_width}┘{Style.RESET_ALL}")
-        print(exclamation_row + "\n")
-        
-        # Proxy behavior: set stream_transcribe if not already set to maintain backward compatibility
-        if not args.stream_transcribe:
-            args.stream_transcribe = args.stream_target_language
-        target_language = args.stream_target_language
-    elif isinstance(args.stream_transcribe, str) and args.stream_transcribe in VALID_LANGUAGES:
+        # Get stream parameters
+    stream_language = args.stream_language
+    if isinstance(args.stream_transcribe, str) and args.stream_transcribe in VALID_LANGUAGES:
         target_language = args.stream_transcribe
     else:
         target_language = "en"  # Default to English

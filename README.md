@@ -195,7 +195,6 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--selectsource` | Select the stream audio source (interactive.) |
 | `--stream` | HLS stream input |
 | `--stream_language` | Stream language |
-| `--stream_target_language` | [DEPRECATED - WILL BE REMOVED SOON] Stream translation target (use --stream_transcribe <language> instead) |
 | `--stream_translate` | Enable stream translation |
 | `--stream_transcribe [language]` | Enable stream transcription with optional target language (e.g., --stream_transcribe English) |
 | `--stream_original_text` | Show original stream text |
