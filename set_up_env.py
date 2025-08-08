@@ -491,14 +491,16 @@ class EnvironmentSetup:
 
     def create_data_whisper_env(self) -> bool:
         """Create the data_whisper environment using miniconda (in the default envs folder)."""
+        import re
         conda_exe = self._get_conda_exe()
         if not conda_exe:
             print("❌ Error: conda executable not found. Cannot create environment.")
             return False
+        def try_create():
+            return subprocess.run([conda_exe, 'create', '-n', 'data_whisper', 'python=3.12', '-y'], check=True, capture_output=True, text=True)
         try:
             print("Creating data_whisper environment with Python 3.12...")
-            # Capture stdout and stderr for better error reporting
-            result = subprocess.run([conda_exe, 'create', '-n', 'data_whisper', 'python=3.12', '-y'], check=True, capture_output=True, text=True)
+            result = try_create()
             print("data_whisper environment created successfully.")
             return True
         except FileNotFoundError:
@@ -506,6 +508,53 @@ class EnvironmentSetup:
             print("Please ensure Miniconda is installed correctly and the path is accessible.")
             return False
         except subprocess.CalledProcessError as e:
+            stderr = e.stderr or ""
+            if "Terms of Service have not been accepted" in stderr:
+                # Parse channels from error message
+                print("Detected Conda ToS acceptance error. Attempting to accept ToS for required channels...")
+                channels = []
+                # Find all lines with a bullet and a URL
+                for line in stderr.splitlines():
+                    m = re.search(r"\u2022\s*(https?://\S+)", line)
+                    if m:
+                        channels.append(m.group(1))
+                if not channels:
+                    print("Could not parse channels from error message. Please accept ToS manually.")
+                    print(f"To accept, run (replace CHANNEL with the URL):\n    \"{conda_exe}\" tos accept --override-channels --channel CHANNEL")
+                    return False
+                # Try to accept ToS for each channel
+                all_accepted = True
+                for ch in channels:
+                    print(f"Accepting ToS for channel: {ch}")
+                    try:
+                        subprocess.run([conda_exe, 'tos', 'accept', '--override-channels', '--channel', ch], check=True, capture_output=True, text=True)
+                        print(f"Accepted ToS for {ch}")
+                    except subprocess.CalledProcessError as e2:
+                        print(f"Failed to accept ToS for {ch}.\nCommand: {' '.join(e2.cmd)}\nStderr:\n{e2.stderr}")
+                        all_accepted = False
+                if all_accepted:
+                    print("All ToS accepted. Retrying environment creation...")
+                    try:
+                        result = try_create()
+                        print("data_whisper environment created successfully after ToS acceptance.")
+                        return True
+                    except subprocess.CalledProcessError as e3:
+                        print(f"\n❌ Error creating data_whisper environment after ToS acceptance. Exit code: {e3.returncode}")
+                        print(f"Command: {' '.join(e3.cmd)}")
+                        if e3.stdout:
+                            print(f"Stdout:\n{e3.stdout}")
+                        if e3.stderr:
+                            print(f"Stderr:\n{e3.stderr}")
+                        print("\n💡 Suggestions:")
+                        print("   1. Check if an environment with the same name already exists.")
+                        print("   2. Check your internet connection.")
+                        return False
+                else:
+                    print("Some ToS could not be accepted automatically. Please run the following commands manually:")
+                    for ch in channels:
+                        print(f'    "{conda_exe}" tos accept --override-channels --channel {ch}')
+                    print("Then re-run the setup script.")
+                    return False
             print(f"\n❌ Error creating data_whisper environment. Exit code: {e.returncode}")
             print(f"Command: {' '.join(e.cmd)}")
             if e.stdout:

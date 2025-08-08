@@ -8,20 +8,21 @@ call data_whisper\Scripts\activate.bat
 
 Echo Building Set Up Environment
 
-pyinstaller set_up_env.py --onefile ^
-    --distpath dist\exes ^
-    --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
-    --hidden-import=os ^
-    --hidden-import=platform ^
-    --hidden-import=requests ^
-    --hidden-import=subprocess ^
-    --hidden-import=sys ^
-    --hidden-import=zipfile ^
-    --hidden-import=shutil ^
-    --hidden-import=dataclasses ^
-    --hidden-import=pathlib ^
-    --hidden-import=typing ^
-    --hidden-import=tqdm
+pyinstaller set_up_env.spec 
+:: --onefile ^
+::     --distpath dist\exes ^
+::     --icon="e:\Synthalingua\Synthalingua_Wrapper\syntha.ico" ^
+::     --hidden-import=os ^
+::     --hidden-import=platform ^
+::     --hidden-import=requests ^
+::     --hidden-import=subprocess ^
+::     --hidden-import=sys ^
+::     --hidden-import=zipfile ^
+::     --hidden-import=shutil ^
+::     --hidden-import=dataclasses ^
+::     --hidden-import=pathlib ^
+::     --hidden-import=typing ^
+::     --hidden-import=tqdm
 
 Echo Building Remote Microphone
 
