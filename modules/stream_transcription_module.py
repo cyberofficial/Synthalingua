@@ -20,6 +20,7 @@ import time
 import requests
 import hashlib
 import os
+from modules.demucs_path_helper import get_demucs_python_path
 import m3u8
 import http.client
 import http.cookiejar
@@ -585,8 +586,9 @@ def start_stream_transcription(
                 if args.debug:
                     print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
                 with tempfile.TemporaryDirectory() as tmpdir:
+                    demucs_python_path = get_demucs_python_path()
                     demucs_cmd = [
-                        os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                        demucs_python_path,
                         '-m', 'demucs',
                         '-n', getattr(args, 'demucs_model', 'htdemucs'),
                         '-o', tmpdir,
