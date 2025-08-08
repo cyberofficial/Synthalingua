@@ -31,6 +31,7 @@ import librosa
 import os
 import sys  # ADDED: For finding python executable
 import json # ADDED: For IPC with worker
+from modules.demucs_path_helper import get_demucs_python_path
 
 import whisper
 import subprocess
@@ -2431,9 +2432,8 @@ def process_single_file(
     # Vocal isolation step if requested
     processed_audio_path = str(input_path_obj)
     if getattr(args, 'isolate_vocals', False):
-        demucs_python_path = os.path.join('data_whisper', 'Scripts', 'python.exe')
-        if not os.path.exists(demucs_python_path):
-            raise RuntimeError(f"The required Python interpreter for Demucs was not found at your mandatory path: {demucs_python_path}")
+        demucs_python_path = get_demucs_python_path()
+        
         
         # Determine which Demucs model to use
         selected_model = getattr(args, 'demucs_model', None)
@@ -2544,7 +2544,7 @@ def process_single_file(
             tmpdir = temp_manager.mkdtemp(prefix='demucs_')
 
             demucs_cmd = [
-                os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                demucs_python_path,
                 '-m', 'demucs',
                 '-n', selected_model,
                 '-o', tmpdir,

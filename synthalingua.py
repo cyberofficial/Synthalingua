@@ -55,6 +55,26 @@ from modules.discord import send_to_discord_webhook, send_startup_notification, 
 from modules.about import contributors
 from modules.sub_gen import run_sub_gen
 
+# =================================================================
+# PyInstaller Compatibility Block
+# This section is to help PyInstaller find all the hidden modules
+# that the 'transformers' library and its ecosystem load dynamically.
+# This is the definitive fix for the FileNotFoundError at runtime.
+# =================================================================
+try:
+    # Explicitly import all known speech models to make them visible to PyInstaller
+    from transformers.models.auto import modeling_auto
+    for model_class in modeling_auto.MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES.values():
+        try:
+            # e.g., __import__("transformers.models.whisper.modeling_whisper")
+            __import__(f"transformers.models.{model_class.lower()}.modeling_{model_class.lower()}")
+        except ImportError:
+            pass  # Ignore if a specific model isn't available
+except Exception:
+    # This block will likely fail if run outside of a build process, which is fine.
+    pass
+# =================================================================
+
 init()
 
 
