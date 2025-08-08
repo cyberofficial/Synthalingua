@@ -721,8 +721,9 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             # temp file was deleted before the recursive call could use it.
                             tmpdir = temp_manager.mkdtemp(prefix='demucs_rerun_')
                             
+                            demucs_python_path = get_demucs_python_path()
                             demucs_cmd = [
-                                os.path.join('data_whisper', 'Scripts', 'python.exe'),
+                                demucs_python_path,
                                 '-m', 'demucs',
                                 '-n', selected_model,
                                 '-o', tmpdir,
