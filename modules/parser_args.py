@@ -214,6 +214,12 @@ def parse_arguments():
         default=None,
         help="Choose specific audio quality/format from available stream options. Use without value for interactive selection menu, or specify format directly: 'bestaudio' (highest quality), '140' (specific format ID), 'worst' (lowest quality/fastest). Helpful for streams with multiple audio tracks or quality options. Youtube usually works best when set to 91."
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=0,
+        help="Set the timeout duration for the transcription worker process (in seconds)."
+    )
 
     args = parser.parse_args()
 
