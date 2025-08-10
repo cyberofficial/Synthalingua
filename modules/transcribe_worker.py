@@ -14,17 +14,57 @@ when switching between models.
 Usage:
 python transcribe_worker.py --audio_path <path> --output_json_path <path> --model_type <type> ...
 """
+
+# CRITICAL: Set up UTF-8 encoding BEFORE any other imports
+import sys
+import os
+
+# Force UTF-8 encoding for all operations
+if sys.platform.startswith('win'):
+    # Set environment variables first
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    os.environ['PYTHONLEGACYWINDOWSSTDIO'] = '0'
+    
+    # Try to reconfigure stdout/stderr for UTF-8 if possible
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except (AttributeError, OSError):
+        # Fallback: ignore if reconfigure not available or fails
+        pass
+
+# Now import other modules
 import argparse
 import json
 import logging
-import sys
-import os
 from pathlib import Path
 import pycountry
 
-# Configure basic logging
-logging.basicConfig(level=logging.INFO, format='[Worker] %(levelname)s: %(message)s')
+# Configure basic logging with UTF-8 support and error handling
+try:
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='[Worker] %(levelname)s: %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+except UnicodeError:
+    # Fallback logging configuration if UTF-8 fails
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='[Worker] %(levelname)s: %(message)s'
+    )
+
 logger = logging.getLogger(__name__)
+
+# Log UTF-8 setup success
+try:
+    logger.info("Worker started with UTF-8 encoding support")
+except UnicodeError:
+    # If even this fails, continue silently
+    pass
 
 def get_transcription_result(model_source, model_type, device, model_dir, compute_type, audio_path, decode_options):
     """
@@ -166,8 +206,11 @@ def main():
 
     try:
         decode_options = json.loads(args.decode_options_json)
-        logger.info("Received decode options: %s", decode_options)
-
+        try:
+            logger.info("Received decode options: %s", decode_options)
+        except UnicodeError:
+            logger.info("Received decode options (details suppressed due to encoding)")
+        
         result = get_transcription_result(
             args.model_source, args.model_type, args.device, 
             args.model_dir, args.compute_type, args.audio_path, decode_options
@@ -176,10 +219,22 @@ def main():
         output_data = {"status": "success", "result": result}
 
     except Exception as e:
-        logger.error("An error occurred during transcription: %s", e, exc_info=True)
-        output_data = {"status": "error", "message": str(e)}
-        with open(args.output_json_path, 'w', encoding='utf-8') as f:
-            json.dump(output_data, f, ensure_ascii=False, indent=4)
+        error_msg = str(e)
+        try:
+            logger.error("An error occurred during transcription: %s", error_msg, exc_info=True)
+        except UnicodeError:
+            logger.error("An error occurred during transcription (details suppressed due to encoding)")
+            
+        output_data = {"status": "error", "message": error_msg}
+        
+        # Write error result with robust encoding handling
+        try:
+            with open(args.output_json_path, 'w', encoding='utf-8') as f:
+                json.dump(output_data, f, ensure_ascii=False, indent=4)
+        except UnicodeError:
+            # Fallback: write with ASCII encoding
+            with open(args.output_json_path, 'w', encoding='ascii') as f:
+                json.dump(output_data, f, ensure_ascii=True, indent=4)
         sys.exit(1)
 
     # Write the successful result to the output JSON file
@@ -192,7 +247,23 @@ def main():
                 raise TypeError
 
             json.dump(output_data, f, ensure_ascii=False, indent=4, default=set_default)
-        logger.info("Successfully wrote results to %s", args.output_json_path)
+        try:
+            logger.info("Successfully wrote results to %s", args.output_json_path)
+        except UnicodeError:
+            logger.info("Successfully wrote results to output file")
+    except UnicodeError:
+        # Fallback: write with ASCII encoding if UTF-8 fails
+        try:
+            with open(args.output_json_path, 'w', encoding='ascii') as f:
+                def set_default(obj):
+                    if isinstance(obj, set):
+                        return list(obj)
+                    raise TypeError
+                json.dump(output_data, f, ensure_ascii=True, indent=4, default=set_default)
+            logger.info("Successfully wrote results with ASCII encoding fallback")
+        except Exception as e:
+            logger.error("Failed to write output JSON: %s", e, exc_info=True)
+            sys.exit(1)
     except Exception as e:
         logger.error("Failed to write output JSON: %s", e, exc_info=True)
         sys.exit(1)

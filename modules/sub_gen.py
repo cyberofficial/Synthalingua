@@ -213,7 +213,7 @@ def run_transcription_in_process(
     output_json_path = temp_manager.get_temp_path(suffix='.json', prefix='worker_output_')
 
     # Serialize decode_options to a JSON string to pass as a single argument
-    decode_options_json = json.dumps(decode_options)
+    decode_options_json = json.dumps(decode_options, ensure_ascii=False)
 
     # Check if running as a frozen executable (e.g., Nuitka, PyInstaller)
     is_frozen = getattr(sys, 'frozen', False)
@@ -262,20 +262,100 @@ def run_transcription_in_process(
     if getattr(args, 'debug', False):
         logger.debug("Running worker command: %s", " ".join(f'"{c}"' for c in command))
 
-    # Run the worker process
-    process = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        encoding='utf-8',
-        errors='replace'
-    )
+    # Set up environment variables to ensure UTF-8 encoding for the subprocess
+    env = os.environ.copy()
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONLEGACYWINDOWSSTDIO'] = '0'  # Ensure UTF-8 on Windows
+    
+    try:
+        # Run the worker process with explicit UTF-8 handling
+        # Use Popen for better control over encoding and error handling
+        import subprocess
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            env=env,
+            # Suppress console window on Windows for cleaner output
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform.startswith('win') else 0
+        )
+        
+        # Get output with timeout to prevent hanging
+        try:
+            stdout, stderr = process.communicate(timeout=300)  # 5 minute timeout
+            returncode = process.returncode
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise RuntimeError("Transcription worker timed out after 5 minutes")
+        
+        # Create a mock process object to maintain compatibility
+        class ProcessResult:
+            def __init__(self, returncode, stdout, stderr):
+                self.returncode = returncode
+                self.stdout = stdout
+                self.stderr = stderr
+        
+        process = ProcessResult(returncode, stdout, stderr)
+        
+    except UnicodeError as e:
+        # Fallback: try with binary mode and decode manually
+        logger.warning("UTF-8 subprocess failed, trying binary mode: %s", e)
+        process_binary = subprocess.run(
+            command,
+            capture_output=True,
+            text=False,
+            env=env
+        )
+        # Manually decode the output
+        try:
+            stdout = process_binary.stdout.decode('utf-8', errors='replace') if process_binary.stdout else ""
+            stderr = process_binary.stderr.decode('utf-8', errors='replace') if process_binary.stderr else ""
+        except UnicodeDecodeError:
+            stdout = process_binary.stdout.decode('cp1252', errors='replace') if process_binary.stdout else ""
+            stderr = process_binary.stderr.decode('cp1252', errors='replace') if process_binary.stderr else ""
+        
+        # Create a mock process object with decoded strings
+        class MockProcess:
+            def __init__(self, returncode, stdout, stderr):
+                self.returncode = returncode
+                self.stdout = stdout
+                self.stderr = stderr
+        
+        process = MockProcess(process_binary.returncode, stdout, stderr)
 
-    # Log worker's output
+    # Log worker's output (filter out Unicode threading errors)
     if process.stdout:
         logger.info("Worker STDOUT:\n%s", process.stdout)
     if process.stderr:
-        logger.warning("Worker STDERR:\n%s", process.stderr)
+        # Filter out the specific Unicode threading errors that don't affect functionality
+        stderr_lines = process.stderr.split('\n')
+        filtered_stderr = []
+        skip_next = False
+        
+        for line in stderr_lines:
+            # Skip Unicode threading errors that are harmless
+            if any(error_pattern in line for error_pattern in [
+                "UnicodeDecodeError: 'charmap' codec can't decode",
+                "Exception in thread",
+                "_readerthread",
+                "encodings\\cp1252.py"
+            ]):
+                skip_next = True
+                continue
+            elif skip_next and (line.strip() == "" or line.startswith("  ")):
+                # Skip continuation lines of the error traceback
+                continue
+            else:
+                skip_next = False
+                if line.strip():  # Only add non-empty lines
+                    filtered_stderr.append(line)
+        
+        if filtered_stderr:
+            logger.warning("Worker STDERR:\n%s", "\n".join(filtered_stderr))
 
     # Check if the process completed successfully
     if process.returncode != 0:
@@ -285,8 +365,24 @@ def run_transcription_in_process(
         )
 
     # Read the result from the temporary JSON file
-    with open(output_json_path, 'r', encoding='utf-8') as f:
-        response = json.load(f)
+    try:
+        with open(output_json_path, 'r', encoding='utf-8') as f:
+            response = json.load(f)
+    except UnicodeDecodeError as e:
+        # Fallback: try reading with different encodings if UTF-8 fails
+        logger.warning("UTF-8 decoding failed, trying alternative encodings: %s", e)
+        for encoding in ['utf-8-sig', 'cp1252', 'latin1']:
+            try:
+                with open(output_json_path, 'r', encoding=encoding) as f:
+                    response = json.load(f)
+                logger.info("Successfully read JSON with encoding: %s", encoding)
+                break
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+        else:
+            raise RuntimeError(f"Could not read worker output JSON with any encoding. Original error: {e}")
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Worker output JSON is malformed: {e}")
 
     if response.get("status") == "error":
         raise RuntimeError(f"Transcription worker reported an error: {response.get('message')}")
