@@ -286,12 +286,15 @@ def run_transcription_in_process(
         
         # Get output with timeout to prevent hanging
         try:
-            stdout, stderr = process.communicate(timeout=300)  # 5 minute timeout
-            returncode = process.returncode
+            if hasattr(args, 'timeout') and args.timeout and args.timeout > 0:
+                stdout, stderr = process.communicate(timeout=args.timeout)  # Use the specified timeout
+            else:
+                stdout, stderr = process.communicate()  # No timeout
+                returncode = process.returncode
         except subprocess.TimeoutExpired:
             process.kill()
             stdout, stderr = process.communicate()
-            raise RuntimeError("Transcription worker timed out after 5 minutes")
+            raise RuntimeError(f"Transcription worker timed out after {args.timeout} seconds")
         
         # Create a mock process object to maintain compatibility
         class ProcessResult:
