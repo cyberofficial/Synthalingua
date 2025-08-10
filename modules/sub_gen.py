@@ -288,12 +288,14 @@ def run_transcription_in_process(
         try:
             if hasattr(args, 'timeout') and args.timeout and args.timeout > 0:
                 stdout, stderr = process.communicate(timeout=args.timeout)  # Use the specified timeout
+                returncode = process.returncode
             else:
                 stdout, stderr = process.communicate()  # No timeout
                 returncode = process.returncode
         except subprocess.TimeoutExpired:
             process.kill()
             stdout, stderr = process.communicate()
+            returncode = process.returncode
             raise RuntimeError(f"Transcription worker timed out after {args.timeout} seconds")
         
         # Create a mock process object to maintain compatibility
@@ -1367,7 +1369,7 @@ def process_single_speech_region(
     region_end = region['end']
     region_duration = region_end - region_start
     
-    print(f"{Fore.CYAN}🎵 Processing speech region {region_index}/{total_regions}: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s){Style.RESET_ALL}")
+    print(f"{Fore.CYAN}\n🎵 Processing speech region {region_index}/{total_regions}: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s){Style.RESET_ALL}")
     
     # Start with the original model settings
     current_model_type = model_type
@@ -1478,7 +1480,15 @@ def process_single_speech_region(
             break
 
         except Exception as e:
-            print(f"{Fore.RED}❌ Error transcribing region {region_index} with {current_model_type}: {e}{Style.RESET_ALL}")
+            error_message = str(e)
+            is_timeout = "timed out" in error_message.lower()
+            
+            print(f"{Fore.RED}\n❌ Error transcribing region {region_index} with {current_model_type}: {e}{Style.RESET_ALL}")
+            
+            # If it's a timeout error, re-raise it for the parallel processing handler
+            if is_timeout:
+                raise e
+            
             retry_count += 1
             
             if retry_count < max_retries:
@@ -1579,54 +1589,135 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                 
                 all_segments.extend(region_segments)
         else:
-            # Parallel processing (new batch mode)
+            # Parallel processing (new batch mode) with timeout retry mechanism
             print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions in parallel (batch size: {batch_size})...{Style.RESET_ALL}")
             print(f"{Fore.YELLOW}⚡ Parallel processing enabled - up to {batch_size} regions will be processed simultaneously{Style.RESET_ALL}")
             
             # Create a list to store results with their original indices
             indexed_regions = [(i+1, region) for i, region in enumerate(speech_regions)]
+            current_batch_size = batch_size
+            all_results = []
             
-            # Process regions in parallel using ThreadPoolExecutor
-            with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as executor:
-                # Submit all regions for processing
-                future_to_index = {
-                    executor.submit(
-                        process_single_speech_region,
-                        audio_path,
-                        region,
-                        region_index,
-                        len(speech_regions),
-                        original_model_type,
-                        decode_options,
-                        regions_temp_dir,
-                        original_ram_setting,
-                        task
-                    ): region_index for region_index, region in indexed_regions
-                }
+            # Main processing loop with retry mechanism
+            regions_to_process = indexed_regions.copy()
+            
+            while regions_to_process and current_batch_size >= 1:
+                failed_regions = []
                 
-                # Collect results as they complete and store them with their indices
-                results = []
-                for future in concurrent.futures.as_completed(future_to_index):
-                    region_index = future_to_index[future]
-                    try:
-                        result_index, region_segments, best_model_name = future.result()
-                        results.append((result_index, region_segments))
-                        print(f"{Fore.GREEN}🏁 Completed region {result_index} processing{Style.RESET_ALL}")
-                    except Exception as exc:
-                        print(f"{Fore.RED}❌ Region {region_index} generated an exception: {exc}{Style.RESET_ALL}")
-                        results.append((region_index, []))
+                # Process current batch of regions
+                with concurrent.futures.ThreadPoolExecutor(max_workers=current_batch_size) as executor:
+                    # Submit all regions for processing
+                    future_to_index = {
+                        executor.submit(
+                            process_single_speech_region,
+                            audio_path,
+                            region,
+                            region_index,
+                            len(speech_regions),
+                            original_model_type,
+                            decode_options,
+                            regions_temp_dir,
+                            original_ram_setting,
+                            task
+                        ): (region_index, region) for region_index, region in regions_to_process
+                    }
+                    
+                    # Collect results as they complete and store them with their indices
+                    batch_results = []
+                    for future in concurrent.futures.as_completed(future_to_index):
+                        region_index, region = future_to_index[future]
+                        try:
+                            result_index, region_segments, best_model_name = future.result()
+                            batch_results.append((result_index, region_segments))
+                            print(f"{Fore.GREEN}\n🏁 Completed region {result_index} processing{Style.RESET_ALL}")
+                        except Exception as exc:
+                            error_message = str(exc)
+                            is_timeout = "timed out" in error_message.lower()
+                            
+                            if is_timeout:
+                                print(f"{Fore.RED}\n❌ Region {region_index} timed out: {exc}{Style.RESET_ALL}")
+                                failed_regions.append((region_index, region))
+                            else:
+                                print(f"{Fore.RED}\n❌ Region {region_index} generated an exception: {exc}{Style.RESET_ALL}")
+                                batch_results.append((region_index, []))
+                    
+                    # Add successful results to overall results
+                    all_results.extend(batch_results)
                 
-                # Sort results by original region index to maintain chronological order
-                results.sort(key=lambda x: x[0])
+                # Debug: Show what happened in this batch
+                print(f"{Fore.CYAN}📊 Batch Summary: {len(batch_results)} successful, {len(failed_regions)} failed (timeouts){Style.RESET_ALL}")
                 
-                # Combine all segments in the correct order
-                for _, region_segments in results:
-                    all_segments.extend(region_segments)
-                
-                print(f"{Fore.GREEN}🎉 Parallel processing complete! Processed {len(results)} regions{Style.RESET_ALL}")
+                # Handle failed regions
+                if failed_regions:
+                    if current_batch_size > 1:
+                        # Reduce batch size and retry with increased timeout
+                        current_batch_size -= 1
+                        regions_to_process = failed_regions
+                        
+                        # Increase timeout by 30 seconds for smaller batch size
+                        if hasattr(args, 'timeout') and args.timeout and args.timeout > 0:
+                            args.timeout += 30
+                            print(f"{Fore.YELLOW}\n📉 Reducing batch size to {current_batch_size} due to {len(failed_regions)} timeouts{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}\n⏰ Increasing timeout to {args.timeout} seconds for smaller batch size{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}\n🔄 Retrying {len(failed_regions)} failed regions with reduced batch size: {current_batch_size}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.YELLOW}\n📉 Reducing batch size to {current_batch_size} due to {len(failed_regions)} timeouts{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}\n🔄 Retrying {len(failed_regions)} failed regions with reduced batch size: {current_batch_size}{Style.RESET_ALL}")
+                        
+                        continue  # Continue the while loop with reduced batch size
+                    else:
+                        # Final attempt: remove timeout and try once more at batch size 1
+                        print(f"{Fore.YELLOW}\n⚠️  Final attempt for {len(failed_regions)} regions - removing timeout restrictions{Style.RESET_ALL}")
+                        
+                        # Temporarily disable timeout for final attempt
+                        original_timeout = getattr(args, 'timeout', 0)
+                        args.timeout = 0  # Disable timeout
+                        
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                            final_future_to_index = {
+                                executor.submit(
+                                    process_single_speech_region,
+                                    audio_path,
+                                    region,
+                                    region_index,
+                                    len(speech_regions),
+                                    original_model_type,
+                                    decode_options,
+                                    regions_temp_dir,
+                                    original_ram_setting,
+                                    task
+                                ): (region_index, region) for region_index, region in failed_regions
+                            }
+                            
+                            for future in concurrent.futures.as_completed(final_future_to_index):
+                                region_index, region = final_future_to_index[future]
+                                try:
+                                    result_index, region_segments, best_model_name = future.result()
+                                    all_results.append((result_index, region_segments))
+                                    print(f"{Fore.GREEN}\n🏁 Completed region {result_index} processing (no timeout){Style.RESET_ALL}")
+                                except Exception as exc:
+                                    print(f"{Fore.RED}\n❌ Region {region_index} failed even without timeout: {exc}{Style.RESET_ALL}")
+                                    all_results.append((region_index, []))
+                        
+                        # Restore original timeout setting
+                        args.timeout = original_timeout
+                        regions_to_process = []  # Exit the while loop
+                else:
+                    # No failed regions, exit the while loop
+                    print(f"{Fore.GREEN}✅ All regions completed successfully!{Style.RESET_ALL}")
+                    regions_to_process = []
+            
+            # Sort all results by original region index to maintain chronological order
+            all_results.sort(key=lambda x: x[0])
+            
+            # Combine all segments in the correct order
+            for _, region_segments in all_results:
+                all_segments.extend(region_segments)
+            
+            print(f"{Fore.GREEN}\n🎉 Parallel processing complete! Processed {len(all_results)} regions{Style.RESET_ALL}")
 
     except Exception as e:
-        print(f"{Fore.RED}❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
+        print(f"{Fore.RED}\n❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
         full_result = run_transcription_in_process(
             audio_path=audio_path,
             model_type=original_model_type,
@@ -1638,7 +1729,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
     finally:
         shutil.rmtree(regions_temp_dir, ignore_errors=True)
     
-    print(f"{Fore.GREEN}🎉 Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}\n🎉 Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
     return all_segments
 
 def format_timestamp(seconds: float) -> str:
