@@ -28,8 +28,8 @@ if sys.platform.startswith('win'):
     # Try to reconfigure stdout/stderr for UTF-8 if possible
     try:
         if hasattr(sys.stdout, 'reconfigure'):
-            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')  # type: ignore[attr-defined]
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')  # type: ignore[attr-defined]
     except (AttributeError, OSError):
         # Fallback: ignore if reconfigure not available or fails
         pass
