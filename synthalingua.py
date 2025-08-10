@@ -112,6 +112,12 @@ def main():
         print("Silent detection is not supported for HLS streaming or microphone input.")
         sys.exit("Exiting...")
 
+    # Validate batchmode usage
+    if getattr(args, 'batchmode', 1) > 1 and not args.makecaptions:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --batchmode can only be used with --makecaptions for caption generation.")
+        print("Parallel batch processing is not supported for HLS streaming or microphone input.")
+        sys.exit("Exiting...")
+
     # Check for correct transcription arguments
     if args.stream_transcribe is True and not isinstance(args.stream_transcribe, str):
         # User used --stream_transcribe without a language

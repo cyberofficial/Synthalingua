@@ -46,6 +46,21 @@ def valid_demucs_jobs(value):
     except ValueError:
         raise argparse.ArgumentTypeError(f"Invalid jobs value: '{value}'. Use 'all', a number (1-{get_cpu_count()}), or leave empty for default.")
 
+def valid_batchmode(value):
+    """Validate batchmode parameter for parallel processing of speech regions."""
+    try:
+        batch_size = int(value)
+        max_cores = get_cpu_count()
+        
+        if batch_size < 1:
+            raise argparse.ArgumentTypeError(f"Batch size must be at least 1. Got: {batch_size}")
+        elif batch_size > max_cores:
+            raise argparse.ArgumentTypeError(f"Batch size ({batch_size}) exceeds available CPU cores ({max_cores}). Maximum recommended: {max_cores}")
+        else:
+            return batch_size
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid batch size value: '{value}'. Must be a positive integer (1-{get_cpu_count()}).")
+
 def set_model_by_ram(ram, language):
     ram = ram.lower()
     language = language.lower() if language else ""
@@ -173,6 +188,7 @@ def parse_arguments():
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing of silent audio segments during subtitle generation to improve efficiency and reduce processing time. Automatically detects quiet periods and excludes them from transcription. Only works with --makecaptions mode, not compatible with live streaming or microphone input. Use with --silent_threshold and --silent_duration for fine-tuning.")
     parser.add_argument("--silent_threshold", type=float, default=-35.0, help="Audio volume threshold in decibels (dB) for silence detection. Lower values (e.g., -45.0) are more sensitive and detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder, clearer speech. Typical range: -45.0 to -20.0 dB. Only used with --silent_detect flag.")
     parser.add_argument("--silent_duration", type=float, default=0.5, help="Minimum duration in seconds for audio to be classified as silence. Higher values (e.g., 2.0) treat brief pauses as speech, preserving natural conversation flow. Lower values (e.g., 0.1) detect shorter silent periods for more aggressive silence removal. Typical range: 0.1 to 3.0 seconds. Only used with --silent_detect flag.")
+    parser.add_argument("--batchmode", type=valid_batchmode, default=1, help="Number of speech regions to process simultaneously in parallel for faster transcription. Higher values (2-4) can significantly improve processing speed on multi-core systems but use more VRAM/RAM. Example: '--batchmode 2' processes 2 regions at once. Recommended: 1-4 depending on your hardware capabilities. Only works with --makecaptions mode.")
     parser.add_argument("--file_input", default=None, help="Path to audio or video file for batch transcription/translation. Supports most common formats: MP3, WAV, MP4, AVI, MKV, FLAC, OGG, M4A, etc. Can be absolute path (C:\\path\\to\\file.mp3) or relative path (audio/file.wav). Used with --makecaptions for subtitle generation or standalone for text transcription.")
     parser.add_argument("--file_output", default=None, help="Custom output file path for transcription results. Specify full path including filename and extension (e.g., 'transcripts/result.txt' or 'C:\\output\\transcript.srt'). If not specified, output filename is automatically generated based on input filename. Directory will be created if it doesn't exist.")
     parser.add_argument("--file_output_name", default=None, help="Custom base filename for output files without extension or path. Example: 'my_transcript' will create 'my_transcript.srt'. Used when you want to control filename but keep default output directory. Extension is automatically added based on output type (srt).")

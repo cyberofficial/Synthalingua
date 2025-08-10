@@ -31,6 +31,7 @@ import librosa
 import os
 import sys  # ADDED: For finding python executable
 import json # ADDED: For IPC with worker
+import concurrent.futures  # ADDED: For parallel processing of speech regions
 from modules.demucs_path_helper import get_demucs_python_path
 
 import whisper
@@ -239,7 +240,7 @@ def run_transcription_in_process(
         ]
 
     else:
-        print(f"{Fore.CYAN}ℹ️  Running in source mode: launching worker script as a subprocess...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}\nℹ️  Running in source mode: launching worker script as a subprocess...{Style.RESET_ALL}")
         # When running from source, execute the worker script directly.
         worker_script_path = os.path.join(os.path.dirname(__file__), "transcribe_worker.py")
         if not os.path.exists(worker_script_path):
@@ -1332,6 +1333,193 @@ def detect_internal_repetitions(segments: List[Dict], min_phrase_length: int = 3
     
     return has_internal_repetitions, problematic_segments, max_repetitions_found
 
+def process_single_speech_region(
+    audio_path: str, 
+    region: Dict[str, Any], 
+    region_index: int, 
+    total_regions: int, 
+    model_type: str, 
+    decode_options: Dict, 
+    regions_temp_dir: str,
+    original_ram_setting: str,
+    task: str = "translate"
+) -> Tuple[int, List[Dict], str]:
+    """
+    Process a single speech region for transcription.
+    
+    Args:
+        audio_path (str): Path to the main audio file
+        region (Dict[str, Any]): Speech region with 'start', 'end', 'type'
+        region_index (int): 1-based index of this region
+        total_regions (int): Total number of regions being processed
+        model_type (str): The Whisper model to use
+        decode_options (Dict): Transcription options
+        regions_temp_dir (str): Temporary directory for region files
+        original_ram_setting (str): Original RAM setting for model selection
+        
+    Returns:
+        Tuple[int, List[Dict], str]: (region_index, processed_segments, best_model_name)
+    """
+    region_start = region['start']
+    region_end = region['end']
+    region_duration = region_end - region_start
+    
+    print(f"{Fore.CYAN}🎵 Processing speech region {region_index}/{total_regions}: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s){Style.RESET_ALL}")
+    
+    # Start with the original model settings
+    current_model_type = model_type
+    current_ram = original_ram_setting
+    
+    # Create a temporary file for this speech region
+    temp_audio_path = os.path.join(regions_temp_dir, f"region_{region_index}.wav")
+    
+    # Use FFmpeg to extract the speech region with high precision
+    ffmpeg_command = [
+        'ffmpeg', '-y', '-i', audio_path,
+        '-ss', str(region_start),
+        '-to', str(region_end),
+        '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
+        temp_audio_path
+    ]
+    
+    result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"{Fore.RED}❌ FFmpeg failed for region {region_index}: {result.stderr}{Style.RESET_ALL}")
+        return region_index, [], ""
+    
+    # Transcribe this speech region with intelligent retry
+    best_result = None
+    best_confidence = -1.0
+    best_has_repetitions = True
+    best_model_name = ""
+    
+    retry_count = 0
+    max_retries = 3 if _intelligent_mode else 1
+    
+    while retry_count < max_retries:
+        try:
+            print(f"{Fore.CYAN}\n🎯 Transcribing region {region_index} with {current_model_type} model...{Style.RESET_ALL}")
+            
+            current_result = run_transcription_in_process(
+                audio_path=temp_audio_path,
+                model_type=current_model_type,
+                decode_options=decode_options,
+                model_dir=str(args.model_dir),
+                device=args.device
+            )
+            
+            segments = current_result.get("segments", [])
+            if not segments:
+                print(f"{Fore.YELLOW}⚠️  No segments generated for region {region_index}. Skipping.{Style.RESET_ALL}")
+                if retry_count == 0:
+                    best_result = {"segments": [], "text": ""}
+                break
+            
+            # Calculate quality metrics for the current result
+            current_confidence = calculate_region_confidence(segments)
+            has_ext_reps, repeated_texts, max_consecutive = detect_repeated_segments(segments)
+            has_int_reps, problematic_segments, max_internal_reps = detect_internal_repetitions(segments)
+            current_has_repetitions = has_ext_reps or has_int_reps
+            
+            print(f"{Fore.CYAN}📊 Region {region_index} results ({current_model_type}): {len(segments)} segments, {current_confidence:.1%} confidence{Style.RESET_ALL}")
+            
+            if has_ext_reps:
+                print(f"{Fore.YELLOW}🔄 Detected external repetitions: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
+            if has_int_reps:
+                problematic_phrase = problematic_segments[0]['repeated_phrase']
+                print(f"{Fore.YELLOW}🔄 Detected internal repetitions: \"{problematic_phrase}\" repeated {max_internal_reps} times.{Style.RESET_ALL}")
+
+            # Compare and select the best result
+            is_better = False
+            if best_result is None:
+                is_better = True
+            else:
+                # New result is better if it has no repetitions and the old one did
+                if not current_has_repetitions and best_has_repetitions:
+                    is_better = True
+                    print(f"{Fore.GREEN}✅ New result is better (fixed repetitions).{Style.RESET_ALL}")
+                # Or if confidence is significantly higher and it doesn't introduce new repetitions
+                elif current_confidence > best_confidence + 0.05 and not (current_has_repetitions and not best_has_repetitions):
+                    is_better = True
+                    print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}).{Style.RESET_ALL}")
+                # If both have repetitions, prefer higher confidence
+                elif current_has_repetitions and best_has_repetitions and current_confidence > best_confidence:
+                    is_better = True
+                    print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}, though both have repetitions).{Style.RESET_ALL}")
+
+            if is_better:
+                print(f"{Fore.GREEN}🏆 Keeping result from {current_model_type} as the new best.{Style.RESET_ALL}")
+                best_result = current_result
+                best_confidence = current_confidence
+                best_has_repetitions = current_has_repetitions
+                best_model_name = current_model_type
+            else:
+                print(f"{Fore.YELLOW}⚠️ New result from {current_model_type} is not an improvement. Keeping previous result from {best_model_name}.{Style.RESET_ALL}")
+
+            # Determine if we should retry
+            should_retry = (
+                _intelligent_mode and
+                (best_confidence < 0.85 or best_has_repetitions) and
+                retry_count < max_retries - 1
+            )
+
+            if should_retry:
+                next_ram = get_next_higher_model_with_turbo_handling(current_ram, task, auto_continue=True)
+                if next_ram:
+                    print(f"{Fore.YELLOW}🔄 Low confidence or repetitions detected. Retrying region {region_index} with {next_ram} model...{Style.RESET_ALL}")
+                    current_ram = next_ram
+                    current_model_type = get_model_type(current_ram, skip_warning=True)
+                    retry_count += 1
+                    continue
+            
+            break
+
+        except Exception as e:
+            print(f"{Fore.RED}❌ Error transcribing region {region_index} with {current_model_type}: {e}{Style.RESET_ALL}")
+            retry_count += 1
+            
+            if retry_count < max_retries:
+                next_ram = get_next_higher_model(current_ram)
+                if next_ram:
+                    current_ram = next_ram
+                    current_model_type = get_model_type(current_ram, skip_warning=True)
+                    print(f"{Fore.YELLOW}🔄 Retrying region {region_index} with {current_model_type} model...{Style.RESET_ALL}")
+                else:
+                    break
+            else:
+                break
+    
+    # Process the best result for this region
+    region_segments = []
+    if best_result and best_result.get("segments"):
+        region_segments = best_result["segments"]
+        
+        # Correct timestamps by adding the region start time
+        for segment in region_segments:
+            if isinstance(segment, dict):
+                segment["start"] = segment.get("start", 0.0) + region_start
+                segment["end"] = segment.get("end", 0.0) + region_start
+                
+                if "words" in segment and isinstance(segment["words"], list):
+                    for word in segment["words"]:
+                        if isinstance(word, dict):
+                            if "start" in word:
+                                word["start"] = word["start"] + region_start
+                            if "end" in word:
+                                word["end"] = word["end"] + region_start
+        
+        print(f"{Fore.GREEN}✅ Region {region_index} processed with '{best_model_name}' model: {len(region_segments)} segments added{Style.RESET_ALL}")
+        
+        generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
+        if generated_texts:
+            display_text = ", ".join(f'"{text}"' for text in generated_texts)
+            PINK = '\033[95m'
+            print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {region_index}{Style.RESET_ALL}")
+    
+    return region_index, region_segments, best_model_name
+
 def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model_type: str, decode_options: Dict, task: str = "translate") -> List[Dict]:
     """
     Process speech regions individually for maximum efficiency with accurate timestamps.
@@ -1366,168 +1554,73 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
     regions_temp_dir = temp_manager.mkdtemp(prefix='speech_regions_')
     
     try:
-        print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions...{Style.RESET_ALL}")
+        # Get batchmode setting from args
+        batch_size = getattr(args, 'batchmode', 1)
         
-        for i, region in enumerate(speech_regions, 1):
-            region_start = region['start']
-            region_end = region['end']
-            region_duration = region_end - region_start
+        if batch_size == 1:
+            # Sequential processing (original behavior)
+            print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions sequentially...{Style.RESET_ALL}")
             
-            print(f"{Fore.CYAN}🎵 Processing speech region {i}/{len(speech_regions)}: {region_start:.1f}s - {region_end:.1f}s ({region_duration:.1f}s){Style.RESET_ALL}")
-            
-            # Start each region with the original model settings
-            current_model_type = original_model_type
-            current_ram = original_ram_setting
-            
-            # Create a temporary file for this speech region inside our dedicated folder
-            temp_audio_path = os.path.join(regions_temp_dir, f"region_{i}.wav")
-            
-            # Use FFmpeg to extract the speech region with high precision
-            ffmpeg_command = [
-                'ffmpeg', '-y', '-i', audio_path,
-                '-ss', str(region_start),
-                '-to', str(region_end),
-                '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1',
-                temp_audio_path
-            ]
-            
-            result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
-            if result.returncode != 0:
-                print(f"{Fore.RED}❌ FFmpeg failed for region {i}: {result.stderr}{Style.RESET_ALL}")
-                continue
-            
-            # Transcribe this speech region with intelligent retry
-            best_result = None
-            best_confidence = -1.0
-            best_has_repetitions = True
-            best_model_name = ""
-            
-            retry_count = 0
-            max_retries = 3 if _intelligent_mode else 1
-            
-            while retry_count < max_retries:
-                try:
-                    print(f"{Fore.CYAN}🎯 Transcribing region {i} with {current_model_type} model...{Style.RESET_ALL}")
-                    
-                    current_result = run_transcription_in_process(
-                        audio_path=temp_audio_path,
-                        model_type=current_model_type,
-                        decode_options=decode_options,
-                        model_dir=str(args.model_dir),
-                        device=args.device
-                    )
-                    
-                    segments = current_result.get("segments", [])
-                    if not segments:
-                        print(f"{Fore.YELLOW}⚠️  No segments generated for region {i}. Skipping.{Style.RESET_ALL}")
-                        if retry_count == 0: # If first attempt fails, still try again
-                            best_result = {"segments": [], "text": ""}
-                        # Otherwise, we keep the previous best_result
-                        break
-                    
-                    # Calculate quality metrics for the current result
-                    current_confidence = calculate_region_confidence(segments)
-                    has_ext_reps, repeated_texts, max_consecutive = detect_repeated_segments(segments)
-                    has_int_reps, problematic_segments, max_internal_reps = detect_internal_repetitions(segments)
-                    current_has_repetitions = has_ext_reps or has_int_reps
-                    
-                    print(f"{Fore.CYAN}📊 Region {i} results ({current_model_type}): {len(segments)} segments, {current_confidence:.1%} confidence{Style.RESET_ALL}")
-                    
-                    if has_ext_reps:
-                        print(f"{Fore.YELLOW}🔄 Detected external repetitions: {repeated_texts[:3]} (max consecutive: {max_consecutive}){Style.RESET_ALL}")
-                    if has_int_reps:
-                        problematic_phrase = problematic_segments[0]['repeated_phrase']
-                        print(f"{Fore.YELLOW}🔄 Detected internal repetitions: \"{problematic_phrase}\" repeated {max_internal_reps} times.{Style.RESET_ALL}")
-
-                    # --- NEW LOGIC: Compare and select the best result ---
-                    is_better = False
-                    if best_result is None:
-                        is_better = True # First result is always the "best" so far
-                    else:
-                        # New result is better if it has no repetitions and the old one did
-                        if not current_has_repetitions and best_has_repetitions:
-                            is_better = True
-                            print(f"{Fore.GREEN}✅ New result is better (fixed repetitions).{Style.RESET_ALL}")
-                        # Or if confidence is significantly higher (e.g., >5% absolute improvement) and it doesn't introduce new repetitions
-                        elif current_confidence > best_confidence + 0.05 and not (current_has_repetitions and not best_has_repetitions):
-                            is_better = True
-                            print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}).{Style.RESET_ALL}")
-                        # If both have repetitions, prefer higher confidence
-                        elif current_has_repetitions and best_has_repetitions and current_confidence > best_confidence:
-                            is_better = True
-                            print(f"{Fore.GREEN}✅ New result is better (confidence improved from {best_confidence:.1%} to {current_confidence:.1%}, though both have repetitions).{Style.RESET_ALL}")
-
-                    if is_better:
-                        print(f"{Fore.GREEN}🏆 Keeping result from {current_model_type} as the new best.{Style.RESET_ALL}")
-                        best_result = current_result
-                        best_confidence = current_confidence
-                        best_has_repetitions = current_has_repetitions
-                        best_model_name = current_model_type
-                    else:
-                        print(f"{Fore.YELLOW}⚠️ New result from {current_model_type} is not an improvement. Keeping previous result from {best_model_name}.{Style.RESET_ALL}")
-
-                    # --- Determine if we should retry ---
-                    should_retry = (
-                        _intelligent_mode and
-                        (best_confidence < 0.85 or best_has_repetitions) and
-                        retry_count < max_retries - 1
-                    )
-
-                    if should_retry:
-                        next_ram = get_next_higher_model_with_turbo_handling(current_ram, task, auto_continue=True)
-                        if next_ram:
-                            print(f"{Fore.YELLOW}🔄 Low confidence or repetitions detected. Retrying region {i} with {next_ram} model...{Style.RESET_ALL}")
-                            current_ram = next_ram
-                            current_model_type = get_model_type(current_ram, skip_warning=True)
-                            retry_count += 1
-                            continue
-                    
-                    # If no retry, break the loop
-                    break
-
-                except Exception as e:
-                    print(f"{Fore.RED}❌ Error transcribing region {i} with {current_model_type}: {e}{Style.RESET_ALL}")
-                    retry_count += 1
-                    
-                    if retry_count < max_retries:
-                        next_ram = get_next_higher_model(current_ram)
-                        if next_ram:
-                            current_ram = next_ram
-                            current_model_type = get_model_type(current_ram, skip_warning=True)
-                            print(f"{Fore.YELLOW}🔄 Retrying region {i} with {current_model_type} model...{Style.RESET_ALL}")
-                        else:
-                            break
-                    else:
-                        break
-            
-            # Process the best result for this region
-            if best_result and best_result.get("segments"):
-                region_segments = best_result["segments"]
-                
-                # Correct timestamps by adding the region start time
-                for segment in region_segments:
-                    if isinstance(segment, dict):
-                        segment["start"] = segment.get("start", 0.0) + region_start
-                        segment["end"] = segment.get("end", 0.0) + region_start
-                        
-                        if "words" in segment and isinstance(segment["words"], list):
-                            for word in segment["words"]:
-                                if isinstance(word, dict):
-                                    if "start" in word:
-                                        word["start"] = word["start"] + region_start
-                                    if "end" in word:
-                                        word["end"] = word["end"] + region_start
+            for i, region in enumerate(speech_regions, 1):
+                region_index, region_segments, best_model_name = process_single_speech_region(
+                    audio_path=audio_path,
+                    region=region, 
+                    region_index=i,
+                    total_regions=len(speech_regions),
+                    model_type=original_model_type,
+                    decode_options=decode_options,
+                    regions_temp_dir=regions_temp_dir,
+                    original_ram_setting=original_ram_setting,
+                    task=task
+                )
                 
                 all_segments.extend(region_segments)
-                print(f"{Fore.GREEN}✅ Region {i} processed with '{best_model_name}' model: {len(region_segments)} segments added{Style.RESET_ALL}")
+        else:
+            # Parallel processing (new batch mode)
+            print(f"{Fore.CYAN}🎵 Processing {len(speech_regions)} speech regions in parallel (batch size: {batch_size})...{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}⚡ Parallel processing enabled - up to {batch_size} regions will be processed simultaneously{Style.RESET_ALL}")
+            
+            # Create a list to store results with their original indices
+            indexed_regions = [(i+1, region) for i, region in enumerate(speech_regions)]
+            
+            # Process regions in parallel using ThreadPoolExecutor
+            with concurrent.futures.ThreadPoolExecutor(max_workers=batch_size) as executor:
+                # Submit all regions for processing
+                future_to_index = {
+                    executor.submit(
+                        process_single_speech_region,
+                        audio_path,
+                        region,
+                        region_index,
+                        len(speech_regions),
+                        original_model_type,
+                        decode_options,
+                        regions_temp_dir,
+                        original_ram_setting,
+                        task
+                    ): region_index for region_index, region in indexed_regions
+                }
                 
-                generated_texts = [seg.get('text', '').strip() for seg in region_segments if seg.get('text', '').strip()]
-                if generated_texts:
-                    display_text = ", ".join(f'"{text}"' for text in generated_texts)
-                    PINK = '\033[95m'
-                    print(f"{PINK}   Subtitles Generated: {display_text}{Style.RESET_ALL}")
-                else:
-                    print(f"{Fore.YELLOW}⚠️  No usable segments generated for region {i}{Style.RESET_ALL}")
+                # Collect results as they complete and store them with their indices
+                results = []
+                for future in concurrent.futures.as_completed(future_to_index):
+                    region_index = future_to_index[future]
+                    try:
+                        result_index, region_segments, best_model_name = future.result()
+                        results.append((result_index, region_segments))
+                        print(f"{Fore.GREEN}🏁 Completed region {result_index} processing{Style.RESET_ALL}")
+                    except Exception as exc:
+                        print(f"{Fore.RED}❌ Region {region_index} generated an exception: {exc}{Style.RESET_ALL}")
+                        results.append((region_index, []))
+                
+                # Sort results by original region index to maintain chronological order
+                results.sort(key=lambda x: x[0])
+                
+                # Combine all segments in the correct order
+                for _, region_segments in results:
+                    all_segments.extend(region_segments)
+                
+                print(f"{Fore.GREEN}🎉 Parallel processing complete! Processed {len(results)} regions{Style.RESET_ALL}")
 
     except Exception as e:
         print(f"{Fore.RED}❌ Error processing speech regions: {e}. Falling back to full file processing.{Style.RESET_ALL}")
@@ -2908,30 +3001,17 @@ def process_single_file(
                 print(f"{Fore.YELLOW}⚠️ No speech detected in file. Output will be empty.{Style.RESET_ALL}")
                 result = {"segments": [], "text": ""}
             else:
-                all_segments = []
-                for group_idx, group in enumerate(speech_groups, 1):
-                    group_start = group[0]['start']
-                    group_end = group[-1]['end']
-                    print(f"{Fore.CYAN}--- Processing Group {group_idx} of {len(speech_groups)}  ({group_idx / len(speech_groups) * 100:.2f}%) | ({format_human_time(group_start)} - {format_human_time(group_end)}) with {len(group)} speech regions ---{Style.RESET_ALL}")
-                    # Show how much progress of the group has been processed
-                    group_progress = 0.0
-                    group_max = len(group)
-                    for i, region in enumerate(group):
-                        group_progress = (i + 1) / group_max if group_max > 0 else 0.0
-                        # Show readying file of max
-                        print(f"{Fore.CYAN}Processing region {i + 1}/{group_max} ({region['start']} - {region['end']})...{Style.RESET_ALL}")
-                        print(f"{Fore.CYAN}Group {group_idx} progress: {group_progress * 100:.2f}%{Style.RESET_ALL}")
-                    # Merge group regions into a single region for batch processing
-                    merged_region = {
-                        'type': 'speech',
-                        'start': group_start,
-                        'end': group_end
-                    }
-                    # Use process_speech_regions with just this merged region
-                    group_segments = process_speech_regions(
-                        processed_audio_path, [merged_region], model_type, decode_options, task
-                    )
-                    all_segments.extend(group_segments)
+                # Extract all individual speech regions from all groups for batch processing
+                all_speech_regions = []
+                for group in speech_groups:
+                    all_speech_regions.extend(group)
+                
+                print(f"{Fore.CYAN}🎵 Found {len(speech_groups)} speech groups with {len(all_speech_regions)} total speech regions{Style.RESET_ALL}")
+                
+                # Process all speech regions using the batch processing logic
+                all_segments = process_speech_regions(
+                    processed_audio_path, all_speech_regions, model_type, decode_options, task
+                )
                 result = {"segments": all_segments, "text": " ".join(s.get('text', '').strip() for s in all_segments)}
         else:
             # Process the entire file normally without silence detection
