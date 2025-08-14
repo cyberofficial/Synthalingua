@@ -5,8 +5,8 @@
 echo "Realtime Whisper Translation App"
 
 # Pre-checks
-if [ ! -f "transcribe_audio.py" ]; then
-    echo "Error: 'transcribe_audio.py' not found. Make sure you run the setup script in the same directory as the source code."
+if [ ! -f "synthalingua.py" ]; then
+    echo "Error: 'synthalingua.py' not found. Make sure you run the setup script in the same directory as the source code."
     exit 1
 fi
 
@@ -129,7 +129,7 @@ source "$(dirname "$0")/data_whisper/bin/activate"
 if [ -f "ffmpeg_path.sh" ]; then
     source ffmpeg_path.sh
 fi
-python "$(dirname "$0")/transcribe_audio.py" --ram 3gb --non_english --translate
+python "$(dirname "$0")/synthalingua.py" --ram 3gb --non_english --translate
 read -p "Press enter to exit..."
 EOL
 
@@ -143,7 +143,7 @@ cat > livetranslation.sh << 'EOL'
 #!/bin/bash
 source "$(dirname "$0")/data_whisper/bin/activate"
 # Example: Generate English captions for a video file
-python "$(dirname "$0")/transcribe_audio.py" --ram 3gb --makecaptions --file_input "/path/to/your/video.mp4" --file_output "/path/to/output/folder" --file_output_name "output_captions" --language Japanese --device cuda
+python "$(dirname "$0")/synthalingua.py" --ram 3gb --makecaptions --file_input "/path/to/your/video.mp4" --file_output "/path/to/output/folder" --file_output_name "output_captions" --language Japanese --device cuda
 # Edit the above paths and options as needed
 read -p "Press enter to exit..."
 EOL

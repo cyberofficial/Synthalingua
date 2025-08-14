@@ -27,6 +27,7 @@ import os
 import torch
 import speech_recognition as sr
 import whisper
+import openvino as ov
 from queue import Queue
 from tempfile import NamedTemporaryFile
 from colorama import Fore, Style, init
@@ -39,6 +40,9 @@ if sys.platform.startswith('win'):
 from modules.audio_handlers import record_callback, handle_mic_calibration
 from modules.device_manager import get_microphone_source, list_microphones, setup_device
 from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error, cleanup_temp_cookie_file
+from modules.BaseWhisper import BaseWhisperModel
+from modules.FasterWhisper import FasterWhisperModel
+from modules.OpenVINOWhisper import OpenVINOWhisperModel
 from modules.transcription_core import TranscriptionCore
 from modules.stream_handler import handle_stream_setup
 from modules.stream_transcription_module import stop_transcription
@@ -50,6 +54,26 @@ from modules.version_checker import check_for_updates
 from modules.discord import send_to_discord_webhook, send_startup_notification, send_shutdown_notification
 from modules.about import contributors
 from modules.sub_gen import run_sub_gen
+
+# =================================================================
+# PyInstaller Compatibility Block
+# This section is to help PyInstaller find all the hidden modules
+# that the 'transformers' library and its ecosystem load dynamically.
+# This is the definitive fix for the FileNotFoundError at runtime.
+# =================================================================
+try:
+    # Explicitly import all known speech models to make them visible to PyInstaller
+    from transformers.models.auto import modeling_auto
+    for model_class in modeling_auto.MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES.values():
+        try:
+            # e.g., __import__("transformers.models.whisper.modeling_whisper")
+            __import__(f"transformers.models.{model_class.lower()}.modeling_{model_class.lower()}")
+        except ImportError:
+            pass  # Ignore if a specific model isn't available
+except Exception:
+    # This block will likely fail if run outside of a build process, which is fine.
+    pass
+# =================================================================
 
 init()
 
@@ -88,6 +112,12 @@ def main():
         print("Silent detection is not supported for HLS streaming or microphone input.")
         sys.exit("Exiting...")
 
+    # Validate batchmode usage
+    if getattr(args, 'batchmode', 1) > 1 and not args.makecaptions:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --batchmode can only be used with --makecaptions for caption generation.")
+        print("Parallel batch processing is not supported for HLS streaming or microphone input.")
+        sys.exit("Exiting...")
+
     # Check for correct transcription arguments
     if args.stream_transcribe is True and not isinstance(args.stream_transcribe, str):
         # User used --stream_transcribe without a language
@@ -117,8 +147,13 @@ def main():
     recorder.energy_threshold = args.energy_threshold
     recorder.dynamic_energy_threshold = False
 
-    # Set up device (CPU/CUDA)
+    # Set up device (CPU/CUDA/iGPU/dGPU/NPU)
     device = setup_device(args)
+    if args.model_source == "openvino":
+        device_name = ov.Core().get_property(device, "FULL_DEVICE_NAME")
+        print(f"Using device: {device_name}")
+    else:
+        print(f"Using device: {device}")
 
     # Set up audio source
     source_calibration = None
@@ -160,7 +195,14 @@ def main():
     model_language = args.stream_language if args.stream else args.language
     model = parser_args.set_model_by_ram(args.ram, model_language)
     if not args.makecaptions:
-        audio_model = whisper.load_model(model, device=device, download_root=args.model_dir)
+        if args.model_source == "fasterwhisper":
+            audio_model = FasterWhisperModel(model, device=device, download_root=args.model_dir, compute_type=args.compute_type)
+        elif args.model_source == "openvino":
+            audio_model = OpenVINOWhisperModel(model, device=device, download_root=args.model_dir, compute_type=args.compute_type)
+        elif args.model_source == "whisper":
+            audio_model = BaseWhisperModel(model, device=device, download_root=args.model_dir)
+        else:
+            ValueError(f"{args.model_source} is not a valid model source")
 
     # Set up API backend if needed
     if args.portnumber:
@@ -236,8 +278,6 @@ def main():
     print("Model loaded.\n")
     print(f"Using {model} model.")
 
-    if device.type == "cuda" and "AMD" in torch.cuda.get_device_name(torch.cuda.current_device()):
-        print("WARNING: You are using an AMD GPU with CUDA. This may not work properly. Consider using CPU instead.")      # Initialize transcription core
     args.model = model  # Add the model name to args
     transcription_core = TranscriptionCore(args, device, audio_model, blacklist, temp_dir)
 

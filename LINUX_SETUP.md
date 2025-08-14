@@ -113,7 +113,7 @@ git clone https://github.com/cyberofficial/Synthalingua.git
 cd Synthalingua
 
 # Verify you have the main files
-ls -la transcribe_audio.py set_up_env.py requirements.txt
+ls -la synthalingua.py set_up_env.py requirements.txt
 ```
 
 ---
@@ -227,8 +227,8 @@ export PATH="$(pwd)/downloaded_assets:$PATH"
 
 
 echo "✅ Environment activated!"
-echo "📝 You can now run: python transcribe_audio.py [options]"
-echo "📚 For help, run: python transcribe_audio.py --help"
+echo "📝 You can now run: python synthalingua.py [options]"
+echo "📚 For help, run: python synthalingua.py --help"
 echo "🔧 For examples, see: LINUX_SETUP.md"
 EOF
 
@@ -242,13 +242,13 @@ chmod +x activate_synthalingua.sh
 source activate_synthalingua.sh
 
 # Test basic functionality
-python transcribe_audio.py --about
+python synthalingua.py --about
 
 # Test microphone listing
-python transcribe_audio.py --list_microphones
+python synthalingua.py --list_microphones
 
 # Test with a simple command (adjust model size based on your RAM)
-python transcribe_audio.py --ram 2gb --language auto --help
+python synthalingua.py --ram 2gb --language auto --help
 ```
 
 ---
@@ -261,28 +261,28 @@ python transcribe_audio.py --ram 2gb --language auto --help
 source activate_synthalingua.sh
 
 # Start microphone transcription
-python transcribe_audio.py --ram 2gb --microphone_enabled --language auto
+python synthalingua.py --ram 2gb --microphone_enabled --language auto
 ```
 
 ### File-based Caption Generation
 ```bash
 # Generate captions for a video file
-python transcribe_audio.py --makecaptions --file_input "video.mp4" --file_output "captions" --ram 3gb
+python synthalingua.py --makecaptions --file_input "video.mp4" --file_output "captions" --ram 3gb
 
 # With vocal isolation (removes background music)
-python transcribe_audio.py --makecaptions --file_input "video.mp4" --isolate_vocals --silent_detect --ram 6gb
+python synthalingua.py --makecaptions --file_input "video.mp4" --isolate_vocals --silent_detect --ram 6gb
 ```
 
 ### Stream Translation
 ```bash
 # Translate a live stream from Japanese to English
-python transcribe_audio.py --stream "https://example.com/stream.m3u8" --language ja --translate --ram 6gb
+python synthalingua.py --stream "https://example.com/stream.m3u8" --language ja --translate --ram 6gb
 ```
 
 ### Web Interface
 ```bash
 # Start with web interface on port 8080
-python transcribe_audio.py --ram 3gb --microphone_enabled --portnumber 8080
+python synthalingua.py --ram 3gb --microphone_enabled --portnumber 8080
 
 # Then open browser to: http://localhost:8080
 ```
@@ -311,7 +311,7 @@ pip install --upgrade certifi requests urllib3
 #### Audio Issues:
 ```bash
 # Test audio devices:
-python transcribe_audio.py --list_microphones
+python synthalingua.py --list_microphones
 
 # If no microphones detected:
 sudo apt install alsa-utils pulseaudio-utils
@@ -339,7 +339,7 @@ pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
 #### Memory Issues:
 ```bash
 # For low RAM systems, use smaller models:
-python transcribe_audio.py --ram 1gb [other options]
+python synthalingua.py --ram 1gb [other options]
 
 # Monitor memory usage:
 htop
@@ -399,22 +399,22 @@ pip install -r requirements.txt
 2. **GPU Acceleration**:
    ```bash
    # Force CUDA usage (if available)
-   python transcribe_audio.py --device cuda --ram 6gb [other options]
+   python synthalingua.py --device cuda --ram 6gb [other options]
    
    # Force CPU usage
-   python transcribe_audio.py --device cpu --ram 2gb [other options]
+   python synthalingua.py --device cpu --ram 2gb [other options]
    ```
 
 3. **Audio Quality Settings**:
    ```bash
    # Higher quality microphone settings
-   python transcribe_audio.py --energy_threshold 300 --record_timeout 3 [other options]
+   python synthalingua.py --energy_threshold 300 --record_timeout 3 [other options]
    ```
 
 4. **For Server/Headless Use**:
    ```bash
    # Run without GUI, output to file
-   python transcribe_audio.py --save_transcript --save_folder ./transcripts [other options]
+   python synthalingua.py --save_transcript --save_folder ./transcripts [other options]
    ```
 
 ---
