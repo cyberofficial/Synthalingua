@@ -26,7 +26,7 @@ python -m nuitka --standalone \
     --product-name="Synthalingua" \
     --file-description="Real-time Audio Transcription and Translation" \
     --output-dir="$(pwd)/dist/Main_Release_Linux" \
-    transcribe_audio.py
+    synthalingua.py
 
 echo "Linux build completed!"
-echo "Binary location: $(pwd)/dist/Main_Release_Linux/transcribe_audio.dist/transcribe_audio"
+echo "Binary location: $(pwd)/dist/Main_Release_Linux/synthalingua.dist/synthalingua"

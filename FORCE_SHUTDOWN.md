@@ -26,7 +26,7 @@ When `Ctrl+C` is pressed or `kill_server()` is called:
 ### Normal Operation
 ```bash
 # Start Synthalingua with web server
-python transcribe_audio.py --portnumber 8080 --stream https://youtube.com/watch?v=abc123
+python synthalingua.py --portnumber 8080 --stream https://youtube.com/watch?v=abc123
 
 # Press Ctrl+C to shutdown (now works properly!)
 ```

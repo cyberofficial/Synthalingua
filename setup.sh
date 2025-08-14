@@ -7,9 +7,9 @@ echo "==============================="
 echo " Realtime Whisper Translation App Setup (Linux)"
 echo "==============================="
 
-# Check for transcribe_audio.py
-if [ ! -f transcribe_audio.py ]; then
-    echo "Error: transcribe_audio.py not found. Please run this script from the project root."
+# Check for synthalingua.py
+if [ ! -f synthalingua.py ]; then
+    echo "Error: synthalingua.py not found. Please run this script from the project root."
     exit 1
 fi
 
@@ -122,7 +122,7 @@ cat << EOF > livetranslation.sh
 #!/bin/bash
 source "[36m$(pwd)/data_whisper/bin/activate[0m"
 # Example: Generate English captions for a video file
-python "$(pwd)/transcribe_audio.py" --ram 3gb --makecaptions --file_input "/path/to/your/video.mp4" --file_output "/path/to/output/folder" --file_output_name "output_captions" --language Japanese --device cuda
+python "$(pwd)/synthalingua.py" --ram 3gb --makecaptions --file_input "/path/to/your/video.mp4" --file_output "/path/to/output/folder" --file_output_name "output_captions" --language Japanese --device cuda
 # Edit the above paths and options as needed
 EOF
 chmod +x livetranslation.sh

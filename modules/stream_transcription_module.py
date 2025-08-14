@@ -20,6 +20,7 @@ import time
 import requests
 import hashlib
 import os
+from modules.demucs_path_helper import get_demucs_python_path
 import m3u8
 import http.client
 import http.cookiejar
@@ -36,6 +37,7 @@ from collections import deque
 from colorama import Fore, Back, Style, init
 from urllib.parse import urlparse
 from modules.rate_limiter import global_rate_limiter
+from modules.file_handlers import is_phrase_in_blocklist, add_phrase_to_blocklist
 
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
@@ -220,7 +222,7 @@ def start_stream_transcription(
     Args:
         task_id (str): Unique identifier for this transcription task
         hls_url (str): URL of the HLS stream to process
-        model_name (whisper.Whisper): Loaded Whisper model instance
+        model_name (object): Loaded Whisper model instance
         temp_dir (str): Directory path for temporary files
         segments_max (int): Maximum number of segments to process at once
         target_language (str): Target language code for transcription
@@ -468,15 +470,14 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to translate
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
 
         Returns:
             str: Translated text in English, or empty string if translation fails        Uses Whisper's translate task to directly translate audio to English text.
         Includes fp16 optimization and previous text conditioning based on arguments.
         """
         try:
-            result = model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
-            return result["text"]
+            return model.transcribe(file_path, task="translate", fp16=args.fp16, language="English", condition_on_previous_text=args.condition_on_previous_text)
         except RuntimeError as e:
             print_error_message(f"Error translating audio: {e}")
             return ""
@@ -487,7 +488,7 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to transcribe
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
             language (str): Language code for transcription
 
         Returns:
@@ -495,11 +496,20 @@ def start_stream_transcription(
         and previous text conditioning based on arguments.
         """
         try:
-            result = model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
-            return result["text"]
-        except RuntimeError as e:
-            print_error_message(f"Error transcribing audio: {e}")
+            return model.transcribe(file_path, language=language, fp16=args.fp16, condition_on_previous_text=args.condition_on_previous_text, task="transcribe")
+        except IndexError:
+            print_error_message(f"Audio decoding error for segment: {os.path.basename(file_path)} (IndexError).")
+            print_warning_message("This is likely due to a corrupted or empty audio segment from the stream. Skipping this chunk.")
             return ""
+        except Exception as e:
+            # Catch other potential decoding errors from PyAV
+            if "av." in str(e):
+                print_error_message(f"Audio decoding error for segment: {os.path.basename(file_path)} ({type(e).__name__}).")
+                print_warning_message("This is likely due to a corrupted audio segment from the stream. Skipping this chunk.")
+                return ""
+            else:
+                print_error_message(f"An unexpected error occurred during transcription: {e}")
+                return ""
 
     def detect_language(file_path, model, device=args.device):
         """
@@ -507,8 +517,8 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to analyze
-            model (whisper.Whisper): Loaded Whisper model instance
-            device (str): Device to run inference on (CPU/CUDA). Defaults to args.device
+            model (object): Loaded Whisper model instance
+            device (str): Device to run inference on (CPU/CUDA/iGPU/dGPU/NPU). Defaults to args.device
 
         Returns:
             str: Detected language code, or "n/a" if detection fails
@@ -518,16 +528,7 @@ def start_stream_transcription(
         performing language detection.
         """
         try:
-            audio = whisper.load_audio(file_path)
-            audio = whisper.pad_or_trim(audio)
-            
-            # Use 128 mel bands for large-v3 model
-            if args.ram == "11gb-v3":
-                mel = whisper.log_mel_spectrogram(audio, n_mels=128).to(device)
-            else:
-                mel = whisper.log_mel_spectrogram(audio, n_mels=80).to(device)
-
-            _, language_probs = model.detect_language(mel)
+            language_probs = model.detect_language(file_path, ram=args.ram, device=device)
             detected_language = max(language_probs, key=language_probs.get)
             return detected_language
         except RuntimeError as e:
@@ -542,7 +543,7 @@ def start_stream_transcription(
 
         Args:
             file_path (str): Path to the audio file to process
-            model (whisper.Whisper): Loaded Whisper model instance
+            model (object): Loaded Whisper model instance
 
         This function orchestrates the complete audio processing workflow:
         1. Original language transcription (if enabled)
@@ -581,97 +582,101 @@ def start_stream_transcription(
         # --- Vocal isolation for HLS chunk (Demucs) ---
         processed_audio_path = file_path
         if getattr(args, 'isolate_vocals', False):
-            if not shutil.which('demucs'):
-                print_error_message("demucs is not installed or not in PATH. Please install demucs to use --isolate_vocals.")
-            else:
-                try:
+            try:
+                if args.debug:
+                    print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    demucs_python_path = get_demucs_python_path()
+                    demucs_cmd = [
+                        demucs_python_path,
+                        '-m', 'demucs',
+                        '-n', getattr(args, 'demucs_model', 'htdemucs'),
+                        '-o', tmpdir,
+                        '--two-stems', 'vocals',
+                    ]
+                    if getattr(args, 'device', None) == 'cuda':
+                        demucs_cmd += ['-d', 'cuda']
+                    # Add jobs parameter if specified
+                    if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
+                        demucs_cmd.extend(['-j', str(args.demucs_jobs)])
+                    demucs_cmd.append(str(file_path))
+                    result = subprocess.run(
+                        demucs_cmd,
+                        capture_output=True, text=True, encoding='utf-8', errors='replace')
                     if args.debug:
-                        print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
-                    with tempfile.TemporaryDirectory() as tmpdir:
-                        demucs_cmd = [
-                            'demucs',
-                            '-n', getattr(args, 'demucs_model', 'htdemucs'),
-                            '-o', tmpdir,
-                            '--two-stems', 'vocals',
+                        print_debug_message(f"Demucs return code: {result.returncode}")
+                        if result.stdout:
+                            print_debug_message(f"Demucs stdout: {result.stdout[:500]}...")
+                        if result.stderr:
+                            print_debug_message(f"Demucs stderr: {result.stderr[:500]}...")
+                    if result.returncode != 0:
+                        print_error_message(f"Demucs failed with return code {result.returncode}: {result.stderr}")
+                    else:
+                        base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
+                        vocals_path = None
+                        demucs_model = getattr(args, 'demucs_model', 'htdemucs')
+                        possible_locations = [
+                            os.path.join(tmpdir, demucs_model, base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),
+                            os.path.join(tmpdir, base_name, 'vocals.wav'),
                         ]
-                        if getattr(args, 'device', None) == 'cuda':
-                            demucs_cmd += ['-d', 'cuda']
-                        # Add jobs parameter if specified
-                        if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
-                            demucs_cmd.extend(['-j', str(args.demucs_jobs)])
-                        demucs_cmd.append(str(file_path))
-                        result = subprocess.run(
-                            demucs_cmd,
-                            capture_output=True, text=True, encoding='utf-8', errors='replace')
-                        if args.debug:
-                            print_debug_message(f"Demucs return code: {result.returncode}")
-                            if result.stdout:
-                                print_debug_message(f"Demucs stdout: {result.stdout[:500]}...")
-                            if result.stderr:
-                                print_debug_message(f"Demucs stderr: {result.stderr[:500]}...")
-                        if result.returncode != 0:
-                            print_error_message(f"Demucs failed with return code {result.returncode}: {result.stderr}")
-                        else:
-                            base_name = os.path.splitext(os.path.basename(str(file_path)))[0]
-                            vocals_path = None
-                            demucs_model = getattr(args, 'demucs_model', 'htdemucs')
-                            possible_locations = [
-                                os.path.join(tmpdir, demucs_model, base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'demucs', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'htdemucs', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, 'mdx_extra', base_name, 'vocals.wav'),
-                                os.path.join(tmpdir, base_name, 'vocals.wav'),
-                            ]
-                            for root, dirs, files in os.walk(tmpdir):
-                                if 'vocals.wav' in files:
-                                    vocals_path = os.path.join(root, 'vocals.wav')
-                                    if args.debug:
-                                        print_success_message(f"Found vocals.wav at: {vocals_path}")
-                                    break
-                            if not vocals_path:
-                                for location in possible_locations:
-                                    if os.path.exists(location):
-                                        vocals_path = location
-                                        if args.debug:
-                                            print_success_message(f"Found vocals.wav at predefined location: {vocals_path}")
-                                        break
-                            if not vocals_path or not os.path.exists(vocals_path):
-                                print_error_message(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
-                            else:
-                                # Use absolute path for temp/audio/ folder
-                                from datetime import datetime
-                                utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                                script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                                dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
-                                os.makedirs(dest_dir, exist_ok=True)
-                                for file in os.listdir(os.path.dirname(vocals_path)):
-                                    src_file = os.path.join(os.path.dirname(vocals_path), file)
-                                    if os.path.isfile(src_file):
-                                        shutil.copy2(src_file, os.path.join(dest_dir, file))
-                                processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
+                        for root, dirs, files in os.walk(tmpdir):
+                            if 'vocals.wav' in files:
+                                vocals_path = os.path.join(root, 'vocals.wav')
                                 if args.debug:
-                                    print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
-                                    print_info_message(f"Using vocals file: {processed_audio_path}")
-                except Exception as e:
-                    print_error_message(f"Vocal isolation failed: {str(e)}")
+                                    print_success_message(f"Found vocals.wav at: {vocals_path}")
+                                break
+                        if not vocals_path:
+                            for location in possible_locations:
+                                if os.path.exists(location):
+                                    vocals_path = location
+                                    if args.debug:
+                                        print_success_message(f"Found vocals.wav at predefined location: {vocals_path}")
+                                    break
+                        if not vocals_path or not os.path.exists(vocals_path):
+                            print_error_message(f"Vocal isolation failed: vocals.wav not found. Expected at: {possible_locations[0]}")
+                        else:
+                            # Use absolute path for temp/audio/ folder
+                            from datetime import datetime
+                            utc_folder = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                            dest_dir = os.path.join(script_dir, 'temp', 'audio', utc_folder)
+                            os.makedirs(dest_dir, exist_ok=True)
+                            for file in os.listdir(os.path.dirname(vocals_path)):
+                                src_file = os.path.join(os.path.dirname(vocals_path), file)
+                                if os.path.isfile(src_file):
+                                    shutil.copy2(src_file, os.path.join(dest_dir, file))
+                            processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
+                            if args.debug:
+                                print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
+                                print_info_message(f"Using vocals file: {processed_audio_path}")
+            except Exception as e:
+                print_error_message(f"Vocal isolation failed: {str(e)}")
 
         transcription = None
         translation = None
+        detected_language = stream_language if stream_language else 'en'
+
         if args.stream_original_text:
-            if args.stream_language:
-                detected_language = stream_language
-            else:
+            if not stream_language:
                 detected_language = detect_language(processed_audio_path, model)
+            
             transcription = transcribe_audio(
                 processed_audio_path, model, language=detected_language
             )
-            # If the phrase is in the blocklist, skip printing and updating last_transcription
+
+            # Check original transcription against blocklist
             if is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
-                return
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Original transcription blocked by list: '{transcription}'")
+                transcription = ""  # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = transcription and not is_similar(transcription, process_audio.last_transcription)
             else:
                 is_new = bool(transcription)
+            
             if is_new:
                 print_transcription_result(detected_language, transcription, "Original")
                 process_audio.last_transcription = transcription
@@ -685,16 +690,22 @@ def start_stream_transcription(
                     blocked_phrase_history["original"].append(msg)
                     if blocked_phrase_history["original"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and transcription:
                     print(f"[DEBUG] Blocked similar original message: {transcription}")
-                pass
 
         if tasktranslate_task:
             translation = translate_audio(processed_audio_path, model)
+
+            # Check translation against blocklist
+            if is_phrase_in_blocklist(translation, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Translation blocked by list: '{translation}'")
+                translation = "" # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = translation and not is_similar(translation, process_audio.last_translation)
             else:
                 is_new = bool(translation)
+            
             if is_new:
                 print_transcription_result("EN", translation, "Translation")
                 process_audio.last_translation = translation
@@ -712,18 +723,24 @@ def start_stream_transcription(
                     blocked_phrase_history["translation"].append(msg)
                     if blocked_phrase_history["translation"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(translation, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and translation:
                     print(f"[DEBUG] Blocked similar translation message: {translation}")
-                pass
 
         if tasktranscribe_task:
             transcription = transcribe_audio(
                 processed_audio_path, model, language=target_language
             )
+            
+            # Check target transcription against blocklist
+            if is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Target transcription blocked by list: '{transcription}'")
+                transcription = "" # Clear the text
+
             if ENABLE_SIMILAR_PROTECTION:
                 is_new = transcription and not is_similar(transcription, process_audio.last_target_transcription)
             else:
                 is_new = bool(transcription)
+
             if is_new:
                 print_transcription_result(target_language, transcription, "Transcription")
                 process_audio.last_target_transcription = transcription
@@ -741,9 +758,9 @@ def start_stream_transcription(
                     blocked_phrase_history["target"].append(msg)
                     if blocked_phrase_history["target"].count(msg) >= 3:
                         already_blocked = add_phrase_to_blocklist(msg, BLOCKLIST_PATH)
-                if DEBUG_BLOCK_SIMILAR and not already_blocked and not is_phrase_in_blocklist(transcription, BLOCKLIST_PATH):
+                if DEBUG_BLOCK_SIMILAR and not already_blocked and transcription:
                     print(f"[DEBUG] Blocked similar target transcription message: {transcription}")
-                pass
+
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
@@ -965,36 +982,3 @@ blocked_phrase_history = {
 # Check if auto-blocking is enabled and blocklist is set
 AUTO_BLOCKLIST_ENABLED = getattr(args, 'auto_blocklist', False)
 BLOCKLIST_PATH = getattr(args, 'ignorelist', None)
-
-# Helper to add a phrase to the blocklist file
-def add_phrase_to_blocklist(phrase, blocklist_path):
-    phrase = phrase.strip()
-    if not phrase:
-        return True  # treat as already blocked for debug logic
-    
-    # Check if already in blocklist (case-insensitive, trimmed)
-    try:
-        if os.path.exists(blocklist_path):
-            with open(blocklist_path, 'r', encoding='utf-8') as f:
-                lines = [line.strip().lower() for line in f.readlines()]
-            if phrase.lower() in lines:
-                return True  # Already present, do not add again
-            
-        with open(blocklist_path, 'a', encoding='utf-8') as f:
-            f.write(phrase + '\n')
-        print_info_message(f"Auto-added phrase to blocklist: {phrase}", "🚫")
-        return False
-    except Exception as e:
-        print_error_message(f"Could not add phrase to blocklist: {e}", "❌")
-        return False
-
-def is_phrase_in_blocklist(phrase, blocklist_path):
-    phrase = phrase.strip()
-    if not phrase or not blocklist_path or not os.path.exists(blocklist_path):
-        return False
-    try:
-        with open(blocklist_path, 'r', encoding='utf-8') as f:
-            lines = [line.strip().lower() for line in f.readlines()]
-        return phrase.lower() in lines
-    except Exception:
-        return False
