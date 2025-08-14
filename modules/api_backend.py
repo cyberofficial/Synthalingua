@@ -415,5 +415,3 @@ def update_translated_header(new_header):
 def update_transcribed_header(new_header):
     """Updates the transcribed text."""
     state.update_transcribed_header(new_header)
-
-print(f"{Fore.GREEN}✅ Web Server Module Loaded{Style.RESET_ALL}")
