@@ -34,5 +34,3 @@ def set_window_title(detected_language, confidence, model):
     else:
         sys.stdout.write(f"]2;{title}")
         sys.stdout.flush()
-
-print(f"{Fore.GREEN}✅ Console Settings Module Loaded{Style.RESET_ALL}")

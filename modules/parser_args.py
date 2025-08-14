@@ -252,6 +252,3 @@ def parse_arguments():
         exit(1)
 
     return args
-
-
-print(f"{Fore.GREEN}✅ Parser Args Module Loaded{Style.RESET_ALL}")

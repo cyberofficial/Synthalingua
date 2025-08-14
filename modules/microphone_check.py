@@ -35,5 +35,3 @@ def microphone_check():
     print("Microphone check complete.")
     print("\n\n")
     return True
-
-print(f"{Fore.GREEN}✅ Microphone Check Module Loaded{Style.RESET_ALL}")

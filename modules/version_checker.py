@@ -164,6 +164,3 @@ def check_for_updates() -> None:
             # Local major version is newer than remote major version
             print(f"{Fore.YELLOW}You are using a newer version ({Fore.YELLOW}{local_version}{Style.RESET_ALL}) than the latest release ({Fore.YELLOW}{remote_version}{Style.RESET_ALL}).{Style.RESET_ALL}")
             print("\n") # Add some spacing
-
-# Initial print to indicate the module is loaded
-print(f"{Fore.GREEN}✅ Version Checker Module Loaded{Style.RESET_ALL}")

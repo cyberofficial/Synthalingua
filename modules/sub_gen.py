@@ -3239,6 +3239,3 @@ def process_single_file(
     except Exception as e:
         logger.error("Failed to generate subtitles: %s", str(e), exc_info=True)
         raise RuntimeError(f"Subtitle generation failed: {str(e)}")
-
-# Indicate that the subtitles generator module is loaded.
-print(f"{Fore.GREEN}✅ Subtitles Generator Module Loaded{Style.RESET_ALL}")
