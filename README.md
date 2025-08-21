@@ -9,15 +9,6 @@
 - **Discord & web integration**: Send results to Discord or view in browser
 - **Portable GUI version available**
 
----
-
-## Quick Start
-1. **Install Python 3.12** from [here](https://www.python.org/downloads/release/python-31210/) and [Git](https://git-scm.com/downloads)
-2. **Install FFMPEG** ([guide](https://github.com/cyberofficial/Synthalingua/issues/2#issuecomment-1491098222))
-3. *(Optional)* Install [CUDA 12.8](https://developer.nvidia.com/cuda-12-8-0-download-archive) for GPU acceleration if you plan to use GPU features
-4. **Windows**: Run `setup.bat` | **Linux**: See [LINUX_SETUP.md](./LINUX_SETUP.md) for detailed setup instructions
-5. Edit and run the generated batch/bash file, or use the GUI portable version: [Synthalingua_Wrapper](https://github.com/cyberofficial/Synthalingua_Wrapper)
-
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
@@ -88,13 +79,6 @@ Hey there! Synthalingua is a fun and powerful tool for exploring languages, lear
 - Share or publish AI-generated translations as if they are 100% accurate or official
 
 By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let’s keep it fun, safe, and positive for everyone!
-
-- **Real-time translation & transcription** (stream, mic, file)
-- **Multilingual**: Translate between dozens of languages
-- **Streaming & captions**: HLS, YouTube, Twitch, and more
-- **Blocklist & repetition suppression**: Auto-filter repeated or unwanted phrases
-- **Discord & web integration**: Send results to Discord or view in browser
-- **Portable GUI version available**
 
 ---
 
