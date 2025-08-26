@@ -94,13 +94,6 @@ Hey there! Synthalingua is a fun and powerful tool for exploring languages, lear
 
 By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let’s keep it fun, safe, and positive for everyone!
 
-- **Real-time translation & transcription** (stream, mic, file)
-- **Multilingual**: Translate between dozens of languages
-- **Streaming & captions**: HLS, YouTube, Twitch, and more
-- **Blocklist & repetition suppression**: Auto-filter repeated or unwanted phrases
-- **Discord & web integration**: Send results to Discord or view in browser
-- **Portable GUI version available**
-
 ---
 
 ## Quick Start

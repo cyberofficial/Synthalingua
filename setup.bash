@@ -75,69 +75,83 @@ fi
 echo "Installing requirements from 'requirements.txt'..."
 pip install -r requirements.txt
 
-
-# CUDA patch logic with Darwin (macOS) warning and fallback
+# GPU/ROCm/CUDA/CPU selection logic
 OS_TYPE=$(uname)
 if [[ "$OS_TYPE" == "Darwin" ]]; then
-    echo "[WARNING] CUDA support may not be available on macOS (Darwin)."
+    echo "[WARNING] CUDA/ROCm support may not be available on macOS (Darwin)."
     read -p "Do you want to try to install CUDA GPU support anyway? [Y/N]: " try_cuda
     if [[ $try_cuda =~ ^[Yy]$ ]]; then
         echo "Attempting CUDA install (may fail on macOS)..."
-        pip uninstall -y torch torchvision torchaudio || true
-        if pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+        pip uninstall -y torch torchaudio || true
+        if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
             echo "CUDA patch applied (if supported)."
         else
             echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
-            pip uninstall -y torch torchvision torchaudio || true
-            pip install torch torchvision torchaudio
+            pip uninstall -y torch torchaudio || true
+            pip install torch torchaudio
             echo "CPU versions of torch packages installed."
         fi
     else
-        echo "Skipping CUDA patch. Using default CPU versions of torch, torchvision, and torchaudio."
+        echo "Skipping CUDA patch. Using default CPU versions of torch and torchaudio."
     fi
 else
-    read -p "Do you have an Nvidia GPU with CUDA cores? [Y/N]: " has_cuda_gpu
-    if [[ $has_cuda_gpu =~ ^[Yy]$ ]]; then
+    echo "Select your GPU type for PyTorch installation:"
+    echo "  1) Nvidia (CUDA)"
+    echo "  2) AMD (ROCm)"
+    echo "  3) CPU only"
+    read -p "Enter 1 for Nvidia, 2 for AMD, or 3 for CPU: " gpu_choice
+    if [[ "$gpu_choice" == "1" ]]; then
         read -p "Do you want to use your Nvidia GPU for acceleration? [Y/N]: " use_cuda
         if [[ $use_cuda =~ ^[Yy]$ ]]; then
             echo "Applying CUDA patch to install GPU versions of PyTorch packages..."
-            pip uninstall -y torch torchvision torchaudio || true
-            if pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+            pip uninstall -y torch torchaudio || true
+            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
                 echo "CUDA patch applied for Nvidia GPU support."
             else
                 echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
-                pip uninstall -y torch torchvision torchaudio || true
-                pip install torch torchvision torchaudio
+                pip uninstall -y torch torchaudio || true
+                pip install torch torchaudio
                 echo "CPU versions of torch packages installed."
             fi
         else
-            echo "Skipping CUDA patch. Using default CPU versions of torch, torchvision, and torchaudio."
+            echo "Skipping CUDA patch. Using default CPU versions of torch and torchaudio."
+        fi
+    elif [[ "$gpu_choice" == "2" ]]; then
+        read -p "Do you want to use your AMD GPU (ROCm) for acceleration? [Y/N]: " use_rocm
+        if [[ $use_rocm =~ ^[Yy]$ ]]; then
+            echo "Applying ROCm patch to install AMD GPU versions of PyTorch packages..."
+            pip uninstall -y torch torchaudio || true
+            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/rocm6.4; then
+                echo "ROCm patch applied for AMD GPU support."
+            else
+                echo "ROCm install failed. Reinstalling CPU versions of torch packages..."
+                pip uninstall -y torch torchaudio || true
+                pip install torch torchaudio
+                echo "CPU versions of torch packages installed."
+            fi
+        else
+            echo "Skipping ROCm patch. Using default CPU versions of torch and torchaudio."
         fi
     else
-        echo "No Nvidia GPU detected or selected. Using default CPU versions of torch, torchvision, and torchaudio."
+        echo "No GPU acceleration selected. Using default CPU versions of torch and torchaudio."
+    fi
+fi
+
+# Demucs for vocal isolation
+read -p "Do you plan to use the vocal isolation feature (requires demucs, ~1GB download)? [Y/N]: " install_demucs
+if [[ $install_demucs =~ ^[Yy]$ ]]; then
+    echo "Installing demucs for vocal isolation support..."
+    pip install demucs
+    if [ $? -ne 0 ]; then
+        echo "Failed to install demucs. Please install manually if needed."
+    else
+        echo "Demucs installation complete."
     fi
 fi
 
 echo "Whisper translation environment setup completed!"
 
-# Creating a shortcut script
-echo "Creating a shortcut script for the translation app..."
-cat > livetranslation.sh << 'EOL'
-#!/bin/bash
-source "$(dirname "$0")/data_whisper/bin/activate"
-# Include ffmpeg path if available
-if [ -f "ffmpeg_path.sh" ]; then
-    source ffmpeg_path.sh
-fi
-python "$(dirname "$0")/synthalingua.py" --ram 3gb --non_english --translate
-read -p "Press enter to exit..."
-EOL
-
-chmod +x livetranslation.sh
-
-echo "Shortcut 'livetranslation.sh' created in the current directory."
-echo "You can edit this file with any text editor if necessary."
-read -p "Press Enter to continue..."
+# Creating a shortcut script with a practical example
 echo "Creating a shortcut script for the translation app..."
 cat > livetranslation.sh << 'EOL'
 #!/bin/bash
@@ -153,8 +167,5 @@ chmod +x livetranslation.sh
 echo "Shortcut 'livetranslation.sh' created in the current directory."
 echo "You can edit this file with any text editor if necessary."
 read -p "Press Enter to continue..."
-
-echo "Setting up Environment Stuff..."
-$python set_up_env.py
 
 echo "Setup completed successfully!"

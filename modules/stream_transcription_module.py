@@ -801,6 +801,8 @@ def start_stream_transcription(
                 print_success_message(f"Detected segment duration: {segment_duration:.2f} seconds", "📊")
                 print_info_message(f"Current chunk size (segments per batch): {segments_max}", "📦")
                 print_info_message(f"Each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio", "⏱️")
+                if args.paddedaudio and args.paddedaudio > 0:
+                    print_info_message(f"Each batch will include ~{args.paddedaudio * segment_duration:.2f} seconds of padded audio making the total ~{(segments_max + args.paddedaudio) * segment_duration:.2f} seconds", "🎧")
                 user_input = input(f"{Fore.CYAN}🔧 Would you like to set a new chunk size? (y/n): {Style.RESET_ALL}").strip().lower()
                 if user_input == 'y':
                     while True:
@@ -808,6 +810,10 @@ def start_stream_transcription(
                             new_chunk = int(input(f"{Fore.CYAN}📝 Enter new chunk size (number of segments per batch): {Style.RESET_ALL}").strip())
                             if new_chunk > 0:
                                 est_time = new_chunk * segment_duration
+                                # if padded audio is enabled, account for padding
+                                if args.paddedaudio and args.paddedaudio > 0:
+                                    est_time += args.paddedaudio * segment_duration
+                                    print_info_message("Padded audio will be included in the chunk duration", "🎧")
                                 print_info_message(f"If chunk size is {new_chunk}, each batch will cover ~{est_time:.2f} seconds", "📏")
                                 confirm = input(f"{Fore.YELLOW}✅ Confirm this chunk size? (y to confirm, n to set again, c to cancel): {Style.RESET_ALL}").strip().lower()
                                 if confirm == 'y':
