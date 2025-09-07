@@ -3370,6 +3370,15 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
             print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
             if result.stderr:
                 print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+            
+            # Clean up failed output file if it exists
+            try:
+                if Path(output_path).exists():
+                    Path(output_path).unlink()
+                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+            except Exception as cleanup_error:
+                print(f"{Fore.YELLOW}⚠️  Could not clean up failed output file: {cleanup_error}{Style.RESET_ALL}")
+            
             return False
             
     except Exception as e:
@@ -3476,15 +3485,44 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                             if mkv_result.returncode == 0:
                                 print(f"{Fore.GREEN}✅ Successfully embedded subtitles in MKV format!{Style.RESET_ALL}")
                                 print(f"{Fore.CYAN}📁 Output saved to: {mkv_output_path}{Style.RESET_ALL}")
+                                
+                                # Clean up the original failed output file
+                                try:
+                                    if Path(output_path).exists():
+                                        Path(output_path).unlink()
+                                        print(f"{Fore.YELLOW}🗑️  Cleaned up original failed output file: {output_path}{Style.RESET_ALL}")
+                                except Exception as cleanup_error:
+                                    print(f"{Fore.YELLOW}⚠️  Could not clean up original failed file: {cleanup_error}{Style.RESET_ALL}")
+                                
                                 return True
                             else:
                                 print(f"{Fore.RED}❌ MKV conversion also failed: FFmpeg returned error code {mkv_result.returncode}{Style.RESET_ALL}")
                                 if mkv_result.stderr:
                                     print(f"{Fore.RED}Error details: {mkv_result.stderr}{Style.RESET_ALL}")
+                                
+                                # Clean up both failed output files
+                                cleanup_files = [output_path, mkv_output_path]
+                                for cleanup_file in cleanup_files:
+                                    try:
+                                        if Path(cleanup_file).exists():
+                                            Path(cleanup_file).unlink()
+                                            print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {cleanup_file}{Style.RESET_ALL}")
+                                    except Exception as cleanup_error:
+                                        print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
+                                
                                 return False
                                 
                         elif choice == "2":
                             print(f"{Fore.YELLOW}⏭️  Skipping video processing. SRT file has been generated successfully.{Style.RESET_ALL}")
+                            
+                            # Clean up the failed output file from the original attempt
+                            try:
+                                if Path(output_path).exists():
+                                    Path(output_path).unlink()
+                                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                            except Exception as cleanup_error:
+                                print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
+                            
                             return False
                             
                         else:
@@ -3493,6 +3531,15 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                             
                     except KeyboardInterrupt:
                         print(f"\n{Fore.YELLOW}⏭️  Operation cancelled. Skipping video processing.{Style.RESET_ALL}")
+                        
+                        # Clean up the failed output file from the original attempt
+                        try:
+                            if Path(output_path).exists():
+                                Path(output_path).unlink()
+                                print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                        except Exception as cleanup_error:
+                            print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
+                        
                         return False
                     except Exception as input_error:
                         print(f"{Fore.RED}Input error: {input_error}. Please try again.{Style.RESET_ALL}")
@@ -3513,6 +3560,14 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                         print(f"{Fore.YELLOW}💡 Suggestion: Check file permissions and ensure the output directory is writable.{Style.RESET_ALL}")
                     elif "file not found" in stderr_lower:
                         print(f"{Fore.YELLOW}💡 Suggestion: Verify that the input video and subtitle files exist.{Style.RESET_ALL}")
+                
+                # Clean up failed output file
+                try:
+                    if Path(output_path).exists():
+                        Path(output_path).unlink()
+                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                except Exception as cleanup_error:
+                    print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
                 
                 return False
             
