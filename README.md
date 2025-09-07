@@ -14,8 +14,6 @@
 ## Don't have the hardware for Synthalingua? Use Recall.ai - Meeting Transcription API
 If you’re looking for a transcription API for meetings, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=cyb3rofficial-synthalingua), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
 
----
-
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 <img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
@@ -210,6 +208,8 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | Flag | Description |
 |-----|-----|
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
+| `--subtype` | Process video with subtitles after generation. 'burn' overlays subtitles permanently onto video. 'embed' adds subtitle track to video container. Only works with `--makecaptions` and video files. |
+| `--substyle` | Customize burned subtitle appearance (only with `--subtype burn`). Format: 'font,size,color' in any order. Font files go in `fonts/` folder. Use `--substyle help` for examples. |
 | `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
 | `--demucs_model` | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled. |
@@ -276,6 +276,23 @@ This will save the SRT file as usual and also print its contents to the console 
   python synthalingua.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
   python synthalingua.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Video subtitle processing (burn subtitles permanently):**
+  ```sh
+  python synthalingua.py --makecaptions --subtype burn --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Video subtitle processing (embed toggleable subtitles):**
+  ```sh
+  python synthalingua.py --makecaptions --subtype embed --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Custom styled burned subtitles:**
+  ```sh
+  # Large yellow text with custom font
+  python synthalingua.py --makecaptions --subtype burn --substyle "FiraSans-Bold.otf,28,yellow" --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # System font with size and color
+  python synthalingua.py --makecaptions --subtype burn --substyle "22,cyan" --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # Get help and see available fonts
+  python synthalingua.py --substyle help
   ```
 - **Set microphone by name or index:**
   ```sh
