@@ -61,6 +61,78 @@ def valid_batchmode(value):
     except ValueError:
         raise argparse.ArgumentTypeError(f"Invalid batch size value: '{value}'. Must be a positive integer (1-{get_cpu_count()}).")
 
+def show_substyle_help():
+    """Display comprehensive help information for the --substyle parameter."""
+    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}🎨 SUBTITLE STYLING HELP - --substyle Parameter{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.YELLOW}OVERVIEW:{Style.RESET_ALL}")
+    print("The --substyle parameter allows you to customize the appearance of burned subtitles")
+    print("(when using --subtype burn). You can control font, size, and color using a simple")
+    print("comma-separated format.")
+    
+    print(f"\n{Fore.YELLOW}USAGE FORMAT:{Style.RESET_ALL}")
+    print(f"  {Fore.GREEN}--substyle \"font,size,color\"{Style.RESET_ALL}")
+    print("  • Parameters can be in any order")
+    print("  • Any parameter can be omitted (defaults will be used)")
+    print("  • Font files must be placed in the 'fonts/' folder")
+    
+    print(f"\n{Fore.YELLOW}AVAILABLE FONTS:{Style.RESET_ALL}")
+    # Check available fonts in fonts directory
+    import os
+    from pathlib import Path
+    fonts_dir = Path("fonts")
+    if fonts_dir.exists():
+        font_files = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf', '.woff', '.woff2'))]
+        if font_files:
+            print("  Available custom fonts:")
+            for font in sorted(font_files):
+                print(f"    • {Fore.GREEN}{font}{Style.RESET_ALL}")
+        else:
+            print(f"    {Fore.YELLOW}No custom fonts found in fonts/ directory{Style.RESET_ALL}")
+    else:
+        print(f"    {Fore.YELLOW}No fonts/ directory found{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.YELLOW}SUPPORTED COLORS:{Style.RESET_ALL}")
+    colors = ["white", "black", "red", "green", "blue", "yellow", "cyan", "magenta", "orange"]
+    color_display = "  "
+    for color in colors:
+        color_display += f"{Fore.GREEN}{color}{Style.RESET_ALL}, "
+    print(color_display.rstrip(", "))
+    
+    print(f"\n{Fore.YELLOW}EXAMPLES:{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.CYAN}📁 Custom Font with Size and Color:{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-Bold.otf,24,yellow\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses FiraSans-Bold font, 24pt size, yellow color")
+    
+    print(f"\n{Fore.CYAN}🎯 Size and Color Only (System Default Font):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"20,red\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses system default font, 20pt size, red color")
+    
+    print(f"\n{Fore.CYAN}📝 Font and Size (Default Color):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-UltraLightItalic.otf,18\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses italic font, 18pt size, default white color")
+    
+    print(f"\n{Fore.CYAN}🎨 Color Only (Default Font and Size):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"cyan\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses system default font and size, cyan color")
+    
+    print(f"\n{Fore.CYAN}🔄 Flexible Parameter Order:{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"24,FiraSans-Bold.otf,green\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Same as font,size,color but parameters in different order")
+    
+    print(f"\n{Fore.YELLOW}NOTES:{Style.RESET_ALL}")
+    print(f"  • Font files must be placed in the {Fore.GREEN}fonts/{Style.RESET_ALL} directory")
+    print(f"  • Supported font formats: {Fore.GREEN}.ttf, .otf, .woff, .woff2{Style.RESET_ALL}")
+    print(f"  • If a font is not found, the system default will be used with a warning")
+    print(f"  • Font size is in points (typical range: 12-72)")
+    print(f"  • Subtitles include automatic black outline for better readability")
+    print(f"  • The {Fore.GREEN}--substyle{Style.RESET_ALL} parameter only works with {Fore.GREEN}--subtype burn{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+
 def set_model_by_ram(ram, language):
     ram = ram.lower()
     language = language.lower() if language else ""
@@ -183,6 +255,8 @@ def parse_arguments():
     parser.add_argument("--cookies", default=None, help="Path to browser cookies file for accessing private or age-restricted streams/videos. Supports multiple formats: absolute path (C:\\path\\to\\cookies.txt), filename in current directory (cookies.txt), or shorthand for cookies folder (youtube = cookies/youtube.txt). Must be in NetScape format. Use browser extensions to export cookies.")
     parser.add_argument("--cookies-from-browser", default=None, help="Automatically extract cookies from installed browser for stream/video access. Eliminates need for manual cookie file export. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Example: --cookies-from-browser chrome. Requires browser to be closed during extraction.", choices=["brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale"])
     parser.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Generate subtitle files (SRT format) from audio/video files instead of real-time transcription. Use '--makecaptions' for default processing, or '--makecaptions compare' to test all available model sizes (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb) and compare accuracy vs speed tradeoffs. Output saved to specified folder with timing information.")
+    parser.add_argument("--subtype", choices=["burn", "embed"], default=None, help="Process video with subtitles after generation. 'burn' overlays subtitles permanently onto the video using FFmpeg. 'embed' adds subtitle track to video container as a separate stream. Only works with --makecaptions mode and video input files. Requires FFmpeg to be available in PATH.")
+    parser.add_argument("--substyle", default=None, help="Customize subtitle appearance when burning subtitles (--subtype burn). Accepts comma-separated style options: 'font,fontsize,color'. Font files should be placed in 'fonts/' folder (e.g., fonts/FiraSans-Bold.otf). Examples: '--substyle FiraSans-Bold.otf,24' for custom font and size, '--substyle 20,white' for size and color, '--substyle Arial,16,yellow' for all options. Only works with --subtype burn.")
     parser.add_argument("--print_srt_to_console", action='store_true', default=False, help="Display generated SRT subtitle content in the console/terminal after creating subtitle files. Useful for quick preview, debugging subtitle timing, or piping subtitle content to other programs. Only works with --makecaptions mode, not real-time transcription.")
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing of silent audio segments during subtitle generation to improve efficiency and reduce processing time. Automatically detects quiet periods and excludes them from transcription. Only works with --makecaptions mode, not compatible with live streaming or microphone input. Use with --silent_threshold and --silent_duration for fine-tuning.")
     parser.add_argument("--silent_threshold", type=float, default=-35.0, help="Audio volume threshold in decibels (dB) for silence detection. Lower values (e.g., -45.0) are more sensitive and detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder, clearer speech. Typical range: -45.0 to -20.0 dB. Only used with --silent_detect flag.")
@@ -249,5 +323,22 @@ def parse_arguments():
     if args.word_timestamps and (using_microphone or using_hls):
         print(f"{Fore.YELLOW}⚠️  The --word_timestamps flag is only supported for subtitle generation (sub_gen). Please remove the redundant command flag as it serves no purpose in microphone or HLS modes.{Style.RESET_ALL}")
         exit(1)
+
+    # Validate --subtype usage
+    if args.subtype and not args.makecaptions:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --subtype can only be used with --makecaptions for video subtitle processing.")
+        print("The --subtype option requires subtitle generation mode to work with video files.")
+        sys.exit(1)
+
+    # Check for --substyle help
+    if args.substyle and args.substyle.lower() == "help":
+        show_substyle_help()
+        sys.exit(0)
+
+    # Validate --substyle usage
+    if args.substyle and (not args.subtype or args.subtype != "burn"):
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --substyle can only be used with --subtype burn for customizing burned subtitle appearance.")
+        print("The --substyle option requires subtitle burning mode (--subtype burn) to apply visual customizations.")
+        sys.exit(1)
 
     return args
