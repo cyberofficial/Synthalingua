@@ -61,6 +61,78 @@ def valid_batchmode(value):
     except ValueError:
         raise argparse.ArgumentTypeError(f"Invalid batch size value: '{value}'. Must be a positive integer (1-{get_cpu_count()}).")
 
+def show_substyle_help():
+    """Display comprehensive help information for the --substyle parameter."""
+    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}🎨 SUBTITLE STYLING HELP - --substyle Parameter{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.YELLOW}OVERVIEW:{Style.RESET_ALL}")
+    print("The --substyle parameter allows you to customize the appearance of burned subtitles")
+    print("(when using --subtype burn). You can control font, size, and color using a simple")
+    print("comma-separated format.")
+    
+    print(f"\n{Fore.YELLOW}USAGE FORMAT:{Style.RESET_ALL}")
+    print(f"  {Fore.GREEN}--substyle \"font,size,color\"{Style.RESET_ALL}")
+    print("  • Parameters can be in any order")
+    print("  • Any parameter can be omitted (defaults will be used)")
+    print("  • Font files must be placed in the 'fonts/' folder")
+    
+    print(f"\n{Fore.YELLOW}AVAILABLE FONTS:{Style.RESET_ALL}")
+    # Check available fonts in fonts directory
+    import os
+    from pathlib import Path
+    fonts_dir = Path("fonts")
+    if fonts_dir.exists():
+        font_files = [f for f in os.listdir(fonts_dir) if f.lower().endswith(('.ttf', '.otf', '.woff', '.woff2'))]
+        if font_files:
+            print("  Available custom fonts:")
+            for font in sorted(font_files):
+                print(f"    • {Fore.GREEN}{font}{Style.RESET_ALL}")
+        else:
+            print(f"    {Fore.YELLOW}No custom fonts found in fonts/ directory{Style.RESET_ALL}")
+    else:
+        print(f"    {Fore.YELLOW}No fonts/ directory found{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.YELLOW}SUPPORTED COLORS:{Style.RESET_ALL}")
+    colors = ["white", "black", "red", "green", "blue", "yellow", "cyan", "magenta", "orange"]
+    color_display = "  "
+    for color in colors:
+        color_display += f"{Fore.GREEN}{color}{Style.RESET_ALL}, "
+    print(color_display.rstrip(", "))
+    
+    print(f"\n{Fore.YELLOW}EXAMPLES:{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.CYAN}📁 Custom Font with Size and Color:{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-Bold.otf,24,yellow\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses FiraSans-Bold font, 24pt size, yellow color")
+    
+    print(f"\n{Fore.CYAN}🎯 Size and Color Only (System Default Font):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"20,red\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses system default font, 20pt size, red color")
+    
+    print(f"\n{Fore.CYAN}📝 Font and Size (Default Color):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-UltraLightItalic.otf,18\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses italic font, 18pt size, default white color")
+    
+    print(f"\n{Fore.CYAN}🎨 Color Only (Default Font and Size):{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"cyan\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Uses system default font and size, cyan color")
+    
+    print(f"\n{Fore.CYAN}🔄 Flexible Parameter Order:{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"24,FiraSans-Bold.otf,green\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"    ➤ Same as font,size,color but parameters in different order")
+    
+    print(f"\n{Fore.YELLOW}NOTES:{Style.RESET_ALL}")
+    print(f"  • Font files must be placed in the {Fore.GREEN}fonts/{Style.RESET_ALL} directory")
+    print(f"  • Supported font formats: {Fore.GREEN}.ttf, .otf, .woff, .woff2{Style.RESET_ALL}")
+    print(f"  • If a font is not found, the system default will be used with a warning")
+    print(f"  • Font size is in points (typical range: 12-72)")
+    print(f"  • Subtitles include automatic black outline for better readability")
+    print(f"  • The {Fore.GREEN}--substyle{Style.RESET_ALL} parameter only works with {Fore.GREEN}--subtype burn{Style.RESET_ALL}")
+    
+    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+
 def set_model_by_ram(ram, language):
     ram = ram.lower()
     language = language.lower() if language else ""
@@ -257,6 +329,11 @@ def parse_arguments():
         print(f"{Fore.RED}Error:{Style.RESET_ALL} --subtype can only be used with --makecaptions for video subtitle processing.")
         print("The --subtype option requires subtitle generation mode to work with video files.")
         sys.exit(1)
+
+    # Check for --substyle help
+    if args.substyle and args.substyle.lower() == "help":
+        show_substyle_help()
+        sys.exit(0)
 
     # Validate --substyle usage
     if args.substyle and (not args.subtype or args.subtype != "burn"):
