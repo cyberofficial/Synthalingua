@@ -184,6 +184,7 @@ def parse_arguments():
     parser.add_argument("--cookies-from-browser", default=None, help="Automatically extract cookies from installed browser for stream/video access. Eliminates need for manual cookie file export. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Example: --cookies-from-browser chrome. Requires browser to be closed during extraction.", choices=["brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale"])
     parser.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Generate subtitle files (SRT format) from audio/video files instead of real-time transcription. Use '--makecaptions' for default processing, or '--makecaptions compare' to test all available model sizes (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb) and compare accuracy vs speed tradeoffs. Output saved to specified folder with timing information.")
     parser.add_argument("--subtype", choices=["burn", "embed"], default=None, help="Process video with subtitles after generation. 'burn' overlays subtitles permanently onto the video using FFmpeg. 'embed' adds subtitle track to video container as a separate stream. Only works with --makecaptions mode and video input files. Requires FFmpeg to be available in PATH.")
+    parser.add_argument("--substyle", default=None, help="Customize subtitle appearance when burning subtitles (--subtype burn). Accepts comma-separated style options: 'font,fontsize,color'. Font files should be placed in 'fonts/' folder (e.g., fonts/FiraSans-Bold.otf). Examples: '--substyle FiraSans-Bold.otf,24' for custom font and size, '--substyle 20,white' for size and color, '--substyle Arial,16,yellow' for all options. Only works with --subtype burn.")
     parser.add_argument("--print_srt_to_console", action='store_true', default=False, help="Display generated SRT subtitle content in the console/terminal after creating subtitle files. Useful for quick preview, debugging subtitle timing, or piping subtitle content to other programs. Only works with --makecaptions mode, not real-time transcription.")
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing of silent audio segments during subtitle generation to improve efficiency and reduce processing time. Automatically detects quiet periods and excludes them from transcription. Only works with --makecaptions mode, not compatible with live streaming or microphone input. Use with --silent_threshold and --silent_duration for fine-tuning.")
     parser.add_argument("--silent_threshold", type=float, default=-35.0, help="Audio volume threshold in decibels (dB) for silence detection. Lower values (e.g., -45.0) are more sensitive and detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder, clearer speech. Typical range: -45.0 to -20.0 dB. Only used with --silent_detect flag.")
@@ -255,6 +256,12 @@ def parse_arguments():
     if args.subtype and not args.makecaptions:
         print(f"{Fore.RED}Error:{Style.RESET_ALL} --subtype can only be used with --makecaptions for video subtitle processing.")
         print("The --subtype option requires subtitle generation mode to work with video files.")
+        sys.exit(1)
+
+    # Validate --substyle usage
+    if args.substyle and (not args.subtype or args.subtype != "burn"):
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --substyle can only be used with --subtype burn for customizing burned subtitle appearance.")
+        print("The --substyle option requires subtitle burning mode (--subtype burn) to apply visual customizations.")
         sys.exit(1)
 
     return args

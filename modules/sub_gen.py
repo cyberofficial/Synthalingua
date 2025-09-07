@@ -2689,7 +2689,8 @@ def process_with_segmentation(
                 str(output_path), 
                 str(output_directory_obj), 
                 output_name, 
-                args.subtype
+                args.subtype,
+                getattr(args, 'substyle', None)
             )
             if video_output_path:
                 print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
@@ -3260,7 +3261,8 @@ def process_single_file(
                 str(output_path), 
                 str(output_directory_obj), 
                 output_name, 
-                args.subtype
+                args.subtype,
+                getattr(args, 'substyle', None)
             )
             if video_output_path:
                 print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
@@ -3331,14 +3333,117 @@ def is_video_file(file_path: str) -> bool:
             return True
     return False
 
-def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str) -> bool:
+def parse_subtitle_style(substyle: Optional[str]) -> Dict[str, str]:
     """
-    Burn subtitles permanently into a video using FFmpeg.
+    Parse --substyle argument into font, size, and color options.
+    
+    Args:
+        substyle (str): Comma-separated style options (e.g., "FiraSans-Bold.otf,24,white")
+        
+    Returns:
+        Dict[str, str]: Dictionary with parsed style options
+    """
+    style = {"font": None, "fontsize": "16", "color": "white"}
+    
+    if not substyle:
+        return style
+    
+    # Split by comma and strip whitespace
+    parts = [part.strip() for part in substyle.split(",")]
+    
+    for part in parts:
+        if not part:
+            continue
+            
+        # Check if it's a font file (contains . and likely file extension)
+        if "." in part and any(part.lower().endswith(ext) for ext in [".ttf", ".otf", ".woff", ".woff2"]):
+            style["font"] = part
+        # Check if it's a font size (numeric)
+        elif part.isdigit() or (part.replace(".", "").isdigit()):
+            style["fontsize"] = part
+        # Assume it's a color
+        else:
+            style["color"] = part
+    
+    return style
+
+def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> str:
+    """
+    Build FFmpeg subtitle filter with custom styling.
+    
+    Args:
+        subtitle_path (str): Path to the SRT subtitle file
+        style (Dict[str, str]): Style options (font, fontsize, color)
+        
+    Returns:
+        str: FFmpeg subtitle filter string
+    """
+    # Start with basic subtitle filter and normalize path separators for FFmpeg
+    subtitle_filter_parts = [f"subtitles={subtitle_path.replace(chr(92), '/')}"]
+    
+    # Add font directory if custom font is specified and exists
+    if style["font"]:
+        font_path = Path("fonts") / style["font"]
+        if font_path.exists():
+            # Use relative path to fonts directory for FFmpeg to avoid Windows path issues
+            fonts_dir = "fonts"  # Use relative path
+            subtitle_filter_parts.append(f"fontsdir={fonts_dir}")
+            print(f"{Fore.CYAN}🎨 Using custom font: {font_path.resolve()}{Style.RESET_ALL}")
+        else:
+            print(f"{Fore.YELLOW}⚠️  Font file not found: {font_path}, using system default{Style.RESET_ALL}")
+    
+    # Build force_style parameter with ASS styling
+    style_parts = []
+    
+    # Add font name (without extension) if specified and exists
+    if style["font"]:
+        font_path = Path("fonts") / style["font"]
+        if font_path.exists():
+            # Extract font name without extension for ASS FontName parameter
+            font_name = Path(style["font"]).stem  # Remove extension
+            style_parts.append(f"FontName={font_name}")
+    
+    # Add font size
+    style_parts.append(f"FontSize={style['fontsize']}")
+    
+    # Add color (convert color name to ASS hex format)
+    color_map = {
+        'white': '&Hffffff',
+        'black': '&H000000', 
+        'red': '&H0000ff',
+        'green': '&H00ff00',
+        'blue': '&Hff0000',
+        'yellow': '&H00ffff',
+        'cyan': '&Hffff00',
+        'magenta': '&Hff00ff',
+        'orange': '&H0080ff'
+    }
+    
+    ass_color = color_map.get(style['color'].lower(), '&Hffffff')  # Default to white
+    style_parts.append(f"PrimaryColour={ass_color}")
+    
+    # Add outline for better readability
+    style_parts.append("OutlineColour=&H000000")
+    style_parts.append("Outline=1")
+    
+    # Add force_style parameter if we have any styles
+    # Important: Use single quotes around the force_style value for FFmpeg
+    if style_parts:
+        force_style = ",".join(style_parts)
+        subtitle_filter_parts.append(f"force_style='{force_style}'")
+    
+    # Join all filter parts with colon separator
+    return ":".join(subtitle_filter_parts)
+
+def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> bool:
+    """
+    Burn subtitles permanently into a video using FFmpeg with custom styling.
     
     Args:
         video_path (str): Path to the input video file
         subtitle_path (str): Path to the SRT subtitle file
         output_path (str): Path for the output video with burned subtitles
+        substyle (Optional[str]): Style options for subtitle appearance
         
     Returns:
         bool: True if successful, False otherwise
@@ -3349,10 +3454,18 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Output video: {output_path}{Style.RESET_ALL}")
         
-        # FFmpeg command to burn subtitles
+        # Parse subtitle styling options
+        style = parse_subtitle_style(substyle)
+        if substyle:
+            print(f"{Fore.CYAN}🎨 Applying custom subtitle style: font={style['font'] or 'default'}, size={style['fontsize']}, color={style['color']}{Style.RESET_ALL}")
+        
+        # Build subtitle filter with styling
+        subtitle_filter = build_subtitle_filter(subtitle_path, style)
+        
+        # FFmpeg command to burn subtitles with custom styling
         cmd = [
             "ffmpeg", "-i", video_path, "-vf", 
-            f"subtitles={subtitle_path.replace('\\', '/')}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=1'",
+            subtitle_filter,
             "-c:a", "copy",  # Copy audio without re-encoding
             "-y",  # Overwrite output file if it exists
             output_path
@@ -3575,7 +3688,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         print(f"\n{Fore.RED}❌ Error embedding subtitles: {str(e)}{Style.RESET_ALL}")
         return False
 
-def process_video_with_subtitles(video_path: str, subtitle_path: str, output_directory: str, output_name: str, subtype: str) -> Optional[str]:
+def process_video_with_subtitles(video_path: str, subtitle_path: str, output_directory: str, output_name: str, subtype: str, substyle: Optional[str] = None) -> Optional[str]:
     """
     Process video with subtitles based on the specified subtype.
     
@@ -3585,6 +3698,7 @@ def process_video_with_subtitles(video_path: str, subtitle_path: str, output_dir
         output_directory (str): Directory to save the processed video
         output_name (str): Base name for the output file
         subtype (str): Type of subtitle processing ('burn' or 'embed')
+        substyle (Optional[str]): Style options for subtitle appearance (burn only)
         
     Returns:
         Optional[str]: Path to the processed video file if successful, None otherwise
@@ -3624,7 +3738,7 @@ def process_video_with_subtitles(video_path: str, subtitle_path: str, output_dir
     
     # Process based on subtype
     if subtype == "burn":
-        success = burn_subtitles_to_video(video_path, subtitle_path, output_path)
+        success = burn_subtitles_to_video(video_path, subtitle_path, output_path, substyle)
     elif subtype == "embed":
         success = embed_subtitles_in_video(video_path, subtitle_path, output_path)
     else:
