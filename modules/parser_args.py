@@ -183,6 +183,7 @@ def parse_arguments():
     parser.add_argument("--cookies", default=None, help="Path to browser cookies file for accessing private or age-restricted streams/videos. Supports multiple formats: absolute path (C:\\path\\to\\cookies.txt), filename in current directory (cookies.txt), or shorthand for cookies folder (youtube = cookies/youtube.txt). Must be in NetScape format. Use browser extensions to export cookies.")
     parser.add_argument("--cookies-from-browser", default=None, help="Automatically extract cookies from installed browser for stream/video access. Eliminates need for manual cookie file export. Supported browsers: brave, chrome, chromium, edge, firefox, opera, safari, vivaldi, whale. Example: --cookies-from-browser chrome. Requires browser to be closed during extraction.", choices=["brave", "chrome", "chromium", "edge", "firefox", "opera", "safari", "vivaldi", "whale"])
     parser.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Generate subtitle files (SRT format) from audio/video files instead of real-time transcription. Use '--makecaptions' for default processing, or '--makecaptions compare' to test all available model sizes (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb) and compare accuracy vs speed tradeoffs. Output saved to specified folder with timing information.")
+    parser.add_argument("--subtype", choices=["burn", "embed"], default=None, help="Process video with subtitles after generation. 'burn' overlays subtitles permanently onto the video using FFmpeg. 'embed' adds subtitle track to video container as a separate stream. Only works with --makecaptions mode and video input files. Requires FFmpeg to be available in PATH.")
     parser.add_argument("--print_srt_to_console", action='store_true', default=False, help="Display generated SRT subtitle content in the console/terminal after creating subtitle files. Useful for quick preview, debugging subtitle timing, or piping subtitle content to other programs. Only works with --makecaptions mode, not real-time transcription.")
     parser.add_argument("--silent_detect", action='store_true', help="Skip processing of silent audio segments during subtitle generation to improve efficiency and reduce processing time. Automatically detects quiet periods and excludes them from transcription. Only works with --makecaptions mode, not compatible with live streaming or microphone input. Use with --silent_threshold and --silent_duration for fine-tuning.")
     parser.add_argument("--silent_threshold", type=float, default=-35.0, help="Audio volume threshold in decibels (dB) for silence detection. Lower values (e.g., -45.0) are more sensitive and detect quieter speech like whispers. Higher values (e.g., -25.0) only detect louder, clearer speech. Typical range: -45.0 to -20.0 dB. Only used with --silent_detect flag.")
@@ -249,5 +250,11 @@ def parse_arguments():
     if args.word_timestamps and (using_microphone or using_hls):
         print(f"{Fore.YELLOW}⚠️  The --word_timestamps flag is only supported for subtitle generation (sub_gen). Please remove the redundant command flag as it serves no purpose in microphone or HLS modes.{Style.RESET_ALL}")
         exit(1)
+
+    # Validate --subtype usage
+    if args.subtype and not args.makecaptions:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} --subtype can only be used with --makecaptions for video subtitle processing.")
+        print("The --subtype option requires subtitle generation mode to work with video files.")
+        sys.exit(1)
 
     return args

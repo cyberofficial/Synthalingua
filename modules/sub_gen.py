@@ -15,6 +15,9 @@ Key features:
 """
 
 import logging
+import subprocess
+import json
+import shutil
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
 import numpy as np
@@ -2678,6 +2681,21 @@ def process_with_segmentation(
             except Exception as e:
                 print(f"{Fore.RED}Failed to print combined SRT: {e}{Style.RESET_ALL}")
 
+        # Process video with subtitles if --subtype is specified
+        if getattr(args, 'subtype', None) and is_video_file(str(input_path_obj)):
+            print(f"\n{Fore.CYAN}🎬 Video processing with subtitles requested...{Style.RESET_ALL}")
+            video_output_path = process_video_with_subtitles(
+                str(input_path_obj), 
+                str(output_path), 
+                str(output_directory_obj), 
+                output_name, 
+                args.subtype
+            )
+            if video_output_path:
+                print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Video processing failed, but subtitle file was generated successfully.{Style.RESET_ALL}")
+
         return combined_result, output_name
             
     except Exception as e:
@@ -3234,8 +3252,328 @@ def process_single_file(
                     print(f"{subtitle_index}. {start_time_str} --> {end_time_str} : {color}{filtered_text}{reset}")
                     subtitle_index += 1
 
+        # Process video with subtitles if --subtype is specified
+        if getattr(args, 'subtype', None) and is_video_file(str(input_path_obj)):
+            print(f"\n{Fore.CYAN}🎬 Video processing with subtitles requested...{Style.RESET_ALL}")
+            video_output_path = process_video_with_subtitles(
+                str(input_path_obj), 
+                str(output_path), 
+                str(output_directory_obj), 
+                output_name, 
+                args.subtype
+            )
+            if video_output_path:
+                print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Video processing failed, but subtitle file was generated successfully.{Style.RESET_ALL}")
+
         return result, output_name
 
     except Exception as e:
         logger.error("Failed to generate subtitles: %s", str(e), exc_info=True)
         raise RuntimeError(f"Subtitle generation failed: {str(e)}")
+
+def check_ffmpeg_availability() -> bool:
+    """
+    Check if FFmpeg is available in the system PATH.
+    
+    Returns:
+        bool: True if FFmpeg is available, False otherwise
+    """
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"], 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL, 
+            check=True
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+def get_video_info(video_path: str) -> Dict[str, Any]:
+    """
+    Get video information using FFprobe.
+    
+    Args:
+        video_path (str): Path to the video file
+        
+    Returns:
+        Dict[str, Any]: Video information including duration, resolution, codec info
+    """
+    try:
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", 
+            "-show_format", "-show_streams", video_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def is_video_file(file_path: str) -> bool:
+    """
+    Check if a file is a video file by examining its streams.
+    
+    Args:
+        file_path (str): Path to the file
+        
+    Returns:
+        bool: True if file contains video streams, False otherwise
+    """
+    video_info = get_video_info(file_path)
+    if not video_info or "streams" not in video_info:
+        return False
+    
+    # Check if any stream is a video stream
+    for stream in video_info["streams"]:
+        if stream.get("codec_type") == "video":
+            return True
+    return False
+
+def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str) -> bool:
+    """
+    Burn subtitles permanently into a video using FFmpeg.
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the SRT subtitle file
+        output_path (str): Path for the output video with burned subtitles
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        print(f"{Fore.CYAN}🔥 Burning subtitles into video...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {output_path}{Style.RESET_ALL}")
+        
+        # FFmpeg command to burn subtitles
+        cmd = [
+            "ffmpeg", "-i", video_path, "-vf", 
+            f"subtitles={subtitle_path.replace('\\', '/')}:force_style='FontSize=16,PrimaryColour=&Hffffff,OutlineColour=&H000000,Outline=1'",
+            "-c:a", "copy",  # Copy audio without re-encoding
+            "-y",  # Overwrite output file if it exists
+            output_path
+        ]
+        
+        # Run FFmpeg with progress information
+        print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"{Fore.GREEN}✅ Successfully burned subtitles into video!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📁 Output saved to: {output_path}{Style.RESET_ALL}")
+            return True
+        else:
+            print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+            if result.stderr:
+                print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+            return False
+            
+    except Exception as e:
+        print(f"\n{Fore.RED}❌ Error burning subtitles: {str(e)}{Style.RESET_ALL}")
+        return False
+
+def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: str) -> bool:
+    """
+    Embed subtitles as a separate stream in a video using FFmpeg.
+    Includes intelligent error handling and container conversion offers.
+    
+    Features:
+    - Attempts embedding with original container first
+    - Detects container compatibility issues automatically
+    - Offers MKV conversion as fallback for incompatible containers
+    - Provides user choice when container issues are detected
+    - Gives helpful error suggestions for common problems
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the SRT subtitle file
+        output_path (str): Path for the output video with embedded subtitles
+        
+    Returns:
+        bool: True if successful (including successful MKV conversion), False otherwise
+    """
+    try:
+        print(f"{Fore.CYAN}📥 Embedding subtitles in video...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {output_path}{Style.RESET_ALL}")
+        
+        # Try with original container first (no automatic conversion)
+        input_ext = Path(video_path).suffix.lower()
+        
+        # FFmpeg command to embed subtitles as a stream
+        cmd = [
+            "ffmpeg", "-i", video_path, "-i", subtitle_path,
+            "-c:v", "copy",  # Copy video without re-encoding
+            "-c:a", "copy",  # Copy audio without re-encoding
+            "-c:s", "srt",   # Subtitle codec
+            "-metadata:s:s:0", "language=eng",  # Set subtitle language
+            "-disposition:s:0", "default",  # Make it the default subtitle track
+            "-y",  # Overwrite output file if it exists
+            output_path
+        ]
+        
+        # Run FFmpeg
+        print(f"{Fore.CYAN}📥 Starting subtitle embedding process...{Style.RESET_ALL}")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📁 Output saved to: {output_path}{Style.RESET_ALL}")
+            return True
+        else:
+            # Check if the error is related to container/codec compatibility
+            stderr_lower = result.stderr.lower() if result.stderr else ""
+            is_container_error = any(error_keyword in stderr_lower for error_keyword in [
+                "codec not currently supported in container",
+                "could not find tag for codec",
+                "invalid argument",
+                "codec not supported",
+                "stream #",
+                "container"
+            ])
+            
+            # Only offer conversion if not already using MKV and it's a container error
+            if is_container_error and input_ext != ".mkv":
+                print(f"{Fore.YELLOW}⚠️  Container compatibility issue detected with {input_ext.upper()} format.{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}💡 The {input_ext.upper()} container may not support embedded SRT subtitles properly.{Style.RESET_ALL}")
+                
+                # Ask user if they want to try MKV conversion
+                print(f"\n{Fore.CYAN}🔄 Conversion Options:{Style.RESET_ALL}")
+                print(f"   1. {Fore.GREEN}Convert to MKV format (recommended){Style.RESET_ALL} - Better subtitle support")
+                print(f"   2. {Fore.YELLOW}Skip video processing{Style.RESET_ALL} - Keep only the SRT file")
+                
+                while True:
+                    try:
+                        choice = input(f"\n{Fore.CYAN}Choose option (1-2, or Enter for MKV conversion): {Style.RESET_ALL}").strip()
+                        
+                        if not choice or choice == "1":
+                            # Convert to MKV
+                            output_path_obj = Path(output_path)
+                            mkv_output_path = str(output_path_obj.with_suffix('.mkv'))
+                            
+                            print(f"{Fore.CYAN}🔄 Converting to MKV format for better subtitle compatibility...{Style.RESET_ALL}")
+                            print(f"{Fore.YELLOW}   New output: {mkv_output_path}{Style.RESET_ALL}")
+                            
+                            # Try with MKV container
+                            mkv_cmd = [
+                                "ffmpeg", "-i", video_path, "-i", subtitle_path,
+                                "-c:v", "copy",  # Copy video without re-encoding
+                                "-c:a", "copy",  # Copy audio without re-encoding
+                                "-c:s", "srt",   # Subtitle codec
+                                "-metadata:s:s:0", "language=eng",  # Set subtitle language
+                                "-disposition:s:0", "default",  # Make it the default subtitle track
+                                "-y",  # Overwrite output file if it exists
+                                mkv_output_path
+                            ]
+                            
+                            mkv_result = subprocess.run(mkv_cmd, capture_output=True, text=True)
+                            
+                            if mkv_result.returncode == 0:
+                                print(f"{Fore.GREEN}✅ Successfully embedded subtitles in MKV format!{Style.RESET_ALL}")
+                                print(f"{Fore.CYAN}📁 Output saved to: {mkv_output_path}{Style.RESET_ALL}")
+                                return True
+                            else:
+                                print(f"{Fore.RED}❌ MKV conversion also failed: FFmpeg returned error code {mkv_result.returncode}{Style.RESET_ALL}")
+                                if mkv_result.stderr:
+                                    print(f"{Fore.RED}Error details: {mkv_result.stderr}{Style.RESET_ALL}")
+                                return False
+                                
+                        elif choice == "2":
+                            print(f"{Fore.YELLOW}⏭️  Skipping video processing. SRT file has been generated successfully.{Style.RESET_ALL}")
+                            return False
+                            
+                        else:
+                            print(f"{Fore.RED}Invalid choice. Please enter 1, 2, or press Enter.{Style.RESET_ALL}")
+                            continue
+                            
+                    except KeyboardInterrupt:
+                        print(f"\n{Fore.YELLOW}⏭️  Operation cancelled. Skipping video processing.{Style.RESET_ALL}")
+                        return False
+                    except Exception as input_error:
+                        print(f"{Fore.RED}Input error: {input_error}. Please try again.{Style.RESET_ALL}")
+                        continue
+                        
+                    break
+            else:
+                # Non-container related error or already using MKV
+                print(f"{Fore.RED}❌ Failed to embed subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+                if result.stderr:
+                    print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+                    
+                    # Provide helpful suggestions based on error type
+                    stderr_lower = result.stderr.lower()
+                    if "no space left" in stderr_lower:
+                        print(f"{Fore.YELLOW}💡 Suggestion: Check available disk space.{Style.RESET_ALL}")
+                    elif "permission denied" in stderr_lower:
+                        print(f"{Fore.YELLOW}💡 Suggestion: Check file permissions and ensure the output directory is writable.{Style.RESET_ALL}")
+                    elif "file not found" in stderr_lower:
+                        print(f"{Fore.YELLOW}💡 Suggestion: Verify that the input video and subtitle files exist.{Style.RESET_ALL}")
+                
+                return False
+            
+    except Exception as e:
+        print(f"\n{Fore.RED}❌ Error embedding subtitles: {str(e)}{Style.RESET_ALL}")
+        return False
+
+def process_video_with_subtitles(video_path: str, subtitle_path: str, output_directory: str, output_name: str, subtype: str) -> Optional[str]:
+    """
+    Process video with subtitles based on the specified subtype.
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the generated SRT file
+        output_directory (str): Directory to save the processed video
+        output_name (str): Base name for the output file
+        subtype (str): Type of subtitle processing ('burn' or 'embed')
+        
+    Returns:
+        Optional[str]: Path to the processed video file if successful, None otherwise
+    """
+    # Check if FFmpeg is available
+    if not check_ffmpeg_availability():
+        print(f"{Fore.RED}❌ Error: FFmpeg is not available in PATH.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Please install FFmpeg and ensure it's accessible from the command line.{Style.RESET_ALL}")
+        return None
+    
+    # Verify input files exist
+    if not Path(video_path).exists():
+        print(f"{Fore.RED}❌ Error: Video file not found: {video_path}{Style.RESET_ALL}")
+        return None
+        
+    if not Path(subtitle_path).exists():
+        print(f"{Fore.RED}❌ Error: Subtitle file not found: {subtitle_path}{Style.RESET_ALL}")
+        return None
+    
+    # Verify it's actually a video file
+    if not is_video_file(video_path):
+        print(f"{Fore.RED}❌ Error: Input file does not appear to be a video file: {video_path}{Style.RESET_ALL}")
+        return None
+    
+    # Create output directory if it doesn't exist
+    output_dir_path = Path(output_directory)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+    
+    # Determine output file extension based on input video
+    input_ext = Path(video_path).suffix
+    if subtype == "burn":
+        output_filename = f"{output_name}_subtitled{input_ext}"
+    else:  # embed
+        output_filename = f"{output_name}_embedded{input_ext}"
+    
+    output_path = str(output_dir_path / output_filename)
+    
+    # Process based on subtype
+    if subtype == "burn":
+        success = burn_subtitles_to_video(video_path, subtitle_path, output_path)
+    elif subtype == "embed":
+        success = embed_subtitles_in_video(video_path, subtitle_path, output_path)
+    else:
+        print(f"{Fore.RED}❌ Error: Invalid subtype '{subtype}'. Must be 'burn' or 'embed'.{Style.RESET_ALL}")
+        return None
+    
+    return output_path if success else None
