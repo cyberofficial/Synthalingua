@@ -351,7 +351,10 @@ def run_transcription_in_process(
                 "UnicodeDecodeError: 'charmap' codec can't decode",
                 "Exception in thread",
                 "_readerthread",
-                "encodings\\cp1252.py"
+                "encodings\\cp1252.py",
+                "UserWarning: pkg_resources is deprecated",
+                "ctranslate2\\__init__.py",
+                "import pkg_resources"
             ]):
                 skip_next = True
                 continue
