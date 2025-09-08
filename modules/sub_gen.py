@@ -3370,77 +3370,168 @@ def parse_subtitle_style(substyle: Optional[str]) -> Dict[str, str]:
     
     return style
 
-def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> str:
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a filename by replacing unsafe characters with underscores.
+    Only keeps safe characters: a-z, A-Z, 0-9, underscore, hyphen, and period.
+    
+    Args:
+        filename (str): Original filename
+        
+    Returns:
+        str: Sanitized filename with only safe characters
+    """
+    import re
+    
+    # Keep only alphanumeric characters, underscore, hyphen, and period
+    # Replace everything else with underscore
+    sanitized = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+    
+    # Remove multiple consecutive underscores
+    sanitized = re.sub(r'_+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
+    
+    # Ensure we don't have an empty filename
+    if not sanitized:
+        sanitized = "sanitized_file"
+    
+    return sanitized
+
+def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[str, str]:
     """
     Build FFmpeg subtitle filter with custom styling.
+    Creates a safe temporary subtitle file to avoid FFmpeg filter parsing issues.
     
     Args:
         subtitle_path (str): Path to the SRT subtitle file
         style (Dict[str, str]): Style options (font, fontsize, color)
         
     Returns:
-        str: FFmpeg subtitle filter string
+        Tuple[str, str]: (FFmpeg subtitle filter string, temporary subtitle file path for cleanup)
     """
-    # Start with basic subtitle filter and normalize path separators for FFmpeg
-    subtitle_filter_parts = [f"subtitles={subtitle_path.replace(chr(92), '/')}"]
+    import shutil
     
-    # Add font directory if custom font is specified and exists
-    if style["font"]:
-        font_path = Path("fonts") / style["font"]
-        if font_path.exists():
-            # Use relative path to fonts directory for FFmpeg to avoid Windows path issues
-            fonts_dir = "fonts"  # Use relative path
-            subtitle_filter_parts.append(f"fontsdir={fonts_dir}")
-            print(f"{Fore.CYAN}🎨 Using custom font: {font_path.resolve()}{Style.RESET_ALL}")
-        else:
-            print(f"{Fore.YELLOW}⚠️  Font file not found: {font_path}, using system default{Style.RESET_ALL}")
+    # Get the original filename and sanitize it
+    original_filename = os.path.basename(subtitle_path)
+    safe_filename = sanitize_filename(original_filename)
     
-    # Build force_style parameter with ASS styling
-    style_parts = []
+    # Use the project's local temp directory instead of system temp
+    temp_subtitle_path = temp_manager.get_temp_path(suffix='', prefix='safe_subtitle_')
+    # Replace the auto-generated name with our safe filename
+    temp_dir = os.path.dirname(temp_subtitle_path)
+    temp_subtitle_path = os.path.join(temp_dir, safe_filename)
     
-    # Add font name (without extension) if specified and exists
-    if style["font"]:
-        font_path = Path("fonts") / style["font"]
-        if font_path.exists():
-            # Extract font name without extension for ASS FontName parameter
-            font_name = Path(style["font"]).stem  # Remove extension
-            style_parts.append(f"FontName={font_name}")
+    # If the safe filename already exists, add a unique suffix
+    if os.path.exists(temp_subtitle_path):
+        name, ext = os.path.splitext(safe_filename)
+        counter = 1
+        while os.path.exists(temp_subtitle_path):
+            temp_subtitle_path = os.path.join(temp_dir, f"{name}_{counter}{ext}")
+            counter += 1
     
-    # Add font size
-    style_parts.append(f"FontSize={style['fontsize']}")
-    
-    # Add color (convert color name to ASS hex format)
-    color_map = {
-        'white': '&Hffffff',
-        'black': '&H000000', 
-        'red': '&H0000ff',
-        'green': '&H00ff00',
-        'blue': '&Hff0000',
-        'yellow': '&H00ffff',
-        'cyan': '&Hffff00',
-        'magenta': '&Hff00ff',
-        'orange': '&H0080ff'
-    }
-    
-    ass_color = color_map.get(style['color'].lower(), '&Hffffff')  # Default to white
-    style_parts.append(f"PrimaryColour={ass_color}")
-    
-    # Add outline for better readability
-    style_parts.append("OutlineColour=&H000000")
-    style_parts.append("Outline=1")
-    
-    # Add force_style parameter if we have any styles
-    # Important: Use single quotes around the force_style value for FFmpeg
-    if style_parts:
-        force_style = ",".join(style_parts)
-        subtitle_filter_parts.append(f"force_style='{force_style}'")
-    
-    # Join all filter parts with colon separator
-    return ":".join(subtitle_filter_parts)
+    try:
+        # Copy the subtitle file to the temporary location with safe name
+        shutil.copy2(subtitle_path, temp_subtitle_path)
+        
+        # Use the safe temporary path
+        # Based on FFmpeg documentation and Stack Overflow best practices:
+        # https://stackoverflow.com/questions/45916331/escape-special-characters-in-ffmpeg-subtitle-filename
+        
+        # Convert backslashes to forward slashes for FFmpeg compatibility
+        safe_subtitle_path = temp_subtitle_path.replace('\\', '/')
+        
+        # Escape special characters that are significant to FFmpeg filter syntax:
+        # - Colon (:) is used to separate filter parameters
+        # - Comma (,) is used to separate filters  
+        # - Semicolon (;) is used to separate filter chains
+        # - Square brackets ([]) are used for stream labels
+        safe_subtitle_path = safe_subtitle_path.replace(':', '\\:')
+        safe_subtitle_path = safe_subtitle_path.replace(',', '\\,')
+        safe_subtitle_path = safe_subtitle_path.replace(';', '\\;')
+        safe_subtitle_path = safe_subtitle_path.replace('[', '\\[')
+        safe_subtitle_path = safe_subtitle_path.replace(']', '\\]')
+        
+        # Debug: Print the paths being used
+        print(f"{Fore.YELLOW}🔧 Debug: Original subtitle path: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}🔧 Debug: Temp subtitle path: {temp_subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}🔧 Debug: Safe escaped path for FFmpeg: {safe_subtitle_path}{Style.RESET_ALL}")
+        
+        # Use single quotes around the path parameter as recommended by FFmpeg docs
+        subtitle_filter_parts = [f"subtitles='{safe_subtitle_path}'"]
+        
+        # Add font directory if custom font is specified and exists
+        if style["font"]:
+            font_path = Path("fonts") / style["font"]
+            if font_path.exists():
+                # Use relative path to fonts directory for FFmpeg to avoid Windows path issues
+                fonts_dir = "fonts"  # Use relative path
+                subtitle_filter_parts.append(f"fontsdir={fonts_dir}")
+                print(f"{Fore.CYAN}🎨 Using custom font: {font_path.resolve()}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Font file not found: {font_path}, using system default{Style.RESET_ALL}")
+        
+        # Build force_style parameter with ASS styling
+        style_parts = []
+        
+        # Add font name (without extension) if specified and exists
+        if style["font"]:
+            font_path = Path("fonts") / style["font"]
+            if font_path.exists():
+                # Extract font name without extension for ASS FontName parameter
+                font_name = Path(style["font"]).stem  # Remove extension
+                style_parts.append(f"FontName={font_name}")
+        
+        # Add font size
+        style_parts.append(f"FontSize={style['fontsize']}")
+        
+        # Add color (convert color name to ASS hex format)
+        color_map = {
+            'white': '&Hffffff',
+            'black': '&H000000', 
+            'red': '&H0000ff',
+            'green': '&H00ff00',
+            'blue': '&Hff0000',
+            'yellow': '&H00ffff',
+            'cyan': '&Hffff00',
+            'magenta': '&Hff00ff',
+            'orange': '&H0080ff'
+        }
+        
+        ass_color = color_map.get(style['color'].lower(), '&Hffffff')  # Default to white
+        style_parts.append(f"PrimaryColour={ass_color}")
+        
+        # Add outline for better readability
+        style_parts.append("OutlineColour=&H000000")
+        style_parts.append("Outline=1")
+        
+        # Add force_style parameter if we have any styles
+        # Important: Use single quotes around the force_style value for FFmpeg
+        if style_parts:
+            force_style = ",".join(style_parts)
+            subtitle_filter_parts.append(f"force_style='{force_style}'")
+        
+        # Join all filter parts with colon separator
+        filter_string = ":".join(subtitle_filter_parts)
+        
+        print(f"{Fore.CYAN}📁 Using safe subtitle filename: {safe_filename} in project temp directory{Style.RESET_ALL}")
+        
+        return filter_string, temp_subtitle_path
+        
+    except Exception as e:
+        # Clean up the temporary file if something went wrong
+        try:
+            if os.path.exists(temp_subtitle_path):
+                os.unlink(temp_subtitle_path)
+        except:
+            pass
+        raise e
 
 def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> bool:
     """
     Burn subtitles permanently into a video using FFmpeg with custom styling.
+    Uses safe filenames to avoid FFmpeg parsing issues.
     
     Args:
         video_path (str): Path to the input video file
@@ -3452,50 +3543,75 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         bool: True if successful, False otherwise
     """
     try:
+        # Create a safe output filename by sanitizing the original output path
+        output_dir = os.path.dirname(output_path)
+        original_name = os.path.basename(output_path)
+        name_without_ext, ext = os.path.splitext(original_name)
+        
+        # Remove existing _subtitled suffix if present to avoid duplication
+        if name_without_ext.endswith('_subtitled'):
+            name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
+        
+        # Create safe filename with _burn suffix
+        safe_name = sanitize_filename(name_without_ext)
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_burn{ext}")
+        
         print(f"{Fore.CYAN}🔥 Burning subtitles into video...{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}   Output video: {output_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {safe_output_path}{Style.RESET_ALL}")
+        
+        if safe_output_path != output_path:
+            print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
         
         # Parse subtitle styling options
         style = parse_subtitle_style(substyle)
         if substyle:
             print(f"{Fore.CYAN}🎨 Applying custom subtitle style: font={style['font'] or 'default'}, size={style['fontsize']}, color={style['color']}{Style.RESET_ALL}")
         
-        # Build subtitle filter with styling
-        subtitle_filter = build_subtitle_filter(subtitle_path, style)
+        # Build subtitle filter with styling (returns filter string and temp file path)
+        subtitle_filter, temp_subtitle_path = build_subtitle_filter(subtitle_path, style)
         
-        # FFmpeg command to burn subtitles with custom styling
-        cmd = [
-            "ffmpeg", "-i", video_path, "-vf", 
-            subtitle_filter,
-            "-c:a", "copy",  # Copy audio without re-encoding
-            "-y",  # Overwrite output file if it exists
-            output_path
-        ]
-        
-        # Run FFmpeg with progress information
-        print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        
-        if result.returncode == 0:
-            print(f"{Fore.GREEN}✅ Successfully burned subtitles into video!{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}📁 Output saved to: {output_path}{Style.RESET_ALL}")
-            return True
-        else:
-            print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
-            if result.stderr:
-                print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+        try:
+            # FFmpeg command to burn subtitles with custom styling
+            cmd = [
+                "ffmpeg", "-i", video_path, "-vf", 
+                subtitle_filter,
+                "-c:a", "copy",  # Copy audio without re-encoding
+                "-y",  # Overwrite output file if it exists
+                safe_output_path
+            ]
             
-            # Clean up failed output file if it exists
+            # Run FFmpeg with progress information
+            print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            
+            if result.returncode == 0:
+                print(f"{Fore.GREEN}✅ Successfully burned subtitles into video!{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
+                return True
+            else:
+                print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+                if result.stderr:
+                    print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+                
+                # Clean up failed output file if it exists
+                try:
+                    if Path(safe_output_path).exists():
+                        Path(safe_output_path).unlink()
+                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
+                except Exception as cleanup_error:
+                    print(f"{Fore.YELLOW}⚠️  Could not clean up failed output file: {cleanup_error}{Style.RESET_ALL}")
+                
+                return False
+                
+        finally:
+            # Clean up the temporary subtitle file
             try:
-                if Path(output_path).exists():
-                    Path(output_path).unlink()
-                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                if os.path.exists(temp_subtitle_path):
+                    os.unlink(temp_subtitle_path)
             except Exception as cleanup_error:
-                print(f"{Fore.YELLOW}⚠️  Could not clean up failed output file: {cleanup_error}{Style.RESET_ALL}")
-            
-            return False
+                print(f"{Fore.YELLOW}⚠️  Could not clean up temporary subtitle file: {cleanup_error}{Style.RESET_ALL}")
             
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error burning subtitles: {str(e)}{Style.RESET_ALL}")
@@ -3505,6 +3621,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
     """
     Embed subtitles as a separate stream in a video using FFmpeg.
     Includes intelligent error handling and container conversion offers.
+    Uses safe filenames to avoid FFmpeg parsing issues.
     
     Features:
     - Attempts embedding with original container first
@@ -3522,10 +3639,26 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         bool: True if successful (including successful MKV conversion), False otherwise
     """
     try:
+        # Create a safe output filename by sanitizing the original output path
+        output_dir = os.path.dirname(output_path)
+        original_name = os.path.basename(output_path)
+        name_without_ext, ext = os.path.splitext(original_name)
+        
+        # Remove existing _subtitled suffix if present to avoid duplication
+        if name_without_ext.endswith('_subtitled'):
+            name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
+        
+        # Create safe filename with _embed suffix
+        safe_name = sanitize_filename(name_without_ext)
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_embed{ext}")
+        
         print(f"{Fore.CYAN}📥 Embedding subtitles in video...{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}   Output video: {output_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {safe_output_path}{Style.RESET_ALL}")
+        
+        if safe_output_path != output_path:
+            print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
         
         # Try with original container first (no automatic conversion)
         input_ext = Path(video_path).suffix.lower()
@@ -3539,7 +3672,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
             "-metadata:s:s:0", "language=eng",  # Set subtitle language
             "-disposition:s:0", "default",  # Make it the default subtitle track
             "-y",  # Overwrite output file if it exists
-            output_path
+            safe_output_path
         ]
         
         # Run FFmpeg
@@ -3548,7 +3681,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         
         if result.returncode == 0:
             print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}📁 Output saved to: {output_path}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
             return True
         else:
             # Check if the error is related to container/codec compatibility
@@ -3578,8 +3711,8 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                         
                         if not choice or choice == "1":
                             # Convert to MKV
-                            output_path_obj = Path(output_path)
-                            mkv_output_path = str(output_path_obj.with_suffix('.mkv'))
+                            safe_output_path_obj = Path(safe_output_path)
+                            mkv_output_path = str(safe_output_path_obj.with_suffix('.mkv'))
                             
                             print(f"{Fore.CYAN}🔄 Converting to MKV format for better subtitle compatibility...{Style.RESET_ALL}")
                             print(f"{Fore.YELLOW}   New output: {mkv_output_path}{Style.RESET_ALL}")
@@ -3604,9 +3737,9 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                                 
                                 # Clean up the original failed output file
                                 try:
-                                    if Path(output_path).exists():
-                                        Path(output_path).unlink()
-                                        print(f"{Fore.YELLOW}🗑️  Cleaned up original failed output file: {output_path}{Style.RESET_ALL}")
+                                    if Path(safe_output_path).exists():
+                                        Path(safe_output_path).unlink()
+                                        print(f"{Fore.YELLOW}🗑️  Cleaned up original failed output file: {safe_output_path}{Style.RESET_ALL}")
                                 except Exception as cleanup_error:
                                     print(f"{Fore.YELLOW}⚠️  Could not clean up original failed file: {cleanup_error}{Style.RESET_ALL}")
                                 
@@ -3617,7 +3750,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                                     print(f"{Fore.RED}Error details: {mkv_result.stderr}{Style.RESET_ALL}")
                                 
                                 # Clean up both failed output files
-                                cleanup_files = [output_path, mkv_output_path]
+                                cleanup_files = [safe_output_path, mkv_output_path]
                                 for cleanup_file in cleanup_files:
                                     try:
                                         if Path(cleanup_file).exists():
@@ -3633,9 +3766,9 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                             
                             # Clean up the failed output file from the original attempt
                             try:
-                                if Path(output_path).exists():
-                                    Path(output_path).unlink()
-                                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                                if Path(safe_output_path).exists():
+                                    Path(safe_output_path).unlink()
+                                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
                             except Exception as cleanup_error:
                                 print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
                             
@@ -3650,9 +3783,9 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                         
                         # Clean up the failed output file from the original attempt
                         try:
-                            if Path(output_path).exists():
-                                Path(output_path).unlink()
-                                print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                            if Path(safe_output_path).exists():
+                                Path(safe_output_path).unlink()
+                                print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
                         except Exception as cleanup_error:
                             print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
                         
@@ -3679,9 +3812,9 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                 
                 # Clean up failed output file
                 try:
-                    if Path(output_path).exists():
-                        Path(output_path).unlink()
-                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {output_path}{Style.RESET_ALL}")
+                    if Path(safe_output_path).exists():
+                        Path(safe_output_path).unlink()
+                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
                 except Exception as cleanup_error:
                     print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
                 
