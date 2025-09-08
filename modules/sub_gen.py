@@ -3528,10 +3528,11 @@ def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[st
             pass
         raise e
 
-def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> bool:
+def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> Tuple[bool, str]:
     """
     Burn subtitles permanently into a video using FFmpeg with custom styling.
     Uses safe filenames to avoid FFmpeg parsing issues.
+    Supports CUDA hardware acceleration when available.
     
     Args:
         video_path (str): Path to the input video file
@@ -3540,7 +3541,7 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         substyle (Optional[str]): Style options for subtitle appearance
         
     Returns:
-        bool: True if successful, False otherwise
+        Tuple[bool, str]: (success_status, actual_output_path)
     """
     try:
         # Create a safe output filename by sanitizing the original output path
@@ -3552,9 +3553,9 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         if name_without_ext.endswith('_subtitled'):
             name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
         
-        # Create safe filename with _burn suffix
+        # Create safe filename with _burn suffix - always use MKV format for output
         safe_name = sanitize_filename(name_without_ext)
-        safe_output_path = os.path.join(output_dir, f"{safe_name}_burn{ext}")
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_burn.mkv")
         
         print(f"{Fore.CYAN}🔥 Burning subtitles into video...{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
@@ -3563,6 +3564,8 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         
         if safe_output_path != output_path:
             print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
+        
+        print(f"{Fore.CYAN}📦 Output format: MKV (ensures maximum compatibility and quality){Style.RESET_ALL}")
         
         # Parse subtitle styling options
         style = parse_subtitle_style(substyle)
@@ -3573,23 +3576,71 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         subtitle_filter, temp_subtitle_path = build_subtitle_filter(subtitle_path, style)
         
         try:
-            # FFmpeg command to burn subtitles with custom styling
-            cmd = [
-                "ffmpeg", "-i", video_path, "-vf", 
-                subtitle_filter,
-                "-c:a", "copy",  # Copy audio without re-encoding
-                "-y",  # Overwrite output file if it exists
+            # Check if CUDA encoding should be used
+            use_cuda = hasattr(args, 'device') and args.device.lower() == 'cuda'
+            
+            # Build FFmpeg command - use CPU decoding but optionally CUDA encoding
+            cmd = ["ffmpeg", "-i", video_path, "-vf", subtitle_filter]
+            
+            if use_cuda:
+                print(f"{Fore.CYAN}🚀 Using CUDA hardware encoding for faster processing{Style.RESET_ALL}")
+            
+            # Always use H.264 encoding for MKV output (best compatibility)
+            if use_cuda:
+                # Use NVIDIA hardware encoder with high quality settings
+                cuda_args = [
+                    "-c:v", "h264_nvenc",    # NVIDIA hardware encoder
+                    "-preset", "p7",          # Highest quality preset
+                    "-rc:v", "cbr",          # Constant bitrate mode for consistent quality
+                    "-qp", "0",              # Lossless quality mode
+                    "-profile:v", "high"     # High profile for best quality
+                ]
+                fallback_args = [
+                    "-c:v", "libx264",       # Software H.264 encoder fallback
+                    "-crf", "0"              # Lossless constant rate factor
+                ]
+                
+                cmd.extend(cuda_args)
+                
+            else:
+                # Use software encoding with lossless quality
+                cmd.extend([
+                    "-c:v", "libx264",       # Software H.264 encoder
+                    "-crf", "0"              # Lossless constant rate factor
+                ])
+            
+            # Add audio and output parameters
+            cmd.extend([
+                "-c:a", "copy",          # Copy audio without re-encoding
+                "-y",                     # Overwrite output file if it exists
                 safe_output_path
-            ]
+            ])
             
             # Run FFmpeg with progress information
             print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
             result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
             
+            # If CUDA encoding failed and we were using CUDA, try CPU fallback
+            if result.returncode != 0 and use_cuda:
+                print(f"{Fore.YELLOW}⚠️  CUDA hardware acceleration failed, falling back to CPU encoding...{Style.RESET_ALL}")
+                
+                # Clean up failed output file if it exists
+                if Path(safe_output_path).exists():
+                    Path(safe_output_path).unlink()
+                
+                # Build fallback command without CUDA
+                fallback_cmd = ["ffmpeg", "-i", video_path, "-vf", subtitle_filter]
+                fallback_cmd.extend(fallback_args if 'fallback_args' in locals() else ["-c:v", "libx264", "-crf", "20"])
+                fallback_cmd.extend(["-c:a", "copy", "-y", safe_output_path])
+                
+                print(f"{Fore.CYAN}🔄 Retrying with CPU encoding...{Style.RESET_ALL}")
+                result = subprocess.run(fallback_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            
             if result.returncode == 0:
-                print(f"{Fore.GREEN}✅ Successfully burned subtitles into video!{Style.RESET_ALL}")
+                encoder_type = "CUDA-accelerated" if use_cuda and "nvenc" in " ".join(cmd) else "CPU"
+                print(f"{Fore.GREEN}✅ Successfully burned subtitles into video using {encoder_type} encoding!{Style.RESET_ALL}")
                 print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
-                return True
+                return True, safe_output_path
             else:
                 print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
                 if result.stderr:
@@ -3603,7 +3654,7 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
                 except Exception as cleanup_error:
                     print(f"{Fore.YELLOW}⚠️  Could not clean up failed output file: {cleanup_error}{Style.RESET_ALL}")
                 
-                return False
+                return False, ""
                 
         finally:
             # Clean up the temporary subtitle file
@@ -3615,20 +3666,20 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
             
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error burning subtitles: {str(e)}{Style.RESET_ALL}")
-        return False
+        return False, ""
 
-def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: str) -> bool:
+def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: str) -> Tuple[bool, str]:
     """
     Embed subtitles as a separate stream in a video using FFmpeg.
-    Includes intelligent error handling and container conversion offers.
+    Automatically converts non-MKV files to MKV format for optimal subtitle support.
     Uses safe filenames to avoid FFmpeg parsing issues.
+    Supports CUDA hardware acceleration when available.
     
     Features:
-    - Attempts embedding with original container first
-    - Detects container compatibility issues automatically
-    - Offers MKV conversion as fallback for incompatible containers
-    - Provides user choice when container issues are detected
-    - Gives helpful error suggestions for common problems
+    - Automatically detects input format and converts to MKV if needed
+    - Preserves original video/audio quality during conversion
+    - Uses CUDA acceleration when available for faster processing
+    - Provides comprehensive error handling and user feedback
     
     Args:
         video_path (str): Path to the input video file
@@ -3636,7 +3687,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         output_path (str): Path for the output video with embedded subtitles
         
     Returns:
-        bool: True if successful (including successful MKV conversion), False otherwise
+        Tuple[bool, str]: (success_status, actual_output_path)
     """
     try:
         # Create a safe output filename by sanitizing the original output path
@@ -3644,13 +3695,15 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         original_name = os.path.basename(output_path)
         name_without_ext, ext = os.path.splitext(original_name)
         
-        # Remove existing _subtitled suffix if present to avoid duplication
-        if name_without_ext.endswith('_subtitled'):
+        # Remove existing _embedded or _subtitled suffixes if present to avoid duplication
+        if name_without_ext.endswith('_embedded'):
+            name_without_ext = name_without_ext[:-9]  # Remove '_embedded'
+        elif name_without_ext.endswith('_subtitled'):
             name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
         
-        # Create safe filename with _embed suffix
+        # Create safe filename with _embedded suffix - always use MKV format for output
         safe_name = sanitize_filename(name_without_ext)
-        safe_output_path = os.path.join(output_dir, f"{safe_name}_embed{ext}")
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_embedded.mkv")
         
         print(f"{Fore.CYAN}📥 Embedding subtitles in video...{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
@@ -3660,169 +3713,125 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         if safe_output_path != output_path:
             print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
         
-        # Try with original container first (no automatic conversion)
-        input_ext = Path(video_path).suffix.lower()
+        print(f"{Fore.CYAN}📦 Output format: MKV (ensures maximum subtitle compatibility){Style.RESET_ALL}")
         
-        # FFmpeg command to embed subtitles as a stream
-        cmd = [
-            "ffmpeg", "-i", video_path, "-i", subtitle_path,
-            "-c:v", "copy",  # Copy video without re-encoding
-            "-c:a", "copy",  # Copy audio without re-encoding
-            "-c:s", "srt",   # Subtitle codec
-            "-metadata:s:s:0", "language=eng",  # Set subtitle language
-            "-disposition:s:0", "default",  # Make it the default subtitle track
-            "-y",  # Overwrite output file if it exists
+        # Check input format and determine if re-encoding is needed
+        input_ext = Path(video_path).suffix.lower()
+        use_cuda = hasattr(args, 'device') and args.device.lower() == 'cuda'
+        
+        if input_ext != '.mkv':
+            print(f"{Fore.CYAN}🔄 Input format ({input_ext.upper()}) detected - converting to MKV for optimal subtitle support{Style.RESET_ALL}")
+            
+            if use_cuda:
+                print(f"{Fore.CYAN}� Using CUDA hardware acceleration for video conversion{Style.RESET_ALL}")
+        
+        # Build FFmpeg command for embedding subtitles
+        cmd = ["ffmpeg", "-i", video_path, "-i", subtitle_path]
+        
+        # Add encoding parameters based on input format and CUDA availability
+        if input_ext != '.mkv':
+            # Need to re-encode to MKV format
+            if use_cuda:
+                # Use CUDA hardware acceleration for conversion
+                cuda_args = [
+                    "-c:v", "h264_nvenc",     # NVIDIA hardware encoder
+                    "-preset", "p7",           # Highest quality preset
+                    "-rc:v", "cbr",           # Constant bitrate mode
+                    "-qp", "0",               # Lossless quality mode
+                    "-profile:v", "high"      # High profile for best quality
+                ]
+                fallback_args = [
+                    "-c:v", "libx264",        # Software H.264 encoder fallback
+                    "-crf", "0"               # Lossless constant rate factor
+                ]
+                cmd.extend(cuda_args)
+            else:
+                # Use software encoding with lossless quality
+                cmd.extend([
+                    "-c:v", "libx264",        # Software H.264 encoder
+                    "-crf", "0"               # Lossless constant rate factor
+                ])
+            
+            cmd.extend([
+                "-c:a", "copy",               # Copy audio without re-encoding
+            ])
+        else:
+            # Input is already MKV, just copy streams
+            cmd.extend([
+                "-c:v", "copy",               # Copy video without re-encoding
+                "-c:a", "copy",               # Copy audio without re-encoding
+            ])
+        
+        # Add subtitle stream parameters
+        cmd.extend([
+            "-c:s", "srt",                    # Subtitle codec
+            "-metadata:s:s:0", "language=eng", # Set subtitle language
+            "-disposition:s:0", "default",    # Make it the default subtitle track
+            "-y",                             # Overwrite output file if it exists
             safe_output_path
-        ]
+        ])
         
         # Run FFmpeg
         print(f"{Fore.CYAN}📥 Starting subtitle embedding process...{Style.RESET_ALL}")
         result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
-        if result.returncode == 0:
-            print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
-            print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
-            return True
-        else:
-            # Check if the error is related to container/codec compatibility
-            stderr_lower = result.stderr.lower() if result.stderr else ""
-            is_container_error = any(error_keyword in stderr_lower for error_keyword in [
-                "codec not currently supported in container",
-                "could not find tag for codec",
-                "invalid argument",
-                "codec not supported",
-                "stream #",
-                "container"
+        # If CUDA encoding failed and we were using CUDA, try CPU fallback
+        if result.returncode != 0 and use_cuda and input_ext != '.mkv':
+            print(f"{Fore.YELLOW}⚠️  CUDA hardware acceleration failed, falling back to CPU encoding...{Style.RESET_ALL}")
+            
+            # Clean up failed output file if it exists
+            if Path(safe_output_path).exists():
+                Path(safe_output_path).unlink()
+            
+            # Build fallback command without CUDA
+            fallback_cmd = ["ffmpeg", "-i", video_path, "-i", subtitle_path]
+            fallback_cmd.extend(fallback_args if 'fallback_args' in locals() else ["-c:v", "libx264", "-crf", "0"])
+            fallback_cmd.extend([
+                "-c:a", "copy",
+                "-c:s", "srt",
+                "-metadata:s:s:0", "language=eng",
+                "-disposition:s:0", "default",
+                "-y", safe_output_path
             ])
             
-            # Only offer conversion if not already using MKV and it's a container error
-            if is_container_error and input_ext != ".mkv":
-                print(f"{Fore.YELLOW}⚠️  Container compatibility issue detected with {input_ext.upper()} format.{Style.RESET_ALL}")
-                print(f"{Fore.CYAN}💡 The {input_ext.upper()} container may not support embedded SRT subtitles properly.{Style.RESET_ALL}")
-                
-                # Ask user if they want to try MKV conversion
-                print(f"\n{Fore.CYAN}🔄 Conversion Options:{Style.RESET_ALL}")
-                print(f"   1. {Fore.GREEN}Convert to MKV format (recommended){Style.RESET_ALL} - Better subtitle support")
-                print(f"   2. {Fore.YELLOW}Skip video processing{Style.RESET_ALL} - Keep only the SRT file")
-                
-                while True:
-                    try:
-                        choice = input(f"\n{Fore.CYAN}Choose option (1-2, or Enter for MKV conversion): {Style.RESET_ALL}").strip()
-                        
-                        if not choice or choice == "1":
-                            # Convert to MKV
-                            safe_output_path_obj = Path(safe_output_path)
-                            mkv_output_path = str(safe_output_path_obj.with_suffix('.mkv'))
-                            
-                            print(f"{Fore.CYAN}🔄 Converting to MKV format for better subtitle compatibility...{Style.RESET_ALL}")
-                            print(f"{Fore.YELLOW}   New output: {mkv_output_path}{Style.RESET_ALL}")
-                            
-                            # Try with MKV container
-                            mkv_cmd = [
-                                "ffmpeg", "-i", video_path, "-i", subtitle_path,
-                                "-c:v", "copy",  # Copy video without re-encoding
-                                "-c:a", "copy",  # Copy audio without re-encoding
-                                "-c:s", "srt",   # Subtitle codec
-                                "-metadata:s:s:0", "language=eng",  # Set subtitle language
-                                "-disposition:s:0", "default",  # Make it the default subtitle track
-                                "-y",  # Overwrite output file if it exists
-                                mkv_output_path
-                            ]
-                            
-                            mkv_result = subprocess.run(mkv_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
-                            
-                            if mkv_result.returncode == 0:
-                                print(f"{Fore.GREEN}✅ Successfully embedded subtitles in MKV format!{Style.RESET_ALL}")
-                                print(f"{Fore.CYAN}📁 Output saved to: {mkv_output_path}{Style.RESET_ALL}")
-                                
-                                # Clean up the original failed output file
-                                try:
-                                    if Path(safe_output_path).exists():
-                                        Path(safe_output_path).unlink()
-                                        print(f"{Fore.YELLOW}🗑️  Cleaned up original failed output file: {safe_output_path}{Style.RESET_ALL}")
-                                except Exception as cleanup_error:
-                                    print(f"{Fore.YELLOW}⚠️  Could not clean up original failed file: {cleanup_error}{Style.RESET_ALL}")
-                                
-                                return True
-                            else:
-                                print(f"{Fore.RED}❌ MKV conversion also failed: FFmpeg returned error code {mkv_result.returncode}{Style.RESET_ALL}")
-                                if mkv_result.stderr:
-                                    print(f"{Fore.RED}Error details: {mkv_result.stderr}{Style.RESET_ALL}")
-                                
-                                # Clean up both failed output files
-                                cleanup_files = [safe_output_path, mkv_output_path]
-                                for cleanup_file in cleanup_files:
-                                    try:
-                                        if Path(cleanup_file).exists():
-                                            Path(cleanup_file).unlink()
-                                            print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {cleanup_file}{Style.RESET_ALL}")
-                                    except Exception as cleanup_error:
-                                        print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
-                                
-                                return False
-                                
-                        elif choice == "2":
-                            print(f"{Fore.YELLOW}⏭️  Skipping video processing. SRT file has been generated successfully.{Style.RESET_ALL}")
-                            
-                            # Clean up the failed output file from the original attempt
-                            try:
-                                if Path(safe_output_path).exists():
-                                    Path(safe_output_path).unlink()
-                                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
-                            except Exception as cleanup_error:
-                                print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
-                            
-                            return False
-                            
-                        else:
-                            print(f"{Fore.RED}Invalid choice. Please enter 1, 2, or press Enter.{Style.RESET_ALL}")
-                            continue
-                            
-                    except KeyboardInterrupt:
-                        print(f"\n{Fore.YELLOW}⏭️  Operation cancelled. Skipping video processing.{Style.RESET_ALL}")
-                        
-                        # Clean up the failed output file from the original attempt
-                        try:
-                            if Path(safe_output_path).exists():
-                                Path(safe_output_path).unlink()
-                                print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
-                        except Exception as cleanup_error:
-                            print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
-                        
-                        return False
-                    except Exception as input_error:
-                        print(f"{Fore.RED}Input error: {input_error}. Please try again.{Style.RESET_ALL}")
-                        continue
-                        
-                    break
+            print(f"{Fore.CYAN}� Retrying with CPU encoding...{Style.RESET_ALL}")
+            result = subprocess.run(fallback_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        
+        if result.returncode == 0:
+            if input_ext != '.mkv':
+                encoder_type = "CUDA-accelerated" if use_cuda and "nvenc" in " ".join(cmd) else "CPU"
+                print(f"{Fore.GREEN}✅ Successfully converted to MKV and embedded subtitles using {encoder_type} encoding!{Style.RESET_ALL}")
             else:
-                # Non-container related error or already using MKV
-                print(f"{Fore.RED}❌ Failed to embed subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
-                if result.stderr:
-                    print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
-                    
-                    # Provide helpful suggestions based on error type
-                    stderr_lower = result.stderr.lower()
-                    if "no space left" in stderr_lower:
-                        print(f"{Fore.YELLOW}💡 Suggestion: Check available disk space.{Style.RESET_ALL}")
-                    elif "permission denied" in stderr_lower:
-                        print(f"{Fore.YELLOW}💡 Suggestion: Check file permissions and ensure the output directory is writable.{Style.RESET_ALL}")
-                    elif "file not found" in stderr_lower:
-                        print(f"{Fore.YELLOW}💡 Suggestion: Verify that the input video and subtitle files exist.{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
+            return True, safe_output_path
+        else:
+            print(f"{Fore.RED}❌ Failed to embed subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+            if result.stderr:
+                print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
                 
-                # Clean up failed output file
-                try:
-                    if Path(safe_output_path).exists():
-                        Path(safe_output_path).unlink()
-                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
-                except Exception as cleanup_error:
-                    print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
-                
-                return False
+                # Provide helpful suggestions based on error type
+                stderr_lower = result.stderr.lower()
+                if "no space left" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Check available disk space.{Style.RESET_ALL}")
+                elif "permission denied" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Check file permissions and ensure the output directory is writable.{Style.RESET_ALL}")
+                elif "file not found" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Verify that the input video and subtitle files exist.{Style.RESET_ALL}")
+            
+            # Clean up failed output file
+            try:
+                if Path(safe_output_path).exists():
+                    Path(safe_output_path).unlink()
+                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
+            except Exception as cleanup_error:
+                print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
+            
+            return False, ""
             
     except Exception as e:
         print(f"\n{Fore.RED}❌ Error embedding subtitles: {str(e)}{Style.RESET_ALL}")
-        return False
+        return False, ""
 
 def process_video_with_subtitles(video_path: str, subtitle_path: str, output_directory: str, output_name: str, subtype: str, substyle: Optional[str] = None) -> Optional[str]:
     """
@@ -3874,11 +3883,11 @@ def process_video_with_subtitles(video_path: str, subtitle_path: str, output_dir
     
     # Process based on subtype
     if subtype == "burn":
-        success = burn_subtitles_to_video(video_path, subtitle_path, output_path, substyle)
+        success, actual_output_path = burn_subtitles_to_video(video_path, subtitle_path, output_path, substyle)
+        return actual_output_path if success else None
     elif subtype == "embed":
-        success = embed_subtitles_in_video(video_path, subtitle_path, output_path)
+        success, actual_output_path = embed_subtitles_in_video(video_path, subtitle_path, output_path)
+        return actual_output_path if success else None
     else:
         print(f"{Fore.RED}❌ Error: Invalid subtype '{subtype}'. Must be 'burn' or 'embed'.{Style.RESET_ALL}")
         return None
-    
-    return output_path if success else None
