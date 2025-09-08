@@ -1390,7 +1390,7 @@ def process_single_speech_region(
         temp_audio_path
     ]
     
-    result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
+    result = subprocess.run(ffmpeg_command, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if result.returncode != 0:
         print(f"{Fore.RED}❌ FFmpeg failed for region {region_index}: {result.stderr}{Style.RESET_ALL}")
         return region_index, [], ""
@@ -3308,9 +3308,12 @@ def get_video_info(video_path: str) -> Dict[str, Any]:
             "ffprobe", "-v", "quiet", "-print_format", "json", 
             "-show_format", "-show_streams", video_path
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout)
-    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError):
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+        if result.stdout:
+            return json.loads(result.stdout)
+        else:
+            return {}
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
         return {}
 
 def is_video_file(file_path: str) -> bool:
@@ -3473,7 +3476,7 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         
         # Run FFmpeg with progress information
         print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
         if result.returncode == 0:
             print(f"{Fore.GREEN}✅ Successfully burned subtitles into video!{Style.RESET_ALL}")
@@ -3541,7 +3544,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         
         # Run FFmpeg
         print(f"{Fore.CYAN}📥 Starting subtitle embedding process...{Style.RESET_ALL}")
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
         if result.returncode == 0:
             print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
@@ -3593,7 +3596,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
                                 mkv_output_path
                             ]
                             
-                            mkv_result = subprocess.run(mkv_cmd, capture_output=True, text=True)
+                            mkv_result = subprocess.run(mkv_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
                             
                             if mkv_result.returncode == 0:
                                 print(f"{Fore.GREEN}✅ Successfully embedded subtitles in MKV format!{Style.RESET_ALL}")
