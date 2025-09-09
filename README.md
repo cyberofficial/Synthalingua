@@ -1,3 +1,5 @@
+<img width="1248" height="454" alt="image" src="https://github.com/user-attachments/assets/fcc5535f-1bc8-47f5-908f-48b043cb813a" />
+
 # Synthalingua
 > **Note:** The Synthalingua Wrapper code has been moved to a new repo here: https://github.com/cyberofficial/Synthalingua_Wrapper
 > By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
@@ -14,13 +16,12 @@
 ## Don't have the hardware for Synthalingua? Use Recall.ai - Meeting Transcription API
 If you’re looking for a transcription API for meetings, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=cyb3rofficial-synthalingua), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
 
-[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
+---
 
-<img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
+[<img src="https://github.com/user-attachments/assets/8785903d-597a-47d3-a6ba-ad32c45a857a" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 <a href="https://www.producthunt.com/posts/synthalingua?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-synthalingua" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=963036&theme=dark&t=1746865849346" alt="Synthalingua - Synthalingua&#0032;&#0045;&#0032;Real&#0032;Time&#0032;Translation | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
----
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
