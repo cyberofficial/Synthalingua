@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['e:\\Synthalingua\\Synthalingua_Wrapper\\syntha.ico'],
+    icon=['E:\\Synthalingua\\Synthalingua_Wrapper\\assets\\Synthalingua-chan-logo.ico'],
 )
