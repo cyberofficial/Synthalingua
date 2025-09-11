@@ -104,23 +104,23 @@ def show_substyle_help():
     print(f"\n{Fore.YELLOW}EXAMPLES:{Style.RESET_ALL}")
     
     print(f"\n{Fore.CYAN}📁 Custom Font with Size and Color:{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-Bold.otf,24,yellow\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}python synthalingua --makecaptions --subtype burn --substyle \"FiraSans-Bold.otf,24,yellow\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses FiraSans-Bold font, 24pt size, yellow color")
     
     print(f"\n{Fore.CYAN}🎯 Size and Color Only (System Default Font):{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"20,red\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"20,red\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses system default font, 20pt size, red color")
     
     print(f"\n{Fore.CYAN}📝 Font and Size (Default Color):{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"FiraSans-UltraLightItalic.otf,18\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"FiraSans-UltraLightItalic.otf,18\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses italic font, 18pt size, default white color")
     
     print(f"\n{Fore.CYAN}🎨 Color Only (Default Font and Size):{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"cyan\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"cyan\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses system default font and size, cyan color")
     
     print(f"\n{Fore.CYAN}🔄 Flexible Parameter Order:{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}python synthalingua.py --makecaptions --subtype burn --substyle \"24,FiraSans-Bold.otf,green\" --file_input video.mp4{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"24,FiraSans-Bold.otf,green\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Same as font,size,color but parameters in different order")
     
     print(f"\n{Fore.YELLOW}NOTES:{Style.RESET_ALL}")
