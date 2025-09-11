@@ -67,7 +67,7 @@ exe = EXE(
     upx=False,
     runtime_tmpdir=None,
     console=True,
-    icon=r'E:\Synthalingua\Synthalingua_Wrapper\syntha.ico',
+    icon=r'E:\Synthalingua\Synthalingua_Wrapper\assets\Synthalingua-chan-logo.ico',
 )
 
 coll = COLLECT(
