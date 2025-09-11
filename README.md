@@ -1,3 +1,5 @@
+<img width="1248" height="454" alt="image" src="https://github.com/user-attachments/assets/fcc5535f-1bc8-47f5-908f-48b043cb813a" />
+
 # Synthalingua
 > **Note:** The Synthalingua Wrapper code has been moved to a new repo here: https://github.com/cyberofficial/Synthalingua_Wrapper
 > By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
@@ -16,13 +18,10 @@ If you’re looking for a transcription API for meetings, consider checking out 
 
 ---
 
-[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
-
-<img src="https://github.com/cyberofficial/Synthalingua/assets/19499442/c81d2c51-bf85-4055-8243-e6a1262cce8a" width=70%>
+[<img src="https://github.com/user-attachments/assets/8785903d-597a-47d3-a6ba-ad32c45a857a" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 <a href="https://www.producthunt.com/posts/synthalingua?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-synthalingua" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=963036&theme=dark&t=1746865849346" alt="Synthalingua - Synthalingua&#0032;&#0045;&#0032;Real&#0032;Time&#0032;Translation | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
----
 
 [![CodeQL](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml/badge.svg)](https://github.com/cyberofficial/Synthalingua/actions/workflows/codeql.yml)
 
@@ -210,6 +209,8 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | Flag | Description |
 |-----|-----|
 | `--makecaptions` | Captions mode. Use `--makecaptions compare` to generate captions with all RAM models |
+| `--subtype` | Process video with subtitles after generation. 'burn' overlays subtitles permanently onto video. 'embed' adds subtitle track to video container. Only works with `--makecaptions` and video files. |
+| `--substyle` | Customize burned subtitle appearance (only with `--subtype burn`). Format: 'font,size,color' in any order. Font files go in `fonts/` folder. Use `--substyle help` for examples. |
 | `--word_timestamps` | Enable word-level timestamps in subtitle output (sub_gen only). May make subtitle generation slower as it requires more processing power. If you notice slowdowns, remove this flag next time. Has no effect in microphone or HLS/stream modes. |
 | `--isolate_vocals` | Attempt to isolate vocals from the input audio before generating subtitles (sub_gen only). Requires the demucs package. |
 | `--demucs_model` | Demucs model to use for vocal isolation. Choices: `htdemucs` (default), `htdemucs_ft`, `htdemucs_6s`, `hdemucs_mmi`, `mdx`, `mdx_extra`, `mdx_q`, `mdx_extra_q`, `hdemucs`, `demucs`. Only used when `--isolate_vocals` is enabled. |
@@ -276,6 +277,23 @@ This will save the SRT file as usual and also print its contents to the console 
   python synthalingua.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
   python synthalingua.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Video subtitle processing (burn subtitles permanently):**
+  ```sh
+  python synthalingua.py --makecaptions --subtype burn --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Video subtitle processing (embed toggleable subtitles):**
+  ```sh
+  python synthalingua.py --makecaptions --subtype embed --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  ```
+- **Custom styled burned subtitles:**
+  ```sh
+  # Large yellow text with custom font
+  python synthalingua.py --makecaptions --subtype burn --substyle "FiraSans-Bold.otf,28,yellow" --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # System font with size and color
+  python synthalingua.py --makecaptions --subtype burn --substyle "22,cyan" --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # Get help and see available fonts
+  python synthalingua.py --substyle help
   ```
 - **Set microphone by name or index:**
   ```sh

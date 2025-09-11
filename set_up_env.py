@@ -35,7 +35,7 @@ from tqdm import tqdm
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.47"
+VERSION_NUMBER = "0.0.48"
 
 @dataclass
 class Config:

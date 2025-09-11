@@ -15,6 +15,9 @@ Key features:
 """
 
 import logging
+import subprocess
+import json
+import shutil
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
 import numpy as np
@@ -348,7 +351,10 @@ def run_transcription_in_process(
                 "UnicodeDecodeError: 'charmap' codec can't decode",
                 "Exception in thread",
                 "_readerthread",
-                "encodings\\cp1252.py"
+                "encodings\\cp1252.py",
+                "UserWarning: pkg_resources is deprecated",
+                "ctranslate2\\__init__.py",
+                "import pkg_resources"
             ]):
                 skip_next = True
                 continue
@@ -1387,7 +1393,7 @@ def process_single_speech_region(
         temp_audio_path
     ]
     
-    result = subprocess.run(ffmpeg_command, capture_output=True, text=True)
+    result = subprocess.run(ffmpeg_command, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if result.returncode != 0:
         print(f"{Fore.RED}❌ FFmpeg failed for region {region_index}: {result.stderr}{Style.RESET_ALL}")
         return region_index, [], ""
@@ -2678,6 +2684,22 @@ def process_with_segmentation(
             except Exception as e:
                 print(f"{Fore.RED}Failed to print combined SRT: {e}{Style.RESET_ALL}")
 
+        # Process video with subtitles if --subtype is specified
+        if getattr(args, 'subtype', None) and is_video_file(str(input_path_obj)):
+            print(f"\n{Fore.CYAN}🎬 Video processing with subtitles requested...{Style.RESET_ALL}")
+            video_output_path = process_video_with_subtitles(
+                str(input_path_obj), 
+                str(output_path), 
+                str(output_directory_obj), 
+                output_name, 
+                args.subtype,
+                getattr(args, 'substyle', None)
+            )
+            if video_output_path:
+                print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Video processing failed, but subtitle file was generated successfully.{Style.RESET_ALL}")
+
         return combined_result, output_name
             
     except Exception as e:
@@ -3234,8 +3256,641 @@ def process_single_file(
                     print(f"{subtitle_index}. {start_time_str} --> {end_time_str} : {color}{filtered_text}{reset}")
                     subtitle_index += 1
 
+        # Process video with subtitles if --subtype is specified
+        if getattr(args, 'subtype', None) and is_video_file(str(input_path_obj)):
+            print(f"\n{Fore.CYAN}🎬 Video processing with subtitles requested...{Style.RESET_ALL}")
+            video_output_path = process_video_with_subtitles(
+                str(input_path_obj), 
+                str(output_path), 
+                str(output_directory_obj), 
+                output_name, 
+                args.subtype,
+                getattr(args, 'substyle', None)
+            )
+            if video_output_path:
+                print(f"{Fore.GREEN}✅ Video with subtitles saved to: {video_output_path}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Video processing failed, but subtitle file was generated successfully.{Style.RESET_ALL}")
+
         return result, output_name
 
     except Exception as e:
         logger.error("Failed to generate subtitles: %s", str(e), exc_info=True)
         raise RuntimeError(f"Subtitle generation failed: {str(e)}")
+
+def check_ffmpeg_availability() -> bool:
+    """
+    Check if FFmpeg is available in the system PATH.
+    
+    Returns:
+        bool: True if FFmpeg is available, False otherwise
+    """
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"], 
+            stdout=subprocess.DEVNULL, 
+            stderr=subprocess.DEVNULL, 
+            check=True
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+def get_video_info(video_path: str) -> Dict[str, Any]:
+    """
+    Get video information using FFprobe.
+    
+    Args:
+        video_path (str): Path to the video file
+        
+    Returns:
+        Dict[str, Any]: Video information including duration, resolution, codec info
+    """
+    try:
+        cmd = [
+            "ffprobe", "-v", "quiet", "-print_format", "json", 
+            "-show_format", "-show_streams", video_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)
+        if result.stdout:
+            return json.loads(result.stdout)
+        else:
+            return {}
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+
+def is_video_file(file_path: str) -> bool:
+    """
+    Check if a file is a video file by examining its streams.
+    
+    Args:
+        file_path (str): Path to the file
+        
+    Returns:
+        bool: True if file contains video streams, False otherwise
+    """
+    video_info = get_video_info(file_path)
+    if not video_info or "streams" not in video_info:
+        return False
+    
+    # Check if any stream is a video stream
+    for stream in video_info["streams"]:
+        if stream.get("codec_type") == "video":
+            return True
+    return False
+
+def parse_subtitle_style(substyle: Optional[str]) -> Dict[str, str]:
+    """
+    Parse --substyle argument into font, size, and color options.
+    
+    Args:
+        substyle (str): Comma-separated style options (e.g., "FiraSans-Bold.otf,24,white")
+        
+    Returns:
+        Dict[str, str]: Dictionary with parsed style options
+    """
+    style = {"font": None, "fontsize": "16", "color": "white"}
+    
+    if not substyle:
+        return style
+    
+    # Split by comma and strip whitespace
+    parts = [part.strip() for part in substyle.split(",")]
+    
+    for part in parts:
+        if not part:
+            continue
+            
+        # Check if it's a font file (contains . and likely file extension)
+        if "." in part and any(part.lower().endswith(ext) for ext in [".ttf", ".otf", ".woff", ".woff2"]):
+            style["font"] = part
+        # Check if it's a font size (numeric)
+        elif part.isdigit() or (part.replace(".", "").isdigit()):
+            style["fontsize"] = part
+        # Assume it's a color
+        else:
+            style["color"] = part
+    
+    return style
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a filename by replacing unsafe characters with underscores.
+    Only keeps safe characters: a-z, A-Z, 0-9, underscore, hyphen, and period.
+    
+    Args:
+        filename (str): Original filename
+        
+    Returns:
+        str: Sanitized filename with only safe characters
+    """
+    import re
+    
+    # Keep only alphanumeric characters, underscore, hyphen, and period
+    # Replace everything else with underscore
+    sanitized = re.sub(r'[^a-zA-Z0-9_.-]', '_', filename)
+    
+    # Remove multiple consecutive underscores
+    sanitized = re.sub(r'_+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
+    
+    # Ensure we don't have an empty filename
+    if not sanitized:
+        sanitized = "sanitized_file"
+    
+    return sanitized
+
+def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[str, str]:
+    """
+    Build FFmpeg subtitle filter with custom styling.
+    Creates a safe temporary subtitle file to avoid FFmpeg filter parsing issues.
+    
+    Args:
+        subtitle_path (str): Path to the SRT subtitle file
+        style (Dict[str, str]): Style options (font, fontsize, color)
+        
+    Returns:
+        Tuple[str, str]: (FFmpeg subtitle filter string, temporary subtitle file path for cleanup)
+    """
+    import shutil
+    
+    # Get the original filename and sanitize it
+    original_filename = os.path.basename(subtitle_path)
+    safe_filename = sanitize_filename(original_filename)
+    
+    # Use the project's local temp directory instead of system temp
+    temp_subtitle_path = temp_manager.get_temp_path(suffix='', prefix='safe_subtitle_')
+    # Replace the auto-generated name with our safe filename
+    temp_dir = os.path.dirname(temp_subtitle_path)
+    temp_subtitle_path = os.path.join(temp_dir, safe_filename)
+    
+    # If the safe filename already exists, add a unique suffix
+    if os.path.exists(temp_subtitle_path):
+        name, ext = os.path.splitext(safe_filename)
+        counter = 1
+        while os.path.exists(temp_subtitle_path):
+            temp_subtitle_path = os.path.join(temp_dir, f"{name}_{counter}{ext}")
+            counter += 1
+    
+    try:
+        # Copy the subtitle file to the temporary location with safe name
+        shutil.copy2(subtitle_path, temp_subtitle_path)
+        
+        # Use the safe temporary path
+        # Based on FFmpeg documentation and Stack Overflow best practices:
+        # https://stackoverflow.com/questions/45916331/escape-special-characters-in-ffmpeg-subtitle-filename
+        
+        # Convert backslashes to forward slashes for FFmpeg compatibility
+        safe_subtitle_path = temp_subtitle_path.replace('\\', '/')
+        
+        # Escape special characters that are significant to FFmpeg filter syntax:
+        # - Colon (:) is used to separate filter parameters
+        # - Comma (,) is used to separate filters  
+        # - Semicolon (;) is used to separate filter chains
+        # - Square brackets ([]) are used for stream labels
+        safe_subtitle_path = safe_subtitle_path.replace(':', '\\:')
+        safe_subtitle_path = safe_subtitle_path.replace(',', '\\,')
+        safe_subtitle_path = safe_subtitle_path.replace(';', '\\;')
+        safe_subtitle_path = safe_subtitle_path.replace('[', '\\[')
+        safe_subtitle_path = safe_subtitle_path.replace(']', '\\]')
+        
+        # Debug: Print the paths being used
+        print(f"{Fore.YELLOW}🔧 Debug: Original subtitle path: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}🔧 Debug: Temp subtitle path: {temp_subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}🔧 Debug: Safe escaped path for FFmpeg: {safe_subtitle_path}{Style.RESET_ALL}")
+        
+        # Use single quotes around the path parameter as recommended by FFmpeg docs
+        subtitle_filter_parts = [f"subtitles='{safe_subtitle_path}'"]
+        
+        # Add font directory if custom font is specified and exists
+        if style["font"]:
+            font_path = Path("fonts") / style["font"]
+            if font_path.exists():
+                # Use relative path to fonts directory for FFmpeg to avoid Windows path issues
+                fonts_dir = "fonts"  # Use relative path
+                subtitle_filter_parts.append(f"fontsdir={fonts_dir}")
+                print(f"{Fore.CYAN}🎨 Using custom font: {font_path.resolve()}{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.YELLOW}⚠️  Font file not found: {font_path}, using system default{Style.RESET_ALL}")
+        
+        # Build force_style parameter with ASS styling
+        style_parts = []
+        
+        # Add font name (without extension) if specified and exists
+        if style["font"]:
+            font_path = Path("fonts") / style["font"]
+            if font_path.exists():
+                # Extract font name without extension for ASS FontName parameter
+                font_name = Path(style["font"]).stem  # Remove extension
+                style_parts.append(f"FontName={font_name}")
+        
+        # Add font size
+        style_parts.append(f"FontSize={style['fontsize']}")
+        
+        # Add color (convert color name to ASS hex format)
+        color_map = {
+            'white': '&Hffffff',
+            'black': '&H000000', 
+            'red': '&H0000ff',
+            'green': '&H00ff00',
+            'blue': '&Hff0000',
+            'yellow': '&H00ffff',
+            'cyan': '&Hffff00',
+            'magenta': '&Hff00ff',
+            'orange': '&H0080ff'
+        }
+        
+        ass_color = color_map.get(style['color'].lower(), '&Hffffff')  # Default to white
+        style_parts.append(f"PrimaryColour={ass_color}")
+        
+        # Add outline for better readability
+        style_parts.append("OutlineColour=&H000000")
+        style_parts.append("Outline=1")
+        
+        # Add force_style parameter if we have any styles
+        # Important: Use single quotes around the force_style value for FFmpeg
+        if style_parts:
+            force_style = ",".join(style_parts)
+            subtitle_filter_parts.append(f"force_style='{force_style}'")
+        
+        # Join all filter parts with colon separator
+        filter_string = ":".join(subtitle_filter_parts)
+        
+        print(f"{Fore.CYAN}📁 Using safe subtitle filename: {safe_filename} in project temp directory{Style.RESET_ALL}")
+        
+        return filter_string, temp_subtitle_path
+        
+    except Exception as e:
+        # Clean up the temporary file if something went wrong
+        try:
+            if os.path.exists(temp_subtitle_path):
+                os.unlink(temp_subtitle_path)
+        except:
+            pass
+        raise e
+
+def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> Tuple[bool, str]:
+    """
+    Burn subtitles permanently into a video using FFmpeg with custom styling.
+    Uses safe filenames to avoid FFmpeg parsing issues.
+    Supports CUDA hardware acceleration when available.
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the SRT subtitle file
+        output_path (str): Path for the output video with burned subtitles
+        substyle (Optional[str]): Style options for subtitle appearance
+        
+    Returns:
+        Tuple[bool, str]: (success_status, actual_output_path)
+    """
+    try:
+        # Create a safe output filename by sanitizing the original output path
+        output_dir = os.path.dirname(output_path)
+        original_name = os.path.basename(output_path)
+        name_without_ext, ext = os.path.splitext(original_name)
+        
+        # Remove existing _subtitled suffix if present to avoid duplication
+        if name_without_ext.endswith('_subtitled'):
+            name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
+        
+        # Create safe filename with _burn suffix - always use MKV format for output
+        safe_name = sanitize_filename(name_without_ext)
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_burn.mkv")
+        
+        print(f"{Fore.CYAN}🔥 Burning subtitles into video...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {safe_output_path}{Style.RESET_ALL}")
+        
+        if safe_output_path != output_path:
+            print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
+        
+        print(f"{Fore.CYAN}📦 Output format: MKV (ensures maximum compatibility and quality){Style.RESET_ALL}")
+        
+        # Parse subtitle styling options
+        style = parse_subtitle_style(substyle)
+        if substyle:
+            print(f"{Fore.CYAN}🎨 Applying custom subtitle style: font={style['font'] or 'default'}, size={style['fontsize']}, color={style['color']}{Style.RESET_ALL}")
+        
+        # Build subtitle filter with styling (returns filter string and temp file path)
+        subtitle_filter, temp_subtitle_path = build_subtitle_filter(subtitle_path, style)
+        
+        try:
+            # Check if CUDA encoding should be used
+            use_cuda = hasattr(args, 'device') and args.device.lower() == 'cuda'
+            
+            # Build FFmpeg command - use CPU decoding but optionally CUDA encoding
+            cmd = ["ffmpeg", "-i", video_path, "-vf", subtitle_filter]
+            
+            if use_cuda:
+                print(f"{Fore.CYAN}🚀 Using CUDA hardware encoding for faster processing{Style.RESET_ALL}")
+            
+            # Always use H.264 encoding for MKV output (best compatibility)
+            if use_cuda:
+                # Use NVIDIA hardware encoder with high quality settings
+                cuda_args = [
+                    "-c:v", "h264_nvenc",    # NVIDIA hardware encoder
+                    "-preset", "p7",          # Highest quality preset
+                    "-rc:v", "cbr",          # Constant bitrate mode for consistent quality
+                    "-qp", "0",              # Lossless quality mode
+                    "-profile:v", "high"     # High profile for best quality
+                ]
+                fallback_args = [
+                    "-c:v", "libx264",       # Software H.264 encoder fallback
+                    "-crf", "0"              # Lossless constant rate factor
+                ]
+                
+                cmd.extend(cuda_args)
+                
+            else:
+                # Use software encoding with lossless quality
+                cmd.extend([
+                    "-c:v", "libx264",       # Software H.264 encoder
+                    "-crf", "0"              # Lossless constant rate factor
+                ])
+            
+            # Add audio and output parameters
+            cmd.extend([
+                "-c:a", "copy",          # Copy audio without re-encoding
+                "-y",                     # Overwrite output file if it exists
+                safe_output_path
+            ])
+            
+            # Run FFmpeg with progress information
+            print(f"{Fore.CYAN}🔥 Starting subtitle burning process...{Style.RESET_ALL}")
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            
+            # If CUDA encoding failed and we were using CUDA, try CPU fallback
+            if result.returncode != 0 and use_cuda:
+                print(f"{Fore.YELLOW}⚠️  CUDA hardware acceleration failed, falling back to CPU encoding...{Style.RESET_ALL}")
+                
+                # Clean up failed output file if it exists
+                if Path(safe_output_path).exists():
+                    Path(safe_output_path).unlink()
+                
+                # Build fallback command without CUDA
+                fallback_cmd = ["ffmpeg", "-i", video_path, "-vf", subtitle_filter]
+                fallback_cmd.extend(fallback_args if 'fallback_args' in locals() else ["-c:v", "libx264", "-crf", "20"])
+                fallback_cmd.extend(["-c:a", "copy", "-y", safe_output_path])
+                
+                print(f"{Fore.CYAN}🔄 Retrying with CPU encoding...{Style.RESET_ALL}")
+                result = subprocess.run(fallback_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+            
+            if result.returncode == 0:
+                encoder_type = "CUDA-accelerated" if use_cuda and "nvenc" in " ".join(cmd) else "CPU"
+                print(f"{Fore.GREEN}✅ Successfully burned subtitles into video using {encoder_type} encoding!{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
+                return True, safe_output_path
+            else:
+                print(f"{Fore.RED}❌ Failed to burn subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+                if result.stderr:
+                    print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+                
+                # Clean up failed output file if it exists
+                try:
+                    if Path(safe_output_path).exists():
+                        Path(safe_output_path).unlink()
+                        print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
+                except Exception as cleanup_error:
+                    print(f"{Fore.YELLOW}⚠️  Could not clean up failed output file: {cleanup_error}{Style.RESET_ALL}")
+                
+                return False, ""
+                
+        finally:
+            # Clean up the temporary subtitle file
+            try:
+                if os.path.exists(temp_subtitle_path):
+                    os.unlink(temp_subtitle_path)
+            except Exception as cleanup_error:
+                print(f"{Fore.YELLOW}⚠️  Could not clean up temporary subtitle file: {cleanup_error}{Style.RESET_ALL}")
+            
+    except Exception as e:
+        print(f"\n{Fore.RED}❌ Error burning subtitles: {str(e)}{Style.RESET_ALL}")
+        return False, ""
+
+def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: str) -> Tuple[bool, str]:
+    """
+    Embed subtitles as a separate stream in a video using FFmpeg.
+    Automatically converts non-MKV files to MKV format for optimal subtitle support.
+    Uses safe filenames to avoid FFmpeg parsing issues.
+    Supports CUDA hardware acceleration when available.
+    
+    Features:
+    - Automatically detects input format and converts to MKV if needed
+    - Preserves original video/audio quality during conversion
+    - Uses CUDA acceleration when available for faster processing
+    - Provides comprehensive error handling and user feedback
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the SRT subtitle file
+        output_path (str): Path for the output video with embedded subtitles
+        
+    Returns:
+        Tuple[bool, str]: (success_status, actual_output_path)
+    """
+    try:
+        # Create a safe output filename by sanitizing the original output path
+        output_dir = os.path.dirname(output_path)
+        original_name = os.path.basename(output_path)
+        name_without_ext, ext = os.path.splitext(original_name)
+        
+        # Remove existing _embedded or _subtitled suffixes if present to avoid duplication
+        if name_without_ext.endswith('_embedded'):
+            name_without_ext = name_without_ext[:-9]  # Remove '_embedded'
+        elif name_without_ext.endswith('_subtitled'):
+            name_without_ext = name_without_ext[:-10]  # Remove '_subtitled'
+        
+        # Create safe filename with _embedded suffix - always use MKV format for output
+        safe_name = sanitize_filename(name_without_ext)
+        safe_output_path = os.path.join(output_dir, f"{safe_name}_embedded.mkv")
+        
+        print(f"{Fore.CYAN}📥 Embedding subtitles in video...{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}   Output video: {safe_output_path}{Style.RESET_ALL}")
+        
+        if safe_output_path != output_path:
+            print(f"{Fore.CYAN}📁 Using safe filename: {os.path.basename(safe_output_path)} (original had unsupported characters){Style.RESET_ALL}")
+        
+        print(f"{Fore.CYAN}📦 Output format: MKV (ensures maximum subtitle compatibility){Style.RESET_ALL}")
+        
+        # Check input format and determine if re-encoding is needed
+        input_ext = Path(video_path).suffix.lower()
+        use_cuda = hasattr(args, 'device') and args.device.lower() == 'cuda'
+        
+        if input_ext != '.mkv':
+            print(f"{Fore.CYAN}🔄 Input format ({input_ext.upper()}) detected - converting to MKV for optimal subtitle support{Style.RESET_ALL}")
+            
+            if use_cuda:
+                print(f"{Fore.CYAN}� Using CUDA hardware acceleration for video conversion{Style.RESET_ALL}")
+        
+        # Build FFmpeg command for embedding subtitles
+        cmd = ["ffmpeg", "-i", video_path, "-i", subtitle_path]
+        
+        # Add encoding parameters based on input format and CUDA availability
+        if input_ext != '.mkv':
+            # Need to re-encode to MKV format
+            if use_cuda:
+                # Use CUDA hardware acceleration for conversion
+                cuda_args = [
+                    "-c:v", "h264_nvenc",     # NVIDIA hardware encoder
+                    "-preset", "p7",           # Highest quality preset
+                    "-rc:v", "cbr",           # Constant bitrate mode
+                    "-qp", "0",               # Lossless quality mode
+                    "-profile:v", "high"      # High profile for best quality
+                ]
+                fallback_args = [
+                    "-c:v", "libx264",        # Software H.264 encoder fallback
+                    "-crf", "0"               # Lossless constant rate factor
+                ]
+                cmd.extend(cuda_args)
+            else:
+                # Use software encoding with lossless quality
+                cmd.extend([
+                    "-c:v", "libx264",        # Software H.264 encoder
+                    "-crf", "0"               # Lossless constant rate factor
+                ])
+            
+            cmd.extend([
+                "-c:a", "copy",               # Copy audio without re-encoding
+            ])
+        else:
+            # Input is already MKV, just copy streams
+            cmd.extend([
+                "-c:v", "copy",               # Copy video without re-encoding
+                "-c:a", "copy",               # Copy audio without re-encoding
+            ])
+        
+        # Add subtitle stream parameters
+        cmd.extend([
+            "-c:s", "srt",                    # Subtitle codec
+            "-metadata:s:s:0", "language=eng", # Set subtitle language
+            "-disposition:s:0", "default",    # Make it the default subtitle track
+            "-y",                             # Overwrite output file if it exists
+            safe_output_path
+        ])
+        
+        # Run FFmpeg
+        print(f"{Fore.CYAN}📥 Starting subtitle embedding process...{Style.RESET_ALL}")
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        
+        # If CUDA encoding failed and we were using CUDA, try CPU fallback
+        if result.returncode != 0 and use_cuda and input_ext != '.mkv':
+            print(f"{Fore.YELLOW}⚠️  CUDA hardware acceleration failed, falling back to CPU encoding...{Style.RESET_ALL}")
+            
+            # Clean up failed output file if it exists
+            if Path(safe_output_path).exists():
+                Path(safe_output_path).unlink()
+            
+            # Build fallback command without CUDA
+            fallback_cmd = ["ffmpeg", "-i", video_path, "-i", subtitle_path]
+            fallback_cmd.extend(fallback_args if 'fallback_args' in locals() else ["-c:v", "libx264", "-crf", "0"])
+            fallback_cmd.extend([
+                "-c:a", "copy",
+                "-c:s", "srt",
+                "-metadata:s:s:0", "language=eng",
+                "-disposition:s:0", "default",
+                "-y", safe_output_path
+            ])
+            
+            print(f"{Fore.CYAN}� Retrying with CPU encoding...{Style.RESET_ALL}")
+            result = subprocess.run(fallback_cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        
+        if result.returncode == 0:
+            if input_ext != '.mkv':
+                encoder_type = "CUDA-accelerated" if use_cuda and "nvenc" in " ".join(cmd) else "CPU"
+                print(f"{Fore.GREEN}✅ Successfully converted to MKV and embedded subtitles using {encoder_type} encoding!{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.GREEN}✅ Successfully embedded subtitles in video!{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}📁 Output saved to: {safe_output_path}{Style.RESET_ALL}")
+            return True, safe_output_path
+        else:
+            print(f"{Fore.RED}❌ Failed to embed subtitles: FFmpeg returned error code {result.returncode}{Style.RESET_ALL}")
+            if result.stderr:
+                print(f"{Fore.RED}Error details: {result.stderr}{Style.RESET_ALL}")
+                
+                # Provide helpful suggestions based on error type
+                stderr_lower = result.stderr.lower()
+                if "no space left" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Check available disk space.{Style.RESET_ALL}")
+                elif "permission denied" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Check file permissions and ensure the output directory is writable.{Style.RESET_ALL}")
+                elif "file not found" in stderr_lower:
+                    print(f"{Fore.YELLOW}💡 Suggestion: Verify that the input video and subtitle files exist.{Style.RESET_ALL}")
+            
+            # Clean up failed output file
+            try:
+                if Path(safe_output_path).exists():
+                    Path(safe_output_path).unlink()
+                    print(f"{Fore.YELLOW}🗑️  Cleaned up failed output file: {safe_output_path}{Style.RESET_ALL}")
+            except Exception as cleanup_error:
+                print(f"{Fore.YELLOW}⚠️  Could not clean up failed file: {cleanup_error}{Style.RESET_ALL}")
+            
+            return False, ""
+            
+    except Exception as e:
+        print(f"\n{Fore.RED}❌ Error embedding subtitles: {str(e)}{Style.RESET_ALL}")
+        return False, ""
+
+def process_video_with_subtitles(video_path: str, subtitle_path: str, output_directory: str, output_name: str, subtype: str, substyle: Optional[str] = None) -> Optional[str]:
+    """
+    Process video with subtitles based on the specified subtype.
+    
+    Args:
+        video_path (str): Path to the input video file
+        subtitle_path (str): Path to the generated SRT file
+        output_directory (str): Directory to save the processed video
+        output_name (str): Base name for the output file
+        subtype (str): Type of subtitle processing ('burn' or 'embed')
+        substyle (Optional[str]): Style options for subtitle appearance (burn only)
+        
+    Returns:
+        Optional[str]: Path to the processed video file if successful, None otherwise
+    """
+    # Check if FFmpeg is available
+    if not check_ffmpeg_availability():
+        print(f"{Fore.RED}❌ Error: FFmpeg is not available in PATH.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Please install FFmpeg and ensure it's accessible from the command line.{Style.RESET_ALL}")
+        return None
+    
+    # Verify input files exist
+    if not Path(video_path).exists():
+        print(f"{Fore.RED}❌ Error: Video file not found: {video_path}{Style.RESET_ALL}")
+        return None
+        
+    if not Path(subtitle_path).exists():
+        print(f"{Fore.RED}❌ Error: Subtitle file not found: {subtitle_path}{Style.RESET_ALL}")
+        return None
+    
+    # Verify it's actually a video file
+    if not is_video_file(video_path):
+        print(f"{Fore.RED}❌ Error: Input file does not appear to be a video file: {video_path}{Style.RESET_ALL}")
+        return None
+    
+    # Create output directory if it doesn't exist
+    output_dir_path = Path(output_directory)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+    
+    # Determine output file extension based on input video
+    input_ext = Path(video_path).suffix
+    if subtype == "burn":
+        output_filename = f"{output_name}_subtitled{input_ext}"
+    else:  # embed
+        output_filename = f"{output_name}_embedded{input_ext}"
+    
+    output_path = str(output_dir_path / output_filename)
+    
+    # Process based on subtype
+    if subtype == "burn":
+        success, actual_output_path = burn_subtitles_to_video(video_path, subtitle_path, output_path, substyle)
+        return actual_output_path if success else None
+    elif subtype == "embed":
+        success, actual_output_path = embed_subtitles_in_video(video_path, subtitle_path, output_path)
+        return actual_output_path if success else None
+    else:
+        print(f"{Fore.RED}❌ Error: Invalid subtype '{subtype}'. Must be 'burn' or 'embed'.{Style.RESET_ALL}")
+        return None
