@@ -3,11 +3,193 @@
 <head>
     <title>Synthalingua</title>
     <link rel="stylesheet" type="text/css" href="/static/styles.css?q={{q}}">
+    <!-- 
+    URL Parameters for customization:
+    - bgcolor: Background color (hex codes like #FF0000 or color names like red, blue, green)
+    - font or fontfamily: Font family (e.g., Arial, Times, Courier, "Comic Sans MS")
+    - fontsize: Font size in pixels (e.g., 24, 18, 30)
+    
+    Examples:
+    ?bgcolor=#0000FF&font=Times&fontsize=24
+    ?bgcolor=red&fontfamily=Arial&fontsize=20
+    ?bgcolor=#00FF00&font="Comic Sans MS"&fontsize=18
+    -->
 </head>
 <body>
     <h2 id="header-text" class="hidden"></h2>
     <h2 id="translated-header" class="hidden"></h2>
     <h2 id="transcribed-header" class="hidden"></h2>
+    
+    <!-- Help Box -->
+    <div id="help-box" class="hidden">
+        <div class="help-content">
+            <h3>Customize & Generate URL</h3>
+            <p>Press <kbd>H</kbd> to toggle this help | Customize below and get your URL!</p>
+            
+            <!-- Interactive Controls -->
+            <div class="help-section">
+                <h4>🎨 Customize Appearance</h4>
+                
+                <div class="control-group">
+                    <label for="bg-color-picker">Background Color:</label>
+                    <div class="color-controls">
+                        <input type="color" id="bg-color-picker" value="#00FF00">
+                        <input type="text" id="bg-color-text" placeholder="#00FF00 or colorname" value="#00FF00">
+                        <button id="reset-bg" class="small-btn">Reset</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="font-selector">Font Family:</label>
+                    <div class="font-controls">
+                        <select id="font-selector">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Comic Sans MS">Comic Sans MS</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Impact">Impact</option>
+                        </select>
+                        <input type="text" id="custom-font" placeholder="Custom font name">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="font-size-slider">Font Size:</label>
+                    <div class="size-controls">
+                        <input type="range" id="font-size-slider" min="12" max="72" value="18">
+                        <span id="font-size-display">18px</span>
+                        <input type="number" id="font-size-input" min="12" max="200" value="18">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Text Display Options:</label>
+                    <div class="checkbox-controls">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="show-original" checked>
+                            <label for="show-original">Show Original Text</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="show-translation" checked>
+                            <label for="show-translation">Show Translation</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="show-transcription" checked>
+                            <label for="show-transcription">Show Transcription</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="caption-bg-picker">Caption Background Color:</label>
+                    <div class="color-controls">
+                        <input type="color" id="caption-bg-picker" value="#000000">
+                        <input type="text" id="caption-bg-text" placeholder="#000000 or colorname" value="#000000">
+                        <button id="reset-caption-bg" class="small-btn">Reset</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="caption-opacity-slider">Caption Background Opacity:</label>
+                    <div class="size-controls">
+                        <input type="range" id="caption-opacity-slider" min="0" max="100" value="50">
+                        <span id="caption-opacity-display">50%</span>
+                        <input type="number" id="caption-opacity-input" min="0" max="100" value="50">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="text-color-picker">Text Color:</label>
+                    <div class="color-controls">
+                        <input type="color" id="text-color-picker" value="#FFFFFF">
+                        <input type="text" id="text-color-text" placeholder="#FFFFFF or colorname" value="#FFFFFF">
+                        <button id="reset-text-color" class="small-btn">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generated URL -->
+            <div class="help-section">
+                <h4>🔗 Generated URL</h4>
+                <div class="url-output">
+                    <input type="text" id="generated-url" readonly value="">
+                    <button id="copy-url" class="copy-btn">📋 Copy URL</button>
+                </div>
+                <p class="url-note">Copy this URL to share your customized greenscreen settings!</p>
+            </div>
+
+            <!-- Reference Documentation -->
+            <div class="help-section collapsible">
+                <h4 class="toggle-header">📚 Parameter Reference <span class="toggle-icon">▼</span></h4>
+                <div class="collapsible-content">
+                    <div class="param-ref">
+                        <strong>Background Color</strong> - <code>?bgcolor=color</code>
+                        <ul>
+                            <li><code>?bgcolor=#FF0000</code> - Hex color codes</li>
+                            <li><code>?bgcolor=red</code> - Named colors</li>
+                            <li><code>?bgcolor=rgb(255,0,0)</code> - RGB values</li>
+                        </ul>
+                    </div>
+                    <div class="param-ref">
+                        <strong>Font Family</strong> - <code>?font=fontname</code>
+                        <ul>
+                            <li><code>?font=Arial</code> - Single word fonts</li>
+                            <li><code>?font="Times New Roman"</code> - Multi-word fonts</li>
+                        </ul>
+                    </div>
+                    <div class="param-ref">
+                        <strong>Font Size</strong> - <code>?fontsize=pixels</code>
+                        <ul>
+                            <li><code>?fontsize=24</code> - Size in pixels</li>
+                            <li>Range: 12-200px recommended</li>
+                        </ul>
+                    </div>
+                    <div class="param-ref">
+                        <strong>Text Display</strong> - Control which text elements are shown
+                        <ul>
+                            <li><code>?showoriginal</code> - Show original text</li>
+                            <li><code>?showtranslation</code> - Show translated text</li>
+                            <li><code>?showtranscription</code> - Show transcribed text</li>
+                            <li>Default: All text shown if no parameters specified</li>
+                        </ul>
+                    </div>
+                    <div class="param-ref">
+                        <strong>Caption Background</strong> - Customize caption appearance
+                        <ul>
+                            <li><code>?captionbg=#FF0000</code> - Caption background color (hex)</li>
+                            <li><code>?captionbg=blue</code> - Caption background color (named)</li>
+                            <li><code>?captionopacity=75</code> - Background opacity (0-100%)</li>
+                            <li>Default: Black background at 50% opacity</li>
+                        </ul>
+                    </div>
+                    <div class="param-ref">
+                        <strong>Text Color</strong> - Customize caption text color
+                        <ul>
+                            <li><code>?textcolor=#FF0000</code> - Text color (hex codes)</li>
+                            <li><code>?textcolor=red</code> - Text color (named colors)</li>
+                            <li><code>?textcolor=yellow</code> - Any CSS color name</li>
+                            <li>Default: White text (#FFFFFF)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Message -->
+    <div id="toast-message" class="toast hidden">
+        <div class="toast-content">
+            <span class="toast-text">Press <kbd>H</kbd> to customize</span>
+            <button class="toast-close">&times;</button>
+        </div>
+        <div class="toast-progress">
+            <div class="toast-progress-bar"></div>
+        </div>
+    </div>
+    
     <script src="/static/index.js"></script>
     <script>
         function showElementById(id) {
@@ -45,6 +227,67 @@
                     showElementById("transcribed-header");
                 }
             }
+
+            // Toast message functionality
+            const toast = document.getElementById("toast-message");
+            const toastClose = document.querySelector(".toast-close");
+            const progressBar = document.querySelector(".toast-progress-bar");
+            let toastTimeout;
+            let fadeTimeout;
+            
+            // Function to show toast with progress animation
+            function showToast() {
+                toast.classList.remove("hidden");
+                
+                // Start progress bar animation after a small delay
+                setTimeout(() => {
+                    progressBar.classList.add("animate");
+                }, 100);
+                
+                // Start fade out after 4.5 seconds (before progress completes)
+                fadeTimeout = setTimeout(() => {
+                    toast.classList.add("fade-out");
+                }, 4500);
+                
+                // Complete hide after fade animation
+                toastTimeout = setTimeout(() => {
+                    toast.classList.add("slide-out");
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                        toast.classList.remove("slide-out", "fade-out");
+                        progressBar.classList.remove("animate");
+                    }, 300);
+                }, 5000);
+            }
+            
+            // Function to hide toast immediately
+            function hideToast() {
+                // Clear any existing timeouts
+                clearTimeout(toastTimeout);
+                clearTimeout(fadeTimeout);
+                
+                toast.classList.add("fade-out");
+                setTimeout(() => {
+                    toast.classList.add("slide-out");
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                        toast.classList.remove("slide-out", "fade-out");
+                        progressBar.classList.remove("animate");
+                    }, 300);
+                }, 200);
+            }
+            
+            // Show toast on page load
+            setTimeout(showToast, 500); // Small delay for better UX
+            
+            // Click to dismiss
+            toastClose.addEventListener("click", function(e) {
+                e.stopPropagation();
+                hideToast();
+            });
+            
+            // Also hide when clicking anywhere on the toast content
+            toast.addEventListener("click", hideToast);
         });
     </script>
 </body>
