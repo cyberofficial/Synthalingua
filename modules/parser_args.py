@@ -1,8 +1,13 @@
 import argparse
 import sys
 import os
+import warnings
 from colorama import Fore, Back, Style
 from modules.languages import get_valid_languages
+from modules.version_checker import version
+
+# Suppress the pkg_resources deprecation warning from ctranslate2
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API.*", category=UserWarning)
 
 # Define a constant variable for valid language choices
 VALID_LANGUAGES = get_valid_languages()
@@ -212,6 +217,7 @@ def set_model_by_ram(ram, language):
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version=f"Synthalingua v{version}", help="Show the current version of Synthalingua and exit.")
     parser.add_argument("--model_source", type=str.lower, default="whisper", help="AI model backend to use for transcription. 'whisper' uses OpenAI's original implementation (slowest, most compatible), 'fasterwhisper' uses optimized C++ implementation (fastest, recommended), 'openvino' uses Intel optimization for Intel hardware (good for Intel CPUs/GPUs).", choices=["whisper", "fasterwhisper", "openvino"])
     parser.add_argument("--ram", default="2gb", help="Model size based on VRAM/RAM requirements. Larger models are more accurate but slower: 1gb=tiny (fastest, least accurate), 2gb=base (good balance), 3gb=small, 6gb=medium, 7gb=turbo (fast large model), 11gb-v2/v3=large (most accurate, slowest). Choose based on your hardware capabilities.", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
     parser.add_argument("--word_timestamps", action='store_true', default=False, help="Generate word-level timestamps in subtitle files (SRT format). Only works with subtitle generation mode (--makecaptions), not with real-time microphone or streaming modes. Useful for precise subtitle timing and editing.")
