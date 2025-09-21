@@ -1,4 +1,8 @@
 import sys
+import warnings
+
+# Suppress the pkg_resources deprecation warning from ctranslate2
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API.*", category=UserWarning)
 
 # Check if this process is being launched as a worker for subtitle generation
 if '--run-worker' in sys.argv:
