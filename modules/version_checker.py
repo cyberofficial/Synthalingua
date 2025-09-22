@@ -29,7 +29,7 @@ init()
 
 # --- Configuration --- #
 # Local version of the script
-version = "1.2.3"
+version = "1.2.4"
 # Creator of the script (for display purposes)
 ScriptCreator = "cyberofficial"
 # URL of the GitHub repository
