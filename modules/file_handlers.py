@@ -20,21 +20,21 @@ from colorama import Fore, Style, init
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
 
-def print_warning_message(message, icon="⚠️"):
+def print_warning_message(message):
     """Print a warning message with styling."""
-    print(f"{Fore.YELLOW}{icon} {Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
+    print(f"{Fore.YELLOW}{Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
 
-def print_info_message(message, icon="ℹ️"):
+def print_info_message(message):
     """Print an info message with styling."""
-    print(f"{Fore.CYAN}{icon} {Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
 
-def print_success_message(message, icon="✅"):
+def print_success_message(message):
     """Print a success message with styling."""
-    print(f"{Fore.GREEN}{icon} {Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
+    print(f"{Fore.GREEN}{Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
 
-def print_error_message(message, icon="❌"):
+def print_error_message(message):
     """Print an error message with styling."""
-    print(f"{Fore.RED}{icon} {Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
+    print(f"{Fore.RED}{Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
 
 def load_blacklist(filename):
     """
@@ -64,12 +64,12 @@ def load_blacklist(filename):
                 if word:
                     blacklist.append(word)
     except FileNotFoundError:
-        print_warning_message(f"Ignorelist file '{filename}' not found.", "🚫")
+        print_warning_message(f"Ignorelist file '{filename}' not found.")
         print_info_message("An ignorelist file helps filter out unwanted words or phrases from transcriptions.")
         
         # Ask user if they want to create the file
         try:
-            user_input = input(f"\n{Fore.YELLOW}📝 Would you like to create an ignorelist file at '{filename}'? (y/n): {Style.RESET_ALL}").lower().strip()
+            user_input = input(f"\n{Fore.YELLOW}Would you like to create an ignorelist file at '{filename}'? (y/n): {Style.RESET_ALL}").lower().strip()
             
             if user_input == 'y' or user_input == 'yes':
                 try:
@@ -387,8 +387,8 @@ def add_phrase_to_blocklist(phrase: str, blocklist_path: str | None) -> bool:
         if blocklist_path in _blocklist_mtime:
             del _blocklist_mtime[blocklist_path]
 
-        print_info_message(f"Auto-added phrase to blocklist: '{phrase}'", "🚫")
+        print_info_message(f"Auto-added phrase to blocklist: '{phrase}'")
         return False # Indicates the phrase was newly added
     except Exception as e:
-        print_error_message(f"Could not add phrase to blocklist: {e}", "❌")
+        print_error_message(f"Could not add phrase to blocklist: {e}")
         return False

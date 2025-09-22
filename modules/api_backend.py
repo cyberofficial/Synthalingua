@@ -88,7 +88,7 @@ def watchdog_monitor():
     while not force_shutdown_flag:
         try:
             if not os.path.exists(PID_FILE):
-                print("🚨 PID file deleted - Force shutting down Flask server!")
+                print("PID file deleted - Force shutting down Flask server!")
                 force_shutdown_server()
                 break
             time.sleep(2)  # Check every 2 seconds
@@ -102,7 +102,7 @@ def force_shutdown_server():
     force_shutdown_flag = True
     
     if server_thread and server_thread.is_alive():
-        print("💀 Force killing Flask server...")
+        print(" Force killing Flask server...")
         try:
             # Set shutdown flag
             server_thread.shutdown_event.set()
@@ -119,7 +119,7 @@ def force_shutdown_server():
             
             # If still alive, we need to force kill the process
             if server_thread.is_alive():
-                print("⚡ Server thread still alive, using OS kill...")
+                print(" Server thread still alive, using OS kill...")
                 try:
                     # Get current process ID and kill it
                     import psutil
@@ -138,7 +138,7 @@ def force_shutdown_server():
         except Exception as e:
             print(f"Error during force shutdown: {e}")
         
-        print("✅ Flask server force shutdown complete!")
+        print("Flask server force shutdown complete!")
 
 # Global state instance
 state = HeaderState()
@@ -324,7 +324,7 @@ class FlaskServerThread(Thread):
                                     ssl_context=ssl_context)
             print(f"Starting Flask Server on port: {self.port}")
             print(f"You can access the server at http{'s' if ssl_context else ''}://localhost:{self.port}")
-            print(f"💡 To force shutdown the server, delete the '{PID_FILE}' file")
+            print(f" To force shutdown the server, delete the '{PID_FILE}' file")
             
             while not self.shutdown_event.is_set() and not force_shutdown_flag:
                 try:
@@ -374,7 +374,7 @@ def kill_server():
     """Force shutdown the server using PID file mechanism."""
     global server_thread
     if server_thread and server_thread.is_alive():
-        print("🔥 Initiating server shutdown...")
+        print("Initiating server shutdown...")
         
         # First try graceful shutdown by deleting PID file
         remove_pid_file()
@@ -384,18 +384,18 @@ def kill_server():
         
         # If still running, force it
         if server_thread.is_alive():
-            print("⚡ Server still running, forcing shutdown...")
+            print("Server still running, forcing shutdown...")
             force_shutdown_server()
         
         # Wait for thread to finish
         server_thread.join(timeout=2)
         
         if not server_thread.is_alive():
-            print("✅ Server shutdown complete!")
+            print("Server shutdown complete!")
         else:
-            print("⚠️ Server may still be running in background")
+            print("Server may still be running in background")
     else:
-        print("ℹ️ No server running")
+        print("No server running")
         # Clean up PID file just in case
         remove_pid_file()
         remove_pid_file()

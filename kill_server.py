@@ -24,7 +24,7 @@ PID_FILE = "server.pid"
 def kill_server():
     """Force kill the server by deleting the PID file."""
     if not os.path.exists(PID_FILE):
-        print("❌ No server PID file found. Server may not be running.")
+        print(" No server PID file found. Server may not be running.")
         return False
     
     try:
@@ -37,14 +37,14 @@ def kill_server():
         
         # Check if PID file was recreated (server still running)
         if os.path.exists(PID_FILE):
-            print("⚠️ Server may still be running (PID file recreated)")
+            print(" Server may still be running (PID file recreated)")
             return False
         else:
-            print("✅ Server shutdown complete!")
+            print(" Server shutdown complete!")
             return True
             
     except Exception as e:
-        print(f"❌ Error killing server: {e}")
+        print(f" Error killing server: {e}")
         return False
 
 def check_server_status():
@@ -56,10 +56,10 @@ def check_server_status():
             print(f"🟢 Server appears to be running (PID: {pid})")
             return True
         except Exception as e:
-            print(f"⚠️ PID file exists but couldn't read it: {e}")
+            print(f" PID file exists but couldn't read it: {e}")
             return False
     else:
-        print("🔴 Server not running (no PID file)")
+        print(" Server not running (no PID file)")
         return False
 
 def main():
@@ -70,12 +70,12 @@ def main():
     is_running = check_server_status()
     
     if not is_running:
-        print("\nℹ️ No action needed - server is not running.")
+        print("\n No action needed - server is not running.")
         return
     
     # Ask for confirmation
-    print(f"\n💀 This will force kill the Synthalingua web server.")
-    print("⚠️ WARNING: This will immediately terminate the server!")
+    print(f"\n This will force kill the Synthalingua web server.")
+    print(" WARNING: This will immediately terminate the server!")
     
     try:
         response = input("\nContinue? (y/N): ").strip().lower()
@@ -83,10 +83,10 @@ def main():
             success = kill_server()
             sys.exit(0 if success else 1)
         else:
-            print("❌ Operation cancelled.")
+            print(" Operation cancelled.")
             sys.exit(0)
     except KeyboardInterrupt:
-        print("\n❌ Operation cancelled.")
+        print("\n Operation cancelled.")
         sys.exit(0)
 
 if __name__ == "__main__":
