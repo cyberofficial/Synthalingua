@@ -62,11 +62,22 @@
             width: min(95vw, 1280px);
             height: min(95vh, 720px);
             border: none;
-            border-radius: 12px;
+            border-radius: 0px;
             box-shadow: 
                 0 20px 40px rgba(0, 0, 0, 0.3),
                 0 0 0 1px rgba(255, 255, 255, 0.1);
             transition: all 0.3s ease;
+        }
+
+        #video-container.viewport-fit iframe {
+            width: 100vw;
+            height: 100vh;
+            box-shadow: none;
+        }
+
+        #video-container.viewport-fit {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(2px);
         }
 
         #video-container iframe:hover {
@@ -292,6 +303,60 @@
             font-size: 14px;
         }
 
+        /* Toggle switch styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 25px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            border-radius: 25px;
+            transition: 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 19px;
+            width: 19px;
+            left: 2px;
+            bottom: 2px;
+            background: linear-gradient(145deg, #64b5f6, #42a5f5);
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked + .toggle-slider {
+            background: linear-gradient(145deg, #42a5f5, #64b5f6);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(25px);
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-slider:hover {
+            box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+        }
+
         /* No stream message */
         #nostream {
             position: fixed;
@@ -410,6 +475,17 @@
                     <span class="range-value" id="width-value">50%</span>
                 </div>
             </div>
+
+            <div class="control-group">
+                <label>Video Display</label>
+                <div class="control-row">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="viewport-fit">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="range-value">Fit Viewport</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -434,12 +510,16 @@
         const captionPositionInput = document.getElementById("caption-position");
         const opacityInput = document.getElementById("opacity");
         const captionWidthInput = document.getElementById("caption-width");
+        const viewportFitInput = document.getElementById("viewport-fit");
 
         // Value display elements
         const fontSizeValue = document.getElementById("font-size-value");
         const positionValue = document.getElementById("position-value");
         const opacityValue = document.getElementById("opacity-value");
         const widthValue = document.getElementById("width-value");
+
+        // Video container for viewport fit
+        const videoContainer = document.getElementById("video-container");
 
         // Modal controls
         settingsButton.addEventListener("click", () => {
@@ -491,6 +571,15 @@
             widthValue.textContent = captionWidth;
         };
 
+        // Viewport fit toggle functionality
+        const toggleViewportFit = () => {
+            if (viewportFitInput.checked) {
+                videoContainer.classList.add("viewport-fit");
+            } else {
+                videoContainer.classList.remove("viewport-fit");
+            }
+        };
+
         // Add event listeners for real-time updates
         bgColorInput.addEventListener("input", updateCaptions);
         textColorInput.addEventListener("input", updateCaptions);
@@ -498,9 +587,11 @@
         captionPositionInput.addEventListener("input", updateCaptions);
         opacityInput.addEventListener("input", updateCaptions);
         captionWidthInput.addEventListener("input", updateCaptions);
+        viewportFitInput.addEventListener("change", toggleViewportFit);
 
         // Initialize with default values
         updateCaptions();
+        toggleViewportFit();
     </script>
 </body>
 
