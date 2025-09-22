@@ -20,6 +20,7 @@ from modules.file_handlers import resolve_cookie_file_path, cleanup_temp_cookie_
 import simpleaudio as sa
 import wave
 import threading
+from urllib.parse import urlparse
 
 
 # Define a constant variable for valid language choices
@@ -201,7 +202,15 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     
     # Determine format selection method
     # YouTube live streams don't support "bestaudio", use format 94 (highest quality with audio)
-    if "youtube.com" in args.stream or "youtu.be" in args.stream:
+    # Parse stream URL and get domain for safe checking
+    parsed_url = urlparse(args.stream)
+    hostname = parsed_url.hostname or ""
+    # Check if the hostname matches youtube domains only
+    if (
+        hostname == "youtube.com"
+        or hostname.endswith(".youtube.com")
+        or hostname == "youtu.be"
+    ):
         selected_format = "94"  # YouTube live stream format with best quality audio
     else:
         selected_format = "bestaudio"  # default for other platforms
