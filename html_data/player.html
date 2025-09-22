@@ -117,6 +117,19 @@
             line-height: 1.2;
         }
 
+        /* Individual caption positioning for stacking */
+        #header-text, #header-text-1 {
+            bottom: 125px; /* Original text at bottom */
+        }
+
+        #translated-header, #translated-header-1 {
+            bottom: 185px; /* Translation stacked above original */
+        }
+
+        #transcribed-header, #transcribed-header-1 {
+            bottom: 245px; /* Transcription at the top */
+        }
+
         .header-item:hover {
             transform: translateX(-50%) translateY(-2px);
             box-shadow: 
@@ -357,6 +370,89 @@
             box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
         }
 
+        /* Caption toggle styling */
+        .caption-toggles {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .caption-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .caption-label {
+            color: #e0e0e0;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        /* URL Generation Styling */
+        .url-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .url-output {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .url-output input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #ffffff;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .url-output input:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+        }
+
+        .copy-btn {
+            background: linear-gradient(145deg, #64b5f6, #42a5f5);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .copy-btn.copied {
+            background: linear-gradient(145deg, #4caf50, #45a049);
+        }
+
+        .url-note {
+            font-size: 12px;
+            color: #b0b0b0;
+            margin: 0;
+            text-align: center;
+        }
+
         /* No stream message */
         #nostream {
             position: fixed;
@@ -381,7 +477,19 @@
             .header-item {
                 width: 90%;
                 font-size: 20px;
+            }
+
+            /* Adjust stacked positioning for mobile */
+            #header-text, #header-text-1 {
                 bottom: 80px;
+            }
+
+            #translated-header, #translated-header-1 {
+                bottom: 130px;
+            }
+
+            #transcribed-header, #transcribed-header-1 {
+                bottom: 180px;
             }
 
             .modal-content {
@@ -453,7 +561,7 @@
             </div>
 
             <div class="control-group">
-                <label>Position from Bottom</label>
+                <label>Base Position from Bottom</label>
                 <div class="control-row">
                     <input type="range" id="caption-position" min="20" max="400" value="125">
                     <span class="range-value" id="position-value">125px</span>
@@ -477,6 +585,33 @@
             </div>
 
             <div class="control-group">
+                <label>Caption Visibility</label>
+                <div class="caption-toggles">
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-original" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Original Text</span>
+                    </div>
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-translation" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Translation</span>
+                    </div>
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-transcription" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Transcription</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <label>Video Display</label>
                 <div class="control-row">
                     <label class="toggle-switch">
@@ -485,6 +620,16 @@
                     </label>
                     <span class="range-value">Fit Viewport</span>
                 </div>
+            </div>
+
+            <!-- URL Generation Section -->
+            <div class="control-group url-section">
+                <label>🔗 Save Settings as URL</label>
+                <div class="url-output">
+                    <input type="text" id="generated-url" readonly placeholder="Your custom URL will appear here...">
+                    <button id="copy-url" class="copy-btn">📋 Copy</button>
+                </div>
+                <p class="url-note">Copy this URL to bookmark your custom player settings!</p>
             </div>
         </div>
     </div>
@@ -512,6 +657,11 @@
         const captionWidthInput = document.getElementById("caption-width");
         const viewportFitInput = document.getElementById("viewport-fit");
 
+        // Caption visibility toggles
+        const showOriginalInput = document.getElementById("show-original");
+        const showTranslationInput = document.getElementById("show-translation");
+        const showTranscriptionInput = document.getElementById("show-transcription");
+
         // Value display elements
         const fontSizeValue = document.getElementById("font-size-value");
         const positionValue = document.getElementById("position-value");
@@ -520,6 +670,10 @@
 
         // Video container for viewport fit
         const videoContainer = document.getElementById("video-container");
+
+        // URL generation elements
+        const generatedUrlInput = document.getElementById("generated-url");
+        const copyUrlBtn = document.getElementById("copy-url");
 
         // Modal controls
         settingsButton.addEventListener("click", () => {
@@ -542,7 +696,7 @@
             const bgColor = bgColorInput.value;
             const textColor = textColorInput.value;
             const fontSize = fontSizeInput.value + "px";
-            const captionPosition = captionPositionInput.value + "px";
+            const basePosition = parseInt(captionPositionInput.value);
             const opacity = opacityInput.value / 100;
             const captionWidth = captionWidthInput.value + "%";
 
@@ -552,23 +706,62 @@
             const b = parseInt(bgColor.slice(5, 7), 16);
             const bgColorWithOpacity = `rgba(${r}, ${g}, ${b}, ${opacity})`;
 
-            // Apply to all caption elements
-            const allHeaders = [headerText, translatedHeader, transcribedHeader, headerText1, translatedHeader1, transcribedHeader1];
-            allHeaders.forEach(header => {
-                if (header) {
-                    header.style.background = `linear-gradient(145deg, ${bgColorWithOpacity}, rgba(${r+20}, ${g+20}, ${b+20}, ${opacity-0.1}))`;
-                    header.style.color = textColor;
-                    header.style.fontSize = fontSize;
-                    header.style.bottom = captionPosition;
-                    header.style.width = captionWidth;
-                }
+            // Apply styling to all caption elements with stacked positioning
+            const allHeaders = [
+                { elements: [headerText, headerText1], offset: 0 }, // Original at base position
+                { elements: [translatedHeader, translatedHeader1], offset: 60 }, // Translation 60px higher
+                { elements: [transcribedHeader, transcribedHeader1], offset: 120 } // Transcription 120px higher
+            ];
+
+            allHeaders.forEach(group => {
+                group.elements.forEach(header => {
+                    if (header) {
+                        header.style.background = `linear-gradient(145deg, ${bgColorWithOpacity}, rgba(${r+20}, ${g+20}, ${b+20}, ${opacity-0.1}))`;
+                        header.style.color = textColor;
+                        header.style.fontSize = fontSize;
+                        header.style.bottom = (basePosition + group.offset) + "px";
+                        header.style.width = captionWidth;
+                    }
+                });
             });
 
             // Update value displays
             fontSizeValue.textContent = fontSize;
-            positionValue.textContent = captionPosition;
+            positionValue.textContent = basePosition + "px";
             opacityValue.textContent = Math.round(opacity * 100) + "%";
             widthValue.textContent = captionWidth;
+        };
+
+        // Caption visibility toggle functionality
+        const toggleCaptionVisibility = () => {
+            // Toggle original text captions
+            if (showOriginalInput.checked) {
+                headerText.classList.remove("hidden");
+                headerText1.classList.remove("hidden");
+            } else {
+                headerText.classList.add("hidden");
+                headerText1.classList.add("hidden");
+            }
+
+            // Toggle translation captions
+            if (showTranslationInput.checked) {
+                translatedHeader.classList.remove("hidden");
+                translatedHeader1.classList.remove("hidden");
+            } else {
+                translatedHeader.classList.add("hidden");
+                translatedHeader1.classList.add("hidden");
+            }
+
+            // Toggle transcription captions
+            if (showTranscriptionInput.checked) {
+                transcribedHeader.classList.remove("hidden");
+                transcribedHeader1.classList.remove("hidden");
+            } else {
+                transcribedHeader.classList.add("hidden");
+                transcribedHeader1.classList.add("hidden");
+            }
+
+            updateGeneratedURL();
         };
 
         // Viewport fit toggle functionality
@@ -578,20 +771,192 @@
             } else {
                 videoContainer.classList.remove("viewport-fit");
             }
+            updateGeneratedURL();
+        };
+
+        // Generate URL with current settings
+        const updateGeneratedURL = () => {
+            const params = new URLSearchParams(window.location.search);
+            const newParams = new URLSearchParams();
+
+            // Preserve video source parameters
+            if (params.get('videosource')) newParams.set('videosource', params.get('videosource'));
+            if (params.get('id')) newParams.set('id', params.get('id'));
+            if (params.get('darkmode')) newParams.set('darkmode', params.get('darkmode'));
+
+            // Add current settings
+            const fontSize = fontSizeInput.value;
+            const bgColor = bgColorInput.value;
+            const textColor = textColorInput.value;
+            const position = captionPositionInput.value;
+            const opacity = opacityInput.value;
+            const width = captionWidthInput.value;
+            const viewportFit = viewportFitInput.checked;
+            const showOriginal = showOriginalInput.checked;
+            const showTranslation = showTranslationInput.checked;
+            const showTranscription = showTranscriptionInput.checked;
+
+            // Handle caption visibility - only add parameters if not showing all (default behavior)
+            const allCaptionsVisible = showOriginal && showTranslation && showTranscription;
+            if (!allCaptionsVisible) {
+                if (showOriginal) newParams.set('showoriginal', 'true');
+                if (showTranslation) newParams.set('showtranslation', 'true');
+                if (showTranscription) newParams.set('showtranscription', 'true');
+            }
+
+            // Only add parameters that differ from defaults
+            if (fontSize !== '28') newParams.set('fontsize', fontSize);
+            if (bgColor !== '#000000') newParams.set('captionbg', bgColor);
+            if (textColor !== '#ffffff') newParams.set('textcolor', textColor);
+            if (position !== '125') newParams.set('captionposition', position);
+            if (opacity !== '70') newParams.set('captionopacity', opacity);
+            if (width !== '50') newParams.set('captionwidth', width);
+            if (viewportFit) newParams.set('viewportfit', 'true');
+
+            // Generate the URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const queryString = newParams.toString();
+            const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+            
+            generatedUrlInput.value = fullUrl;
+        };
+
+        // Copy URL to clipboard
+        const copyToClipboard = async () => {
+            try {
+                await navigator.clipboard.writeText(generatedUrlInput.value);
+                copyUrlBtn.textContent = '✅ Copied!';
+                copyUrlBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyUrlBtn.textContent = '📋 Copy';
+                    copyUrlBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                generatedUrlInput.select();
+                document.execCommand('copy');
+                copyUrlBtn.textContent = '✅ Copied!';
+                copyUrlBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyUrlBtn.textContent = '📋 Copy';
+                    copyUrlBtn.classList.remove('copied');
+                }, 2000);
+            }
+        };
+
+        // Combined update function
+        const updateAll = () => {
+            updateCaptions();
+            updateGeneratedURL();
+        };
+
+        // Initialize all settings from URL parameters
+        const initializeFromURL = () => {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Initialize font size
+            const fontSizeParam = params.get("fontsize");
+            if (fontSizeParam) {
+                const fontSize = parseFloat(fontSizeParam);
+                if (!isNaN(fontSize) && fontSize >= 12 && fontSize <= 60) {
+                    fontSizeInput.value = fontSize;
+                }
+            }
+            
+            // Initialize background color
+            const captionBgParam = params.get("captionbg");
+            if (captionBgParam) {
+                const decodedColor = decodeURIComponent(captionBgParam);
+                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^[a-zA-Z]+$/;
+                if (colorRegex.test(decodedColor)) {
+                    bgColorInput.value = decodedColor.startsWith('#') ? decodedColor : '#000000';
+                }
+            }
+            
+            // Initialize text color
+            const textColorParam = params.get("textcolor");
+            if (textColorParam) {
+                const decodedColor = decodeURIComponent(textColorParam);
+                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^[a-zA-Z]+$/;
+                if (colorRegex.test(decodedColor)) {
+                    textColorInput.value = decodedColor.startsWith('#') ? decodedColor : '#ffffff';
+                }
+            }
+            
+            // Initialize caption position
+            const captionPositionParam = params.get("captionposition");
+            if (captionPositionParam) {
+                const position = parseFloat(captionPositionParam);
+                if (!isNaN(position) && position >= 20 && position <= 400) {
+                    captionPositionInput.value = position;
+                }
+            }
+            
+            // Initialize opacity
+            const captionOpacityParam = params.get("captionopacity");
+            if (captionOpacityParam) {
+                const opacity = parseFloat(captionOpacityParam);
+                if (!isNaN(opacity) && opacity >= 0 && opacity <= 100) {
+                    opacityInput.value = opacity;
+                }
+            }
+            
+            // Initialize caption width
+            const captionWidthParam = params.get("captionwidth");
+            if (captionWidthParam) {
+                const width = parseFloat(captionWidthParam);
+                if (!isNaN(width) && width >= 20 && width <= 95) {
+                    captionWidthInput.value = width;
+                }
+            }
+            
+            // Initialize viewport fit
+            const viewportFitParam = params.get("viewportfit");
+            if (viewportFitParam && viewportFitParam.toLowerCase() === "true") {
+                viewportFitInput.checked = true;
+            }
+            
+            // Initialize caption visibility
+            const showOriginal = params.has("showoriginal");
+            const showTranslation = params.has("showtranslation");
+            const showTranscription = params.has("showtranscription");
+
+            // If no specific parameters are set, show all captions (default behavior)
+            if (!showOriginal && !showTranslation && !showTranscription) {
+                showOriginalInput.checked = true;
+                showTranslationInput.checked = true;
+                showTranscriptionInput.checked = true;
+            } else {
+                // Set toggles based on URL parameters
+                showOriginalInput.checked = showOriginal;
+                showTranslationInput.checked = showTranslation;
+                showTranscriptionInput.checked = showTranscription;
+            }
+            
+            // Apply all settings
+            updateCaptions();
+            toggleViewportFit();
+            toggleCaptionVisibility();
         };
 
         // Add event listeners for real-time updates
-        bgColorInput.addEventListener("input", updateCaptions);
-        textColorInput.addEventListener("input", updateCaptions);
-        fontSizeInput.addEventListener("input", updateCaptions);
-        captionPositionInput.addEventListener("input", updateCaptions);
-        opacityInput.addEventListener("input", updateCaptions);
-        captionWidthInput.addEventListener("input", updateCaptions);
+        bgColorInput.addEventListener("input", updateAll);
+        textColorInput.addEventListener("input", updateAll);
+        fontSizeInput.addEventListener("input", updateAll);
+        captionPositionInput.addEventListener("input", updateAll);
+        opacityInput.addEventListener("input", updateAll);
+        captionWidthInput.addEventListener("input", updateAll);
         viewportFitInput.addEventListener("change", toggleViewportFit);
+        showOriginalInput.addEventListener("change", toggleCaptionVisibility);
+        showTranslationInput.addEventListener("change", toggleCaptionVisibility);
+        showTranscriptionInput.addEventListener("change", toggleCaptionVisibility);
+        copyUrlBtn.addEventListener("click", copyToClipboard);
 
-        // Initialize with default values
-        updateCaptions();
-        toggleViewportFit();
+        // Initialize with default values and URL parameters
+        initializeFromURL();
+        updateGeneratedURL();
     </script>
 </body>
 
