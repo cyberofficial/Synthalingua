@@ -11,6 +11,7 @@ from colorama import Fore, Back, Style, init
 import sys
 import time
 import os
+from modules.version_checker import version
 
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
@@ -83,6 +84,7 @@ def contributors(ScriptCreator, GitHubRepo):
     print_banner()
       # Project Information Section
     print_section_header("PROJECT INFORMATION", "🚀")
+    print_info_line("Version", f"v{version}", Fore.CYAN)
     print_info_line("Created by", ScriptCreator, Fore.MAGENTA)
     print_info_line("License", "AGPLv3 (GNU Affero General Public License v3)", Fore.GREEN)
     print_info_line("Repository", GitHubRepo, Fore.BLUE)
