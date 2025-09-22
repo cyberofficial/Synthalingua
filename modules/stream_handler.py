@@ -200,7 +200,11 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
             print(f" Using cookie file: {cookie_file_path}")
     
     # Determine format selection method
-    selected_format = "bestaudio"  # default
+    # YouTube live streams don't support "bestaudio", use format 94 (highest quality with audio)
+    if "youtube.com" in args.stream or "youtu.be" in args.stream:
+        selected_format = "94"  # YouTube live stream format with best quality audio
+    else:
+        selected_format = "bestaudio"  # default for other platforms
     
     if hasattr(args, 'selectsource') and args.selectsource is not None:
         if args.selectsource == 'interactive':
