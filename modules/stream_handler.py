@@ -61,26 +61,26 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
     Returns:
         str: Selected format ID or format string
     """
-    print("\ Fetching available streams...")
+    print("\n Fetching available streams...")
     stream_info = get_available_streams(stream_url, cookie_file_path, cookies_from_browser)
     
     if not stream_info:
         print(" Could not fetch stream information. Using default audio format.")
         return "bestaudio"
     
-    print("\ Available Audio Streams:")
+    print("\n Available Audio Streams:")
     print("=" * 80)
     print(stream_info)
     print("=" * 80)
     
-    print("\ Common audio format suggestions:")
+    print("\n Common audio format suggestions:")
     print("  • 'bestaudio' - Best available audio quality")
     print("  • 'worst' - Lowest bandwidth option")
     print("  • '140' - YouTube medium quality audio (m4a)")
     print("  • '139' - YouTube low quality audio (m4a)")
     print("  • '251' - YouTube high quality audio (webm)")
     print("  • Or enter any format ID from the list above")
-    print("\  If you experience playback starting from the beginning of the live stream instead\n" \
+    print("\n  If you experience playback starting from the beginning of the live stream instead\n" \
     "of the current live point, you may have selected a DVR (recorded) source instead of a\n" \
     "true live stream source. Please try choosing a different source/format for real-time streaming.")
     
