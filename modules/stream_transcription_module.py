@@ -43,14 +43,14 @@ from modules.file_handlers import is_phrase_in_blocklist, add_phrase_to_blocklis
 init(autoreset=True)
 
 # Console formatting helper functions
-def print_styled_header(title, icon="🎤", color=Fore.CYAN, width=80):
-    """Print a styled header with border and icon."""
+def print_styled_header(title, color=Fore.CYAN, width=80):
+    """Print a styled header with border."""
     border = "═" * (width - 4)
     print(f"{color}╔{border}╗")
-    padding = (width - len(title) - len(icon) - 6) // 2
+    padding = (width - len(title) - 4) // 2
     left_pad = " " * padding
-    right_pad = " " * (width - len(title) - len(icon) - 6 - padding)
-    print(f"{color}║ {icon} {Style.BRIGHT}{title}{Style.RESET_ALL}{color}{left_pad}{right_pad} ║")
+    right_pad = " " * (width - len(title) - 4 - padding)
+    print(f"{color}║ {Style.BRIGHT}{title}{Style.RESET_ALL}{color}{left_pad}{right_pad} ║")
     print(f"{color}╚{border}╝{Style.RESET_ALL}")
 
 def print_transcription_result(language, content, result_type="Original"):
@@ -58,19 +58,15 @@ def print_transcription_result(language, content, result_type="Original"):
     import textwrap
     
     if result_type == "Original":
-        icon = "🗣️"
         color = Fore.GREEN
         title = f"{language} {result_type}"
     elif result_type == "Translation":
-        icon = "🌐"
         color = Fore.BLUE
         title = f"EN {result_type}"
     elif result_type == "Transcription":
-        icon = "📝"
         color = Fore.MAGENTA
         title = f"{language} {result_type}"
     else:
-        icon = "💬"
         color = Fore.YELLOW
         title = result_type
 
@@ -79,7 +75,7 @@ def print_transcription_result(language, content, result_type="Original"):
     min_width = 50
     
     # Calculate width based on title and content, but cap at max_width
-    title_width = len(f"{icon} {title}") + 4
+    title_width = len(title) + 4
     content_width = len(content) + 4
     box_width = max(min_width, min(max_width, title_width, content_width))
     
@@ -91,11 +87,11 @@ def print_transcription_result(language, content, result_type="Original"):
     if not wrapped_lines:  # Handle empty content
         wrapped_lines = [""]
     
-    title_padding = box_width - len(f"{icon} ") - 4
+    title_padding = box_width - len(title) - 4
 
     # Print the box
     print(f"\n{color}┌{'─' * box_width}┐")
-    print(f"│ {icon} {Style.BRIGHT}{title:<{title_padding}}{Style.RESET_ALL}{color} │")
+    print(f"│ {Style.BRIGHT}{title:<{title_padding}}{Style.RESET_ALL}{color} │")
     print(f"├{'─' * box_width}┤")
     
     # Print each wrapped line
@@ -104,29 +100,29 @@ def print_transcription_result(language, content, result_type="Original"):
     
     print(f"└{'─' * box_width}┘{Style.RESET_ALL}\n")
 
-def print_info_message(message, icon="ℹ️"):
+def print_info_message(message):
     """Print an info message with styling."""
-    print(f"{Fore.CYAN}{icon} {Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
+    print(f"{Fore.CYAN}{Style.BRIGHT}[INFO]{Style.RESET_ALL} {message}")
 
-def print_warning_message(message, icon="⚠️"):
+def print_warning_message(message):
     """Print a warning message with styling."""
-    print(f"{Fore.YELLOW}{icon} {Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
+    print(f"{Fore.YELLOW}{Style.BRIGHT}[WARNING]{Style.RESET_ALL} {message}")
 
-def print_error_message(message, icon="❌"):
+def print_error_message(message):
     """Print an error message with styling."""
-    print(f"{Fore.RED}{icon} {Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
+    print(f"{Fore.RED}{Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
 
-def print_debug_message(message, icon="🔍"):
+def print_debug_message(message):
     """Print a debug message with styling."""
-    print(f"{Fore.LIGHTBLACK_EX}{icon} {Style.DIM}[DEBUG]{Style.RESET_ALL} {Fore.LIGHTBLACK_EX}{message}{Style.RESET_ALL}")
+    print(f"{Fore.LIGHTBLACK_EX}{Style.DIM}[DEBUG]{Style.RESET_ALL} {Fore.LIGHTBLACK_EX}{message}{Style.RESET_ALL}")
 
-def print_success_message(message, icon="✅"):
+def print_success_message(message):
     """Print a success message with styling."""
-    print(f"{Fore.GREEN}{icon} {Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
+    print(f"{Fore.GREEN}{Style.BRIGHT}[SUCCESS]{Style.RESET_ALL} {message}")
 
-def print_progress_message(message, icon="⏳"):
+def print_progress_message(message):
     """Print a progress message with styling."""
-    print(f"{Fore.BLUE}{icon} {Style.BRIGHT}[PROGRESS]{Style.RESET_ALL} {message}")
+    print(f"{Fore.BLUE}{Style.BRIGHT}[PROGRESS]{Style.RESET_ALL} {message}")
 
 # Global shutdown flag
 shutdown_flag = False
@@ -165,10 +161,10 @@ def check_and_clean_temp(temp_dir):
         
     files = os.listdir(temp_dir)
     if files:
-        print_warning_message("Leftover files found in temp directory.", "🗂️")
+        print_warning_message("Leftover files found in temp directory.")
         print_info_message("This usually happens if the program didn't close properly.")
         print_info_message("Remember to use 'Ctrl+C' in the console to close the program properly.")
-        user_input = input(f"\n{Fore.YELLOW}🧹 Would you like to clean the temp directory? (y/n): {Style.RESET_ALL}").lower()
+        user_input = input(f"\n{Fore.YELLOW}Would you like to clean the temp directory? (y/n): {Style.RESET_ALL}").lower()
         
         if user_input == 'y':
             print_progress_message("Cleaning temp directory...")
@@ -310,7 +306,7 @@ def start_stream_transcription(
                         # time.sleep(segment_delay)  # Optional delay
                         return True
                     elif response.status_code == 401:
-                        print_error_message("Invalid credentials. Please check your cookies/streamkey and try again.", "🔐")
+                        print_error_message("Invalid credentials. Please check your cookies/streamkey and try again.")
                         input(f"{Fore.RED}Press CTRL+C to exit...{Style.RESET_ALL}")
                         kill = True
                         raise Exception("Exiting due to invalid credentials")
@@ -345,7 +341,7 @@ def start_stream_transcription(
                         print_error_message(f"Unexpected error downloading segment: {e}")
                         break
 
-            print_error_message(f"Failed to download segment {segment_url} after {max_retries} retries. Skipping.", "⏭️")
+            print_error_message(f"Failed to download segment {segment_url} after {max_retries} retries. Skipping.")
             # Clean up partial file if exists
             if os.path.exists(output_path):
                 os.remove(output_path)
@@ -584,7 +580,7 @@ def start_stream_transcription(
         if getattr(args, 'isolate_vocals', False):
             try:
                 if args.debug:
-                    print_info_message("🔄 Isolating vocals from HLS chunk using Demucs... This may take additional time.")
+                    print_info_message(" Isolating vocals from HLS chunk using Demucs... This may take additional time.")
                 with tempfile.TemporaryDirectory() as tmpdir:
                     demucs_python_path = get_demucs_python_path()
                     demucs_cmd = [
@@ -650,7 +646,7 @@ def start_stream_transcription(
                                     shutil.copy2(src_file, os.path.join(dest_dir, file))
                             processed_audio_path = os.path.join(dest_dir, 'vocals.wav')
                             if args.debug:
-                                print_success_message(f"✅ Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
+                                print_success_message(f" Vocal isolation complete. Using isolated vocals for transcription. Split files saved to {dest_dir}")
                                 print_info_message(f"Using vocals file: {processed_audio_path}")
             except Exception as e:
                 print_error_message(f"Vocal isolation failed: {str(e)}")
@@ -791,49 +787,49 @@ def start_stream_transcription(
     processing_thread.daemon = True
     processing_thread.start()    # --- Auto HLS Adjustment Feature ---
     if getattr(args, 'auto_hls', False):
-        print_styled_header("Auto HLS Adjustment", "⚙️", Fore.YELLOW, 76)
-        print_info_message("Sampling the stream to determine segment duration...", "🔍")
+        print_styled_header("Auto HLS Adjustment", Fore.YELLOW, 76)
+        print_info_message("Sampling the stream to determine segment duration...")
         m3u8_obj = load_m3u8_with_retry(hls_url)
         if m3u8_obj and m3u8_obj.segments:
             first_segment = m3u8_obj.segments[0]
             segment_duration = getattr(first_segment, 'duration', None)
             if segment_duration is not None:
-                print_success_message(f"Detected segment duration: {segment_duration:.2f} seconds", "📊")
-                print_info_message(f"Current chunk size (segments per batch): {segments_max}", "📦")
-                print_info_message(f"Each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio", "⏱️")
+                print_success_message(f"Detected segment duration: {segment_duration:.2f} seconds")
+                print_info_message(f"Current chunk size (segments per batch): {segments_max}")
+                print_info_message(f"Each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio")
                 if args.paddedaudio and args.paddedaudio > 0:
-                    print_info_message(f"Each batch will include ~{args.paddedaudio * segment_duration:.2f} seconds of padded audio making the total ~{(segments_max + args.paddedaudio) * segment_duration:.2f} seconds", "🎧")
+                    print_info_message(f"Each batch will include ~{args.paddedaudio * segment_duration:.2f} seconds of padded audio making the total ~{(segments_max + args.paddedaudio) * segment_duration:.2f} seconds")
                 user_input = input(f"{Fore.CYAN}🔧 Would you like to set a new chunk size? (y/n): {Style.RESET_ALL}").strip().lower()
                 if user_input == 'y':
                     while True:
                         try:
-                            new_chunk = int(input(f"{Fore.CYAN}📝 Enter new chunk size (number of segments per batch): {Style.RESET_ALL}").strip())
+                            new_chunk = int(input(f"{Fore.CYAN} Enter new chunk size (number of segments per batch): {Style.RESET_ALL}").strip())
                             if new_chunk > 0:
                                 est_time = new_chunk * segment_duration
                                 # if padded audio is enabled, account for padding
                                 if args.paddedaudio and args.paddedaudio > 0:
                                     est_time += args.paddedaudio * segment_duration
-                                    print_info_message("Padded audio will be included in the chunk duration", "🎧")
-                                print_info_message(f"If chunk size is {new_chunk}, each batch will cover ~{est_time:.2f} seconds", "📏")
-                                confirm = input(f"{Fore.YELLOW}✅ Confirm this chunk size? (y to confirm, n to set again, c to cancel): {Style.RESET_ALL}").strip().lower()
+                                    print_info_message("Padded audio will be included in the chunk duration")
+                                print_info_message(f"If chunk size is {new_chunk}, each batch will cover ~{est_time:.2f} seconds")
+                                confirm = input(f"{Fore.YELLOW} Confirm this chunk size? (y to confirm, n to set again, c to cancel): {Style.RESET_ALL}").strip().lower()
                                 if confirm == 'y':
                                     segments_max = new_chunk
-                                    print_success_message(f"Chunk size set to {segments_max} (covers ~{segments_max * segment_duration:.2f} seconds per batch)", "🎯")
+                                    print_success_message(f"Chunk size set to {segments_max} (covers ~{segments_max * segment_duration:.2f} seconds per batch)")
                                     break
                                 elif confirm == 'c':
-                                    print_info_message("Keeping existing chunk size", "📌")
+                                    print_info_message("Keeping existing chunk size")
                                     break
                                 # else loop again for new input
                             else:
-                                print_warning_message("Please enter a positive integer", "⚠️")
+                                print_warning_message("Please enter a positive integer")
                         except ValueError:
-                            print_error_message("Invalid input. Please enter a number", "❌")
+                            print_error_message("Invalid input. Please enter a number")
                 else:
-                    print_info_message("Keeping existing chunk size", "📌")
+                    print_info_message("Keeping existing chunk size")
             else:
-                print_warning_message("Could not determine segment duration. Proceeding with default chunk size", "⚠️")
+                print_warning_message("Could not determine segment duration. Proceeding with default chunk size")
         else:
-            print_error_message("Could not load playlist or no segments found. Proceeding with default chunk size", "❌")    # Main loop for downloading and combining segments
+            print_error_message("Could not load playlist or no segments found. Proceeding with default chunk size")    # Main loop for downloading and combining segments
     try:
         downloaded_segments = set()
         counter = 0
@@ -844,7 +840,7 @@ def start_stream_transcription(
         while not shutdown_flag:
             m3u8_obj = load_m3u8_with_retry(hls_url)
             if not m3u8_obj:
-                print_error_message("Failed to load m3u8 after retries, stopping", "🛑")
+                print_error_message("Failed to load m3u8 after retries, stopping")
                 break
 
             # Get total segments and calculate starting point
@@ -932,15 +928,15 @@ def start_stream_transcription(
                             combined_files_in_queue.append(combined_path)
                             if args.debug:
                                 if len(combined_files_in_queue) > MAX_COMBINED_FILES:
-                                    print_warning_message("More than 5 combined files are waiting to be processed", "⚡")
-                                    print_warning_message("This may indicate that your GPU cannot keep up with transcription load", "🖥️")
-                                    print_info_message("Consider using a smaller model or increasing processing power", "💡")
+                                    print_warning_message("More than 5 combined files are waiting to be processed")
+                                    print_warning_message("This may indicate that your GPU cannot keep up with transcription load")
+                                    print_info_message("Consider using a smaller model or increasing processing power")
 
                             audio_queue.put(combined_path)
                             
                             accumulated_segments = []
                 except Exception as e:  # Catch the raised exception
-                    print_error_message(f"Error during download: {e}", "💥")
+                    print_error_message(f"Error during download: {e}")
                     break  # Exit the loop
 
     except KeyboardInterrupt:
@@ -976,7 +972,7 @@ def stop_transcription():
     shutdown_flag = True
 
 
-print(f"{Fore.GREEN}✅ Stream Transcription Module Loaded{Style.RESET_ALL}")
+print(f"{Fore.GREEN}Stream Transcription Module Loaded{Style.RESET_ALL}")
 
 # Track repeated blocked phrases for auto-blocking (rolling window)
 blocked_phrase_history = {

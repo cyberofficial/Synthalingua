@@ -109,13 +109,13 @@ class DownloadManager:
 
             print(f"{Path(filename).name} downloaded successfully.")
         except requests.exceptions.RequestException as e:
-            print(f"\n❌ Error downloading {Path(filename).name}: {e}")
+            print(f"\n Error downloading {Path(filename).name}: {e}")
             raise # Re-raise the exception to be caught by the caller
         except IOError as e:
-            print(f"\n❌ Error writing file {filename}: {e}")
+            print(f"\n Error writing file {filename}: {e}")
             raise # Re-raise the exception to be caught by the caller
         except Exception as e:
-            print(f"\n❌ An unexpected error occurred during download: {e}")
+            print(f"\n An unexpected error occurred during download: {e}")
             raise # Re-raise the exception to be caught by the caller
 
     @staticmethod
@@ -196,7 +196,7 @@ class EnvironmentSetup:
                     print("p7zip installation verified.")
                     return '7z'
                 except FileNotFoundError:
-                    print("❌ p7zip still not found. Please install it manually.")
+                    print(" p7zip still not found. Please install it manually.")
                     return None
         
         # Windows-specific 7zr.exe handling
@@ -242,11 +242,11 @@ class EnvironmentSetup:
                 self.downloader.download_file(self.config.SEVEN_ZIP_URL, str(seven_zip_path))
                 return str(seven_zip_path)
             except requests.exceptions.RequestException as e:
-                print(f"\n❌ Error downloading 7zr.exe: {e}")
+                print(f"\n Error downloading 7zr.exe: {e}")
                 print("Please check your internet connection or try providing your own 7zr.exe.")
                 return None
         else:
-            print("❌ No download URL configured for this platform.")
+            print(" No download URL configured for this platform.")
             return None
 
     def setup_ffmpeg(self, seven_zip_exec: str, force_download: bool = False) -> Optional[Path]:
@@ -343,11 +343,11 @@ class EnvironmentSetup:
 
                 return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
             except (requests.exceptions.RequestException, FileNotFoundError) as e:
-                print(f"\n❌ Error setting up FFmpeg: {e}")
+                print(f"\n Error setting up FFmpeg: {e}")
                 print("Please check your internet connection or try providing your own FFmpeg.")
                 return None
             except subprocess.CalledProcessError as e:
-                print(f"\n❌ Error extracting FFmpeg archive: {e}")
+                print(f"\n Error extracting FFmpeg archive: {e}")
                 print(f"Command: {' '.join(e.cmd)}")
                 print(f"Return Code: {e.returncode}")
                 if e.stdout:
@@ -357,7 +357,7 @@ class EnvironmentSetup:
                 print("Please check the error messages and try again.")
                 return None
             except Exception as e:
-                print(f"\n❌ An unexpected error occurred during FFmpeg setup: {e}")
+                print(f"\n An unexpected error occurred during FFmpeg setup: {e}")
                 return None
         else:
             print("FFmpeg folder already exists, skipping download and extraction.")
@@ -446,7 +446,7 @@ class EnvironmentSetup:
                                 subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
                                 print("yt-dlp updated to the latest version.")
                             except subprocess.CalledProcessError as e:
-                                print(f"\n❌ Warning: Failed to auto-update yt-dlp: {e}")
+                                print(f"\n Warning: Failed to auto-update yt-dlp: {e}")
                                 print(f"Command: {' '.join(e.cmd)}")
                                 print(f"Return Code: {e.returncode}")
                                 if e.stdout:
@@ -454,9 +454,9 @@ class EnvironmentSetup:
                                 if e.stderr:
                                     print(f"Stderr:\n{e.stderr.decode()}")
                             except FileNotFoundError as e:
-                                print(f"\n❌ Warning: Could not find yt-dlp executable to update: {e}")
+                                print(f"\n Warning: Could not find yt-dlp executable to update: {e}")
                             except Exception as e:
-                                print(f"\n❌ An unexpected error occurred during yt-dlp update: {e}")
+                                print(f"\n An unexpected error occurred during yt-dlp update: {e}")
                             break
                         elif update_choice in ("no", "n"):
                             print("Skipping yt-dlp update check.")
@@ -465,11 +465,11 @@ class EnvironmentSetup:
                             print("Please answer 'yes' or 'no'.")
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
-                print(f"\n❌ Error setting up yt-dlp: {e}")
+                print(f"\n Error setting up yt-dlp: {e}")
                 print("Please check your internet connection or try providing your own yt-dlp.")
                 return None
             except Exception as e:
-                print(f"\n❌ An unexpected error occurred during yt-dlp setup: {e}")
+                print(f"\n An unexpected error occurred during yt-dlp setup: {e}")
                 return None
         else:
             print("yt-dlp folder already exists, skipping download.")
@@ -532,7 +532,7 @@ class EnvironmentSetup:
             try:
                 Path(miniconda_install_path).parent.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                print(f"\n❌ Error creating parent directory for Miniconda installation: {e}")
+                print(f"\n Error creating parent directory for Miniconda installation: {e}")
                 print(f"Please ensure you have write permissions to {Path(miniconda_install_path).parent}.")
                 return False
             
@@ -556,7 +556,7 @@ class EnvironmentSetup:
             try:
                 Path(miniconda_install_path).parent.mkdir(parents=True, exist_ok=True)
             except OSError as e:
-                print(f"\n❌ Error creating parent directory for Miniconda installation: {e}")
+                print(f"\n Error creating parent directory for Miniconda installation: {e}")
                 print(f"Please ensure you have write permissions to {Path(miniconda_install_path).parent}.")
                 return False
             
@@ -573,24 +573,24 @@ class EnvironmentSetup:
             result = subprocess.run(command, check=True, capture_output=True, text=True, env=env)
             print("Miniconda installation completed.")
             if Path(miniconda_install_path).exists():
-                print(f"✅ Miniconda successfully installed to: {Path(miniconda_install_path).resolve()}")
+                print(f" Miniconda successfully installed to: {Path(miniconda_install_path).resolve()}")
                 return True
             else:
-                print(f"❌ ERROR: Miniconda installation directory not found at: {Path(miniconda_install_path).resolve()}")
+                print(f" ERROR: Miniconda installation directory not found at: {Path(miniconda_install_path).resolve()}")
                 print("Please check the installer output for details.")
                 return False
         except FileNotFoundError:
-             print(f"\n❌ Error: Miniconda installer not found at {installer_path}.")
+             print(f"\n Error: Miniconda installer not found at {installer_path}.")
              print("Please ensure the installer file exists.")
              return False
         except subprocess.CalledProcessError as e:
-            print(f"\n❌ Error installing miniconda. Exit code: {e.returncode}")
+            print(f"\n Error installing miniconda. Exit code: {e.returncode}")
             print(f"Command: {' '.join(e.cmd)}")
             if e.stdout:
                 print(f"Installer stdout:\n{e.stdout}")
             if e.stderr:
                 print(f"Installer stderr:\n{e.stderr}")
-            print("\n💡 Suggestions:")
+            print("\n Suggestions:")
             if self.config.OS_TYPE == 'windows':
                 print("   1. Check for leftover Miniconda/Anaconda installations or registry keys.")
             else:
@@ -598,7 +598,7 @@ class EnvironmentSetup:
             print(f"   2. Make sure you have write permissions to {Path(miniconda_install_path).parent}.")
             return False
         except Exception as e:
-            print(f"\n❌ An unexpected error occurred during Miniconda installation: {e}")
+            print(f"\n An unexpected error occurred during Miniconda installation: {e}")
             return False
 
     def _get_conda_exe(self) -> Optional[str]:
@@ -628,7 +628,7 @@ class EnvironmentSetup:
         import re
         conda_exe = self._get_conda_exe()
         if not conda_exe:
-            print("❌ Error: conda executable not found. Cannot create environment.")
+            print(" Error: conda executable not found. Cannot create environment.")
             return False
         def try_create():
             return subprocess.run([conda_exe, 'create', '-n', 'data_whisper', 'python=3.12', '-y'], check=True, capture_output=True, text=True)
@@ -638,7 +638,7 @@ class EnvironmentSetup:
             print("data_whisper environment created successfully.")
             return True
         except FileNotFoundError:
-            print(f"\n❌ Error: conda executable not found at {conda_exe}.")
+            print(f"\n Error: conda executable not found at {conda_exe}.")
             print("Please ensure Miniconda is installed correctly and the path is accessible.")
             return False
         except subprocess.CalledProcessError as e:
@@ -673,13 +673,13 @@ class EnvironmentSetup:
                         print("data_whisper environment created successfully after ToS acceptance.")
                         return True
                     except subprocess.CalledProcessError as e3:
-                        print(f"\n❌ Error creating data_whisper environment after ToS acceptance. Exit code: {e3.returncode}")
+                        print(f"\n Error creating data_whisper environment after ToS acceptance. Exit code: {e3.returncode}")
                         print(f"Command: {' '.join(e3.cmd)}")
                         if e3.stdout:
                             print(f"Stdout:\n{e3.stdout}")
                         if e3.stderr:
                             print(f"Stderr:\n{e3.stderr}")
-                        print("\n💡 Suggestions:")
+                        print("\n Suggestions:")
                         print("   1. Check if an environment with the same name already exists.")
                         print("   2. Check your internet connection.")
                         return False
@@ -689,25 +689,25 @@ class EnvironmentSetup:
                         print(f'    "{conda_exe}" tos accept --override-channels --channel {ch}')
                     print("Then re-run the setup script.")
                     return False
-            print(f"\n❌ Error creating data_whisper environment. Exit code: {e.returncode}")
+            print(f"\n Error creating data_whisper environment. Exit code: {e.returncode}")
             print(f"Command: {' '.join(e.cmd)}")
             if e.stdout:
                 print(f"Stdout:\n{e.stdout}")
             if e.stderr:
                 print(f"Stderr:\n{e.stderr}")
-            print("\n💡 Suggestions:")
+            print("\n Suggestions:")
             print("   1. Check if an environment with the same name already exists.")
             print("   2. Check your internet connection.")
             return False
         except Exception as e:
-            print(f"\n❌ An unexpected error occurred during environment creation: {e}")
+            print(f"\n An unexpected error occurred during environment creation: {e}")
             return False
 
     def install_demucs_in_env(self) -> bool:
         """Install demucs package in the data_whisper environment with appropriate PyTorch version."""
         conda_exe = self._get_conda_exe()
         if not conda_exe:
-            print("❌ Error: conda executable not found. Cannot install packages.")
+            print(" Error: conda executable not found. Cannot install packages.")
             return False
 
         # Ask user about their preferred device for Synthalingua processing
@@ -809,7 +809,7 @@ class EnvironmentSetup:
             # Capture stdout and stderr for better error reporting
             result = subprocess.run([conda_exe, 'install', '-n', 'data_whisper', '-c', 'conda-forge', 'libsndfile', 'ffmpeg', '-y'], capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"\n⚠️  Warning: Could not install conda audio packages. Exit code: {result.returncode}")
+                print(f"\n  Warning: Could not install conda audio packages. Exit code: {result.returncode}")
                 print(f"Command: {' '.join(result.args)}")
                 if result.stdout:
                     print(f"Stdout:\n{result.stdout}")
@@ -822,7 +822,7 @@ class EnvironmentSetup:
             # Capture stdout and stderr for better error reporting
             result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'pip', 'install', 'soundfile', 'librosa'], capture_output=True, text=True)
             if result.returncode != 0:
-                print(f"\n⚠️  Warning: Could not install additional audio backends. Exit code: {result.returncode}")
+                print(f"\n  Warning: Could not install additional audio backends. Exit code: {result.returncode}")
                 print(f"Command: {' '.join(result.args)}")
                 if result.stdout:
                     print(f"Stdout:\n{result.stdout}")
@@ -838,23 +838,23 @@ class EnvironmentSetup:
                 result = subprocess.run([conda_exe, 'run', '-n', 'data_whisper', 'python', '-c', 'import torch; print(f"CUDA available: {torch.cuda.is_available()}")'], check=True, capture_output=True, text=True)
                 print(result.stdout.strip())
                 if "CUDA available: False" in result.stdout:
-                    print("⚠️  Warning: CUDA not detected. You may need to:")
+                    print("  Warning: CUDA not detected. You may need to:")
                     print("   - Install NVIDIA drivers")
                     print("   - Install CUDA toolkit")
                     print("   - Use --device cpu when running Synthalingua")
                 else:
-                    print("✅ CUDA detected! Use --device cuda when running Synthalingua for best performance.")
+                    print(" CUDA detected! Use --device cuda when running Synthalingua for best performance.")
             else:
-                print("ℹ️  PyTorch configured for CPU processing.")
+                print(" PyTorch configured for CPU processing.")
                 print("   Use --device cpu when running Synthalingua (default behavior).")
 
             return True
         except FileNotFoundError:
-            print(f"\n❌ Error: conda executable not found at {conda_exe}. Cannot install packages.")
+            print(f"\n Error: conda executable not found at {conda_exe}. Cannot install packages.")
             print("Please ensure Miniconda is installed correctly and the path is accessible.")
             return False
         except subprocess.CalledProcessError as e:
-            print(f"\n❌ Error installing packages in data_whisper environment. Exit code: {e.returncode}")
+            print(f"\n Error installing packages in data_whisper environment. Exit code: {e.returncode}")
             print(f"Command: {' '.join(e.cmd)}")
             if e.stdout:
                 print(f"Stdout:\n{e.stdout}")
@@ -863,7 +863,7 @@ class EnvironmentSetup:
             print("Please check the error messages and your internet connection.")
             return False
         except Exception as e:
-            print(f"\n❌ An unexpected error occurred during package installation: {e}")
+            print(f"\n An unexpected error occurred during package installation: {e}")
             return False
 
     def install_demucs_system_python(self) -> bool:
@@ -962,28 +962,28 @@ class EnvironmentSetup:
             result = subprocess.run(['pip', 'install', 'soundfile', 'librosa'], check=True, capture_output=True, text=True)
             print("Audio libraries installation completed successfully.")
 
-            print("✅ Vocal isolation setup with system Python completed successfully!")
+            print(" Vocal isolation setup with system Python completed successfully!")
             return True
 
         except FileNotFoundError:
-            print("\n❌ Error: pip not found. Please ensure pip is installed and available in your PATH.")
+            print("\n Error: pip not found. Please ensure pip is installed and available in your PATH.")
             print("You may need to install it with: sudo apt-get install python3-pip (Ubuntu/Debian)")
             return False
         except subprocess.CalledProcessError as e:
-            print(f"\n❌ Error installing packages. Exit code: {e.returncode}")
+            print(f"\n Error installing packages. Exit code: {e.returncode}")
             print(f"Command: {' '.join(e.cmd)}")
             if e.stdout:
                 print(f"Stdout:\n{e.stdout}")
             if e.stderr:
                 print(f"Stderr:\n{e.stderr}")
-            print("\n💡 Suggestions:")
+            print("\n Suggestions:")
             print("   1. Check your internet connection")
             print("   2. Make sure you have sufficient disk space")
             print("   3. Try upgrading pip: pip install --upgrade pip")
             print("   4. Consider using a virtual environment if you have package conflicts")
             return False
         except Exception as e:
-            print(f"\n❌ An unexpected error occurred during package installation: {e}")
+            print(f"\n An unexpected error occurred during package installation: {e}")
             return False
 
     def setup_vocal_isolation(self) -> None:
@@ -1236,12 +1236,12 @@ def main() -> None:
             setup_vocal = input("Would you like to set up vocal isolation (demucs) along with the basic tools? (yes/no): ").strip().lower()
             if setup_vocal in ("yes", "y"):
                 args.using_vocal_isolation = True
-                print("✅ Vocal isolation will be included in the setup.")
-                print("⚠️  Note: Vocal isolation setup will require approximately 8GB of disk space")
+                print(" Vocal isolation will be included in the setup.")
+                print("  Note: Vocal isolation setup will require approximately 8GB of disk space")
                 print("   (Miniconda + PyTorch + Demucs + audio libraries)")
                 break
             elif setup_vocal in ("no", "n"):
-                print("ℹ️  Setting up basic tools only. You can add vocal isolation later with --using_vocal_isolation")
+                print(" Setting up basic tools only. You can add vocal isolation later with --using_vocal_isolation")
                 break
             else:
                 print("Please answer 'yes' or 'no'.")
@@ -1268,15 +1268,15 @@ def main() -> None:
                     miniconda_path = Path(default_path)
                     break
                 elif agree in ('no', 'n'):
-                    print("\n⚠️  It is strongly recommended to use the default installation path for Miniconda.")
+                    print("\n  It is strongly recommended to use the default installation path for Miniconda.")
                     print("   Changing the location is not recommended unless absolutely necessary.")
                     print("   If you must choose a custom location, make sure the path contains NO SPACES.")
                     print("   Paths with spaces can cause installation and runtime errors with Miniconda and other tools.")
-                    print("   📁 Note: A 'miniconda' folder will be created inside your chosen directory.")
+                    print("    Note: A 'miniconda' folder will be created inside your chosen directory.")
                     while True:
                         custom_path = input("Please enter a custom base directory for Miniconda installation (NO SPACES): ").strip()
                         if ' ' in custom_path:
-                            print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
+                            print(" Path cannot contain spaces. Please try again with a path that has NO SPACES.")
                             continue
                         if not custom_path:
                             print("Path cannot be empty. Please try again.")
@@ -1308,9 +1308,9 @@ def main() -> None:
                 choice = input("Which option do you prefer? (system/miniconda): ").strip().lower()
                 if choice in ("system", "sys", "1"):
                     use_system_python = True
-                    print("✅ Using system Python environment.")
-                    print("📦 Packages will be installed to your current Python environment.")
-                    print("💡 Make sure you have Python 3.8+ and pip available.")
+                    print(" Using system Python environment.")
+                    print(" Packages will be installed to your current Python environment.")
+                    print(" Make sure you have Python 3.8+ and pip available.")
                     print()
                     # Verify Python version
                     try:
@@ -1319,7 +1319,7 @@ def main() -> None:
                         current_version = f"{python_version.major}.{python_version.minor}.{python_version.micro}"
                         
                         if python_version.major == 3 and python_version.minor >= 8:
-                            print(f"✅ Python {current_version} detected - compatible!")
+                            print(f" Python {current_version} detected - compatible!")
                             
                             # Provide specific recommendations based on platform
                             if platform.system().lower() == 'windows':
@@ -1340,20 +1340,20 @@ def main() -> None:
                                 else:
                                     print(f"   Recommendation: Python 3.12.x is recommended for best compatibility.")
                         else:
-                            print(f"⚠️  Python {current_version} detected.")
+                            print(f"  Python {current_version} detected.")
                             print("   Demucs requires Python 3.8+. Please upgrade if you encounter issues.")
                             if platform.system().lower() == 'windows':
                                 print("   Recommended: Python 3.12.10 for Windows")
                             else:
                                 print("   Recommended: Python 3.12.x for Linux/macOS")
                     except Exception as e:
-                        print(f"⚠️  Could not verify Python version: {e}")
+                        print(f"  Could not verify Python version: {e}")
                     break
                 elif choice in ("miniconda", "conda", "mini", "2"):
                     use_system_python = False
                     default_path = os.path.expanduser('~/bin/Synthalingua/miniconda')
-                    print("✅ Using Miniconda for isolated environment.")
-                    print(f"📁 Default installation path: {default_path}")
+                    print(" Using Miniconda for isolated environment.")
+                    print(f" Default installation path: {default_path}")
                     
                     while True:
                         agree = input("Install Miniconda to the default path? (yes/no): ").strip().lower()
@@ -1361,13 +1361,13 @@ def main() -> None:
                             miniconda_path = Path(default_path)
                             break
                         elif agree in ('no', 'n'):
-                            print("\n⚠️  Custom paths are not recommended unless necessary.")
+                            print("\n  Custom paths are not recommended unless necessary.")
                             print("   Make sure the path contains NO SPACES.")
-                            print("   📁 Note: A 'miniconda' folder will be created inside your chosen directory.")
+                            print("    Note: A 'miniconda' folder will be created inside your chosen directory.")
                             while True:
                                 custom_path = input("Please enter a custom base directory for Miniconda installation (NO SPACES): ").strip()
                                 if ' ' in custom_path:
-                                    print("❌ Path cannot contain spaces. Please try again with a path that has NO SPACES.")
+                                    print(" Path cannot contain spaces. Please try again with a path that has NO SPACES.")
                                     continue
                                 if not custom_path:
                                     print("Path cannot be empty. Please try again.")
@@ -1446,7 +1446,7 @@ def main() -> None:
                         shutil.rmtree(path)
                         print(f"Successfully removed folder: {path}")
                     except OSError as e:
-                        print(f"❌ Error removing folder {path}: {e}")
+                        print(f" Error removing folder {path}: {e}")
                         print("Please ensure you have the necessary permissions to delete this folder.")
                 else:
                     print(f"Attempting to remove file: {path}")
@@ -1454,7 +1454,7 @@ def main() -> None:
                         path.unlink()
                         print(f"Successfully removed file: {path}")
                     except OSError as e:
-                        print(f"❌ Error removing file {path}: {e}")
+                        print(f" Error removing file {path}: {e}")
                         print("Please ensure you have the necessary permissions to delete this file.")
         print("Finished attempting to remove selected tool folders/files.")
 
@@ -1470,7 +1470,7 @@ def main() -> None:
             config_file_path.unlink()
             print(f"Successfully removed config file: {config_file_path}")
         except OSError as e:
-            print(f"❌ Error removing config file {config_file_path}: {e}")
+            print(f" Error removing config file {config_file_path}: {e}")
             print("Please ensure you have the necessary permissions to delete this file.")
 
     # Determine if FFmpeg and yt-dlp should be force downloaded
