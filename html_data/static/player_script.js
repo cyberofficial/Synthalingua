@@ -176,4 +176,35 @@ document.addEventListener("DOMContentLoaded", function() {
             });
         }
     }
+
+    // Check for caption position parameter
+    const captionPositionParam = params.get("captionposition");
+    if (captionPositionParam) {
+        const position = parseFloat(captionPositionParam);
+        if (!isNaN(position) && position >= 0) {
+            headerItems.forEach(item => {
+                item.style.bottom = position + "px";
+            });
+        }
+    }
+
+    // Check for caption width parameter
+    const captionWidthParam = params.get("captionwidth");
+    if (captionWidthParam) {
+        const width = parseFloat(captionWidthParam);
+        if (!isNaN(width) && width > 0 && width <= 100) {
+            headerItems.forEach(item => {
+                item.style.width = width + "%";
+            });
+        }
+    }
+
+    // Check for viewport fit parameter
+    const viewportFitParam = params.get("viewportfit");
+    if (viewportFitParam && viewportFitParam.toLowerCase() === "true") {
+        const videoContainerElement = document.getElementById("video-container");
+        if (videoContainerElement) {
+            videoContainerElement.classList.add("viewport-fit");
+        }
+    }
 });
