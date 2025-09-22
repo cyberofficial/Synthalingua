@@ -629,7 +629,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             print(f"   • {Fore.YELLOW}  No workload reduction - consider adjusting threshold for better efficiency{Style.RESET_ALL}")
         
         # Show detailed breakdown of regions with dB levels
-        print(f"\n{Fore.CYAN}🔊 Audio Level Analysis:{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}Audio Level Analysis:{Style.RESET_ALL}")
         
         for i, region in enumerate(merged_regions):
             region_type = region['type']

@@ -113,7 +113,7 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
             os.makedirs(temp_dir, exist_ok=True)
             wav_path = test_stream_source(hls_url, temp_dir, cookie_file_path=cookie_file_path, preview_seconds=10)
             if wav_path:
-                print(f"\n🎧 Preview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
+                print(f"\nPreview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
                 played = False
                 duration = None
                 try:
@@ -121,7 +121,7 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
                         frames = wf.getnframes()
                         rate = wf.getframerate()
                         duration = frames / float(rate)
-                    print(f"🔊 Audio duration: {duration:.2f} seconds")
+                    print(f"Audio duration: {duration:.2f} seconds")
                 except Exception as e:
                     print(f"{Fore.YELLOW}Could not determine audio duration: {e}{Style.RESET_ALL}")
                 # Move the info message before playback
