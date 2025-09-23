@@ -695,7 +695,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             return merged_regions
         
         while True:
-            print(f"\n{Fore.CYAN}🔧 Detection Review:{Style.RESET_ALL}")
+            print(f"\n{Fore.CYAN} Detection Review:{Style.RESET_ALL}")
             print(f"   Do you want to:")
             print(f"   1. {Fore.GREEN}Proceed with current detection{Style.RESET_ALL}")
             print(f"   2. {Fore.YELLOW}Adjust threshold settings and re-analyze{Style.RESET_ALL}")
@@ -3456,9 +3456,9 @@ def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[st
         safe_subtitle_path = safe_subtitle_path.replace(']', '\\]')
         
         # Debug: Print the paths being used
-        print(f"{Fore.YELLOW}🔧 Debug: Original subtitle path: {subtitle_path}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}🔧 Debug: Temp subtitle path: {temp_subtitle_path}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}🔧 Debug: Safe escaped path for FFmpeg: {safe_subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW} Debug: Original subtitle path: {subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW} Debug: Temp subtitle path: {temp_subtitle_path}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW} Debug: Safe escaped path for FFmpeg: {safe_subtitle_path}{Style.RESET_ALL}")
         
         # Use single quotes around the path parameter as recommended by FFmpeg docs
         subtitle_filter_parts = [f"subtitles='{safe_subtitle_path}'"]

@@ -117,7 +117,7 @@ def list_audio_devices():
 
 def test_audio_device(device_index):
     """Test if the audio device works properly."""
-    print(f"🔧 Testing device {device_index}...")
+    print(f" Testing device {device_index}...")
     try:
         p = pyaudio.PyAudio()
         
@@ -257,7 +257,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
         os.path.join(OUTPUT_DIR, PLAYLIST_NAME),
     ]
 
-    print(f"🔧 Starting FFmpeg with command: {' '.join(ffmpeg_command)}")
+    print(f" Starting FFmpeg with command: {' '.join(ffmpeg_command)}")
 
     try:
         ffmpeg_process = subprocess.Popen(

@@ -170,5 +170,5 @@ def send_error_notification(webhook_url, error_message):
         webhook_url (str): Discord webhook URL
         error_message (str): Error message to send
     """
-    formatted_message = f"💥 **System Error Occurred**\n```\n{error_message}\n```\n\n🔧 Please check the logs for more details."
+    formatted_message = f" **System Error Occurred**\n```\n{error_message}\n```\n\n Please check the logs for more details."
     send_to_discord_webhook(webhook_url, formatted_message, "error")
