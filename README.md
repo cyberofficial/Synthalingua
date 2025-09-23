@@ -433,9 +433,11 @@ Thank you for being part of this journey. Your belief in Synthalingua and its mi
 
 **Support via:**
 
-[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
+[<img width="60%" src="https://github.com/user-attachments/assets/c233f78b-7604-4044-9e45-82807f47a6d1" />](https://cyberofficial.itch.io/synthalingua)
 
 [<img src="https://i.imgur.com/ghRdIqe.png" alt="Support me on Ko-fi" width="200">](https://ko-fi.com/cyberofficial)
+
+<a href="https://github.com/sponsors/cyberofficial"><img src="https://i.imgur.com/SUiAvTY.png" alt="Sponsor cyberofficial on GitHub Sponsors" width="20%"></a>
 
 ---
 
