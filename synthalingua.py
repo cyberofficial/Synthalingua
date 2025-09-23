@@ -1,4 +1,8 @@
 import sys
+import warnings
+
+# Suppress the pkg_resources deprecation warning from ctranslate2
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API.*", category=UserWarning)
 
 # Check if this process is being launched as a worker for subtitle generation
 if '--run-worker' in sys.argv:
@@ -89,6 +93,12 @@ def main():
     if args.about:
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
+
+    # Handle update check and exit if requested
+    if args.checkupdate:
+        print(f"{Fore.CYAN}Checking for updates...{Style.RESET_ALL}")
+        check_for_updates()
+        sys.exit(0)
 
     # Handle microphone listing and exit if requested
     if args.list_microphones:
@@ -227,9 +237,9 @@ def main():
             # Run through all RAM options from 11gb-v3 backwards
             ram_options = ["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"]
             original_ram = args.ram  # Save original RAM setting            
-            print(f"🔄 Compare mode enabled - generating captions with all RAM models...")
-            print(f"📁 Output files will be saved to: {args.file_output}")
-            print(f"📝 Base filename: {args.file_output_name}")
+            print(f"Compare mode enabled - generating captions with all RAM models...")
+            print(f"Output files will be saved to: {args.file_output}")
+            print(f"Base filename: {args.file_output_name}")
             print()
             
             for i, ram_option in enumerate(ram_options):
@@ -239,17 +249,17 @@ def main():
                 
                 try:
                     run_sub_gen(args.file_input, model_output_name, args.file_output, ram_setting=ram_option)
-                    print(f"✅ Completed {ram_option} model - saved as '{model_output_name}'")
-                    print("🗑️ Model unloaded, VRAM/RAM freed for next model")
+                    print(f"Completed {ram_option} model - saved as '{model_output_name}'")
+                    print(" Model unloaded, VRAM/RAM freed for next model")
                 except Exception as e:
-                    print(f"❌ Error with {ram_option} model: {e}")
-                    print(f"⏭️  Continuing with next model...")
+                    print(f"Error with {ram_option} model: {e}")
+                    print(f"Continuing with next model...")
                 
                 print()
             
             args.ram = original_ram  # Restore original RAM setting
-            print("🎉 Compare mode completed! Check your output folder for all caption files.")
-            print("💡 Tip: Compare the different files to choose the best quality for your needs.")
+            print("Compare mode completed! Check your output folder for all caption files.")
+            print("Tip: Compare the different files to choose the best quality for your needs.")
         else:
             # Standard single model caption generation
             run_sub_gen(args.file_input, args.file_output_name, args.file_output)
@@ -290,7 +300,7 @@ def main():
                 break
 
     except KeyboardInterrupt:
-        print("\n🛑 Ctrl+C detected - Shutting down...")
+        print("\nCtrl+C detected - Shutting down...")
         
         # Stop the background processing queue
         transcription_core.stop_queue_processing()
@@ -316,8 +326,8 @@ def main():
         if args.portnumber:
             print("Shutting down web server...")
             api_backend.kill_server()
-        
-        print("✅ Shutdown complete!")
+
+        print("Shutdown complete!")
         sys.exit(0)
 
     except Exception as e:

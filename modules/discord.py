@@ -50,14 +50,14 @@ def send_to_discord_webhook(webhook_url, text, message_type="info"):
             response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
             
             if response.status_code == 429:
-                print(f"{Fore.YELLOW}⚠️ [WARNING]{Style.RESET_ALL} Discord webhook is being rate limited")
+                print(f"{Fore.YELLOW} [WARNING]{Style.RESET_ALL} Discord webhook is being rate limited")
             elif not response.ok:
-                print(f"{Fore.RED}❌ [ERROR]{Style.RESET_ALL} Failed to send message to Discord: {response.status_code} {response.text}")
+                print(f"{Fore.RED} [ERROR]{Style.RESET_ALL} Failed to send message to Discord: {response.status_code} {response.text}")
             else:
-                print(f"{Fore.GREEN}✅ [SUCCESS]{Style.RESET_ALL} Message sent to Discord webhook")
+                print(f"{Fore.GREEN} [SUCCESS]{Style.RESET_ALL} Message sent to Discord webhook")
                 
     except Exception as ex:
-        print(f"{Fore.RED}❌ [ERROR]{Style.RESET_ALL} Failed to send Discord webhook message: {ex}")
+        print(f"{Fore.RED} [ERROR]{Style.RESET_ALL} Failed to send Discord webhook message: {ex}")
 
 def format_discord_message(text, message_type="info"):
     """
@@ -76,34 +76,34 @@ def format_discord_message(text, message_type="info"):
         if "Original" in text:
             return f"🗣️ **Original Transcription**\n\n{text.replace('Stream', '').replace('Original:', '').strip()}\n"
         elif "Transcription" in text:
-            return f"📝 **Transcription**\n\n{text.replace('Stream', '').replace('Transcription:', '').strip()}\n"
+            return f" **Transcription**\n\n{text.replace('Stream', '').replace('Transcription:', '').strip()}\n"
         else:
-            return f"🎤 **Audio Transcription**\n\n{text}\n"
+            return f" **Audio Transcription**\n\n{text}\n"
     
     elif message_type == "translation":
-        return f"🌐 **Translation**\n\n{text.replace('Stream EN Translation:', '').strip()}\n"
+        return f" **Translation**\n\n{text.replace('Stream EN Translation:', '').strip()}\n"
     
     elif message_type == "success":
-        return f"✅ **Success** | {text}"
+        return f" **Success** | {text}"
     
     elif message_type == "warning":
-        return f"⚠️ **Warning** | {text}"
+        return f" **Warning** | {text}"
     
     elif message_type == "error":
-        return f"❌ **Error** | {text}"
+        return f" **Error** | {text}"
         
     elif message_type == "startup":
-        return f"🚀 **Synthalingua Started**\n{text}"
+        return f" **Synthalingua Started**\n{text}"
         
     elif message_type == "shutdown":
-        return f"🛑 **Service Stopped**\n{text}"
+        return f" **Service Stopped**\n{text}"
         
     elif message_type == "info":
-        return f"ℹ️ **Info** | {text}"
+        return f" **Info** | {text}"
     
     else:
         # Default formatting
-        return f"💬 {text}"
+        return f" {text}"
 
 def send_transcription_to_discord(webhook_url, language, content, result_type="Original"):
     """
@@ -120,7 +120,7 @@ def send_transcription_to_discord(webhook_url, language, content, result_type="O
         title = f"**{language} Translation**"
         message_type = "translation"
     elif result_type == "Transcription":
-        icon = "📝"
+        icon = ""
         title = f"**{language} Transcription**"
         message_type = "transcription"
     else:
@@ -141,10 +141,10 @@ def send_startup_notification(webhook_url, model_info, translation_enabled=False
         translation_enabled (bool): Whether translation is enabled
         stream_source (str, optional): The URL or identifier of the stream source
     """
-    translation_status = "🌐 **Translation: Enabled**" if translation_enabled else "🚫 **Translation: Disabled**"
+    translation_status = "🌐 **Translation: Enabled**" if translation_enabled else " **Translation: Disabled**"
     
     # Base message without stream source
-    message = f"🚀 **Synthalingua Service Started**\n\n🤖 **Model:** {model_info}\n{translation_status}\n\n📡 Ready to process audio streams!"
+    message = f" **Synthalingua Service Started**\n\n🤖 **Model:** {model_info}\n{translation_status}\n\n📡 Ready to process audio streams!"
     
     # Add stream source if provided
     if stream_source:
@@ -159,7 +159,7 @@ def send_shutdown_notification(webhook_url):
     Args:
         webhook_url (str): Discord webhook URL
     """
-    message = "🛑 **Synthalingua Service Stopped**\n\n✨ All processing complete. Service is now offline."
+    message = " **Synthalingua Service Stopped**\n\n✨ All processing complete. Service is now offline."
     send_to_discord_webhook(webhook_url, message, "shutdown")
 
 def send_error_notification(webhook_url, error_message):
@@ -170,5 +170,5 @@ def send_error_notification(webhook_url, error_message):
         webhook_url (str): Discord webhook URL
         error_message (str): Error message to send
     """
-    formatted_message = f"💥 **System Error Occurred**\n```\n{error_message}\n```\n\n🔧 Please check the logs for more details."
+    formatted_message = f" **System Error Occurred**\n```\n{error_message}\n```\n\n Please check the logs for more details."
     send_to_discord_webhook(webhook_url, formatted_message, "error")

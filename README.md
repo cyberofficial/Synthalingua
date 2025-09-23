@@ -150,6 +150,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | Flag | Description |
 |-----|-----|
 | `--about` | Show app info |
+| `--checkupdate` | Check for available updates from GitHub |
 | `--updatebranch` | Update branch (master/dev-testing/bleeding-under-work/disable) |
 | `--no_log` | Only show last line of output |
 | `--keep_temp` | Keep temp audio files |
@@ -435,15 +436,6 @@ Thank you for being part of this journey. Your belief in Synthalingua and its mi
 [<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
 
 [<img src="https://i.imgur.com/ghRdIqe.png" alt="Support me on Ko-fi" width="200">](https://ko-fi.com/cyberofficial)
-
----
-
-## Credits
-Developed proudly in PyCharm IDE from JetBrains
-[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
-[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
-
-JetBrains kindly provided an OSS license for this project, greatly improving development productivity. [Learn more](https://jb.gg/OpenSourceSupport?from=Synthalingua)
 
 ---
 

@@ -1,8 +1,13 @@
 import argparse
 import sys
 import os
+import warnings
 from colorama import Fore, Back, Style
 from modules.languages import get_valid_languages
+from modules.version_checker import version
+
+# Suppress the pkg_resources deprecation warning from ctranslate2
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API.*", category=UserWarning)
 
 # Define a constant variable for valid language choices
 VALID_LANGUAGES = get_valid_languages()
@@ -64,7 +69,7 @@ def valid_batchmode(value):
 def show_substyle_help():
     """Display comprehensive help information for the --substyle parameter."""
     print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}🎨 SUBTITLE STYLING HELP - --substyle Parameter{Style.RESET_ALL}")
+    print(f"{Fore.CYAN} SUBTITLE STYLING HELP - --substyle Parameter{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
     
     print(f"\n{Fore.YELLOW}OVERVIEW:{Style.RESET_ALL}")
@@ -103,23 +108,23 @@ def show_substyle_help():
     
     print(f"\n{Fore.YELLOW}EXAMPLES:{Style.RESET_ALL}")
     
-    print(f"\n{Fore.CYAN}📁 Custom Font with Size and Color:{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN} Custom Font with Size and Color:{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}python synthalingua --makecaptions --subtype burn --substyle \"FiraSans-Bold.otf,24,yellow\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses FiraSans-Bold font, 24pt size, yellow color")
     
-    print(f"\n{Fore.CYAN}🎯 Size and Color Only (System Default Font):{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN} Size and Color Only (System Default Font):{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"20,red\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses system default font, 20pt size, red color")
     
-    print(f"\n{Fore.CYAN}📝 Font and Size (Default Color):{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN} Font and Size (Default Color):{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"FiraSans-UltraLightItalic.otf,18\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses italic font, 18pt size, default white color")
     
-    print(f"\n{Fore.CYAN}🎨 Color Only (Default Font and Size):{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN} Color Only (Default Font and Size):{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"cyan\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Uses system default font and size, cyan color")
     
-    print(f"\n{Fore.CYAN}🔄 Flexible Parameter Order:{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN} Flexible Parameter Order:{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}synthalingua --makecaptions --subtype burn --substyle \"24,FiraSans-Bold.otf,green\" --file_input video.mp4{Style.RESET_ALL}")
     print(f"    ➤ Same as font,size,color but parameters in different order")
     
@@ -212,6 +217,8 @@ def set_model_by_ram(ram, language):
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="version", version=f"Synthalingua v{version}", help="Show the current version of Synthalingua and exit.")
+    parser.add_argument("--checkupdate", action='store_true', help="Check for available updates by comparing local version with the latest GitHub release. Shows current version, remote version, and whether an update is available, then exits. Useful for quickly checking if a newer version is available without running the main application.")
     parser.add_argument("--model_source", type=str.lower, default="whisper", help="AI model backend to use for transcription. 'whisper' uses OpenAI's original implementation (slowest, most compatible), 'fasterwhisper' uses optimized C++ implementation (fastest, recommended), 'openvino' uses Intel optimization for Intel hardware (good for Intel CPUs/GPUs).", choices=["whisper", "fasterwhisper", "openvino"])
     parser.add_argument("--ram", default="2gb", help="Model size based on VRAM/RAM requirements. Larger models are more accurate but slower: 1gb=tiny (fastest, least accurate), 2gb=base (good balance), 3gb=small, 6gb=medium, 7gb=turbo (fast large model), 11gb-v2/v3=large (most accurate, slowest). Choose based on your hardware capabilities.", choices=["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"])
     parser.add_argument("--word_timestamps", action='store_true', default=False, help="Generate word-level timestamps in subtitle files (SRT format). Only works with subtitle generation mode (--makecaptions), not with real-time microphone or streaming modes. Useful for precise subtitle timing and editing.")
@@ -321,7 +328,7 @@ def parse_arguments():
         (hasattr(args, 'auto_hls') and args.auto_hls)
     )
     if args.word_timestamps and (using_microphone or using_hls):
-        print(f"{Fore.YELLOW}⚠️  The --word_timestamps flag is only supported for subtitle generation (sub_gen). Please remove the redundant command flag as it serves no purpose in microphone or HLS modes.{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}  The --word_timestamps flag is only supported for subtitle generation (sub_gen). Please remove the redundant command flag as it serves no purpose in microphone or HLS modes.{Style.RESET_ALL}")
         exit(1)
 
     # Validate --subtype usage
