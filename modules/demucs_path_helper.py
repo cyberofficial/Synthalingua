@@ -19,7 +19,7 @@ def get_demucs_python_path():
             if user_path and os.path.exists(user_path) and user_path.lower().endswith('python.exe'):
                 return user_path
             else:
-                print(f"{Fore.YELLOW}⚠️  Saved data_whisper path in config is invalid: {user_path}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}  Saved data_whisper path in config is invalid: {user_path}{Style.RESET_ALL}")
     
     # 2. Check default local path
     local_path = os.path.join(project_root, 'data_whisper', 'Scripts', 'python.exe')
@@ -39,7 +39,7 @@ def get_demucs_python_path():
             # Save to config for future runs
             with open(config_path, 'w', encoding='utf-8') as f:
                 f.write(user_path)
-            print(f"{Fore.GREEN}✅ Saved data_whisper python path for future runs: {user_path}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN} Saved data_whisper python path for future runs: {user_path}{Style.RESET_ALL}")
             return user_path
         else:
-            print(f"{Fore.RED}❌ Invalid path. Please try again. Must be a valid python.exe file.{Style.RESET_ALL}")
+            print(f"{Fore.RED} Invalid path. Please try again. Must be a valid python.exe file.{Style.RESET_ALL}")

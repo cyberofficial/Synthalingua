@@ -1,5 +1,5 @@
 """
-🎨 Enhanced About Module for Synthalingua 🎨
+ Enhanced About Module for Synthalingua 
 
 This module provides a visually stunning display of project information,
 featuring ASCII art, gradient colors, and modern terminal styling.
@@ -11,6 +11,7 @@ from colorama import Fore, Back, Style, init
 import sys
 import time
 import os
+from modules.version_checker import version
 
 # Initialize colorama for Windows compatibility
 init(autoreset=True)
@@ -82,7 +83,8 @@ def contributors(ScriptCreator, GitHubRepo):
     # Display banner
     print_banner()
       # Project Information Section
-    print_section_header("PROJECT INFORMATION", "🚀")
+    print_section_header("PROJECT INFORMATION", "")
+    print_info_line("Version", f"v{version}", Fore.CYAN)
     print_info_line("Created by", ScriptCreator, Fore.MAGENTA)
     print_info_line("License", "AGPLv3 (GNU Affero General Public License v3)", Fore.GREEN)
     print_info_line("Repository", GitHubRepo, Fore.BLUE)
@@ -90,12 +92,12 @@ def contributors(ScriptCreator, GitHubRepo):
     print_info_line("Whisper URL", "https://github.com/openai/whisper", Fore.YELLOW)
     
     # Features Section
-    print_section_header("KEY FEATURES", "⚡")
+    print_section_header("KEY FEATURES", "")
     features = [
         "🎙️  Real-time audio transcription",
         "🌍  Multi-language translation support",
         "🔊  Live microphone input processing",
-        "📁  Audio file transcription",
+        "  Audio file transcription",
         "🌐  Web interface for easy access",
         "⚙️   Customizable settings and filters"
     ]
@@ -124,7 +126,7 @@ def contributors(ScriptCreator, GitHubRepo):
         print()
     
     # Footer
-    print_section_header("THANK YOU FOR USING SYNTHALINGUA!", "🎉")
+    print_section_header("THANK YOU FOR USING SYNTHALINGUA!", "")
     
     # Animated closing message
     closing_colors = [Fore.RED, Fore.YELLOW, Fore.GREEN, Fore.CYAN, Fore.BLUE, Fore.MAGENTA]

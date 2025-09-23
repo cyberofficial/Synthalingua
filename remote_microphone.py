@@ -109,7 +109,7 @@ def list_audio_devices():
     p.terminate()
     
     if not input_devices:
-        print("❌ No input devices found!")
+        print(" No input devices found!")
         return []
     
     return input_devices
@@ -117,7 +117,7 @@ def list_audio_devices():
 
 def test_audio_device(device_index):
     """Test if the audio device works properly."""
-    print(f"🔧 Testing device {device_index}...")
+    print(f" Testing device {device_index}...")
     try:
         p = pyaudio.PyAudio()
         
@@ -135,7 +135,7 @@ def test_audio_device(device_index):
         try:
             data = stream.read(CHUNK, exception_on_overflow=False)
             audio_level = get_audio_level(data)
-            print(f"✅ Device test successful! Current audio level: {audio_level}")
+            print(f" Device test successful! Current audio level: {audio_level}")
             
             stream.stop_stream()
             stream.close()
@@ -143,14 +143,14 @@ def test_audio_device(device_index):
             return True
             
         except Exception as e:
-            print(f"❌ Device test failed - could not read audio data: {e}")
+            print(f" Device test failed - could not read audio data: {e}")
             stream.stop_stream()
             stream.close()
             p.terminate()
             return False
             
     except Exception as e:
-        print(f"❌ Device test failed - could not open device: {e}")
+        print(f" Device test failed - could not open device: {e}")
         try:
             p.terminate()
         except:
@@ -160,7 +160,7 @@ def test_audio_device(device_index):
 def get_input_device_index(input_devices, config):
     """Get input device index with better UX and config persistence."""
     if not input_devices:
-        print("❌ No input devices available!")
+        print(" No input devices available!")
         return None
     
     # Try to use previously saved device
@@ -182,7 +182,7 @@ def get_input_device_index(input_devices, config):
     print("\n" + "="*60)
     print("DEVICE SELECTION")
     print("="*60)
-    print("📝 Tips for better audio quality:")
+    print(" Tips for better audio quality:")
     print("   • Choose devices with 'WASAPI' or 'DirectSound' host API")
     print("   • Avoid 'MME' host API when possible")
     print("   • Built-in microphones often work better than USB devices")
@@ -205,11 +205,11 @@ def get_input_device_index(input_devices, config):
                     save_config(config)
                     return device_index
                 else:
-                    print("❌ Device test failed. Please try another device.")
+                    print(" Device test failed. Please try another device.")
             else:
-                print("❌ Invalid device number. Please choose from the list above.")
+                print(" Invalid device number. Please choose from the list above.")
         except ValueError:
-            print("❌ Please enter a valid device number.")
+            print(" Please enter a valid device number.")
         except KeyboardInterrupt:
             print("\n👋 Goodbye!")
             return None
@@ -229,13 +229,13 @@ def capture_audio(device_index, enable_level_monitoring=True):
             input_device_index=device_index,
         )
     except Exception as e:
-        print(f"❌ Failed to open audio device {device_index}: {e}")
+        print(f" Failed to open audio device {device_index}: {e}")
         p.terminate()
         return
 
     print("🎤 Recording started...")
     if enable_level_monitoring:
-        print("📊 Audio level monitoring enabled (Ctrl+C to stop)")
+        print(" Audio level monitoring enabled (Ctrl+C to stop)")
 
     # Simplified FFmpeg command for better reliability
     ffmpeg_command = [
@@ -257,7 +257,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
         os.path.join(OUTPUT_DIR, PLAYLIST_NAME),
     ]
 
-    print(f"🔧 Starting FFmpeg with command: {' '.join(ffmpeg_command)}")
+    print(f" Starting FFmpeg with command: {' '.join(ffmpeg_command)}")
 
     try:
         ffmpeg_process = subprocess.Popen(
@@ -268,7 +268,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
             text=False
         )
     except Exception as e:
-        print(f"❌ Failed to start FFmpeg: {e}")
+        print(f" Failed to start FFmpeg: {e}")
         stream.stop_stream()
         stream.close()
         p.terminate()
@@ -276,7 +276,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
 
     # Check if stdin is properly initialized
     if ffmpeg_process.stdin is None:
-        print("❌ Failed to create FFmpeg process with stdin pipe")
+        print(" Failed to create FFmpeg process with stdin pipe")
         stream.stop_stream()
         stream.close()
         p.terminate()
@@ -299,7 +299,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
                     # FFmpeg has exited, get error information
                     try:
                         stdout, stderr = ffmpeg_process.communicate(timeout=1)
-                        print(f"\n❌ FFmpeg process died unexpectedly!")
+                        print(f"\n FFmpeg process died unexpectedly!")
                         print(f"Exit code: {ffmpeg_process.returncode}")
                         if stderr:
                             stderr_text = stderr.decode('utf-8', errors='ignore')
@@ -308,17 +308,17 @@ def capture_audio(device_index, enable_level_monitoring=True):
                             stdout_text = stdout.decode('utf-8', errors='ignore')
                             print(f"FFmpeg stdout: {stdout_text}")
                     except subprocess.TimeoutExpired:
-                        print(f"\n❌ FFmpeg process died and couldn't get error info")
+                        print(f"\n FFmpeg process died and couldn't get error info")
                     break
                 
                 try:
                     ffmpeg_process.stdin.write(data)
                     ffmpeg_process.stdin.flush()
                 except BrokenPipeError:
-                    print(f"\n❌ FFmpeg pipe broken - process may have crashed")
+                    print(f"\n FFmpeg pipe broken - process may have crashed")
                     break
                 except Exception as e:
-                    print(f"\n❌ Error writing to FFmpeg: {e}")
+                    print(f"\n Error writing to FFmpeg: {e}")
                     break
                 
                 # Set the event when the first HLS chunk is ready
@@ -340,9 +340,9 @@ def capture_audio(device_index, enable_level_monitoring=True):
                         if len(segment_files) > segments_created:
                             segments_created = len(segment_files)
                             if enable_level_monitoring and server_startup_delay >= 5:
-                                print(f"\n📁 Created segment {segments_created}: {max(segment_files) if segment_files else 'unknown'}")
+                                print(f"\n Created segment {segments_created}: {max(segment_files) if segment_files else 'unknown'}")
                     except Exception as e:
-                        print(f"\n⚠️  Error checking segments: {e}")
+                        print(f"\n  Error checking segments: {e}")
                     last_segment_check = current_time
                 
                 # Clean up old segments manually (keep last 5)
@@ -355,9 +355,9 @@ def capture_audio(device_index, enable_level_monitoring=True):
                             if os.path.exists(old_path):
                                 os.remove(old_path)
                                 if enable_level_monitoring and server_startup_delay >= 5:
-                                    print(f"\n🗑️  Removed old segment: {old_segment}")
+                                    print(f"\n  Removed old segment: {old_segment}")
                     except Exception as e:
-                        print(f"\n⚠️  Error cleaning old segments: {e}")
+                        print(f"\n  Error cleaning old segments: {e}")
                 
                 # Audio level monitoring
                 if enable_level_monitoring and server_startup_delay >= 5:
@@ -380,11 +380,11 @@ def capture_audio(device_index, enable_level_monitoring=True):
                         
             except Exception as e:
                 if not shutdown_event.is_set():
-                    print(f"\n❌ Audio capture error: {e}")
+                    print(f"\n Audio capture error: {e}")
                 break
                 
     except KeyboardInterrupt:
-        print("\n🛑 Recording stopped by user...")
+        print("\n Recording stopped by user...")
     
     finally:
         # Cleanup
@@ -404,9 +404,9 @@ def capture_audio(device_index, enable_level_monitoring=True):
                 ffmpeg_process.kill()
                 
         except Exception as e:
-            print(f"⚠️  Cleanup warning: {e}")
+            print(f"  Cleanup warning: {e}")
         
-        print("✅ Audio capture stopped.")
+        print(" Audio capture stopped.")
 
 
 class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -453,21 +453,21 @@ def start_server(stream_key):
                 httpd.handle_request()
             except Exception as e:
                 if not shutdown_event.is_set():
-                    print(f"⚠️  Server request error: {e}")
+                    print(f"  Server request error: {e}")
                 
     except Exception as e:
-        print(f"❌ Server error: {e}")
+        print(f" Server error: {e}")
     finally:
         try:
             httpd.server_close()
         except:
             pass
-        print("✅ Server stopped.")
+        print(" Server stopped.")
 
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully."""
-    print(f"\n🛑 Received signal {signum}, shutting down...")
+    print(f"\n Received signal {signum}, shutting down...")
     shutdown_event.set()
 
 def parse_arguments():
@@ -539,7 +539,7 @@ if __name__ == "__main__":
         sys.exit(0)
     
     if not input_devices:
-        print("❌ No audio input devices available!")
+        print(" No audio input devices available!")
         sys.exit(1)
     
     # Get device index
@@ -547,11 +547,11 @@ if __name__ == "__main__":
         device_index = args.device
         # Verify device exists
         if not any(device[0] == device_index for device in input_devices):
-            print(f"❌ Device {device_index} not found!")
+            print(f" Device {device_index} not found!")
             sys.exit(1)
         # Test the device
         if not test_audio_device(device_index):
-            print(f"❌ Device {device_index} failed test!")
+            print(f" Device {device_index} failed test!")
             sys.exit(1)
     else:
         device_index = get_input_device_index(input_devices, config)
@@ -586,7 +586,7 @@ if __name__ == "__main__":
                 config['port'] = new_port
                 save_config(config)
             except ValueError:
-                print("⚠️  Invalid port number, using default.")
+                print("  Invalid port number, using default.")
 
     print(f"🌐 Server port: {current_port}")
 
@@ -596,7 +596,7 @@ if __name__ == "__main__":
     
     print(f"\n📡 HLS Stream URL:")
     print(f"   http://localhost:{current_port}/{PLAYLIST_NAME}?key={stream_key}")
-    print(f"\n💡 Tips:")
+    print(f"\n Tips:")
     print(f"   • Use this URL in your transcription software")
     print(f"   • Keep this window open while streaming")
     print(f"   • Press Ctrl+C to stop streaming")
@@ -612,9 +612,9 @@ if __name__ == "__main__":
                 os.remove(file_path)
         print("🧹 Cleaned up old HLS segments")
     except Exception as e:
-        print(f"⚠️  Could not clean old segments: {e}")
+        print(f"  Could not clean old segments: {e}")
 
-    print(f"\n🚀 Press Enter to start streaming...")
+    print(f"\n Press Enter to start streaming...")
     input()
 
     # Start capture and server threads
@@ -638,7 +638,7 @@ if __name__ == "__main__":
             time.sleep(0.1)
             
     except KeyboardInterrupt:
-        print("\n🛑 Interrupted by user...")
+        print("\n Interrupted by user...")
     finally:
         shutdown_event.set()
         print("👋 Goodbye!")

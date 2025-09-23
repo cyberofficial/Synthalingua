@@ -20,6 +20,7 @@ from modules.file_handlers import resolve_cookie_file_path, cleanup_temp_cookie_
 import simpleaudio as sa
 import wave
 import threading
+from urllib.parse import urlparse
 
 
 # Define a constant variable for valid language choices
@@ -61,40 +62,40 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
     Returns:
         str: Selected format ID or format string
     """
-    print("\n🔍 Fetching available streams...")
+    print("\n Fetching available streams...")
     stream_info = get_available_streams(stream_url, cookie_file_path, cookies_from_browser)
     
     if not stream_info:
-        print("❌ Could not fetch stream information. Using default audio format.")
+        print(" Could not fetch stream information. Using default audio format.")
         return "bestaudio"
     
-    print("\n📺 Available Audio Streams:")
+    print("\n Available Audio Streams:")
     print("=" * 80)
     print(stream_info)
     print("=" * 80)
     
-    print("\n💡 Common audio format suggestions:")
+    print("\n Common audio format suggestions:")
     print("  • 'bestaudio' - Best available audio quality")
     print("  • 'worst' - Lowest bandwidth option")
     print("  • '140' - YouTube medium quality audio (m4a)")
     print("  • '139' - YouTube low quality audio (m4a)")
     print("  • '251' - YouTube high quality audio (webm)")
     print("  • Or enter any format ID from the list above")
-    print("\n⚠️  If you experience playback starting from the beginning of the live stream instead\n" \
+    print("\n  If you experience playback starting from the beginning of the live stream instead\n" \
     "of the current live point, you may have selected a DVR (recorded) source instead of a\n" \
     "true live stream source. Please try choosing a different source/format for real-time streaming.")
     
     while True:
-        choice = input("\n🎯 Enter format ID or format string (or press Enter for 'bestaudio'): ").strip()
+        choice = input("\n Enter format ID or format string (or press Enter for 'bestaudio'): ").strip()
         if not choice:
             choice = "bestaudio"
-            print(f"✅ Using default: {choice}")
+            print(f" Using default: {choice}")
         elif choice.lower() in ['q', 'quit', 'exit']:
-            print("❌ Exiting...")
+            print(" Exiting...")
             return None
         else:
-            print(f"✅ Selected: {choice}")
-        print("\n⏳ Gathering chunks to preview...")
+            print(f" Selected: {choice}")
+        print("\n Gathering chunks to preview...")
         # Get HLS URL for this format
         yt_dlp_command = ["yt-dlp", stream_url, "-g", "-f", choice]
         if cookie_file_path:
@@ -112,7 +113,7 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
             os.makedirs(temp_dir, exist_ok=True)
             wav_path = test_stream_source(hls_url, temp_dir, cookie_file_path=cookie_file_path, preview_seconds=10)
             if wav_path:
-                print(f"\n🎧 Preview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
+                print(f"\nPreview file created: {Fore.GREEN}{wav_path}{Style.RESET_ALL}")
                 played = False
                 duration = None
                 try:
@@ -120,7 +121,7 @@ def select_stream_interactive(stream_url, cookie_file_path=None, temp_dir=None, 
                         frames = wf.getnframes()
                         rate = wf.getframerate()
                         duration = frames / float(rate)
-                    print(f"🔊 Audio duration: {duration:.2f} seconds")
+                    print(f"Audio duration: {duration:.2f} seconds")
                 except Exception as e:
                     print(f"{Fore.YELLOW}Could not determine audio duration: {e}{Style.RESET_ALL}")
                 # Move the info message before playback
@@ -183,11 +184,11 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
     if args.cookies_from_browser:
         # Only pass browser name, do not resolve or create a file
         cookies_from_browser = args.cookies_from_browser
-        print(f"🍪 Using cookies extracted from {args.cookies_from_browser} browser")
+        print(f" Using cookies extracted from {args.cookies_from_browser} browser")
     elif args.cookies:
         cookie_file_path = resolve_cookie_file_path(args.cookies, None)
         if cookie_file_path is None:
-            print(f"❌ Cookie file not found. Searched for:")
+            print(f" Cookie file not found. Searched for:")
             print(f"   • Absolute path: {args.cookies}")
             print(f"   • Current directory: {args.cookies}")
             if not args.cookies.endswith('.txt'):
@@ -197,10 +198,22 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
             print(f"Please ensure the cookie file exists in one of these locations.")
             return None
         else:
-            print(f"🍪 Using cookie file: {cookie_file_path}")
+            print(f" Using cookie file: {cookie_file_path}")
     
     # Determine format selection method
-    selected_format = "bestaudio"  # default
+    # YouTube live streams don't support "bestaudio", use format 94 (highest quality with audio)
+    # Parse stream URL and get domain for safe checking
+    parsed_url = urlparse(args.stream)
+    hostname = parsed_url.hostname or ""
+    # Check if the hostname matches youtube domains only
+    if (
+        hostname == "youtube.com"
+        or hostname.endswith(".youtube.com")
+        or hostname == "youtu.be"
+    ):
+        selected_format = "94"  # YouTube live stream format with best quality audio
+    else:
+        selected_format = "bestaudio"  # default for other platforms
     
     if hasattr(args, 'selectsource') and args.selectsource is not None:
         if args.selectsource == 'interactive':
@@ -211,14 +224,14 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
                 cookies_from_browser=cookies_from_browser
             )
             if selected_format is None:
-                print("❌ Stream selection cancelled.")
+                print(" Stream selection cancelled.")
                 return None
         else:
             # Direct format specification
             selected_format = args.selectsource
-            print(f"🎯 Using specified format: {selected_format}")
+            print(f" Using specified format: {selected_format}")
     else:
-        print(f"🎵 Using default audio format: {selected_format}")
+        print(f" Using default audio format: {selected_format}")
     
     # Get HLS URL using yt-dlp with selected format
     yt_dlp_command = ["yt-dlp", args.stream, "-g", "-f", selected_format]
@@ -232,21 +245,21 @@ def handle_stream_setup(args, audio_model, temp_dir, webhook_url=None):
         hls_url = urls[0] if urls else None
 
         if not hls_url:
-            print("❌ No stream URL found with selected format.")
+            print(" No stream URL found with selected format.")
             return None
 
         if args.debug:
             print(f"\n[DEBUG] Selected format: {selected_format}")
             print(f"[DEBUG] Stream URL: {hls_url}")
         else:
-            print(f"✅ Found stream URL with format '{selected_format}'")
+            print(f" Found stream URL with format '{selected_format}'")
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error fetching stream URL with format '{selected_format}': {e}")
-        print("💡 Tip: Try using 'bestaudio' or check available formats with --selectsource")
+        print(f" Error fetching stream URL with format '{selected_format}': {e}")
+        print(" Tip: Try using 'bestaudio' or check available formats with --selectsource")
         return None
     except Exception as e:
-        print(f"❌ Unexpected error processing stream URL: {e}")
+        print(f" Unexpected error processing stream URL: {e}")
         return None
     
     # Generate random task ID

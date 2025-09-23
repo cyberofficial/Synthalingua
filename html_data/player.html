@@ -4,28 +4,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthalingua</title>
+    <title>Synthalingua Player</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f2f2f2;
-            padding-bottom: 20px;
+        * {
+            box-sizing: border-box;
         }
 
-        /* Dark mode */
-        body.dark-mode {
-            background-color: #222222;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 50%, #0f0f0f 100%);
             color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background particles */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(120, 120, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(255, 120, 120, 0.1) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(120deg); }
+            66% { transform: translate(-20px, 20px) rotate(240deg); }
         }
 
         #video-container {
@@ -33,20 +51,44 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            width: 100%;
-            overflow: hidden;
-            border-radius: 0px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            z-index: 1;
         }
 
         #video-container iframe {
-            width: 1280px;
-            height: 720px;
+            width: min(95vw, 1280px);
+            height: min(95vh, 720px);
             border: none;
+            border-radius: 0px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        #video-container.viewport-fit iframe {
+            width: 100vw;
+            height: 100vh;
+            box-shadow: none;
+        }
+
+        #video-container.viewport-fit {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(2px);
+        }
+
+        #video-container iframe:hover {
+            box-shadow: 
+                0 25px 50px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.2),
+                0 0 20px rgba(100, 200, 255, 0.3);
         }
 
         .hidden {
-            display: none;
+            display: none !important;
         }
 
         .header-item {
@@ -54,121 +96,540 @@
             bottom: 125px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.70);
-            padding: 3px;
-            border-radius: 10px;
+            background: linear-gradient(145deg, rgba(0, 0, 0, 0.85), rgba(20, 20, 20, 0.75));
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-radius: 25px;
             color: #ffffff;
             font-size: 28px;
+            font-weight: 500;
             text-align: center;
             width: 50%;
-        }
-
-        /* Gear icon */
-        #settings-icon {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            cursor: pointer;
+            min-width: 300px;
+            max-width: 800px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
             z-index: 10;
-            font-size: 10px;
-            color: rgb(184, 184, 184);
+            word-wrap: break-word;
+            line-height: 1.2;
         }
 
-        /* Modal (popup) window */
+        /* Individual caption positioning for stacking */
+        #header-text, #header-text-1 {
+            bottom: 125px; /* Original text at bottom */
+        }
+
+        #translated-header, #translated-header-1 {
+            bottom: 185px; /* Translation stacked above original */
+        }
+
+        #transcribed-header, #transcribed-header-1 {
+            bottom: 245px; /* Transcription at the top */
+        }
+
+        .header-item:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15),
+                0 0 20px rgba(100, 200, 255, 0.2);
+        }
+
+        /* Settings button */
+        .settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(145deg, rgba(40, 40, 40, 0.9), rgba(60, 60, 60, 0.8));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .settings-button:hover {
+            transform: rotate(90deg) scale(1.1);
+            background: linear-gradient(145deg, rgba(60, 60, 60, 0.9), rgba(80, 80, 80, 0.8));
+            box-shadow: 0 6px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .settings-button::before {
+            content: '⚙';
+            font-size: 20px;
+        }
+
+        /* Modern modal */
         .modal {
             display: none;
             position: fixed;
-            z-index: 100;
-            left: 50%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            position: absolute;
             top: 50%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            background-color: rgb(39, 30, 30);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
-            width: 300px;
+            background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 450px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translate(-50%, -60%) scale(0.9); opacity: 0; }
+            to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .modal-header h3 {
             margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #64b5f6, #42a5f5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .modal-close {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #ffffff;
             cursor: pointer;
-            font-size: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
 
-        .customization-controls label {
-            margin-right: 10px;
+        .modal-close:hover {
+            background: rgba(255, 100, 100, 0.8);
+            transform: scale(1.1);
         }
 
-        .customization-controls input {
-            margin-right: 10px;
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="color"] {
+            width: 50px;
+            height: 35px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: none;
+            transition: transform 0.2s ease;
+        }
+
+        input[type="color"]:hover {
+            transform: scale(1.1);
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #333, #666);
+            outline: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #64b5f6, #42a5f5);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+        }
+
+        .range-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: 600;
+            color: #64b5f6;
+            font-size: 14px;
+        }
+
+        /* Toggle switch styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 25px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #333;
+            border-radius: 25px;
+            transition: 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 19px;
+            width: 19px;
+            left: 2px;
+            bottom: 2px;
+            background: linear-gradient(145deg, #64b5f6, #42a5f5);
+            border-radius: 50%;
+            transition: 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input:checked + .toggle-slider {
+            background: linear-gradient(145deg, #42a5f5, #64b5f6);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(25px);
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-slider:hover {
+            box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+        }
+
+        /* Caption toggle styling */
+        .caption-toggles {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .caption-toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .caption-label {
+            color: #e0e0e0;
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        /* URL Generation Styling */
+        .url-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .url-output {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .url-output input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: #ffffff;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .url-output input:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 10px rgba(100, 181, 246, 0.3);
+        }
+
+        .copy-btn {
+            background: linear-gradient(145deg, #64b5f6, #42a5f5);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+        }
+
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .copy-btn.copied {
+            background: linear-gradient(145deg, #4caf50, #45a049);
+        }
+
+        .url-note {
+            font-size: 12px;
+            color: #b0b0b0;
+            margin: 0;
+            text-align: center;
+        }
+
+        /* No stream message */
+        #nostream {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1;
+        }
+
+        #nostream .header-item {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            transform: none;
+            margin: 10px 0;
+            display: inline-block;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .header-item {
+                width: 90%;
+                font-size: 20px;
+            }
+
+            /* Adjust stacked positioning for mobile */
+            #header-text, #header-text-1 {
+                bottom: 80px;
+            }
+
+            #translated-header, #translated-header-1 {
+                bottom: 130px;
+            }
+
+            #transcribed-header, #transcribed-header-1 {
+                bottom: 180px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+
+            .settings-button {
+                top: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+            }
         }
     </style>
 </head>
 
-<body class="dark-mode">
-    <div id="nostream">
-        <p>
-            <div class="hidden" id="header-text-1"></div>
-        </p>
-        <p>
-            <div class="hidden" id="translated-header-1"></div>
-        </p>
-        <p>
-            <div class="hidden" id="transcribed-header-1"></div>
-        </p>
+<body>
+    <!-- No stream message -->
+    <div id="nostream" class="hidden">
+        <div class="header-item" id="header-text-1">Original Text</div>
+        <div class="header-item" id="translated-header-1">Translated Text</div>
+        <div class="header-item" id="transcribed-header-1">Transcribed Text</div>
     </div>
-    <div id="video-container">
+
+    <!-- Video container -->
+    <div id="video-container" class="hidden">
         <iframe id="video-frame" frameborder="0" allowfullscreen></iframe>
-
-        <!-- Gear Icon -->
-        <div id="settings-icon">Customize Captions</div>
-
-        <div id="headers">
-            <p><div class="header-item hidden" id="header-text">Caption 1</div></p>
-            <p><div class="header-item hidden" id="translated-header">Caption 2</div></p>
-            <p><div class="header-item hidden" id="transcribed-header">Caption 3</div></p>
-        </div>
+        
+        <!-- Caption overlays -->
+        <div class="header-item hidden" id="header-text">Original Text</div>
+        <div class="header-item hidden" id="translated-header">Translated Text</div>
+        <div class="header-item hidden" id="transcribed-header">Transcribed Text</div>
     </div>
 
-    <!-- Modal for customization controls -->
+    <!-- Modern settings button -->
+    <div class="settings-button" id="settings-button"></div>
+
+    <!-- Modern modal -->
     <div class="modal" id="settings-modal">
-        <div class="modal-header">
-            <h3>Customize Captions</h3>
-            <span class="modal-close" id="close-modal">X</span>
-        </div>
-        <div class="customization-controls">
-            <div>
-                <label for="bg-color">Background Color:</label>
-                <input type="color" id="bg-color" name="bg-color">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Caption Settings</h3>
+                <button class="modal-close" id="close-modal">×</button>
             </div>
-            <div>
-                <label for="text-color">Text Color:</label>
-                <input type="color" id="text-color" name="text-color">
+            
+            <div class="control-group">
+                <label>Background Color</label>
+                <div class="control-row">
+                    <input type="color" id="bg-color" value="#000000">
+                    <span class="range-value">Background</span>
+                </div>
             </div>
-            <div>
-                <label for="font-size">Font Size:</label>
-                <input type="range" id="font-size" name="font-size" min="10" max="50" value="28">
+
+            <div class="control-group">
+                <label>Text Color</label>
+                <div class="control-row">
+                    <input type="color" id="text-color" value="#ffffff">
+                    <span class="range-value">Text</span>
+                </div>
             </div>
-            <div>
-                <label for="caption-position">Position (Bottom):</label>
-                <input type="range" id="caption-position" name="caption-position" min="0" max="720" value="125">
+
+            <div class="control-group">
+                <label>Font Size</label>
+                <div class="control-row">
+                    <input type="range" id="font-size" min="12" max="60" value="28">
+                    <span class="range-value" id="font-size-value">28px</span>
+                </div>
             </div>
-            <div>
-                <label for="opacity">Opacity:</label>
-                <input type="range" id="opacity" name="opacity" min="0" max="100" value="70">
+
+            <div class="control-group">
+                <label>Base Position from Bottom</label>
+                <div class="control-row">
+                    <input type="range" id="caption-position" min="20" max="400" value="125">
+                    <span class="range-value" id="position-value">125px</span>
+                </div>
             </div>
-            <div>
-                <label for="width">Width:</label>
-                <input type="range" id="caption-width" name="width" min="10" max="90" value="50">
+
+            <div class="control-group">
+                <label>Background Opacity</label>
+                <div class="control-row">
+                    <input type="range" id="opacity" min="0" max="100" value="70">
+                    <span class="range-value" id="opacity-value">70%</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Caption Width</label>
+                <div class="control-row">
+                    <input type="range" id="caption-width" min="20" max="95" value="50">
+                    <span class="range-value" id="width-value">50%</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Caption Visibility</label>
+                <div class="caption-toggles">
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-original" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Original Text</span>
+                    </div>
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-translation" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Translation</span>
+                    </div>
+                    <div class="caption-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="show-transcription" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="caption-label">Transcription</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Video Display</label>
+                <div class="control-row">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="viewport-fit">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="range-value">Fit Viewport</span>
+                </div>
+            </div>
+
+            <!-- URL Generation Section -->
+            <div class="control-group url-section">
+                <label>🔗 Save Settings as URL</label>
+                <div class="url-output">
+                    <input type="text" id="generated-url" readonly placeholder="Your custom URL will appear here...">
+                    <button id="copy-url" class="copy-btn">📋 Copy</button>
+                </div>
+                <p class="url-note">Copy this URL to bookmark your custom player settings!</p>
             </div>
         </div>
     </div>
@@ -176,13 +637,17 @@
     <script src="/static/player_script.js?q={{q}}"></script>
 
     <script>
-        const settingsIcon = document.getElementById("settings-icon");
+        // Get DOM elements
+        const settingsButton = document.getElementById("settings-button");
         const settingsModal = document.getElementById("settings-modal");
         const closeModal = document.getElementById("close-modal");
 
         const headerText = document.getElementById("header-text");
         const translatedHeader = document.getElementById("translated-header");
         const transcribedHeader = document.getElementById("transcribed-header");
+        const headerText1 = document.getElementById("header-text-1");
+        const translatedHeader1 = document.getElementById("translated-header-1");
+        const transcribedHeader1 = document.getElementById("transcribed-header-1");
 
         const bgColorInput = document.getElementById("bg-color");
         const textColorInput = document.getElementById("text-color");
@@ -190,44 +655,308 @@
         const captionPositionInput = document.getElementById("caption-position");
         const opacityInput = document.getElementById("opacity");
         const captionWidthInput = document.getElementById("caption-width");
+        const viewportFitInput = document.getElementById("viewport-fit");
 
-        // Open modal
-        settingsIcon.addEventListener("click", () => {
+        // Caption visibility toggles
+        const showOriginalInput = document.getElementById("show-original");
+        const showTranslationInput = document.getElementById("show-translation");
+        const showTranscriptionInput = document.getElementById("show-transcription");
+
+        // Value display elements
+        const fontSizeValue = document.getElementById("font-size-value");
+        const positionValue = document.getElementById("position-value");
+        const opacityValue = document.getElementById("opacity-value");
+        const widthValue = document.getElementById("width-value");
+
+        // Video container for viewport fit
+        const videoContainer = document.getElementById("video-container");
+
+        // URL generation elements
+        const generatedUrlInput = document.getElementById("generated-url");
+        const copyUrlBtn = document.getElementById("copy-url");
+
+        // Modal controls
+        settingsButton.addEventListener("click", () => {
             settingsModal.style.display = "block";
         });
 
-        // Close modal
         closeModal.addEventListener("click", () => {
             settingsModal.style.display = "none";
         });
 
-        // Real-time updates
+        // Close modal when clicking outside
+        settingsModal.addEventListener("click", (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.style.display = "none";
+            }
+        });
+
+        // Real-time caption updates
         const updateCaptions = () => {
             const bgColor = bgColorInput.value;
             const textColor = textColorInput.value;
             const fontSize = fontSizeInput.value + "px";
-            const captionPosition = captionPositionInput.value + "px";
-            const opacity = opacityInput.value / 100; // Opacity slider from 0 to 1
-            const captionWidth = captionWidthInput.value + "%"; // Width percentage
+            const basePosition = parseInt(captionPositionInput.value);
+            const opacity = opacityInput.value / 100;
+            const captionWidth = captionWidthInput.value + "%";
 
-            // Apply styles to all headers
-            [headerText, translatedHeader, transcribedHeader].forEach(header => {
-                header.style.backgroundColor = bgColor;
-                header.style.color = textColor;
-                header.style.fontSize = fontSize;
-                header.style.bottom = captionPosition;
-                header.style.opacity = opacity;
-                header.style.width = captionWidth; // Set width based on input
+            // Create background with opacity
+            const r = parseInt(bgColor.slice(1, 3), 16);
+            const g = parseInt(bgColor.slice(3, 5), 16);
+            const b = parseInt(bgColor.slice(5, 7), 16);
+            const bgColorWithOpacity = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+
+            // Apply styling to all caption elements with stacked positioning
+            const allHeaders = [
+                { elements: [headerText, headerText1], offset: 0 }, // Original at base position
+                { elements: [translatedHeader, translatedHeader1], offset: 60 }, // Translation 60px higher
+                { elements: [transcribedHeader, transcribedHeader1], offset: 120 } // Transcription 120px higher
+            ];
+
+            allHeaders.forEach(group => {
+                group.elements.forEach(header => {
+                    if (header) {
+                        header.style.background = `linear-gradient(145deg, ${bgColorWithOpacity}, rgba(${r+20}, ${g+20}, ${b+20}, ${opacity-0.1}))`;
+                        header.style.color = textColor;
+                        header.style.fontSize = fontSize;
+                        header.style.bottom = (basePosition + group.offset) + "px";
+                        header.style.width = captionWidth;
+                    }
+                });
             });
+
+            // Update value displays
+            fontSizeValue.textContent = fontSize;
+            positionValue.textContent = basePosition + "px";
+            opacityValue.textContent = Math.round(opacity * 100) + "%";
+            widthValue.textContent = captionWidth;
+        };
+
+        // Caption visibility toggle functionality
+        const toggleCaptionVisibility = () => {
+            // Toggle original text captions
+            if (showOriginalInput.checked) {
+                headerText.classList.remove("hidden");
+                headerText1.classList.remove("hidden");
+            } else {
+                headerText.classList.add("hidden");
+                headerText1.classList.add("hidden");
+            }
+
+            // Toggle translation captions
+            if (showTranslationInput.checked) {
+                translatedHeader.classList.remove("hidden");
+                translatedHeader1.classList.remove("hidden");
+            } else {
+                translatedHeader.classList.add("hidden");
+                translatedHeader1.classList.add("hidden");
+            }
+
+            // Toggle transcription captions
+            if (showTranscriptionInput.checked) {
+                transcribedHeader.classList.remove("hidden");
+                transcribedHeader1.classList.remove("hidden");
+            } else {
+                transcribedHeader.classList.add("hidden");
+                transcribedHeader1.classList.add("hidden");
+            }
+
+            updateGeneratedURL();
+        };
+
+        // Viewport fit toggle functionality
+        const toggleViewportFit = () => {
+            if (viewportFitInput.checked) {
+                videoContainer.classList.add("viewport-fit");
+            } else {
+                videoContainer.classList.remove("viewport-fit");
+            }
+            updateGeneratedURL();
+        };
+
+        // Generate URL with current settings
+        const updateGeneratedURL = () => {
+            const params = new URLSearchParams(window.location.search);
+            const newParams = new URLSearchParams();
+
+            // Preserve video source parameters
+            if (params.get('videosource')) newParams.set('videosource', params.get('videosource'));
+            if (params.get('id')) newParams.set('id', params.get('id'));
+            if (params.get('darkmode')) newParams.set('darkmode', params.get('darkmode'));
+
+            // Add current settings
+            const fontSize = fontSizeInput.value;
+            const bgColor = bgColorInput.value;
+            const textColor = textColorInput.value;
+            const position = captionPositionInput.value;
+            const opacity = opacityInput.value;
+            const width = captionWidthInput.value;
+            const viewportFit = viewportFitInput.checked;
+            const showOriginal = showOriginalInput.checked;
+            const showTranslation = showTranslationInput.checked;
+            const showTranscription = showTranscriptionInput.checked;
+
+            // Handle caption visibility - only add parameters if not showing all (default behavior)
+            const allCaptionsVisible = showOriginal && showTranslation && showTranscription;
+            if (!allCaptionsVisible) {
+                if (showOriginal) newParams.set('showoriginal', 'true');
+                if (showTranslation) newParams.set('showtranslation', 'true');
+                if (showTranscription) newParams.set('showtranscription', 'true');
+            }
+
+            // Only add parameters that differ from defaults
+            if (fontSize !== '28') newParams.set('fontsize', fontSize);
+            if (bgColor !== '#000000') newParams.set('captionbg', bgColor);
+            if (textColor !== '#ffffff') newParams.set('textcolor', textColor);
+            if (position !== '125') newParams.set('captionposition', position);
+            if (opacity !== '70') newParams.set('captionopacity', opacity);
+            if (width !== '50') newParams.set('captionwidth', width);
+            if (viewportFit) newParams.set('viewportfit', 'true');
+
+            // Generate the URL
+            const baseUrl = window.location.origin + window.location.pathname;
+            const queryString = newParams.toString();
+            const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+            
+            generatedUrlInput.value = fullUrl;
+        };
+
+        // Copy URL to clipboard
+        const copyToClipboard = async () => {
+            try {
+                await navigator.clipboard.writeText(generatedUrlInput.value);
+                copyUrlBtn.textContent = '✅ Copied!';
+                copyUrlBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyUrlBtn.textContent = '📋 Copy';
+                    copyUrlBtn.classList.remove('copied');
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                generatedUrlInput.select();
+                document.execCommand('copy');
+                copyUrlBtn.textContent = '✅ Copied!';
+                copyUrlBtn.classList.add('copied');
+                
+                setTimeout(() => {
+                    copyUrlBtn.textContent = '📋 Copy';
+                    copyUrlBtn.classList.remove('copied');
+                }, 2000);
+            }
+        };
+
+        // Combined update function
+        const updateAll = () => {
+            updateCaptions();
+            updateGeneratedURL();
+        };
+
+        // Initialize all settings from URL parameters
+        const initializeFromURL = () => {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Initialize font size
+            const fontSizeParam = params.get("fontsize");
+            if (fontSizeParam) {
+                const fontSize = parseFloat(fontSizeParam);
+                if (!isNaN(fontSize) && fontSize >= 12 && fontSize <= 60) {
+                    fontSizeInput.value = fontSize;
+                }
+            }
+            
+            // Initialize background color
+            const captionBgParam = params.get("captionbg");
+            if (captionBgParam) {
+                const decodedColor = decodeURIComponent(captionBgParam);
+                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^[a-zA-Z]+$/;
+                if (colorRegex.test(decodedColor)) {
+                    bgColorInput.value = decodedColor.startsWith('#') ? decodedColor : '#000000';
+                }
+            }
+            
+            // Initialize text color
+            const textColorParam = params.get("textcolor");
+            if (textColorParam) {
+                const decodedColor = decodeURIComponent(textColorParam);
+                const colorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$|^[a-zA-Z]+$/;
+                if (colorRegex.test(decodedColor)) {
+                    textColorInput.value = decodedColor.startsWith('#') ? decodedColor : '#ffffff';
+                }
+            }
+            
+            // Initialize caption position
+            const captionPositionParam = params.get("captionposition");
+            if (captionPositionParam) {
+                const position = parseFloat(captionPositionParam);
+                if (!isNaN(position) && position >= 20 && position <= 400) {
+                    captionPositionInput.value = position;
+                }
+            }
+            
+            // Initialize opacity
+            const captionOpacityParam = params.get("captionopacity");
+            if (captionOpacityParam) {
+                const opacity = parseFloat(captionOpacityParam);
+                if (!isNaN(opacity) && opacity >= 0 && opacity <= 100) {
+                    opacityInput.value = opacity;
+                }
+            }
+            
+            // Initialize caption width
+            const captionWidthParam = params.get("captionwidth");
+            if (captionWidthParam) {
+                const width = parseFloat(captionWidthParam);
+                if (!isNaN(width) && width >= 20 && width <= 95) {
+                    captionWidthInput.value = width;
+                }
+            }
+            
+            // Initialize viewport fit
+            const viewportFitParam = params.get("viewportfit");
+            if (viewportFitParam && viewportFitParam.toLowerCase() === "true") {
+                viewportFitInput.checked = true;
+            }
+            
+            // Initialize caption visibility
+            const showOriginal = params.has("showoriginal");
+            const showTranslation = params.has("showtranslation");
+            const showTranscription = params.has("showtranscription");
+
+            // If no specific parameters are set, show all captions (default behavior)
+            if (!showOriginal && !showTranslation && !showTranscription) {
+                showOriginalInput.checked = true;
+                showTranslationInput.checked = true;
+                showTranscriptionInput.checked = true;
+            } else {
+                // Set toggles based on URL parameters
+                showOriginalInput.checked = showOriginal;
+                showTranslationInput.checked = showTranslation;
+                showTranscriptionInput.checked = showTranscription;
+            }
+            
+            // Apply all settings
+            updateCaptions();
+            toggleViewportFit();
+            toggleCaptionVisibility();
         };
 
         // Add event listeners for real-time updates
-        bgColorInput.addEventListener("input", updateCaptions);
-        textColorInput.addEventListener("input", updateCaptions);
-        fontSizeInput.addEventListener("input", updateCaptions);
-        captionPositionInput.addEventListener("input", updateCaptions);
-        opacityInput.addEventListener("input", updateCaptions);
-        captionWidthInput.addEventListener("input", updateCaptions);
+        bgColorInput.addEventListener("input", updateAll);
+        textColorInput.addEventListener("input", updateAll);
+        fontSizeInput.addEventListener("input", updateAll);
+        captionPositionInput.addEventListener("input", updateAll);
+        opacityInput.addEventListener("input", updateAll);
+        captionWidthInput.addEventListener("input", updateAll);
+        viewportFitInput.addEventListener("change", toggleViewportFit);
+        showOriginalInput.addEventListener("change", toggleCaptionVisibility);
+        showTranslationInput.addEventListener("change", toggleCaptionVisibility);
+        showTranscriptionInput.addEventListener("change", toggleCaptionVisibility);
+        copyUrlBtn.addEventListener("click", copyToClipboard);
+
+        // Initialize with default values and URL parameters
+        initializeFromURL();
+        updateGeneratedURL();
     </script>
 </body>
 

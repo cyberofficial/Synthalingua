@@ -76,7 +76,7 @@ class TranscriptionCore:
             self._processing_thread = threading.Thread(target=self._process_queue, daemon=True)
             self._processing_thread.start()
             if not self.args.no_log:
-                print("🎵 Audio processing queue started")
+                print(" Audio processing queue started")
 
     def stop_queue_processing(self):
         if self._queue_active:
@@ -98,9 +98,9 @@ class TranscriptionCore:
                     break
                 except Exception as e:
                     if not self.args.no_log:
-                        print(f"⚠️ Warning: Error clearing queue item: {e}")
+                        print(f" Warning: Error clearing queue item: {e}")
             if not self.args.no_log:
-                print("🛑 Audio processing queue stopped")
+                print(" Audio processing queue stopped")
 
     def _process_queue(self):
         while not self._stop_processing.is_set():
@@ -124,7 +124,7 @@ class TranscriptionCore:
                 continue
             except Exception as e:
                 if not self.args.no_log:
-                    print(f"❌ Queue processing error: {e}")
+                    print(f" Queue processing error: {e}")
                     traceback.print_exc()
 
     def _should_process_batch(self) -> bool:
@@ -145,9 +145,9 @@ class TranscriptionCore:
             if not self.args.no_log:
                 queue_size = self._audio_file_queue.qsize()
                 if self._padded_audio_count > 0:
-                    print(f"📁 Processing audio batch: {len(self._accumulated_audio_files)} files + {len(self._previous_batch_files)} padded (Queue: {queue_size} pending)")
+                    print(f" Processing audio batch: {len(self._accumulated_audio_files)} files + {len(self._previous_batch_files)} padded (Queue: {queue_size} pending)")
                 else:
-                    print(f"📁 Processing audio file (Queue: {queue_size} pending)")
+                    print(f" Processing audio file (Queue: {queue_size} pending)")
 
             # Prepare files for combination including padding
             files_to_combine = []
@@ -159,7 +159,7 @@ class TranscriptionCore:
                 files_to_combine.extend(padding_files)
                 files_to_keep.extend(padding_files)  # Keep padding files for reuse
                 if self.args.debug:
-                    print(f"🔍 [DEBUG] Adding {len(padding_files)} padded audio files from previous batch")
+                    print(f" [DEBUG] Adding {len(padding_files)} padded audio files from previous batch")
 
             # Store current batch for next iteration's padding BEFORE combining/deleting
             if self._padded_audio_count > 0:
@@ -194,14 +194,14 @@ class TranscriptionCore:
                             os.remove(file_path)
                     except Exception as e:
                         if not self.args.no_log:
-                            print(f"⚠️ Warning: Could not delete temp file {file_path}: {e}")
+                            print(f" Warning: Could not delete temp file {file_path}: {e}")
 
             # Clear accumulated files
             self._accumulated_audio_files = []
             
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error processing audio batch: {e}")
+                print(f" Error processing audio batch: {e}")
                 traceback.print_exc()
 
     def _combine_audio_files(self, file_paths: List[str], keep_files: List[str]) -> Optional[str]:
@@ -247,7 +247,7 @@ class TranscriptionCore:
                     
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error combining audio files: {e}")
+                print(f" Error combining audio files: {e}")
             
         return None
 
@@ -278,7 +278,7 @@ class TranscriptionCore:
             
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error processing audio file {temp_file}: {e}")
+                print(f" Error processing audio file {temp_file}: {e}")
                 traceback.print_exc()
     
     def process_audio(self, data_queue: Queue, source: Optional[sr.AudioSource]) -> bool:
@@ -287,7 +287,7 @@ class TranscriptionCore:
             if not data_queue.empty():
                 if not self.args.no_log:
                     queue_size = self._audio_file_queue.qsize()
-                    print(f"\n🎵 Audio stream detected... (Queue: {queue_size} pending)")
+                    print(f"\n Audio stream detected... (Queue: {queue_size} pending)")
                 
                 self._handle_phrase_timeout(now)
                 self._collect_audio_data(data_queue)
@@ -313,7 +313,7 @@ class TranscriptionCore:
                     if os.path.exists(temp_file):
                         os.remove(temp_file)
                     if not self.args.no_log:
-                        print(f"❌ Error saving audio data: {e}")
+                        print(f" Error saving audio data: {e}")
                         traceback.print_exc()
 
             sleep(0.1)
@@ -321,7 +321,7 @@ class TranscriptionCore:
             
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error in process_audio: {str(e)}")
+                print(f" Error in process_audio: {str(e)}")
                 traceback.print_exc()
             return False
 
@@ -504,7 +504,7 @@ class TranscriptionCore:
                              
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error during translation model call: {e}")
+                print(f" Error during translation model call: {e}")
                 traceback.print_exc()
 
     def _perform_transcription_to_target(self, temp_file: str) -> None:
@@ -542,7 +542,7 @@ class TranscriptionCore:
                     self.transcribed_text = str(transcribed_result_retry['text']).strip()
         except Exception as e:
             if not self.args.no_log:
-                print(f"❌ Error in transcription: {e}")
+                print(f" Error in transcription: {e}")
                 traceback.print_exc()
 
     def _update_api_headers(self) -> None:
