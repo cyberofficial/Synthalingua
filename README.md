@@ -18,7 +18,7 @@ If you’re looking for a transcription API for meetings, consider checking out 
 
 ---
 
-[<img src="https://github.com/user-attachments/assets/8785903d-597a-47d3-a6ba-ad32c45a857a" width=60%>](https://cyberofficial.itch.io/synthalingua)
+[<img width="60%"  src="https://github.com/user-attachments/assets/c233f78b-7604-4044-9e45-82807f47a6d1" />](https://cyberofficial.itch.io/synthalingua)
 
 <a href="https://www.producthunt.com/posts/synthalingua?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-synthalingua" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=963036&theme=dark&t=1746865849346" alt="Synthalingua - Synthalingua&#0032;&#0045;&#0032;Real&#0032;Time&#0032;Translation | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
@@ -95,7 +95,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 4. Run `setup.bat` (Windows) or `setup.bash` (Linux)
 5. Edit and run the generated batch/bash file, or use the GUI portable version:
 
-[<img src="https://i.imgur.com/dyZz6u5.png" width=60%>](https://cyberofficial.itch.io/synthalingua)
+[<img width="60%"  src="https://github.com/user-attachments/assets/c233f78b-7604-4044-9e45-82807f47a6d1" />](https://cyberofficial.itch.io/synthalingua)
 
 ---
 
