@@ -438,15 +438,6 @@ Thank you for being part of this journey. Your belief in Synthalingua and its mi
 
 ---
 
-## Credits
-Developed proudly in PyCharm IDE from JetBrains
-[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" width="15%">](https://www.jetbrains.com/?from=Synthalingua)
-[<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/PyCharm.png" width="35%">](https://www.jetbrains.com/pycharm/?from=Synthalingua)
-
-JetBrains kindly provided an OSS license for this project, greatly improving development productivity. [Learn more](https://jb.gg/OpenSourceSupport?from=Synthalingua)
-
----
-
 ## More
 - [Wiki](https://github.com/cyberofficial/Synthalingua/wiki)
 - [Official Nvidia List](https://developer.nvidia.com/cuda-gpus)
