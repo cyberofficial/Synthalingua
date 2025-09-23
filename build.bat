@@ -26,9 +26,7 @@ pyinstaller set_up_env.spec
 
 Echo Building Remote Microphone
 
-pyinstaller remote_microphone.py --onefile ^
-    --distpath dist\exes ^
-    --icon="E:\Synthalingua\Synthalingua_Wrapper\assets\Synthalingua-chan-logo.ico"
+pyinstaller remote_microphone.py --onefile --distpath dist\exes --icon="E:\Synthalingua\Synthalingua_Wrapper\assets\Synthalingua-chan-logo.ico"
 
 
 
