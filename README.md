@@ -150,6 +150,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | Flag | Description |
 |-----|-----|
 | `--about` | Show app info |
+| `--checkupdate` | Check for available updates from GitHub |
 | `--updatebranch` | Update branch (master/dev-testing/bleeding-under-work/disable) |
 | `--no_log` | Only show last line of output |
 | `--keep_temp` | Keep temp audio files |

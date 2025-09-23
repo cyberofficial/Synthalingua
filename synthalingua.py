@@ -94,6 +94,12 @@ def main():
         from modules.version_checker import ScriptCreator, GitHubRepo
         contributors(ScriptCreator, GitHubRepo)
 
+    # Handle update check and exit if requested
+    if args.checkupdate:
+        print(f"{Fore.CYAN}Checking for updates...{Style.RESET_ALL}")
+        check_for_updates()
+        sys.exit(0)
+
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
