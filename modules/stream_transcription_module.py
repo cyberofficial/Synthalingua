@@ -799,7 +799,7 @@ def start_stream_transcription(
                 print_info_message(f"Each batch will cover ~{segments_max * segment_duration:.2f} seconds of audio")
                 if args.paddedaudio and args.paddedaudio > 0:
                     print_info_message(f"Each batch will include ~{args.paddedaudio * segment_duration:.2f} seconds of padded audio making the total ~{(segments_max + args.paddedaudio) * segment_duration:.2f} seconds")
-                user_input = input(f"{Fore.CYAN}🔧 Would you like to set a new chunk size? (y/n): {Style.RESET_ALL}").strip().lower()
+                user_input = input(f"{Fore.CYAN} Would you like to set a new chunk size? (y/n): {Style.RESET_ALL}").strip().lower()
                 if user_input == 'y':
                     while True:
                         try:
