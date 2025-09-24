@@ -300,7 +300,7 @@ def parse_arguments():
     output_grp.add_argument("--save_transcript", action='store_true', help="Automatically save transcription results to text files. Creates timestamped files with complete transcription text in the output directory. Useful for record keeping, further analysis, or batch processing workflows. Files are saved with datetime stamps for easy organization.")
     output_grp.add_argument("--save_folder", default="out", help="Output directory for saved transcripts, subtitle files, and processed audio. Creates directory if it doesn't exist. Use relative path (e.g., 'transcripts') or absolute path (e.g., 'C:/MyTranscripts'). All output files including SRT captions and TXT transcripts are saved here.")
     output_grp.add_argument("--portnumber", default=None, help="TCP port number for web interface server (8000-65535). When specified, starts a web-based control panel accessible via browser at http://localhost:[PORT]. Enables remote control, file uploads, and live transcription monitoring. Use unique port numbers to avoid conflicts with other applications.", type=valid_port_number)
-    output_grp.add_argument("--https", action='store_true', help="Enable HTTPS for the web UI with a self-signed certificate generated at runtime. Falls back to HTTP if certificate setup fails.")
+    output_grp.add_argument("--https", default=None, help="TCP port number for HTTPS web interface server (8000-65535). When specified, starts an additional HTTPS server with self-signed certificate alongside the HTTP server. Example: '--portnumber 8000 --https 8443' runs HTTP on port 8000 and HTTPS on port 8443. Both servers provide the same functionality simultaneously.", type=valid_port_number)
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")
@@ -356,6 +356,12 @@ def parse_arguments():
     if args.substyle and (not args.subtype or args.subtype != "burn"):
         print(f"{Fore.RED}Error:{Style.RESET_ALL} --substyle can only be used with --subtype burn for customizing burned subtitle appearance.")
         print("The --substyle option requires subtitle burning mode (--subtype burn) to apply visual customizations.")
+        sys.exit(1)
+
+    # Validate that HTTP and HTTPS ports are different
+    if args.portnumber and args.https and args.portnumber == args.https:
+        print(f"{Fore.RED}Error:{Style.RESET_ALL} HTTP and HTTPS cannot use the same port ({args.portnumber}).")
+        print("Please specify different port numbers for --portnumber and --https.")
         sys.exit(1)
 
     return args

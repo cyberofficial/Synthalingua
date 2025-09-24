@@ -215,9 +215,17 @@ def main():
             ValueError(f"{args.model_source} is not a valid model source")
 
     # Set up API backend if needed
-    if args.portnumber:
-        print("Port number was set, so spinning up a web server...")
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, use_https=getattr(args, 'https', False))    # Set up temporary directory
+    if args.portnumber or args.https:
+        if args.portnumber and args.https:
+            print(f"Starting web servers on HTTP port {args.portnumber} and HTTPS port {args.https}...")
+        elif args.portnumber:
+            print(f"Starting HTTP web server on port {args.portnumber}...")
+        elif args.https:
+            print(f"Starting HTTPS web server on port {args.https}...")
+        
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https)
+    
+    # Set up temporary directory
     temp_dir = setup_temp_directory()
 
     # Initialize webhook
