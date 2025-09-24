@@ -236,6 +236,7 @@ class FlaskServerThread(Thread):
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
+        self.startup_complete = Event()  # Event to signal when startup messages are complete
 
     def create_app(self):
         """Creates and configures the Flask application."""
@@ -327,6 +328,9 @@ class FlaskServerThread(Thread):
             print(f" To force shutdown the server, delete the '{PID_FILE}' file")
             print()  # Add empty line to separate multiple server outputs
             
+            # Signal that startup messages are complete
+            self.startup_complete.set()
+            
             while not self.shutdown_event.is_set() and not force_shutdown_flag:
                 try:
                     self.server.handle_request()
@@ -372,9 +376,9 @@ def flask_server(operation, portnumber, https_port=None):
             server_thread.daemon = True
             server_thread.start()
             
-            # If we're also starting HTTPS server, wait for HTTP startup messages to complete
+            # If we're also starting HTTPS server, wait for HTTP startup to complete
             if https_port:
-                time.sleep(0.5)  # Give HTTP server time to print startup messages
+                server_thread.startup_complete.wait()  # Wait for HTTP server messages to finish
         
         # Start HTTPS server if port is specified
         if https_port:
