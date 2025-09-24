@@ -325,6 +325,7 @@ class FlaskServerThread(Thread):
             print(f"Starting Flask Server on port: {self.port}")
             print(f"You can access the server at http{'s' if ssl_context else ''}://localhost:{self.port}")
             print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+            print()  # Add empty line to separate multiple server outputs
             
             while not self.shutdown_event.is_set() and not force_shutdown_flag:
                 try:
