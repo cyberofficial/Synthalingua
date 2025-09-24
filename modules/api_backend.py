@@ -371,6 +371,10 @@ def flask_server(operation, portnumber, https_port=None):
             server_thread = FlaskServerThread(portnumber, use_https=False)
             server_thread.daemon = True
             server_thread.start()
+            
+            # If we're also starting HTTPS server, wait for HTTP startup messages to complete
+            if https_port:
+                time.sleep(0.5)  # Give HTTP server time to print startup messages
         
         # Start HTTPS server if port is specified
         if https_port:
