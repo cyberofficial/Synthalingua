@@ -238,6 +238,7 @@ This will save the SRT file as usual and also print its contents to the console 
 | Flag | Description |
 |-----|-----|
 | `--portnumber` | Web server port |
+| `--https` | HTTPS web server port (runs alongside HTTP server) |
 | `--discord_webhook` | Discord webhook URL |
 
 ---
@@ -374,21 +375,36 @@ python synthalingua.py --makecaptions --isolate_vocals --silent_detect --file_in
 ## Web & Discord Integration
 - **Discord:** Use `--discord_webhook` to send results to Discord (long messages are split, rate limits handled)
 - **Web server:** Use `--portnumber` to launch a local Flask server and view subtitles in your browser
+- **HTTPS server:** Use `--https` to launch an HTTPS server with self-signed certificate, can run alongside HTTP
 
 ### Accessing the Web Server
-Once you've launched Synthalingua with the `--portnumber` parameter:
+Once you've launched Synthalingua with web server parameters:
 
+**HTTP Server:**
 1. Open your web browser and navigate to `http://localhost:[PORT]` (replace `[PORT]` with the port number you specified)
 2. Example: `http://localhost:8080` if you used `--portnumber 8080`
-3. For accessing from other devices on your network, use your computer's IP address: `http://[YOUR_IP]:[PORT]`
+
+**HTTPS Server:**
+1. Open your web browser and navigate to `https://localhost:[PORT]` (replace `[PORT]` with the HTTPS port you specified)
+2. Example: `https://localhost:8443` if you used `--https 8443`
+3. Your browser may show a security warning for the self-signed certificate - click "Advanced" and "Proceed" to continue
+
+**Network Access:**
+- For accessing from other devices on your network, use your computer's IP address: `http://[YOUR_IP]:[HTTP_PORT]` or `https://[YOUR_IP]:[HTTPS_PORT]`
 
 **Example usage:**
 ```sh
-# Start Synthalingua with a web server on port 8080
+# Start Synthalingua with HTTP server only
 python synthalingua.py --ram 6gb --translate --language ja --portnumber 8080
 
-# For remote HLS password protection
-python synthalingua.py --ram 6gb --translate --portnumber 8080 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
+# Start Synthalingua with HTTPS server only  
+python synthalingua.py --ram 6gb --translate --language ja --https 8443
+
+# Start Synthalingua with both HTTP and HTTPS servers
+python synthalingua.py --ram 6gb --translate --language ja --portnumber 8080 --https 8443
+
+# For remote HLS password protection (works with both HTTP and HTTPS)
+python synthalingua.py --ram 6gb --translate --portnumber 8080 --https 8443 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
 ```
 
 ---
