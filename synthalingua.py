@@ -217,7 +217,7 @@ def main():
     # Set up API backend if needed
     if args.portnumber:
         print("Port number was set, so spinning up a web server...")
-        api_backend.flask_server(operation="start", portnumber=args.portnumber)    # Set up temporary directory
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, use_https=getattr(args, 'https', False))    # Set up temporary directory
     temp_dir = setup_temp_directory()
 
     # Initialize webhook

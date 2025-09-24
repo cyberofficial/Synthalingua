@@ -111,9 +111,101 @@ document.addEventListener("DOMContentLoaded", function() {
         showElementById("video-frame");
         hideElementById("nostream"); // Corrected line
     } else {
-        hideElementById("video-frame");
-        hideElementById("video-container");
-        showElementById("nostream"); // Corrected line
+        // No video provided: prompt user for a URL or username and configure player
+        const input = window.prompt("Enter a YouTube URL/video ID or Twitch URL/username:", "");
+        if (input && input.trim().length > 0) {
+            const trimmed = input.trim();
+
+            // Helpers to extract IDs
+            const extractYouTubeId = (urlOrId) => {
+                // Direct 11-char ID
+                const idPattern = /^[a-zA-Z0-9_-]{11}$/;
+                if (idPattern.test(urlOrId)) return urlOrId;
+
+                try {
+                    const u = new URL(urlOrId);
+                    // youtu.be/{id}
+                    if (u.hostname.includes('youtu.be')) {
+                        const pathId = u.pathname.split('/').filter(Boolean)[0];
+                        if (pathId && idPattern.test(pathId)) return pathId;
+                    }
+                    // youtube.com/watch?v={id}
+                    if (u.hostname.includes('youtube.com')) {
+                        const v = u.searchParams.get('v');
+                        if (v && idPattern.test(v)) return v;
+                        // Shorts form: /shorts/{id}
+                        const parts = u.pathname.split('/').filter(Boolean);
+                        const shortsIdx = parts.findIndex(p => p.toLowerCase() === 'shorts');
+                        if (shortsIdx !== -1 && parts[shortsIdx + 1] && idPattern.test(parts[shortsIdx + 1])) {
+                            return parts[shortsIdx + 1];
+                        }
+                    }
+                } catch (_) { /* not a URL; ignore */ }
+                return null;
+            };
+
+            const extractTwitchChannel = (urlOrUser) => {
+                // If looks like a URL, parse path
+                try {
+                    const u = new URL(urlOrUser);
+                    if (u.hostname.includes('twitch.tv')) {
+                        const seg = u.pathname.split('/').filter(Boolean)[0];
+                        return seg || null;
+                    }
+                } catch (_) {
+                    // Not a URL, treat as username (alphanumeric + underscore)
+                    const userPattern = /^[A-Za-z0-9_]{3,25}$/;
+                    if (userPattern.test(urlOrUser)) return urlOrUser;
+                }
+                return null;
+            };
+
+            let resolvedSource = null;
+            let resolvedId = null;
+
+            // Try YouTube first
+            const yid = extractYouTubeId(trimmed);
+            if (yid) {
+                resolvedSource = 'youtube';
+                resolvedId = yid;
+            } else {
+                // Try Twitch
+                const tid = extractTwitchChannel(trimmed);
+                if (tid) {
+                    resolvedSource = 'twitch';
+                    resolvedId = tid;
+                }
+            }
+
+            if (resolvedSource && resolvedId) {
+                // Update iframe
+                if (resolvedSource === 'twitch') {
+                    videoContainer.src = `https://player.twitch.tv/?channel=${resolvedId}&parent=${parent}`;
+                } else {
+                    videoContainer.src = `https://www.youtube.com/embed/${resolvedId}`;
+                }
+
+                // Update URL params without reload
+                const newParams = new URLSearchParams(window.location.search);
+                newParams.set('videosource', resolvedSource);
+                newParams.set('id', resolvedId);
+                const newUrl = `${window.location.pathname}?${newParams.toString()}`;
+                window.history.replaceState({}, '', newUrl);
+
+                showElementById("video-container");
+                showElementById("video-frame");
+                hideElementById("nostream");
+            } else {
+                // Could not parse input, keep no-stream state
+                hideElementById("video-frame");
+                hideElementById("video-container");
+                showElementById("nostream");
+            }
+        } else {
+            hideElementById("video-frame");
+            hideElementById("video-container");
+            showElementById("nostream"); // Corrected line
+        }
     }
 
     // Apply URL parameter styling
