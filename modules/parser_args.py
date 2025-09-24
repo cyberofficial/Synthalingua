@@ -300,6 +300,7 @@ def parse_arguments():
     output_grp.add_argument("--save_transcript", action='store_true', help="Automatically save transcription results to text files. Creates timestamped files with complete transcription text in the output directory. Useful for record keeping, further analysis, or batch processing workflows. Files are saved with datetime stamps for easy organization.")
     output_grp.add_argument("--save_folder", default="out", help="Output directory for saved transcripts, subtitle files, and processed audio. Creates directory if it doesn't exist. Use relative path (e.g., 'transcripts') or absolute path (e.g., 'C:/MyTranscripts'). All output files including SRT captions and TXT transcripts are saved here.")
     output_grp.add_argument("--portnumber", default=None, help="TCP port number for web interface server (8000-65535). When specified, starts a web-based control panel accessible via browser at http://localhost:[PORT]. Enables remote control, file uploads, and live transcription monitoring. Use unique port numbers to avoid conflicts with other applications.", type=valid_port_number)
+    output_grp.add_argument("--https", action='store_true', help="Enable HTTPS for the web UI with a self-signed certificate generated at runtime. Falls back to HTTP if certificate setup fails.")
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")

@@ -194,12 +194,23 @@
             border-radius: 20px;
             padding: 30px;
             width: 90%;
-            max-width: 450px;
+            max-width: 900px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 
                 0 20px 60px rgba(0, 0, 0, 0.5),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             animation: slideIn 0.3s ease;
+        }
+
+        /* Two-column layout for settings */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 20px;
+            row-gap: 16px;
+        }
+        .control-group.span-2 {
+            grid-column: 1 / -1;
         }
 
         @keyframes fadeIn {
@@ -496,6 +507,9 @@
                 width: 95%;
                 padding: 20px;
             }
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
 
             .settings-button {
                 top: 15px;
@@ -536,6 +550,7 @@
                 <button class="modal-close" id="close-modal">×</button>
             </div>
             
+            <div class="settings-grid">
             <div class="control-group">
                 <label>Background Color</label>
                 <div class="control-row">
@@ -563,7 +578,7 @@
             <div class="control-group">
                 <label>Base Position from Bottom</label>
                 <div class="control-row">
-                    <input type="range" id="caption-position" min="20" max="400" value="125">
+                    <input type="range" id="caption-position" min="20" max="4000" value="125">
                     <span class="range-value" id="position-value">125px</span>
                 </div>
             </div>
@@ -584,7 +599,7 @@
                 </div>
             </div>
 
-            <div class="control-group">
+            <div class="control-group span-2">
                 <label>Caption Visibility</label>
                 <div class="caption-toggles">
                     <div class="caption-toggle-row">
@@ -622,14 +637,33 @@
                 </div>
             </div>
 
+            <div class="control-group">
+                <label>Video Source</label>
+                <div class="control-row">
+                    <select id="video-platform" style="flex:1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff;">
+                        <option value="youtube">YouTube</option>
+                        <option value="twitch">Twitch</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Video ID or Username</label>
+                <div class="control-row">
+                    <input type="text" id="video-identifier" placeholder="YouTube video ID or Twitch username" style="flex:1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px; color: #fff;" />
+                    <button id="apply-video" class="copy-btn" style="min-width:120px;">Apply</button>
+                </div>
+            </div>
+
             <!-- URL Generation Section -->
-            <div class="control-group url-section">
+            <div class="control-group url-section span-2">
                 <label>🔗 Save Settings as URL</label>
                 <div class="url-output">
                     <input type="text" id="generated-url" readonly placeholder="Your custom URL will appear here...">
                     <button id="copy-url" class="copy-btn">📋 Copy</button>
                 </div>
                 <p class="url-note">Copy this URL to bookmark your custom player settings!</p>
+            </div>
             </div>
         </div>
     </div>
@@ -670,6 +704,10 @@
 
         // Video container for viewport fit
         const videoContainer = document.getElementById("video-container");
+    const videoFrame = document.getElementById("video-frame");
+    const platformSelect = document.getElementById("video-platform");
+    const videoIdInput = document.getElementById("video-identifier");
+    const applyVideoBtn = document.getElementById("apply-video");
 
         // URL generation elements
         const generatedUrlInput = document.getElementById("generated-url");
@@ -855,6 +893,15 @@
         // Initialize all settings from URL parameters
         const initializeFromURL = () => {
             const params = new URLSearchParams(window.location.search);
+            // Initialize video platform and identifier
+            const vs = params.get('videosource');
+            const vid = params.get('id');
+            if (vs === 'youtube' || vs === 'twitch') {
+                platformSelect.value = vs;
+            }
+            if (vid) {
+                videoIdInput.value = vid;
+            }
             
             // Initialize font size
             const fontSizeParam = params.get("fontsize");
@@ -953,6 +1000,48 @@
         showTranslationInput.addEventListener("change", toggleCaptionVisibility);
         showTranscriptionInput.addEventListener("change", toggleCaptionVisibility);
         copyUrlBtn.addEventListener("click", copyToClipboard);
+
+        // Apply video handler
+        applyVideoBtn.addEventListener('click', () => {
+            const selected = platformSelect.value;
+            const identifier = (videoIdInput.value || '').trim();
+            if (!identifier) {
+                alert('Please enter a valid video ID or username.');
+                return;
+            }
+
+            // Determine parent for Twitch
+            const extractDomain = (url) => {
+                let domain;
+                if (url.indexOf('://') > -1) domain = url.split('/')[2]; else domain = url.split('/')[0];
+                domain = domain.split(':')[0];
+                domain = domain.split('?')[0];
+                return domain;
+            };
+            const parent = extractDomain(window.location.href);
+
+            // Update iframe
+            if (selected === 'twitch') {
+                videoFrame.src = `https://player.twitch.tv/?channel=${identifier}&parent=${parent}`;
+            } else {
+                videoFrame.src = `https://www.youtube.com/embed/${identifier}`;
+            }
+
+            // Show video area
+            document.getElementById('video-container').classList.remove('hidden');
+            document.getElementById('video-frame').classList.remove('hidden');
+            document.getElementById('nostream').classList.add('hidden');
+
+            // Update URL params
+            const newParams = new URLSearchParams(window.location.search);
+            newParams.set('videosource', selected);
+            newParams.set('id', identifier);
+            const newUrl = `${window.location.pathname}?${newParams.toString()}`;
+            window.history.replaceState({}, '', newUrl);
+
+            // Update shareable URL
+            updateGeneratedURL();
+        });
 
         // Initialize with default values and URL parameters
         initializeFromURL();

@@ -351,7 +351,7 @@ class FlaskServerThread(Thread):
 # Global server instance
 server_thread = None
 
-def flask_server(operation, portnumber):
+def flask_server(operation, portnumber, use_https=False):
     """
     Controls the Flask server operation.
     
@@ -362,7 +362,7 @@ def flask_server(operation, portnumber):
     global server_thread
     if operation == "start":
         create_pid_file()
-        server_thread = FlaskServerThread(portnumber)
+        server_thread = FlaskServerThread(portnumber, use_https=use_https)
         server_thread.daemon = True
         server_thread.start()
         global watchdog_thread
