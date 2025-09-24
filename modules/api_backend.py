@@ -348,23 +348,36 @@ class FlaskServerThread(Thread):
         if self.server:
             self.server.shutdown()
 
-# Global server instance
+# Global server instances
 server_thread = None
+https_server_thread = None
 
-def flask_server(operation, portnumber, use_https=False):
+def flask_server(operation, portnumber, https_port=None):
     """
     Controls the Flask server operation.
     
     Args:
         operation (str): "start" to start the server
-        portnumber (int): Port number for the server
+        portnumber (int): Port number for the HTTP server (can be None)
+        https_port (int): Port number for the HTTPS server (can be None)
     """
-    global server_thread
+    global server_thread, https_server_thread
     if operation == "start":
         create_pid_file()
-        server_thread = FlaskServerThread(portnumber, use_https=use_https)
-        server_thread.daemon = True
-        server_thread.start()
+        
+        # Start HTTP server if port is specified
+        if portnumber:
+            server_thread = FlaskServerThread(portnumber, use_https=False)
+            server_thread.daemon = True
+            server_thread.start()
+        
+        # Start HTTPS server if port is specified
+        if https_port:
+            https_server_thread = FlaskServerThread(https_port, use_https=True)
+            https_server_thread.daemon = True
+            https_server_thread.start()
+        
+        # Start watchdog thread only once
         global watchdog_thread
         watchdog_thread = threading.Thread(target=watchdog_monitor)
         watchdog_thread.daemon = True
@@ -372,8 +385,15 @@ def flask_server(operation, portnumber, use_https=False):
 
 def kill_server():
     """Force shutdown the server using PID file mechanism."""
-    global server_thread
+    global server_thread, https_server_thread
+    servers_running = []
+    
     if server_thread and server_thread.is_alive():
+        servers_running.append(('HTTP', server_thread))
+    if https_server_thread and https_server_thread.is_alive():
+        servers_running.append(('HTTPS', https_server_thread))
+    
+    if servers_running:
         print("Initiating server shutdown...")
         
         # First try graceful shutdown by deleting PID file
@@ -382,22 +402,22 @@ def kill_server():
         # Wait a moment for watchdog to detect and shutdown
         time.sleep(3)
         
-        # If still running, force it
-        if server_thread.is_alive():
-            print("Server still running, forcing shutdown...")
-            force_shutdown_server()
+        # Check if servers are still running and force shutdown if needed
+        for server_type, thread in servers_running:
+            if thread.is_alive():
+                print(f"{server_type} server still running, forcing shutdown...")
+                force_shutdown_server()
         
-        # Wait for thread to finish
-        server_thread.join(timeout=2)
-        
-        if not server_thread.is_alive():
-            print("Server shutdown complete!")
-        else:
-            print("Server may still be running in background")
+        # Wait for threads to finish
+        for server_type, thread in servers_running:
+            thread.join(timeout=2)
+            if not thread.is_alive():
+                print(f"{server_type} server shutdown complete!")
+            else:
+                print(f"{server_type} server may still be running in background")
     else:
-        print("No server running")
+        print("No servers running")
         # Clean up PID file just in case
-        remove_pid_file()
         remove_pid_file()
 
 # Register cleanup function to remove PID file on exit
