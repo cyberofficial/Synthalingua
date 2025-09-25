@@ -216,14 +216,15 @@ def main():
 
     # Set up API backend if needed
     if args.portnumber or args.https:
+        host = getattr(args, 'serverip', '0.0.0.0')
         if args.portnumber and args.https:
-            print(f"Starting web servers on HTTP port {args.portnumber} and HTTPS port {args.https}...")
+            print(f"Starting web servers on {host} (HTTP {args.portnumber}, HTTPS {args.https})...")
         elif args.portnumber:
-            print(f"Starting HTTP web server on port {args.portnumber}...")
+            print(f"Starting HTTP web server on {host}:{args.portnumber}...")
         elif args.https:
-            print(f"Starting HTTPS web server on port {args.https}...")
+            print(f"Starting HTTPS web server on {host}:{args.https}...")
         
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https)
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host)
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()

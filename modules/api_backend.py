@@ -229,10 +229,11 @@ class FlaskServerThread(Thread):
         port (int): Port number for the server
         use_https (bool): Whether to use HTTPS protocol
     """
-    def __init__(self, port, use_https=False):
+    def __init__(self, port, use_https=False, host: str = '0.0.0.0'):
         super().__init__()
         self.port = port
         self.use_https = use_https
+        self.host = host
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
@@ -321,10 +322,10 @@ class FlaskServerThread(Thread):
                 print("Falling back to HTTP")
 
         try:
-            self.server = make_server('0.0.0.0', self.port, self.app, 
+            self.server = make_server(self.host, self.port, self.app, 
                                     ssl_context=ssl_context)
-            print(f"Starting Flask Server on port: {self.port}")
-            print(f"You can access the server at http{'s' if ssl_context else ''}://localhost:{self.port}")
+            print(f"Starting Flask Server on {self.host}:{self.port}")
+            print(f"You can access the server at http{'s' if ssl_context else ''}://{self.host}:{self.port}")
             print(f" To force shutdown the server, delete the '{PID_FILE}' file")
             print()  # Add empty line to separate multiple server outputs
             
@@ -357,7 +358,7 @@ class FlaskServerThread(Thread):
 server_thread = None
 https_server_thread = None
 
-def flask_server(operation, portnumber, https_port=None):
+def flask_server(operation, portnumber, https_port=None, host: str = '0.0.0.0'):
     """
     Controls the Flask server operation.
     
@@ -372,7 +373,7 @@ def flask_server(operation, portnumber, https_port=None):
         
         # Start HTTP server if port is specified
         if portnumber:
-            server_thread = FlaskServerThread(portnumber, use_https=False)
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host)
             server_thread.daemon = True
             server_thread.start()
             
@@ -382,7 +383,7 @@ def flask_server(operation, portnumber, https_port=None):
         
         # Start HTTPS server if port is specified
         if https_port:
-            https_server_thread = FlaskServerThread(https_port, use_https=True)
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host)
             https_server_thread.daemon = True
             https_server_thread.start()
         
