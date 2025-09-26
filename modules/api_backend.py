@@ -133,12 +133,15 @@ def record_failed_request(ip_address, filename):
 def get_client_ip():
     """Get the real client IP address, considering proxies."""
     # Check for forwarded headers (for reverse proxies)
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    elif request.headers.get('X-Real-IP'):
-        return request.headers.get('X-Real-IP')
-    else:
-        return request.remote_addr
+    x_forwarded_for = request.headers.get('X-Forwarded-For')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    
+    x_real_ip = request.headers.get('X-Real-IP')
+    if x_real_ip:
+        return x_real_ip
+    
+    return request.remote_addr
 
 def watchdog_monitor():
     """Monitor PID file existence and force shutdown if file is deleted."""
