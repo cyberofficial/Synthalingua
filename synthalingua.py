@@ -224,7 +224,7 @@ def main():
         elif args.https:
             print(f"Starting HTTPS web server on {host}:{args.https}...")
         
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host)
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug)
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()

@@ -64,7 +64,7 @@ class HeaderState:
 PID_FILE = "server.pid"
 watchdog_thread = None
 force_shutdown_flag = False
-debug_mode = False  # Global debug flag
+_debug_enabled = False  # Internal debug flag set from args.debug
 
 # Security monitoring for static file access
 failed_requests = defaultdict(deque)  # IP -> deque of failed request timestamps
@@ -105,7 +105,7 @@ def is_ip_blocked(ip_address):
     for ip in expired_ips:
         blocked_ips.discard(ip)
         del blocked_ips_timestamps[ip]
-        print(f"🔓 IP {ip} unblocked after timeout")
+        print(f"IP {ip} unblocked after timeout")
     
     return ip_address in blocked_ips
 
@@ -124,7 +124,7 @@ def record_failed_request(ip_address, filename):
     if len(failed_requests[ip_address]) >= FAILED_REQUEST_THRESHOLD:
         blocked_ips.add(ip_address)
         blocked_ips_timestamps[ip_address] = current_time
-        print(f"🚫 SECURITY ALERT: IP {ip_address} blocked for suspicious file access attempts!")
+        print(f"SECURITY ALERT: IP {ip_address} blocked for suspicious file access attempts!")
         print(f"   Last attempt: {filename}")
         print(f"   Failed attempts: {len(failed_requests[ip_address])} in {FAILED_REQUEST_WINDOW//60} minutes")
         # Clear the failed requests for this IP since it's now blocked
@@ -170,11 +170,11 @@ def force_shutdown_server():
                 try:
                     server_thread.server.server_close()
                 except (AttributeError, OSError) as e:
-                    if debug_mode:
+                    if _debug_enabled:
                         print(f"Debug: Could not close server socket: {e}")
                     # In production, we silently continue as the server may already be closed
                 except Exception as e:
-                    if debug_mode:
+                    if _debug_enabled:
                         print(f"Debug: Unexpected error closing server: {e}")
                         import traceback
                         traceback.print_exc()
@@ -252,7 +252,7 @@ def serve_static(filename):
     
     # Check if IP is blocked
     if is_ip_blocked(client_ip):
-        print(f"🚫 Blocked IP {client_ip} attempted to access: {filename}")
+        print(f"Blocked IP {client_ip} attempted to access: {filename}")
         abort(403)
     
     try:
@@ -265,19 +265,19 @@ def serve_static(filename):
         real_file_path = os.path.realpath(full_path)
         
         if not real_file_path.startswith(real_static_dir):
-            print(f"🚨 Path traversal attempt from {client_ip}: {filename}")
+            print(f"Path traversal attempt from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(403)
         
         if not os.path.exists(full_path):
-            print(f"⚠️  File not found request from {client_ip}: {filename}")
+            print(f"File not found request from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(404)
         
         return send_from_directory(static_dir, filename)
         
     except Exception as e:
-        print(f"🚨 Error serving static file to {client_ip}: {filename} - {str(e)}")
+        print(f"Error serving static file to {client_ip}: {filename} - {str(e)}")
         record_failed_request(client_ip, filename)
         abort(500)
 
@@ -350,13 +350,17 @@ class FlaskServerThread(Thread):
         # Register blueprint
         app.register_blueprint(api)
 
-        # Add headers
+        # Add security headers
         @app.after_request
         def add_header(response):
             response.headers.update({
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
-                "Expires": "0"
+                "Expires": "0",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+                "X-XSS-Protection": "1; mode=block",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
             })
             return response
 
@@ -464,9 +468,9 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         portnumber (int): Port number for the HTTP server (can be None)
         https_port (int): Port number for the HTTPS server (can be None)
     """
-    global server_thread, https_server_thread, debug_mode
+    global server_thread, https_server_thread, _debug_enabled
     if operation == "start":
-        debug_mode = debug  # Set global debug flag
+        _debug_enabled = debug  # Set internal debug flag from args.debug
         create_pid_file()
         
         # Start HTTP server if port is specified
