@@ -24,13 +24,14 @@ import time
 import threading
 import signal
 import atexit
-from flask import Flask, send_from_directory, url_for, Blueprint
+from flask import Flask, send_from_directory, url_for, Blueprint, request, abort
 from threading import Thread, Event
 from functools import lru_cache
 import ssl
 import tempfile
 from werkzeug.serving import make_server
 from colorama import Fore, Style
+from collections import defaultdict, deque
 
 # State management class
 class HeaderState:
@@ -63,6 +64,15 @@ class HeaderState:
 PID_FILE = "server.pid"
 watchdog_thread = None
 force_shutdown_flag = False
+_debug_enabled = False  # Internal debug flag set from args.debug
+
+# Security monitoring for static file access
+failed_requests = defaultdict(deque)  # IP -> deque of failed request timestamps
+blocked_ips = set()  # Set of blocked IP addresses
+FAILED_REQUEST_THRESHOLD = 3  # Number of failed requests before blocking
+FAILED_REQUEST_WINDOW = 300  # Time window in seconds (5 minutes)
+BLOCK_DURATION = 3600  # Block duration in seconds (1 hour)
+blocked_ips_timestamps = {}  # IP -> timestamp when blocked
 
 def create_pid_file():
     """Create a PID file to track server status."""
@@ -81,6 +91,57 @@ def remove_pid_file():
             print(f"Removed PID file: {PID_FILE}")
     except Exception as e:
         print(f"Warning: Could not remove PID file: {e}")
+
+def is_ip_blocked(ip_address):
+    """Check if an IP address is currently blocked."""
+    current_time = time.time()
+    
+    # Clean up expired blocks
+    expired_ips = []
+    for blocked_ip, block_time in blocked_ips_timestamps.items():
+        if current_time - block_time > BLOCK_DURATION:
+            expired_ips.append(blocked_ip)
+    
+    for ip in expired_ips:
+        blocked_ips.discard(ip)
+        del blocked_ips_timestamps[ip]
+        print(f"IP {ip} unblocked after timeout")
+    
+    return ip_address in blocked_ips
+
+def record_failed_request(ip_address, filename):
+    """Record a failed static file request and check if IP should be blocked."""
+    current_time = time.time()
+    
+    # Clean old entries outside the window
+    while failed_requests[ip_address] and current_time - failed_requests[ip_address][0] > FAILED_REQUEST_WINDOW:
+        failed_requests[ip_address].popleft()
+    
+    # Add new failed request
+    failed_requests[ip_address].append(current_time)
+    
+    # Check if threshold exceeded
+    if len(failed_requests[ip_address]) >= FAILED_REQUEST_THRESHOLD:
+        blocked_ips.add(ip_address)
+        blocked_ips_timestamps[ip_address] = current_time
+        print(f"SECURITY ALERT: IP {ip_address} blocked for suspicious file access attempts!")
+        print(f"   Last attempt: {filename}")
+        print(f"   Failed attempts: {len(failed_requests[ip_address])} in {FAILED_REQUEST_WINDOW//60} minutes")
+        # Clear the failed requests for this IP since it's now blocked
+        failed_requests[ip_address].clear()
+
+def get_client_ip():
+    """Get the real client IP address, considering proxies."""
+    # Check for forwarded headers (for reverse proxies)
+    x_forwarded_for = request.headers.get('X-Forwarded-For')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    
+    x_real_ip = request.headers.get('X-Real-IP')
+    if x_real_ip:
+        return x_real_ip
+    
+    return request.remote_addr
 
 def watchdog_monitor():
     """Monitor PID file existence and force shutdown if file is deleted."""
@@ -111,8 +172,15 @@ def force_shutdown_server():
             if hasattr(server_thread, 'server') and server_thread.server:
                 try:
                     server_thread.server.server_close()
-                except:
-                    pass
+                except (AttributeError, OSError) as e:
+                    if _debug_enabled:
+                        print(f"Debug: Could not close server socket: {e}")
+                    # In production, we silently continue as the server may already be closed
+                except Exception as e:
+                    if _debug_enabled:
+                        print(f"Debug: Unexpected error closing server: {e}")
+                        import traceback
+                        traceback.print_exc()
             
             # Give it a moment to shutdown gracefully
             server_thread.join(timeout=1)
@@ -178,12 +246,43 @@ def serve_player():
 @api.route('/static/<path:filename>')
 def serve_static(filename):
     """
-    Serves static files (CSS, JS, images, etc.).
+    Serves static files (CSS, JS, images, etc.) with security monitoring.
     
     Args:
         filename (str): Name of the static file to serve
     """
-    return send_from_directory(get_static_dir(), filename)
+    client_ip = get_client_ip()
+    
+    # Check if IP is blocked
+    if is_ip_blocked(client_ip):
+        print(f"Blocked IP {client_ip} attempted to access: {filename}")
+        abort(403)
+    
+    try:
+        # Check if file exists before serving
+        static_dir = get_static_dir()
+        full_path = os.path.join(static_dir, filename)
+        
+        # Additional security: ensure the path doesn't escape the static directory
+        real_static_dir = os.path.realpath(static_dir)
+        real_file_path = os.path.realpath(full_path)
+        
+        if not real_file_path.startswith(real_static_dir):
+            print(f"Path traversal attempt from {client_ip}: {filename}")
+            record_failed_request(client_ip, filename)
+            abort(403)
+        
+        if not os.path.exists(full_path):
+            print(f"File not found request from {client_ip}: {filename}")
+            record_failed_request(client_ip, filename)
+            abort(404)
+        
+        return send_from_directory(static_dir, filename)
+        
+    except Exception as e:
+        print(f"Error serving static file to {client_ip}: {filename} - {str(e)}")
+        record_failed_request(client_ip, filename)
+        abort(500)
 
 @api.route('/update-header')
 def update_header_route():
@@ -229,11 +328,12 @@ class FlaskServerThread(Thread):
         port (int): Port number for the server
         use_https (bool): Whether to use HTTPS protocol
     """
-    def __init__(self, port, use_https=False, host: str = '0.0.0.0'):
+    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False):
         super().__init__()
         self.port = port
         self.use_https = use_https
         self.host = host
+        self.debug = debug
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
@@ -253,13 +353,17 @@ class FlaskServerThread(Thread):
         # Register blueprint
         app.register_blueprint(api)
 
-        # Add headers
+        # Add security headers
         @app.after_request
         def add_header(response):
             response.headers.update({
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
-                "Expires": "0"
+                "Expires": "0",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+                "X-XSS-Protection": "1; mode=block",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
             })
             return response
 
@@ -358,7 +462,7 @@ class FlaskServerThread(Thread):
 server_thread = None
 https_server_thread = None
 
-def flask_server(operation, portnumber, https_port=None, host: str = '0.0.0.0'):
+def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False):
     """
     Controls the Flask server operation.
     
@@ -367,13 +471,14 @@ def flask_server(operation, portnumber, https_port=None, host: str = '0.0.0.0'):
         portnumber (int): Port number for the HTTP server (can be None)
         https_port (int): Port number for the HTTPS server (can be None)
     """
-    global server_thread, https_server_thread
+    global server_thread, https_server_thread, _debug_enabled
     if operation == "start":
+        _debug_enabled = debug  # Set internal debug flag from args.debug
         create_pid_file()
         
         # Start HTTP server if port is specified
         if portnumber:
-            server_thread = FlaskServerThread(portnumber, use_https=False, host=host)
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug)
             server_thread.daemon = True
             server_thread.start()
             
@@ -383,7 +488,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '0.0.0.0'):
         
         # Start HTTPS server if port is specified
         if https_port:
-            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host)
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug)
             https_server_thread.daemon = True
             https_server_thread.start()
         
