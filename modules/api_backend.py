@@ -68,6 +68,7 @@ PID_FILE = "server.pid"
 watchdog_thread = None
 force_shutdown_flag = False
 _debug_enabled = False  # Internal debug flag set from args.debug
+watchdog_lock = threading.Lock()
 
 # Security monitoring for static file access
 failed_requests = defaultdict(deque)  # IP -> deque of failed request timestamps
@@ -148,17 +149,36 @@ def get_client_ip():
 
 def watchdog_monitor():
     """Monitor PID file existence and force shutdown if file is deleted."""
-    global force_shutdown_flag
-    while not force_shutdown_flag:
-        try:
-            if not os.path.exists(PID_FILE):
-                print("PID file deleted - Force shutting down Flask server!")
-                force_shutdown_server()
+    global force_shutdown_flag, watchdog_thread
+    try:
+        while not force_shutdown_flag:
+            try:
+                if not os.path.exists(PID_FILE):
+                    print("PID file deleted - Force shutting down Flask server!")
+                    force_shutdown_server()
+                    break
+                time.sleep(2)  # Check every 2 seconds
+            except Exception as e:
+                print(f"Watchdog error: {e}")
                 break
-            time.sleep(2)  # Check every 2 seconds
-        except Exception as e:
-            print(f"Watchdog error: {e}")
-            break
+    finally:
+        with watchdog_lock:
+            if threading.current_thread() is watchdog_thread:
+                watchdog_thread = None
+
+
+def start_watchdog_thread():
+    """Ensure the watchdog monitor is running exactly once."""
+    global watchdog_thread
+    with watchdog_lock:
+        if watchdog_thread and watchdog_thread.is_alive():
+            return
+        watchdog_thread = threading.Thread(
+            target=watchdog_monitor,
+            name="watchdog-monitor",
+            daemon=True,
+        )
+        watchdog_thread.start()
 
 def force_shutdown_server():
     """Force shutdown the Flask server immediately."""
@@ -418,11 +438,9 @@ class FlaskServerThread(Thread):
         
         # Create PID file when server starts
         create_pid_file()
-        
-        # Start watchdog thread
-        global watchdog_thread
-        watchdog_thread = threading.Thread(target=watchdog_monitor, daemon=True)
-        watchdog_thread.start()
+
+        # Start watchdog monitor once across all server threads
+        start_watchdog_thread()
         
         if self.use_https:
             ssl_context, ssl_dir = self.setup_https()
@@ -475,9 +493,10 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         portnumber (int): Port number for the HTTP server (can be None)
         https_port (int): Port number for the HTTPS server (can be None)
     """
-    global server_thread, https_server_thread, _debug_enabled
+    global server_thread, https_server_thread, _debug_enabled, force_shutdown_flag
     if operation == "start":
         _debug_enabled = debug  # Set internal debug flag from args.debug
+        force_shutdown_flag = False
         
         # Start HTTP server if port is specified
         if portnumber:
@@ -495,11 +514,8 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
             https_server_thread.daemon = True
             https_server_thread.start()
         
-        # Start watchdog thread only once
-        global watchdog_thread
-        watchdog_thread = threading.Thread(target=watchdog_monitor)
-        watchdog_thread.daemon = True
-        watchdog_thread.start()
+        # Ensure watchdog monitor is running once
+        start_watchdog_thread()
 
 def kill_server():
     """Force shutdown the server using PID file mechanism."""
