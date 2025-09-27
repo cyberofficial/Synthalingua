@@ -57,7 +57,8 @@ def pad_visible(text: str, width: int) -> str:
 def clear_console() -> None:
     """Clear the terminal for a clean presentation."""
 
-    os.system('cls' if os.name == 'nt' else 'clear')
+    # Use ANSI escape codes for portability and safety
+    print('\033[2J\033[H', end='', flush=True)
 
 
 def terminal_width(default: int = MIN_WIDTH) -> int:
