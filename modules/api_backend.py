@@ -16,6 +16,9 @@ Key Components:
 - FlaskServerThread: Thread-based Flask server implementation
 - API Blueprint: Routes for handling web requests
 - PID file-based force shutdown mechanism to prevent hanging servers
+- HTTPS support with self-signed certificates
+- Fuzzy security monitoring to block suspicious IPs attempting to access
+  non-existent static files
 """
 
 import os
