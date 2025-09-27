@@ -474,7 +474,6 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
     global server_thread, https_server_thread, _debug_enabled
     if operation == "start":
         _debug_enabled = debug  # Set internal debug flag from args.debug
-        create_pid_file()
         
         # Start HTTP server if port is specified
         if portnumber:
