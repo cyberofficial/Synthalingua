@@ -272,11 +272,11 @@ def serve_static(filename):
             record_failed_request(client_ip, filename)
             abort(403)
         
-        if not os.path.exists(full_path):
+        if not os.path.exists(real_file_path):
             print(f"File not found request from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(404)
-        
+
         return send_from_directory(static_dir, filename)
         
     except Exception as e:
