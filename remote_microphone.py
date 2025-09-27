@@ -211,7 +211,7 @@ def get_input_device_index(input_devices, config):
         except ValueError:
             print(" Please enter a valid device number.")
         except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
+            print("\nGoodbye!")
             return None
 
 
@@ -432,20 +432,20 @@ class ThreadingSimpleServer(ThreadingMixIn, HTTPServer):
     pass
 
 
-def start_server(stream_key):
+def start_server(stream_key, server_ip="127.0.0.1"):
     """Start the HLS streaming server with improved error handling."""
     # Wait for the HLS playlist to be ready
-    print("🕐 Waiting for HLS playlist to be ready...")
+    print("Waiting for HLS playlist to be ready...")
     playlist_ready.wait()
 
     try:
         # Pass the key to the HTTP handler
         handler_class = partial(MyHTTPRequestHandler, stream_key=stream_key)
-        httpd = ThreadingSimpleServer(("0.0.0.0", globals()['SERVER_PORT']), handler_class)
+        httpd = ThreadingSimpleServer((server_ip, globals()['SERVER_PORT']), handler_class)
         httpd.timeout = 1  # Set timeout for serve_request
         
-        print(f"🌐 Server started at http://0.0.0.0:{globals()['SERVER_PORT']}")
-        print("📡 HLS streaming is now active!")
+        print(f"Server started at http://{server_ip}:{globals()['SERVER_PORT']}")
+        print("HLS streaming is now active!")
         
         # Serve until shutdown
         while not shutdown_event.is_set():
@@ -507,6 +507,10 @@ Examples:
         "--sample-rate", type=int, default=RATE,
         help=f"Audio sample rate in Hz (default: {RATE})"
     )
+    parser.add_argument(
+        "--serverip", default="127.0.0.1", type=str,
+        help="IP address for the HLS server to bind to. Use 127.0.0.1 for localhost only (default), 0.0.0.0 to listen on all interfaces, or a specific IP available on your machine."
+    )
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -525,7 +529,7 @@ if __name__ == "__main__":
     if args.port != SERVER_PORT:
         globals()['SERVER_PORT'] = args.port
     
-    print("🎙️  Remote Microphone HLS Streamer")
+    print("Remote Microphone HLS Streamer")
     print("="*50)
     
     # Load configuration
@@ -535,7 +539,7 @@ if __name__ == "__main__":
     input_devices = list_audio_devices()
     
     if args.list_devices:
-        print("👋 Device list complete. Exiting...")
+        print("Device list complete. Exiting...")
         sys.exit(0)
     
     if not input_devices:
@@ -556,7 +560,7 @@ if __name__ == "__main__":
     else:
         device_index = get_input_device_index(input_devices, config)
         if device_index is None:
-            print("👋 No device selected. Exiting...")
+            print("No device selected. Exiting...")
             sys.exit(0)
 
     print(f"\n🎤 Selected microphone device: {device_index}")
@@ -576,7 +580,7 @@ if __name__ == "__main__":
                 print("Please enter 'y' or 'n'")
     
     if current_port == args.port and 'port' not in config:
-        print(f"\n🌐 Server will run on port {current_port}")
+        print(f"\nServer will run on port {current_port}")
         custom_port = input(f"Press Enter to use default port {current_port}, or enter a new port: ").strip()
         if custom_port:
             try:
@@ -588,13 +592,13 @@ if __name__ == "__main__":
             except ValueError:
                 print("  Invalid port number, using default.")
 
-    print(f"🌐 Server port: {current_port}")
+    print(f"Server port: {current_port}")
 
     # Generate stream key
     stream_key = secrets.token_urlsafe(16)
     print(f"🔑 Stream Key: {stream_key}")
     
-    print(f"\n📡 HLS Stream URL:")
+    print(f"\nHLS Stream URL:")
     print(f"   http://localhost:{current_port}/{PLAYLIST_NAME}?key={stream_key}")
     print(f"\n Tips:")
     print(f"   • Use this URL in your transcription software")
@@ -610,7 +614,7 @@ if __name__ == "__main__":
             file_path = os.path.join(OUTPUT_DIR, filename)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-        print("🧹 Cleaned up old HLS segments")
+        print("Cleaned up old HLS segments")
     except Exception as e:
         print(f"  Could not clean old segments: {e}")
 
@@ -625,7 +629,7 @@ if __name__ == "__main__":
     )
     server_thread = threading.Thread(
         target=start_server, 
-        args=(stream_key,),
+        args=(stream_key, args.serverip),
         daemon=True
     )
 
@@ -641,4 +645,4 @@ if __name__ == "__main__":
         print("\n Interrupted by user...")
     finally:
         shutdown_event.set()
-        print("👋 Goodbye!")
+        print("Goodbye!")
