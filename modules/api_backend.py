@@ -267,7 +267,8 @@ def serve_static(filename):
         real_static_dir = os.path.realpath(static_dir)
         real_file_path = os.path.realpath(full_path)
         
-        if not real_file_path.startswith(real_static_dir):
+        # Harden path containment check using os.path.commonpath
+        if os.path.commonpath([real_file_path, real_static_dir]) != real_static_dir:
             print(f"Path traversal attempt from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(403)
