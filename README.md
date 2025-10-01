@@ -1,5 +1,7 @@
 <img width="1248" height="454" alt="image" src="https://github.com/user-attachments/assets/fcc5535f-1bc8-47f5-908f-48b043cb813a" />
 
+# Beware of scams - I do not create or endorse any crypto coins or NFTs! Do not fall for any cryptocurrency-related schemes. Please report any scams when possible.
+
 # Synthalingua
 > **Note:** The Synthalingua Wrapper code has been moved to a new repo here: https://github.com/cyberofficial/Synthalingua_Wrapper
 > By using Synthalingua, you agree to use it responsibly and accept full responsibility for your actions. Let's keep it fun, safe, and positive for everyone!
