@@ -82,12 +82,21 @@ class TranscriptionCore:
         if self._queue_active:
             self._queue_active = False
             self._stop_processing.set()
-            if self._processing_thread and self._processing_thread.is_alive():
+            
+            # Store reference to thread to avoid race conditions
+            thread_ref = self._processing_thread
+            if thread_ref:
                 try:
-                    self._audio_file_queue.put(None, timeout=0.1) 
-                except Exception:
+                    # Check if thread is alive before attempting to signal it
+                    if thread_ref.is_alive():
+                        try:
+                            self._audio_file_queue.put(None, timeout=0.1)
+                        except Exception:
+                            pass
+                        thread_ref.join(timeout=5)
+                except (AttributeError, RuntimeError):
+                    # Thread may have terminated or in invalid state
                     pass
-                self._processing_thread.join(timeout=5)
             
             while not self._audio_file_queue.empty():
                 try:

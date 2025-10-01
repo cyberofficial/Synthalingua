@@ -171,8 +171,15 @@ def start_watchdog_thread():
     """Ensure the watchdog monitor is running exactly once."""
     global watchdog_thread
     with watchdog_lock:
-        if watchdog_thread and watchdog_thread.is_alive():
-            return
+        # Check if thread exists and is alive - using try-except for safety
+        if watchdog_thread:
+            try:
+                if watchdog_thread.is_alive():
+                    return
+            except (AttributeError, RuntimeError):
+                # Thread may have been terminated or in invalid state
+                pass
+        # Create and start new watchdog thread
         watchdog_thread = threading.Thread(
             target=watchdog_monitor,
             name="watchdog-monitor",
@@ -185,16 +192,24 @@ def force_shutdown_server():
     global server_thread, force_shutdown_flag
     force_shutdown_flag = True
     
-    if server_thread and server_thread.is_alive():
-        print(" Force killing Flask server...")
+    # Store reference to thread to avoid it being modified during shutdown
+    thread_ref = server_thread
+    if thread_ref:
         try:
+            # Check if thread is alive before attempting shutdown operations
+            if not thread_ref.is_alive():
+                return
+            
+            print(" Force killing Flask server...")
+            
             # Set shutdown flag
-            server_thread.shutdown_event.set()
+            if hasattr(thread_ref, 'shutdown_event'):
+                thread_ref.shutdown_event.set()
             
             # Force close the server socket if available
-            if hasattr(server_thread, 'server') and server_thread.server:
+            if hasattr(thread_ref, 'server') and thread_ref.server:
                 try:
-                    server_thread.server.server_close()
+                    thread_ref.server.server_close()
                 except (AttributeError, OSError) as e:
                     if _debug_enabled:
                         print(f"Debug: Could not close server socket: {e}")
@@ -206,25 +221,29 @@ def force_shutdown_server():
                         traceback.print_exc()
             
             # Give it a moment to shutdown gracefully
-            server_thread.join(timeout=1)
+            thread_ref.join(timeout=1)
             
-            # If still alive, we need to force kill the process
-            if server_thread.is_alive():
-                print(" Server thread still alive, using OS kill...")
-                try:
-                    # Get current process ID and kill it
-                    import psutil
-                    current_process = psutil.Process()
-                    
-                    # Find and kill any child processes (Flask workers)
-                    for child in current_process.children():
-                        if 'flask' in child.name().lower() or 'python' in child.name().lower():
-                            child.terminate()
-                            
-                except ImportError:
-                    print("psutil not available, using basic termination")
-                except Exception as e:
-                    print(f"Error during force kill: {e}")
+            # Check again if still alive for force kill
+            try:
+                if thread_ref.is_alive():
+                    print(" Server thread still alive, using OS kill...")
+                    try:
+                        # Get current process ID and kill it
+                        import psutil
+                        current_process = psutil.Process()
+                        
+                        # Find and kill any child processes (Flask workers)
+                        for child in current_process.children():
+                            if 'flask' in child.name().lower() or 'python' in child.name().lower():
+                                child.terminate()
+                                
+                    except ImportError:
+                        print("psutil not available, using basic termination")
+                    except Exception as e:
+                        print(f"Error during force kill: {e}")
+            except (AttributeError, RuntimeError):
+                # Thread may have terminated during our operations
+                pass
                     
         except Exception as e:
             print(f"Error during force shutdown: {e}")
@@ -522,10 +541,23 @@ def kill_server():
     global server_thread, https_server_thread
     servers_running = []
     
-    if server_thread and server_thread.is_alive():
-        servers_running.append(('HTTP', server_thread))
-    if https_server_thread and https_server_thread.is_alive():
-        servers_running.append(('HTTPS', https_server_thread))
+    # Collect threads that are alive at this moment, storing references
+    http_thread = server_thread
+    https_thread = https_server_thread
+    
+    try:
+        if http_thread and http_thread.is_alive():
+            servers_running.append(('HTTP', http_thread))
+    except (AttributeError, RuntimeError):
+        # Thread may have terminated or in invalid state
+        pass
+    
+    try:
+        if https_thread and https_thread.is_alive():
+            servers_running.append(('HTTPS', https_thread))
+    except (AttributeError, RuntimeError):
+        # Thread may have terminated or in invalid state
+        pass
     
     if servers_running:
         print("Initiating server shutdown...")
@@ -538,17 +570,25 @@ def kill_server():
         
         # Check if servers are still running and force shutdown if needed
         for server_type, thread in servers_running:
-            if thread.is_alive():
-                print(f"{server_type} server still running, forcing shutdown...")
-                force_shutdown_server()
+            try:
+                if thread.is_alive():
+                    print(f"{server_type} server still running, forcing shutdown...")
+                    force_shutdown_server()
+            except (AttributeError, RuntimeError):
+                # Thread may have terminated during the wait
+                print(f"{server_type} server already terminated")
         
         # Wait for threads to finish
         for server_type, thread in servers_running:
-            thread.join(timeout=2)
-            if not thread.is_alive():
-                print(f"{server_type} server shutdown complete!")
-            else:
-                print(f"{server_type} server may still be running in background")
+            try:
+                thread.join(timeout=2)
+                if not thread.is_alive():
+                    print(f"{server_type} server shutdown complete!")
+                else:
+                    print(f"{server_type} server may still be running in background")
+            except (AttributeError, RuntimeError):
+                # Thread may be in invalid state
+                print(f"{server_type} server shutdown status unknown")
     else:
         print("No servers running")
         # Clean up PID file just in case
