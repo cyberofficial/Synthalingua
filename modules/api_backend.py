@@ -303,19 +303,59 @@ def serve_static(filename):
     try:
         # Check if file exists before serving
         static_dir = get_static_dir()
-        full_path = os.path.join(static_dir, filename)
         
-        # Additional security: ensure the path doesn't escape the static directory
-        real_static_dir = os.path.realpath(static_dir)
-        real_file_path = os.path.realpath(full_path)
-        
-        # Harden path containment check using os.path.commonpath
-        if os.path.commonpath([real_file_path, real_static_dir]) != real_static_dir:
-            print(f"Path traversal attempt from {client_ip}: {filename}")
+        # Additional security checks on filename
+        # Reject filenames with null bytes or that contain absolute path indicators
+        # Check for Windows drive letters (C:, D:, etc.) on any platform for consistency
+        if '\x00' in filename or (len(filename) >= 2 and filename[1] == ':'):
+            print(f"Invalid filename from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(403)
         
-        if not os.path.exists(real_file_path):
+        # Normalize path separators to prevent Windows backslash path traversal
+        # Replace backslashes with forward slashes before joining
+        filename = filename.replace('\\', '/')
+        full_path = os.path.join(static_dir, filename)
+        
+        # Additional security: ensure the path doesn't escape the static directory
+        # Use pathlib.Path.resolve() for robust path validation
+        from pathlib import Path
+        
+        try:
+            # Resolve both paths to their canonical forms
+            static_dir_path = Path(static_dir).resolve()
+            file_path = Path(full_path).resolve()
+            
+            # Check if file_path is relative to static_dir_path
+            # This handles cross-drive issues on Windows
+            try:
+                file_path.relative_to(static_dir_path)
+            except ValueError:
+                # file_path is not relative to static_dir_path (path traversal attempt)
+                print(f"Path traversal attempt from {client_ip}: {filename}")
+                record_failed_request(client_ip, filename)
+                abort(403)
+            
+            # Additional validation using os.path.commonpath with exception handling
+            # This handles edge cases where paths are on different drives on Windows
+            try:
+                if os.path.commonpath([str(file_path), str(static_dir_path)]) != str(static_dir_path):
+                    print(f"Path traversal attempt from {client_ip}: {filename}")
+                    record_failed_request(client_ip, filename)
+                    abort(403)
+            except ValueError:
+                # Different drives on Windows - definitely a path traversal attempt
+                print(f"Path traversal attempt from {client_ip}: {filename} (different drives)")
+                record_failed_request(client_ip, filename)
+                abort(403)
+                
+        except (OSError, RuntimeError, ValueError) as e:
+            # Handle errors during path resolution (e.g., symlink loops, permission issues, null bytes)
+            print(f"Path resolution error from {client_ip}: {filename} - {str(e)}")
+            record_failed_request(client_ip, filename)
+            abort(403)
+        
+        if not os.path.exists(str(file_path)):
             print(f"File not found request from {client_ip}: {filename}")
             record_failed_request(client_ip, filename)
             abort(404)
