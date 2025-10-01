@@ -614,7 +614,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         # Calculate workload reduction
         workload_reduction = (total_silence_duration / audio_duration) * 100
         
-        print(f"{Fore.GREEN}✓ Audio analysis complete:{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}Audio analysis complete:{Style.RESET_ALL}")
         print(f"   • Speech Groups: {len(speech_groups)} ({total_groups_duration:.1f}s)")
         print(f"   • Speech regions: {len(speech_regions)} ({total_speech_duration:.1f}s)")
         print(f"   • Silence regions: {len(silence_regions)} ({total_silence_duration:.1f}s)")
@@ -645,7 +645,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                 type_color = Fore.GREEN
                 type_label = "SPEECH"
             else:
-                icon = "🔇"
+                icon = "[MUTED]"
                 type_color = Fore.YELLOW
                 type_label = "SILENCE"
             
@@ -1634,7 +1634,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         try:
                             result_index, region_segments, best_model_name = future.result()
                             batch_results.append((result_index, region_segments))
-                            print(f"{Fore.GREEN}\n🏁 Completed region {result_index} processing{Style.RESET_ALL}")
+                            print(f"{Fore.GREEN}\nCompleted region {result_index} processing{Style.RESET_ALL}")
                         except Exception as exc:
                             error_message = str(exc)
                             is_timeout = "timed out" in error_message.lower()
@@ -1699,7 +1699,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                                 try:
                                     result_index, region_segments, best_model_name = future.result()
                                     all_results.append((result_index, region_segments))
-                                    print(f"{Fore.GREEN}\n🏁 Completed region {result_index} processing (no timeout){Style.RESET_ALL}")
+                                    print(f"{Fore.GREEN}\nCompleted region {result_index} processing (no timeout){Style.RESET_ALL}")
                                 except Exception as exc:
                                     print(f"{Fore.RED}\n Region {region_index} failed even without timeout: {exc}{Style.RESET_ALL}")
                                     all_results.append((region_index, []))
@@ -2568,7 +2568,7 @@ def process_with_segmentation(
         # Create segment boundaries (include start and end)
         segment_boundaries = [0.0] + split_points + [total_duration]
         
-        print(f"\n{Fore.CYAN}🔪 Creating {len(segment_boundaries) - 1} segments...{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}Creating {len(segment_boundaries) - 1} segments...{Style.RESET_ALL}")
         
         # Process each segment
         for i in range(len(segment_boundaries) - 1):
@@ -2635,7 +2635,7 @@ def process_with_segmentation(
         print(f"   Total segments: {len(segments_data)}")
         
         # Combine all segment results
-        print(f"{Fore.CYAN}🔗 Combining subtitles...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Combining subtitles...{Style.RESET_ALL}")
         
         # Create combined result
         combined_segments = []
@@ -3707,7 +3707,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         safe_name = sanitize_filename(name_without_ext)
         safe_output_path = os.path.join(output_dir, f"{safe_name}_embedded.mkv")
         
-        print(f"{Fore.CYAN}📥 Embedding subtitles in video...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Embedding subtitles in video...{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Input video: {video_path}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Subtitle file: {subtitle_path}{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}   Output video: {safe_output_path}{Style.RESET_ALL}")
@@ -3774,7 +3774,7 @@ def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: s
         ])
         
         # Run FFmpeg
-        print(f"{Fore.CYAN}📥 Starting subtitle embedding process...{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Starting subtitle embedding process...{Style.RESET_ALL}")
         result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='replace')
         
         # If CUDA encoding failed and we were using CUDA, try CPU fallback
