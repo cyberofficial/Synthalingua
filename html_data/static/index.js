@@ -63,6 +63,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
     setInterval(updateHeaders, 10);
 
+    // Validation functions for security
+    function isValidTwitchUsername(username) {
+        // Twitch usernames: 3-25 characters, alphanumeric + underscore only
+        const twitchPattern = /^[A-Za-z0-9_]{3,25}$/;
+        return twitchPattern.test(username);
+    }
+
+    function isValidYouTubeId(videoId) {
+        // YouTube video IDs are 11 characters: alphanumeric, hyphen, and underscore
+        const youtubePattern = /^[a-zA-Z0-9_-]{11}$/;
+        return youtubePattern.test(videoId);
+    }
+
     // Update video frame based on URL parameters
     const videoContainer = document.getElementById("video-frame");
     const videoSource = params.get("videosource");
@@ -70,9 +83,19 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (videoSource && videoId) {
         if (videoSource.toLowerCase() === "twitch") {
-            videoContainer.src = `https://player.twitch.tv/?channel=${videoId}&parent=localhost`;
+            // Validate Twitch username
+            if (isValidTwitchUsername(videoId)) {
+                videoContainer.src = `https://player.twitch.tv/?channel=${encodeURIComponent(videoId)}&parent=localhost`;
+            } else {
+                console.error("Invalid Twitch username");
+            }
         } else if (videoSource.toLowerCase() === "youtube") {
-            videoContainer.src = `https://www.youtube.com/embed/${videoId}`;
+            // Validate YouTube video ID
+            if (isValidYouTubeId(videoId)) {
+                videoContainer.src = `https://www.youtube.com/embed/${encodeURIComponent(videoId)}`;
+            } else {
+                console.error("Invalid YouTube video ID");
+            }
         }
         showElementById("video-container");
         showElementById("video-frame");
