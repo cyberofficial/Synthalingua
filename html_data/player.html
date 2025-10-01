@@ -1001,6 +1001,22 @@
         showTranscriptionInput.addEventListener("change", toggleCaptionVisibility);
         copyUrlBtn.addEventListener("click", copyToClipboard);
 
+        // Validation functions for security
+        function isValidTwitchUsername(username) {
+            const twitchPattern = /^[A-Za-z0-9_]{3,25}$/;
+            return twitchPattern.test(username);
+        }
+
+        function isValidYouTubeId(videoId) {
+            const youtubePattern = /^[a-zA-Z0-9_-]{11}$/;
+            return youtubePattern.test(videoId);
+        }
+
+        function isValidDomain(domain) {
+            const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+            return domainPattern.test(domain);
+        }
+
         // Apply video handler
         applyVideoBtn.addEventListener('click', () => {
             const selected = platformSelect.value;
@@ -1020,11 +1036,21 @@
             };
             const parent = extractDomain(window.location.href);
 
-            // Update iframe
+            // Update iframe with validation and encoding
             if (selected === 'twitch') {
-                videoFrame.src = `https://player.twitch.tv/?channel=${identifier}&parent=${parent}`;
+                if (isValidTwitchUsername(identifier) && isValidDomain(parent)) {
+                    videoFrame.src = `https://player.twitch.tv/?channel=${encodeURIComponent(identifier)}&parent=${encodeURIComponent(parent)}`;
+                } else {
+                    alert('Invalid Twitch username or domain. Username must be 3-25 characters (alphanumeric and underscore only).');
+                    return;
+                }
             } else {
-                videoFrame.src = `https://www.youtube.com/embed/${identifier}`;
+                if (isValidYouTubeId(identifier)) {
+                    videoFrame.src = `https://www.youtube.com/embed/${encodeURIComponent(identifier)}`;
+                } else {
+                    alert('Invalid YouTube video ID. Must be exactly 11 characters (alphanumeric, hyphen, and underscore only).');
+                    return;
+                }
             }
 
             // Show video area
