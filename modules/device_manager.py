@@ -103,23 +103,79 @@ def get_microphone_source(args):
 
 def list_microphones():
     """
-    List all available microphone devices in a formatted table.
+    List all available microphone devices in a formatted table with detailed information.
 
-    Displays a table of available microphone devices with their indices and names.
-    Only shows devices that are valid input devices.
+    Displays a comprehensive table of available microphone devices with their indices,
+    names, sample rates, and channel information. Only shows devices that are valid 
+    input devices. Provides clear instructions for device selection.
     Exits the program after displaying the list.
     """
-    print("Available microphone devices are: ")
+    pa = pyaudio.PyAudio()
+    
+    # Print header with styling
+    print("\n" + "=" * 80)
+    print(f"{Fore.CYAN}╔═══════════════════════════════════════════════════════════════════════════════╗{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}║{Style.RESET_ALL}           {Fore.YELLOW}AVAILABLE AUDIO INPUT DEVICES (MICROPHONES){Style.RESET_ALL}                  {Fore.CYAN}║{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}╚═══════════════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}")
+    print("=" * 80 + "\n")
+    
+    # Create enhanced table
     mic_table = PrettyTable()
-    mic_table.field_names = ["Index", "Microphone Name"]
-
+    mic_table.field_names = [
+        f"{Fore.GREEN}Device ID{Style.RESET_ALL}", 
+        f"{Fore.GREEN}Device Name{Style.RESET_ALL}",
+        f"{Fore.GREEN}Channels{Style.RESET_ALL}",
+        f"{Fore.GREEN}Sample Rate{Style.RESET_ALL}"
+    ]
+    mic_table.align[f"{Fore.GREEN}Device ID{Style.RESET_ALL}"] = "c"
+    mic_table.align[f"{Fore.GREEN}Device Name{Style.RESET_ALL}"] = "l"
+    mic_table.align[f"{Fore.GREEN}Channels{Style.RESET_ALL}"] = "c"
+    mic_table.align[f"{Fore.GREEN}Sample Rate{Style.RESET_ALL}"] = "c"
+    
+    device_count = 0
     for index, name in enumerate(sr.Microphone.list_microphone_names()):
         if is_input_device(index):
-            mic_table.add_row([index, name])
-
+            try:
+                device_info = pa.get_device_info_by_index(index)
+                channels = int(device_info.get('maxInputChannels', 0))
+                sample_rate = int(device_info.get('defaultSampleRate', 0))
+                
+                mic_table.add_row([
+                    f"{Fore.YELLOW}{index}{Style.RESET_ALL}",
+                    name[:60] + "..." if len(name) > 60 else name,
+                    f"{channels} ch",
+                    f"{sample_rate} Hz"
+                ])
+                device_count += 1
+            except Exception as e:
+                # If we can't get device info, still show basic info
+                mic_table.add_row([
+                    f"{Fore.YELLOW}{index}{Style.RESET_ALL}",
+                    name[:60] + "..." if len(name) > 60 else name,
+                    "N/A",
+                    "N/A"
+                ])
+                device_count += 1
+    
     print(mic_table)
+    
+    # Print usage instructions
+    print("\n" + "=" * 80)
+    print(f"{Fore.CYAN}USAGE INSTRUCTIONS:{Style.RESET_ALL}")
+    print(f"  • To select a microphone, use the {Fore.YELLOW}Device ID{Style.RESET_ALL} (the number in the first column)")
+    print(f"  • Example: {Fore.GREEN}--set_microphone 0{Style.RESET_ALL}")
+    print(f"  • {Fore.RED}Do NOT use the device name{Style.RESET_ALL}, only use the {Fore.YELLOW}Device ID number{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN}DEVICE INFORMATION:{Style.RESET_ALL}")
+    print(f"  • {Fore.YELLOW}Channels:{Style.RESET_ALL} Number of input channels (1=Mono, 2=Stereo, etc.)")
+    print(f"  • {Fore.YELLOW}Sample Rate:{Style.RESET_ALL} Audio sampling frequency (higher = better quality)")
+    print(f"  • {Fore.YELLOW}Device ID:{Style.RESET_ALL} Lower IDs typically have faster response times and lower latency")
+    print(f"  • Total devices found: {Fore.GREEN}{device_count}{Style.RESET_ALL}")
+    print("=" * 80 + "\n")
+    
+    pa.terminate()
+    
     reset_text = Style.RESET_ALL
-    input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
+    input(f"Press {Fore.YELLOW}[Enter]{reset_text} to exit...")
     sys.exit(0)
 
 def setup_device(args):
