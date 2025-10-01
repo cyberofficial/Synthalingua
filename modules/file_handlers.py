@@ -36,6 +36,46 @@ def print_error_message(message):
     """Print an error message with styling."""
     print(f"{Fore.RED}{Style.BRIGHT}[ERROR]{Style.RESET_ALL} {message}")
 
+def has_windows_drive_letter(path_string):
+    """
+    Safely check if a string contains a Windows drive letter (e.g., C:, D:).
+    
+    This function performs a safe check for Windows drive letter patterns
+    without risking IndexError on short strings. It checks if the path string:
+    1. Has at least 2 characters
+    2. Second character is a colon (:)
+    3. First character is an ASCII letter (A-Z or a-z)
+    
+    Args:
+        path_string (str): The path string to check
+        
+    Returns:
+        bool: True if the string starts with a Windows drive letter pattern, False otherwise
+        
+    Examples:
+        >>> has_windows_drive_letter("C:\\Users")
+        True
+        >>> has_windows_drive_letter("D:/Documents")
+        True
+        >>> has_windows_drive_letter(":")
+        False
+        >>> has_windows_drive_letter("x")
+        False
+        >>> has_windows_drive_letter("")
+        False
+        >>> has_windows_drive_letter("/home/user")
+        False
+    """
+    try:
+        # Check length first to avoid IndexError
+        if len(path_string) >= 2:
+            # Check if second character is colon and first is a letter
+            return path_string[1] == ':' and path_string[0].isalpha()
+        return False
+    except (TypeError, AttributeError):
+        # Handle cases where path_string is not a string
+        return False
+
 def load_blacklist(filename):
     """
     Load and parse the blacklist file.
