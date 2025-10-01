@@ -233,7 +233,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
         p.terminate()
         return
 
-    print("🎤 Recording started...")
+    print(" Recording started...")
     if enable_level_monitoring:
         print(" Audio level monitoring enabled (Ctrl+C to stop)")
 
@@ -373,7 +373,7 @@ def capture_audio(device_index, enable_level_monitoring=True):
                             status = f"🔇 SILENT ({silent_duration:.1f}s)"
                         else:
                             silent_duration = 0
-                            status = "🎤 ACTIVE"
+                            status = " ACTIVE"
                         
                         print(f"\r{status} Level: {audio_level:4d} [{meter}] Segments: {segments_created}", end="", flush=True)
                         last_level_display = current_time
@@ -563,7 +563,7 @@ if __name__ == "__main__":
             print("No device selected. Exiting...")
             sys.exit(0)
 
-    print(f"\n🎤 Selected microphone device: {device_index}")
+    print(f"\n Selected microphone device: {device_index}")
 
     # Get server port
     current_port = globals()['SERVER_PORT']
@@ -596,7 +596,7 @@ if __name__ == "__main__":
 
     # Generate stream key
     stream_key = secrets.token_urlsafe(16)
-    print(f"🔑 Stream Key: {stream_key}")
+    print(f" Stream Key: {stream_key}")
     
     print(f"\nHLS Stream URL:")
     print(f"   http://localhost:{current_port}/{PLAYLIST_NAME}?key={stream_key}")
