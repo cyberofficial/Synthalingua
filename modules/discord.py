@@ -74,7 +74,7 @@ def format_discord_message(text, message_type="info"):
     if message_type == "transcription":
         # Format transcription messages
         if "Original" in text:
-            return f"🗣️ **Original Transcription**\n\n{text.replace('Stream', '').replace('Original:', '').strip()}\n"
+            return f"**Original Transcription**\n\n{text.replace('Stream', '').replace('Original:', '').strip()}\n"
         elif "Transcription" in text:
             return f" **Transcription**\n\n{text.replace('Stream', '').replace('Transcription:', '').strip()}\n"
         else:
@@ -116,7 +116,7 @@ def send_transcription_to_discord(webhook_url, language, content, result_type="O
         result_type (str): Type of result ("Original", "Translation", "Transcription")
     """
     if result_type == "Translation":
-        icon = "🌐"
+        icon = "[TRANSLATION]"
         title = f"**{language} Translation**"
         message_type = "translation"
     elif result_type == "Transcription":
@@ -124,7 +124,7 @@ def send_transcription_to_discord(webhook_url, language, content, result_type="O
         title = f"**{language} Transcription**"
         message_type = "transcription"
     else:
-        icon = "🗣️"
+        icon = "[ORIGINAL]"
         title = f"**{language} Original**"
         message_type = "transcription"
     
@@ -141,10 +141,10 @@ def send_startup_notification(webhook_url, model_info, translation_enabled=False
         translation_enabled (bool): Whether translation is enabled
         stream_source (str, optional): The URL or identifier of the stream source
     """
-    translation_status = "🌐 **Translation: Enabled**" if translation_enabled else " **Translation: Disabled**"
+    translation_status = "**Translation: Enabled**" if translation_enabled else "**Translation: Disabled**"
     
     # Base message without stream source
-    message = f" **Synthalingua Service Started**\n\n🤖 **Model:** {model_info}\n{translation_status}\n\n📡 Ready to process audio streams!"
+    message = f"**Synthalingua Service Started**\n\n**Model:** {model_info}\n{translation_status}\n\nReady to process audio streams!"
     
     # Add stream source if provided
     if stream_source:

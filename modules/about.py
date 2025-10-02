@@ -1,143 +1,220 @@
-"""
- Enhanced About Module for Synthalingua 
+"""Modern About screen presentation for Synthalingua."""
 
-This module provides a visually stunning display of project information,
-featuring ASCII art, gradient colors, and modern terminal styling.
-Displays creator info, license, repository link, and contributors
-with eye-catching visual effects.
-"""
+from __future__ import annotations
 
-from colorama import Fore, Back, Style, init
-import sys
-import time
 import os
+import re
+import shutil
+import sys
+import textwrap
+import time
+from typing import Sequence, Tuple
+
+from colorama import Fore, Style, init
+
 from modules.version_checker import version
 
-# Initialize colorama for Windows compatibility
+
 init(autoreset=True)
 
-def print_gradient_text(text, colors):
-    """Print text with gradient-like color effect."""
-    color_cycle = colors * (len(text) // len(colors) + 1)
-    for i, char in enumerate(text):
-        print(color_cycle[i % len(colors)] + char, end='')
-    print(Style.RESET_ALL)
+USE_COLOR = sys.stdout.isatty()
+MIN_WIDTH = 78
+ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+DEFAULT_LINE_DELAY = 0.03
+HEADER_LINE_DELAY = 0.05
+RULE_LINE_DELAY = 0.015
+BULLET_LINE_DELAY = 0.04
 
-def print_banner():
-    """Display the awesome ASCII art banner."""
-    banner = f"""
-{Fore.CYAN}╔════════════════════════════════════════════════════════════════════════════════════════════════╗
-{Fore.CYAN}║                                                                                                ║
-{Fore.MAGENTA}║  ███████╗██╗   ██╗███╗   ██╗████████╗██╗  ██╗ █████╗ ██╗     ██╗███╗   ██╗ ██████╗ ██╗   ██╗ █████╗  ║
-{Fore.MAGENTA}║  ██╔════╝╚██╗ ██╔╝████╗  ██║╚══██╔══╝██║  ██║██╔══██╗██║     ██║████╗  ██║██╔════╝ ██║   ██║██╔══██╗ ║
-{Fore.BLUE}║  ███████╗ ╚████╔╝ ██╔██╗ ██║   ██║   ███████║███████║██║     ██║██╔██╗ ██║██║  ███╗██║   ██║███████║ ║
-{Fore.BLUE}║  ╚════██║  ╚██╔╝  ██║╚██╗██║   ██║   ██╔══██║██╔══██║██║     ██║██║╚██╗██║██║   ██║██║   ██║██╔══██║ ║
-{Fore.GREEN}║  ███████║   ██║   ██║ ╚████║   ██║   ██║  ██║██║  ██║███████╗██║██║ ╚████║╚██████╔╝╚██████╔╝██║  ██║ ║
-{Fore.GREEN}║  ╚══════╝   ╚═╝   ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝ ║
-{Fore.CYAN}║                                                                                                ║
-{Fore.CYAN}║                              🎤 Real-Time Audio Translation 🌐                                 ║
-{Fore.CYAN}║                                                                                                ║
-{Fore.CYAN}╚════════════════════════════════════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
-"""
-    print(banner)
 
-def print_section_header(title, icon="✨"):
-    """Print a stylized section header."""
-    line = "─" * (len(title) + 6)
-    print(f"\n{Fore.YELLOW}┌{line}┐")
-    print(f"│ {icon} {Fore.WHITE}{Style.BRIGHT}{title}{Style.RESET_ALL} {Fore.YELLOW}{icon} │")
-    print(f"└{line}┘{Style.RESET_ALL}")
+def animated_print(text: str = "", delay: float = DEFAULT_LINE_DELAY) -> None:
+    """Print a line and pause briefly for animation."""
 
-def print_info_line(label, value, color=Fore.GREEN):
-    """Print a formatted information line."""
-    print(f"  {Fore.CYAN}▶ {Style.BRIGHT}{label}:{Style.RESET_ALL} {color}{value}{Style.RESET_ALL}")
+    print(text)
+    time.sleep(max(delay, 0))
 
-def print_loading_effect(text, delay=0.05):
-    """Print text with a typewriter effect."""
-    for char in text:
-        print(char, end='', flush=True)
+
+def strip_ansi(text: str) -> str:
+    """Return text with ANSI escape codes removed."""
+
+    return ANSI_PATTERN.sub("", text)
+
+
+def stylize(text: str, *codes: str) -> str:
+    """Wrap text in ANSI codes when supported."""
+
+    if not USE_COLOR or not codes:
+        return text
+    return f"{''.join(codes)}{text}{Style.RESET_ALL}"
+
+
+def pad_visible(text: str, width: int) -> str:
+    """Pad string accounting for visible characters only."""
+
+    visible = len(strip_ansi(text))
+    return text + " " * max(width - visible, 0)
+
+
+def clear_console() -> None:
+    """Clear the terminal for a clean presentation."""
+
+    # Use ANSI escape codes for portability and safety
+    print('\033[2J\033[H', end='', flush=True)
+
+
+def terminal_width(default: int = MIN_WIDTH) -> int:
+    """Return terminal width, enforcing a sensible minimum."""
+
+    try:
+        width = shutil.get_terminal_size().columns
+    except OSError:
+        width = default
+    return max(width, default)
+
+
+def print_centered(text: str, width: int) -> None:
+    """Print text centered within the visible width."""
+
+    padding = max((width - len(strip_ansi(text))) // 2, 0)
+    animated_print(" " * padding + text)
+
+
+def draw_rule(width: int, accent: str, heavy: bool = False) -> None:
+    """Render a horizontal rule using light or heavy characters."""
+
+    char = "═" if heavy else "─"
+    animated_print(stylize(char * width, accent), RULE_LINE_DELAY)
+
+
+def section_header(title: str, width: int, accent: str) -> None:
+    """Print a centered section header with matching rules."""
+
+    animated_print("", RULE_LINE_DELAY)
+    draw_rule(width, accent, heavy=False)
+    print_centered(stylize(title.upper(), accent, Style.BRIGHT), width)
+    draw_rule(width, accent, heavy=False)
+
+
+def fact_line(label: str, value: str, width: int) -> None:
+    """Render a label/value pair with wrapping support."""
+
+    bullet = stylize("▸", Fore.CYAN, Style.BRIGHT)
+    label_text = stylize(label, Style.BRIGHT)
+    lead = f" {bullet} {label_text}: "
+    wrap_width = max(width - len(strip_ansi(lead)) - 4, 30)
+    wrapped = textwrap.wrap(value, wrap_width) or [""]
+
+    animated_print(f"{lead}{wrapped[0]}", BULLET_LINE_DELAY)
+    indent = " " * len(strip_ansi(lead))
+    for continuation in wrapped[1:]:
+        animated_print(f"{indent}{continuation}", BULLET_LINE_DELAY)
+
+
+def feature_grid(features: Sequence[str], width: int) -> None:
+    """Display features in one or two columns based on width."""
+
+    accent = stylize("•", Fore.MAGENTA, Style.BRIGHT)
+    if width < 96 or len(features) <= 4:
+        for feature in features:
+            animated_print(f"   {accent} {feature}", BULLET_LINE_DELAY)
+        return
+
+    col_width = (width - 6) // 2
+    rows = (len(features) + 1) // 2
+    left = features[:rows]
+    right = features[rows:]
+
+    for idx in range(rows):
+        left_text = f"{accent} {left[idx]}" if idx < len(left) else ""
+        right_text = f"{accent} {right[idx]}" if idx < len(right) else ""
+        animated_print(
+            "   " + pad_visible(left_text, col_width) + ("   " + right_text if right_text else ""),
+            BULLET_LINE_DELAY,
+        )
+
+
+def contributor_block(entries: Sequence[Tuple[str, str, str]], width: int) -> None:
+    """Render contributor credits with optional roles."""
+
+    for name, url, role in entries:
+        animated_print(f" {stylize('▹', Fore.CYAN)} {stylize(name, Fore.CYAN, Style.BRIGHT)}", BULLET_LINE_DELAY)
+        if role:
+            animated_print(f"    {stylize('Role:', Fore.LIGHTWHITE_EX)} {role}", BULLET_LINE_DELAY)
+        animated_print(f"    {stylize('Link:', Fore.LIGHTWHITE_EX)} {url}", BULLET_LINE_DELAY)
+        animated_print("", BULLET_LINE_DELAY)
+
+
+def animated_prompt(message: str, width: int, delay: float = 0.015) -> None:
+    """Display a centered prompt with a subtle typewriter effect."""
+
+    padding = max((width - len(message)) // 2, 0)
+    print(" " * padding, end="")
+    for char in message:
+        print(char, end="", flush=True)
         time.sleep(delay)
+    animated_print("", DEFAULT_LINE_DELAY)
+
+
+def contributors(ScriptCreator: str, GitHubRepo: str) -> None:
+    """Render the modern about screen and exit afterwards."""
+
+    clear_console()
+    width = terminal_width()
+
+    headline = stylize("SYNTHALINGUA", Style.BRIGHT)
+    tagline = "Real-time audio translation that keeps creators in sync."
+
+    draw_rule(width, Fore.CYAN, heavy=True)
+    print_centered(headline, width)
+    print_centered(stylize(tagline, Fore.LIGHTWHITE_EX), width)
+    draw_rule(width, Fore.CYAN, heavy=True)
+
+    section_header("Project Snapshot", width, Fore.LIGHTBLUE_EX)
+    snapshot = [
+        ("Version", f"v{version}"),
+        ("Created by", ScriptCreator),
+        ("License", "AGPLv3 (GNU Affero General Public License v3)"),
+        ("Repository", GitHubRepo),
+        ("Powered by", "OpenAI Whisper"),
+        ("Highlights", "Live transcription, translation, and subtitle generation in one toolkit"),
+    ]
+    for label, value in snapshot:
+        fact_line(label, value, width)
+
+    section_header("Why Creators Love Synthalingua", width, Fore.MAGENTA)
+    feature_grid(
+        [
+            "Real-time transcription tuned for streams and events",
+            "Instant multi-language translation with smart defaults",
+            "Microphone, HLS, and file-based workflows supported side-by-side",
+            "Web dashboard (with optional HTTPS) for remote teams",
+            "Flexible filtering, blocklists, and subtitle formatting",
+            "Discord webhook notifications and update awareness built-in",
+        ],
+        width,
+    )
+
+    section_header("Contributors & Acknowledgments", width, Fore.LIGHTCYAN_EX)
+    contributor_block(
+        [
+            ("@DaniruKun", "https://watsonindustries.live", ""),
+            ("[Expletive Deleted]", "https://evitelpxe.neocities.org", ""),
+            ("YuumiPie", "https://github.com/YuumiPie", ""),
+            ("OpenAI Team", "https://openai.com", "🧠 Whisper Models"),
+            ("SYSTRAN", "https://www.systransoft.com", "🧠 Faster Whisper backend"),
+            ("OpenVINO", "https://github.com/openvinotoolkit/openvino", "🧠 OpenVINO Whisper backend"),
+            ("Community", "GitHub Issues & PRs", "🤝 Support"),
+        ],
+        width,
+    )
+
     print()
+    closing = stylize("Breaking language barriers in real time.", Fore.LIGHTCYAN_EX, Style.BRIGHT)
+    print_centered(closing, width)
+    animated_prompt("Press Enter to continue.", width)
 
-def contributors(ScriptCreator, GitHubRepo):
-    """
-    Display project information and contributor credits with enhanced visuals.
-
-    Features:
-    - ASCII art banner
-    - Gradient text effects
-    - Structured information display
-    - Modern terminal styling
-    - Animated loading effects
-
-    Args:
-        ScriptCreator (str): Name of the project creator
-        GitHubRepo (str): URL of the project's GitHub repository
-
-    Note:
-        This function calls sys.exit() after displaying the information.
-    """
-    # Clear screen for better presentation
-    os.system('cls' if os.name == 'nt' else 'clear')
-    
-    # Display banner
-    print_banner()
-      # Project Information Section
-    print_section_header("PROJECT INFORMATION", "")
-    print_info_line("Version", f"v{version}", Fore.CYAN)
-    print_info_line("Created by", ScriptCreator, Fore.MAGENTA)
-    print_info_line("License", "AGPLv3 (GNU Affero General Public License v3)", Fore.GREEN)
-    print_info_line("Repository", GitHubRepo, Fore.BLUE)
-    print_info_line("Based on", "OpenAI Whisper", Fore.YELLOW)
-    print_info_line("Whisper URL", "https://github.com/openai/whisper", Fore.YELLOW)
-    
-    # Features Section
-    print_section_header("KEY FEATURES", "")
-    features = [
-        "🎙️  Real-time audio transcription",
-        "🌍  Multi-language translation support",
-        "🔊  Live microphone input processing",
-        "  Audio file transcription",
-        "🌐  Web interface for easy access",
-        "⚙️   Customizable settings and filters"
-    ]
-    
-    for feature in features:
-        print(f"  {Fore.GREEN}{feature}{Style.RESET_ALL}")
-        time.sleep(0.1)
-    
-    # Contributors Section
-    print_section_header("CONTRIBUTORS & ACKNOWLEDGMENTS", "👥")
-    
-    contributors_list = [
-        ("@DaniruKun", "https://watsonindustries.live", ""),
-        ("[Expletive Deleted]", "https://evitelpxe.neocities.org", ""),
-        ("YuumiPie", "https://github.com/YuumiPie", ""),
-        ("OpenAI Team", "https://openai.com", "🧠 Whisper Models"),
-        ("SYSTRAN", "https://www.systransoft.com", "🧠 Faster Whisper backend"),
-        ("OpenVINO", "https://github.com/openvinotoolkit/openvino", "🧠 OpenVINO Whisper backend"),
-        ("Community", "GitHub Issues & PRs", "🤝 Support")
-    ]
-    for name, url, role in contributors_list:
-        print(f"  {Fore.CYAN}▶ {Style.BRIGHT}{name}{Style.RESET_ALL}")
-        if role:  # Only show role if it's not empty
-            print(f"    {Fore.WHITE}Role: {Fore.YELLOW}{role}{Style.RESET_ALL}")
-        print(f"    {Fore.WHITE}Link: {Fore.BLUE}{url}{Style.RESET_ALL}")
-        print()
-    
-    # Footer
-    print_section_header("THANK YOU FOR USING SYNTHALINGUA!", "")
-    
-    # Animated closing message
-    closing_colors = [Fore.RED, Fore.YELLOW, Fore.GREEN, Fore.CYAN, Fore.BLUE, Fore.MAGENTA]
-    print_gradient_text("      Breaking language barriers, one word at a time! 🌟", closing_colors)
-    
-    print(f"\n{Fore.WHITE}{Style.DIM}Press any key to continue...{Style.RESET_ALL}")
-    
-    # Wait for user input before exiting
     try:
         input()
     except KeyboardInterrupt:
         pass
-    
+
     sys.exit()
