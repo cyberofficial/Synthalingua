@@ -16,7 +16,6 @@ import torch
 import speech_recognition as sr
 from colorama import Fore, Style
 
-from modules.console_settings import set_window_title
 from modules import api_backend
 from modules.languages import get_valid_languages
 from collections import deque
@@ -400,8 +399,6 @@ class TranscriptionCore:
                 confidence = language_probs[self.detected_language] * 100
                 confidence_color = (Fore.GREEN if confidence > 75
                                    else (Fore.YELLOW if confidence > 50 else Fore.RED))
-                if hasattr(self, 'args') and hasattr(self.args, 'model'):
-                    set_window_title(self.detected_language, confidence, self.args.model)
                 if not self.args.no_log:
                     print(f"Detected language: {self.detected_language} "
                           f"{confidence_color}({confidence:.2f}% Accuracy){Style.RESET_ALL}")
