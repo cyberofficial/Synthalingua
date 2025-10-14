@@ -27,6 +27,7 @@ import time
 import threading
 import signal
 import atexit
+import socket
 from flask import Flask, send_from_directory, url_for, Blueprint, request, abort
 from threading import Thread, Event
 from functools import lru_cache
@@ -403,6 +404,36 @@ def get_static_dir():
     """
     return os.path.join(get_html_data_dir(), 'static')
 
+def find_available_port(start_port, host='127.0.0.1'):
+    """
+    Find an available port starting from the specified port.
+    
+    Args:
+        start_port (int): Starting port number to check
+        host (str): Host address to bind to
+        
+    Returns:
+        int: Available port number, or None if no port is available
+    """
+    # Start from at least port 1024 (reserved ports are below 1024)
+    port = max(start_port, 1024)
+    
+    while True:
+        try:
+            # Try to bind to the port
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind((host, port))
+                # If bind succeeds, the port is available
+                return port
+        except OSError:
+            # Port is in use, try next one
+            port += 1
+            continue
+    
+    # This should never be reached, but just in case
+    return None
+
 class FlaskServerThread(Thread):
     """
     Thread-based Flask server implementation supporting both HTTP and HTTPS.
@@ -507,10 +538,30 @@ class FlaskServerThread(Thread):
                 print("Falling back to HTTP")
 
         try:
-            self.server = make_server(self.host, self.port, self.app, 
-                                    ssl_context=ssl_context)
-            print(f"Starting Flask Server on {self.host}:{self.port}")
-            print(f"You can access the server at http{'s' if ssl_context else ''}://{self.host}:{self.port}")
+            # Try to bind to the specified port, find alternative if in use
+            original_port = self.port
+            try:
+                self.server = make_server(self.host, self.port, self.app, 
+                                        ssl_context=ssl_context)
+            except OSError as e:
+                if "access" in str(e).lower() or "address already in use" in str(e).lower() or "permission" in str(e).lower():
+                    print(f"{Fore.YELLOW}Port {self.port} is already in use or permission denied. Searching for available port...{Style.RESET_ALL}")
+                    available_port = find_available_port(self.port, self.host)
+                    if available_port:
+                        self.port = available_port
+                        print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
+                        self.server = make_server(self.host, self.port, self.app, 
+                                                ssl_context=ssl_context)
+                    else:
+                        print(f"{Fore.RED}Could not find an available port. Please specify a different port or close the application using the current port.{Style.RESET_ALL}")
+                        raise
+                else:
+                    raise
+            
+            protocol = 'https' if ssl_context else 'http'
+            port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
+            print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
+            print(f"You can access the server at {protocol}://{self.host}:{self.port}")
             print(f" To force shutdown the server, delete the '{PID_FILE}' file")
             print()  # Add empty line to separate multiple server outputs
             

@@ -32,10 +32,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List
 from tqdm import tqdm
+from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.48"
+VERSION_NUMBER = "0.0.49"
+PORTABLE_PYTHON_VERSION = "3.12.10"
+APP_NAME = "Synthalingua"
+APP_VERSION = "1.2.5"
 
 @dataclass
 class Config:
@@ -160,6 +164,17 @@ class EnvironmentSetup:
         self.config = Config(python_embedded_path)
         self.downloader = DownloadManager()
         self.use_system_python = False  # Default to embedded Python
+        
+        # Bug report tracking variables
+        self.diffq_install_method = None  # 'pip' or 'bundled'
+        self.ffmpeg_source = None  # 'custom' or 'downloaded'
+        self.ytdlp_source = None  # 'custom' or 'downloaded'
+        self.seven_zip_source = None  # 'system' or 'downloaded'
+        self.python_type = None  # 'embedded' or 'system'
+        self.device_choice = None  # 'cpu', 'cuda', 'rocm'
+        self.os_type = self.config.OS_TYPE
+        self.version = APP_VERSION
+        self.datetime = datetime.now().isoformat()
 
     def find_ffmpeg_bin_path(self, root_path: Path) -> Optional[Path]:
         """Find the bin directory containing ffmpeg.exe."""
@@ -180,6 +195,7 @@ class EnvironmentSetup:
             try:
                 subprocess.run(['7z'], capture_output=True, check=False)
                 print("Found system p7zip installation.")
+                self.seven_zip_source = 'system'
                 return '7z'
             except FileNotFoundError:
                 print("p7zip not found. Please install it using your package manager:")
@@ -195,6 +211,7 @@ class EnvironmentSetup:
                 try:
                     subprocess.run(['7z'], capture_output=True, check=False)
                     print("p7zip installation verified.")
+                    self.seven_zip_source = 'system'
                     return '7z'
                 except FileNotFoundError:
                     print(" p7zip still not found. Please install it manually.")
@@ -210,6 +227,7 @@ class EnvironmentSetup:
                 reuse = input(f"Found existing 7zr.exe at {seven_zip_path}. Use it or download fresh? (use/download): ").strip().lower()
                 if reuse in ("use", "u"):
                     print(f"Using existing 7zr.exe: {seven_zip_path}")
+                    self.seven_zip_source = 'downloaded'
                     return str(seven_zip_path)
                 elif reuse in ("download", "d"):
                     print("Downloading fresh 7zr.exe...")
@@ -228,6 +246,7 @@ class EnvironmentSetup:
                     sevens_zip_path = input("Please enter the full path to your 7zr.exe file: ").strip()
                     if os.path.isfile(sevens_zip_path):
                         print(f"Using provided 7zr.exe at {sevens_zip_path}.")
+                        self.seven_zip_source = 'custom'
                         return sevens_zip_path
                     else:
                         print("The specified 7zr.exe file does not exist. Please try again.")
@@ -241,6 +260,7 @@ class EnvironmentSetup:
         if self.config.SEVEN_ZIP_URL:
             try:
                 self.downloader.download_file(self.config.SEVEN_ZIP_URL, str(seven_zip_path))
+                self.seven_zip_source = 'downloaded'
                 return str(seven_zip_path)
             except requests.exceptions.RequestException as e:
                 print(f"\n Error downloading 7zr.exe: {e}")
@@ -256,6 +276,7 @@ class EnvironmentSetup:
             use_own_ffmpeg = input("Do you already have FFmpeg installed and in your PATH? (yes/no): ").strip().lower()
             if use_own_ffmpeg in ('yes', 'y'):
                 print("Assuming FFmpeg is available in your PATH.")
+                self.ffmpeg_source = 'system'
                 return None # Indicate using system FFmpeg
             elif use_own_ffmpeg in ('no', 'n'):
                 break
@@ -270,6 +291,7 @@ class EnvironmentSetup:
                     ffmpeg_bin_path = self.find_ffmpeg_bin_path(Path(ffmpeg_path))
                     if ffmpeg_bin_path:
                         print(f"Using provided FFmpeg bin folder at {ffmpeg_bin_path}.")
+                        self.ffmpeg_source = 'custom'
                         return ffmpeg_bin_path
                     else:
                         print("Could not find ffmpeg.exe in the specified folder. Please check the path and try again.")
@@ -342,6 +364,7 @@ class EnvironmentSetup:
                 except OSError as e:
                     print(f"Warning: Could not remove temporary extraction folder: {e}")
 
+                self.ffmpeg_source = 'downloaded'
                 return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
             except (requests.exceptions.RequestException, FileNotFoundError) as e:
                 print(f"\n Error setting up FFmpeg: {e}")
@@ -362,6 +385,7 @@ class EnvironmentSetup:
                 return None
         else:
             print("FFmpeg folder already exists, skipping download and extraction.")
+            self.ffmpeg_source = 'downloaded'
             return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
 
     def setup_ytdlp(self, force_download: bool = False) -> Optional[Path]:
@@ -370,6 +394,7 @@ class EnvironmentSetup:
             use_own_ytdlp = input("Do you already have yt-dlp installed and in your PATH? (yes/no): ").strip().lower()
             if use_own_ytdlp in ('yes', 'y'):
                 print("Assuming yt-dlp is available in your PATH.")
+                self.ytdlp_source = 'system'
                 return None # Indicate using system yt-dlp
             elif use_own_ytdlp in ('no', 'n'):
                 break
@@ -384,6 +409,7 @@ class EnvironmentSetup:
                     ytdlp_exe = Path(ytdlp_path) / 'yt-dlp.exe'
                     if ytdlp_exe.exists():
                         print(f"Using provided yt-dlp folder at {ytdlp_path}.")
+                        self.ytdlp_source = 'custom'
                         return Path(ytdlp_path)
                     else:
                         print("Could not find yt-dlp.exe in the specified folder. Please check the path and try again.")
@@ -464,6 +490,7 @@ class EnvironmentSetup:
                             break
                         else:
                             print("Please answer 'yes' or 'no'.")
+                self.ytdlp_source = 'downloaded'
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
                 print(f"\n Error setting up yt-dlp: {e}")
@@ -474,6 +501,7 @@ class EnvironmentSetup:
                 return None
         else:
             print("yt-dlp folder already exists, skipping download.")
+            self.ytdlp_source = 'downloaded'
             return self.config.YTDLP_PATH
 
     def check_python_embedded_installed(self) -> bool:
@@ -556,6 +584,60 @@ class EnvironmentSetup:
         except Exception as e:
             print(f"\n Error extracting Python embedded: {e}")
             return False
+
+    def _get_installed_packages(self) -> str:
+        """Get list of installed packages in the Python environment used for vocal isolation."""
+        if self.python_type == 'embedded':
+            python_exe = self._get_python_exe()
+            if python_exe:
+                try:
+                    result = subprocess.run([python_exe, '-m', 'pip', 'list', '--format=freeze'], capture_output=True, text=True, check=True)
+                    return result.stdout.strip()
+                except subprocess.CalledProcessError:
+                    return "Unable to retrieve package list"
+        elif self.python_type == 'system':
+            try:
+                result = subprocess.run(['pip', 'list', '--format=freeze'], capture_output=True, text=True, check=True)
+                return result.stdout.strip()
+            except subprocess.CalledProcessError:
+                return "Unable to retrieve package list"
+        return "No vocal isolation packages installed"
+
+    def _create_bug_report_info(self) -> None:
+        """Create a bug report info file with system and setup information."""
+        installed_packages = self._get_installed_packages()
+        
+        bug_report_content = f"""Synthalingua Bug Report Information
+=====================================
+
+Setup Date/Time: {self.datetime}
+Synthalingua Version: {self.version}
+Operating System: {self.os_type}
+
+Setup Configuration:
+-------------------
+FFmpeg Source: {self.ffmpeg_source or 'Not configured'}
+yt-dlp Source: {self.ytdlp_source or 'Not configured'}
+7-Zip Source: {self.seven_zip_source or 'Not configured'}
+Python Type: {self.python_type or 'Not configured'}
+Device Choice: {self.device_choice or 'Not configured'}
+diffq Installation Method: {self.diffq_install_method or 'Not installed'}
+
+Installed Packages:
+------------------
+{installed_packages}
+
+Setup Notes:
+-----------
+- This file was generated automatically during Synthalingua environment setup
+- Include this information when reporting bugs or issues
+- If diffq was installed from bundled wheels, mention this in bug reports
+"""
+
+        with open('bugreportinfo.txt', 'w', encoding='utf-8') as f:
+            f.write(bug_report_content)
+        
+        print("\nBug report information saved to 'bugreportinfo.txt'")
 
     def _get_python_exe(self) -> Optional[str]:
         """Find the Python executable for the embedded installation."""
@@ -641,6 +723,8 @@ class EnvironmentSetup:
             print(" Error: Python executable not found. Cannot install packages.")
             return False
 
+        self.python_type = 'embedded'
+
         # Ask user about their preferred device for Synthalingua processing
         print("\nSynthalingua supports CPU, GPU (CUDA), and AMD GPU (ROCm) processing.")
         print("This affects both transcription and vocal isolation (demucs) performance.")
@@ -652,11 +736,13 @@ class EnvironmentSetup:
                 if device_choice in ("cuda", "gpu"):
                     use_cuda = True
                     use_rocm = False
+                    self.device_choice = 'cuda'
                     print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
                     break
                 elif device_choice in ("cpu"):
                     use_cuda = False
                     use_rocm = False
+                    self.device_choice = 'cpu'
                     print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                     break
                 else:
@@ -670,16 +756,19 @@ class EnvironmentSetup:
                     if device_choice in ("cuda", "gpu"):
                         use_cuda = True
                         use_rocm = False
+                        self.device_choice = 'cuda'
                         print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
                         break
                     elif device_choice in ("rocm", "amd"):
                         use_cuda = False
                         use_rocm = True
+                        self.device_choice = 'rocm'
                         print("ROCm selected - This will install AMD GPU-accelerated PyTorch for faster processing.")
                         break
                     elif device_choice in ("cpu"):
                         use_cuda = False
                         use_rocm = False
+                        self.device_choice = 'cpu'
                         print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                         break
                     else:
@@ -692,11 +781,13 @@ class EnvironmentSetup:
                     if device_choice in ("cuda", "gpu"):
                         use_cuda = True
                         use_rocm = False
+                        self.device_choice = 'cuda'
                         print("CUDA selected - This will install GPU-accelerated PyTorch (may not work on Apple Silicon).")
                         break
                     elif device_choice in ("cpu"):
                         use_cuda = False
                         use_rocm = False
+                        self.device_choice = 'cpu'
                         print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                         break
                     else:
@@ -740,12 +831,28 @@ class EnvironmentSetup:
             try:
                 result = subprocess.run([python_exe, '-m', 'pip', 'install', 'diffq'], check=True, capture_output=True, text=True)
                 print("diffq installation completed successfully.")
+                self.diffq_install_method = 'pip'
             except subprocess.CalledProcessError as e:
-                print("\n  Note: diffq installation failed (this is optional and won't affect core functionality).")
+                print("\n  Attempt 1 failed: diffq installation from PyPI failed.")
                 print("   Reason: Python embedded doesn't include development headers needed for C extensions.")
-                print("   Demucs will work without diffq, just slightly less optimized.")
-                if "Python.h" in e.stdout or "Python.h" in e.stderr:
-                    print("\n   If you need diffq, consider using system Python with the setup script instead.")
+                
+                # Try installing from bundled wheel (Windows only)
+                if self.config.OS_TYPE == 'windows':
+                    print("   Trying bundled version (may be outdated but should work)...")
+                    try:
+                        result = subprocess.run([python_exe, '-m', 'pip', 'install', '--no-index', '--find-links=_internal\\deps', 'diffq'], check=True, capture_output=True, text=True)
+                        print("   Bundled diffq installation completed successfully.")
+                        print("Bundled version installed, please remember to say you are on using the bundled diffq on any bug reports")
+                        self.diffq_install_method = 'bundled'
+                    except subprocess.CalledProcessError as bundled_e:
+                        print("\n  Attempt 2 failed: Bundled diffq installation also failed.")
+                        print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
+                        print("   If you need diffq, consider using system Python with the setup script instead.")
+                        self.diffq_install_method = None
+                else:
+                    print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
+                    print("   On Linux/macOS, diffq requires system Python with development headers.")
+                    self.diffq_install_method = None
 
             print("\nInstalling additional audio backend support...")
             sys.stdout.flush()
@@ -795,6 +902,8 @@ class EnvironmentSetup:
         """Install demucs package using system Python with appropriate PyTorch version."""
         print("\nSetting up vocal isolation with system Python...")
         
+        self.python_type = 'system'
+
         # Ask user about their preferred device for Synthalingua processing
         print("\nSynthalingua supports CPU, GPU (CUDA), and AMD GPU (ROCm) processing.")
         print("This affects both transcription and vocal isolation (demucs) performance.")
@@ -806,11 +915,13 @@ class EnvironmentSetup:
                 if device_choice in ("cuda", "gpu"):
                     use_cuda = True
                     use_rocm = False
+                    self.device_choice = 'cuda'
                     print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
                     break
                 elif device_choice in ("cpu"):
                     use_cuda = False
                     use_rocm = False
+                    self.device_choice = 'cpu'
                     print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                     break
                 else:
@@ -822,16 +933,19 @@ class EnvironmentSetup:
                 if device_choice in ("cuda", "gpu"):
                     use_cuda = True
                     use_rocm = False
+                    self.device_choice = 'cuda'
                     print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
                     break
                 elif device_choice in ("rocm", "amd"):
                     use_cuda = False
                     use_rocm = True
+                    self.device_choice = 'rocm'
                     print("ROCm selected - This will install AMD GPU-accelerated PyTorch for faster processing.")
                     break
                 elif device_choice in ("cpu"):
                     use_cuda = False
                     use_rocm = False
+                    self.device_choice = 'cpu'
                     print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                     break
                 else:
@@ -844,11 +958,13 @@ class EnvironmentSetup:
                 if device_choice in ("cuda", "gpu"):
                     use_cuda = True
                     use_rocm = False
+                    self.device_choice = 'cuda'
                     print("CUDA selected - This will install GPU-accelerated PyTorch (may not work on Apple Silicon).")
                     break
                 elif device_choice in ("cpu"):
                     use_cuda = False
                     use_rocm = False
+                    self.device_choice = 'cpu'
                     print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
                     break
                 else:
@@ -896,9 +1012,26 @@ class EnvironmentSetup:
             try:
                 result = subprocess.run(['pip', 'install', 'diffq'], check=True, capture_output=True, text=True)
                 print("diffq installation completed successfully.")
-            except subprocess.CalledProcessError:
-                print("\n  Note: diffq installation failed (this is optional and won't affect core functionality).")
-                print("   Demucs will work without diffq, just slightly less optimized.")
+                self.diffq_install_method = 'pip'
+            except subprocess.CalledProcessError as e:
+                print("\n  Attempt 1 failed: diffq installation from PyPI failed.")
+                
+                # Try installing from bundled wheel (Windows only)
+                if self.config.OS_TYPE == 'windows':
+                    print("   Trying bundled version (may be outdated but should work)...")
+                    try:
+                        result = subprocess.run(['pip', 'install', '--no-index', '--find-links=_internal/deps', 'diffq'], check=True, capture_output=True, text=True)
+                        print("   Bundled diffq installation completed successfully.")
+                        print("Bundled version installed, please remember to say you are on using the bundled diffq on any bug reports")
+                        self.diffq_install_method = 'bundled'
+                    except subprocess.CalledProcessError as bundled_e:
+                        print("\n  Attempt 2 failed: Bundled diffq installation also failed.")
+                        print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
+                        self.diffq_install_method = None
+                else:
+                    print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
+                    print("   On Linux/macOS, diffq requires development headers and may need manual installation.")
+                    self.diffq_install_method = None
 
             # Install additional audio libraries
             print("\nInstalling additional audio support libraries...")
@@ -1077,6 +1210,9 @@ class EnvironmentSetup:
                 self.setup_vocal_isolation()
 
         self.create_config_file(ffmpeg_path, ytdlp_path)
+        
+        # Create bug report info file
+        self._create_bug_report_info()
 
 
 def main() -> None:
