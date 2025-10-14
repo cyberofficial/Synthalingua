@@ -78,5 +78,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='main_release'
+    name='release'
 )
