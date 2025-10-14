@@ -50,7 +50,7 @@ class Config:
         # Platform-specific configurations
         if self.OS_TYPE == 'windows':
             self.FFMPEG_URL = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
-            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_win.zip'
+            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_win.zip'
             self.SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
             self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_win'
@@ -61,7 +61,7 @@ class Config:
             self.PYTHON_EMBEDDED_ARCHIVE = str(self.ASSETS_PATH / 'python_embedded.zip')
         elif self.OS_TYPE == 'linux':
             self.FFMPEG_URL = 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz'
-            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_linux'
+            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_linux'
             self.SEVEN_ZIP_URL = None  # Use system package manager
             self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_linux'
@@ -72,7 +72,7 @@ class Config:
             self.PYTHON_EMBEDDED_ARCHIVE = str(self.ASSETS_PATH / 'python_embedded.tgz')
         elif self.OS_TYPE == 'darwin':  # macOS
             self.FFMPEG_URL = 'https://evermeet.cx/ffmpeg/getrelease/zip'
-            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.06.30/yt-dlp_macos'
+            self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_macos'
             self.SEVEN_ZIP_URL = None  # Use system package manager (brew)
             self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_macos'
