@@ -415,10 +415,11 @@ def find_available_port(start_port, host='127.0.0.1'):
     Returns:
         int: Available port number, or None if no port is available
     """
-    # Start from at least port 1024 (reserved ports are below 1024)
-    port = max(start_port, 1024)
+    # Start from at least port 8000 (development range, avoid reserved ports)
+    port = max(start_port, 8000)
     
-    while True:
+    # Try up to 1000 ports to avoid infinite loops
+    for attempt in range(1000):
         try:
             # Try to bind to the port
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -426,12 +427,14 @@ def find_available_port(start_port, host='127.0.0.1'):
                 s.bind((host, port))
                 # If bind succeeds, the port is available
                 return port
-        except OSError:
-            # Port is in use, try next one
+        except OSError as e:
+            # Port is in use or permission denied, try next one
+            if _debug_enabled:
+                print(f"Debug: Port {port} unavailable: {e}")
             port += 1
             continue
     
-    # This should never be reached, but just in case
+    # If we couldn't find a port after 1000 attempts, return None
     return None
 
 class FlaskServerThread(Thread):
@@ -541,11 +544,16 @@ class FlaskServerThread(Thread):
             # Try to bind to the specified port, find alternative if in use
             original_port = self.port
             try:
+                print(f"Debug: Attempting to bind to port {self.port}")
                 self.server = make_server(self.host, self.port, self.app, 
                                         ssl_context=ssl_context)
-            except OSError as e:
-                if "access" in str(e).lower() or "address already in use" in str(e).lower() or "permission" in str(e).lower():
-                    print(f"{Fore.YELLOW}Port {self.port} is already in use or permission denied. Searching for available port...{Style.RESET_ALL}")
+                print(f"Debug: Successfully bound to port {self.port}")
+            except Exception as e:
+                print(f"Debug: Exception type: {type(e).__name__}")
+                print(f"Debug: Exception message: {e}")
+                error_msg = str(e).lower()
+                if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
+                    print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
                     available_port = find_available_port(self.port, self.host)
                     if available_port:
                         self.port = available_port
@@ -553,9 +561,10 @@ class FlaskServerThread(Thread):
                         self.server = make_server(self.host, self.port, self.app, 
                                                 ssl_context=ssl_context)
                     else:
-                        print(f"{Fore.RED}Could not find an available port. Please specify a different port or close the application using the current port.{Style.RESET_ALL}")
+                        print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
                         raise
                 else:
+                    print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
                     raise
             
             protocol = 'https' if ssl_context else 'http'
