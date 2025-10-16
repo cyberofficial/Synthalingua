@@ -2862,8 +2862,14 @@ def process_single_file(
             
             demucs_cmd.append(str(input_path_obj))
             
+            # Set up environment variables to work around torchaudio/torchcodec issues
+            # Force torchaudio to use soundfile backend instead of torchcodec which requires FFmpeg
+            demucs_env = os.environ.copy()
+            demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'  # Enable dispatcher mode
+            demucs_env['TORIO_USE_FFMPEG'] = '0'  # Disable FFmpeg/torchcodec backend
+            
             # Run demucs CLI to separate vocals with real-time progress display
-            process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+            process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=demucs_env)
             
             # Monitor progress in real-time
             stderr_output = ""

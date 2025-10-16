@@ -52,3 +52,5 @@ docs/
 synthalingua_env.bat
 /.github
 /fonts
+/bug_report_info
+bugreportinfo.txt
