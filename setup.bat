@@ -82,7 +82,7 @@ if /i "!has_cuda_gpu!"=="Y" (
     if /i "!use_cuda!"=="Y" (
         echo Applying CUDA patch to install GPU versions of PyTorch packages...
         pip uninstall --yes torch 
-        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+        pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu129
         echo CUDA patch applied for Nvidia GPU support.
     ) else (
         echo Skipping CUDA patch. Using default CPU versions of torch, torchvision, and torchaudio.

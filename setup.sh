@@ -18,13 +18,13 @@ PYTHON_BIN="python3"
 PYTHON_VERSION=$($PYTHON_BIN -V 2>&1)
 echo "Detected Python version: $PYTHON_VERSION"
 
-if [[ $PYTHON_VERSION != *"3.10."* ]]; then
-    echo "Python 3.10.x is required."
-    read -p "Enter the path to your Python 3.10.x binary (e.g., /usr/bin/python3.10): " PYTHON_BIN
+if [[ $PYTHON_VERSION != *"3.12."* ]]; then
+    echo "Python 3.12.x is required."
+    read -p "Enter the path to your Python 3.12.x binary (e.g., /usr/bin/python3.12): " PYTHON_BIN
     PYTHON_VERSION=$($PYTHON_BIN -V 2>&1)
     echo "Using: $PYTHON_BIN ($PYTHON_VERSION)"
-    if [[ $PYTHON_VERSION != *"3.10."* ]]; then
-        echo "Still not Python 3.10.x. Exiting."
+    if [[ $PYTHON_VERSION != *"3.12."* ]]; then
+        echo "Still not Python 3.12.x. Exiting."
         exit 1
     fi
 fi
@@ -69,7 +69,7 @@ if [[ "$OS_TYPE" == "Darwin" ]]; then
     if [[ $try_cuda =~ ^[Yy]$ ]]; then
         echo "Attempting CUDA install (may fail on macOS)..."
         pip uninstall -y torch torchaudio || true
-        if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+        if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu129; then
             echo "CUDA patch applied (if supported)."
         else
             echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
@@ -91,7 +91,7 @@ else
         if [[ $use_cuda =~ ^[Yy]$ ]]; then
             echo "Applying CUDA patch to install GPU versions of PyTorch packages..."
             pip uninstall -y torch torchaudio || true
-            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu129; then
                 echo "CUDA patch applied for Nvidia GPU support."
             else
                 echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
@@ -141,7 +141,7 @@ echo "Whisper translation environment setup completed!"
 # Create shortcut script with a practical example
 cat << EOF > livetranslation.sh
 #!/bin/bash
-source "[36m$(pwd)/data_whisper/bin/activate[0m"
+source "$(pwd)/data_whisper/bin/activate"
 # Example: Generate English captions for a video file
 python "$(pwd)/synthalingua.py" --ram 3gb --makecaptions --file_input "/path/to/your/video.mp4" --file_output "/path/to/output/folder" --file_output_name "output_captions" --language Japanese --device cuda
 # Edit the above paths and options as needed

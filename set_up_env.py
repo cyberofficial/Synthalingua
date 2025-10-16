@@ -36,7 +36,7 @@ from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.49"
+VERSION_NUMBER = "0.0.50"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
 APP_VERSION = "1.2.5"
@@ -799,7 +799,21 @@ Setup Notes:
                 print("This may take several minutes depending on your internet connection...")
                 print("")
                 sys.stdout.flush()
-                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128'], check=True)
+                # Install torch and torchaudio first
+                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu129'], check=True)
+                print("PyTorch and TorchAudio installation completed successfully.")
+                
+                # Try to install torchcodec separately (may fail)
+                print("Attempting to install TorchCodec...")
+                try:
+                    result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torchcodec'], check=True)
+                    print("TorchCodec installation completed successfully.")
+                except subprocess.CalledProcessError as e:
+                    print("TorchCodec installation failed, but PyTorch setup will continue.")
+                    print("This is usually not critical - vocal isolation may still work with soundfile backend.")
+                    if e.stderr:
+                        print(f"TorchCodec error: {e.stderr.decode()[:200]}...")
+                
                 print("\nCUDA PyTorch installation completed successfully.")
             elif use_rocm:
                 print("Installing ROCm-enabled PyTorch...")
@@ -977,7 +991,21 @@ Setup Notes:
                 print("This may take several minutes depending on your internet connection...")
                 print("")
                 sys.stdout.flush()
-                result = subprocess.run(['pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu128'], check=True)
+                # Install torch and torchaudio first
+                result = subprocess.run(['pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu129'], check=True)
+                print("PyTorch and TorchAudio installation completed successfully.")
+                
+                # Try to install torchcodec separately (may fail)
+                print("Attempting to install TorchCodec...")
+                try:
+                    result = subprocess.run(['pip', 'install', 'torchcodec'], check=True)
+                    print("TorchCodec installation completed successfully.")
+                except subprocess.CalledProcessError as e:
+                    print("TorchCodec installation failed, but PyTorch setup will continue.")
+                    print("This is usually not critical - vocal isolation may still work with soundfile backend.")
+                    if e.stderr:
+                        print(f"TorchCodec error: {e.stderr.decode()[:200]}...")
+                
                 print("\nCUDA PyTorch installation completed successfully.")
             elif use_rocm:
                 print("Installing ROCm-enabled PyTorch...")
