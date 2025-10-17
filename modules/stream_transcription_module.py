@@ -596,9 +596,17 @@ def start_stream_transcription(
                     if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
                         demucs_cmd.extend(['-j', str(args.demucs_jobs)])
                     demucs_cmd.append(str(file_path))
+                    
+                    # Set up environment variables to work around torchaudio/torchcodec issues
+                    # Force torchaudio to use soundfile backend instead of torchcodec which requires FFmpeg
+                    demucs_env = os.environ.copy()
+                    demucs_env['PYTHONIOENCODING'] = 'utf-8'  # Ensure proper character encoding
+                    demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'  # Enable dispatcher mode
+                    demucs_env['TORIO_USE_FFMPEG'] = '0'  # Disable FFmpeg/torchcodec backend
+                    
                     result = subprocess.run(
                         demucs_cmd,
-                        capture_output=True, text=True, encoding='utf-8', errors='replace')
+                        capture_output=True, text=True, encoding='utf-8', errors='replace', env=demucs_env)
                     if args.debug:
                         print_debug_message(f"Demucs return code: {result.returncode}")
                         if result.stdout:
