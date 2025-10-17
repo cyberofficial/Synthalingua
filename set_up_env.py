@@ -639,6 +639,37 @@ Setup Notes:
         
         print("\nBug report information saved to 'bugreportinfo.txt'")
 
+    def _write_demucs_config(self, python_exe_path: str) -> None:
+        """Write the demucs executable path to config file for demucs_path_helper.py to use."""
+        config_path = Path.cwd() / 'demucs_python_path.txt'
+        
+        # Find the demucs executable in the same environment as the Python interpreter
+        try:
+            python_dir = Path(python_exe_path).parent
+            
+            # Check for demucs executable in Scripts (Windows) or bin (Linux/macOS)
+            if self.config.OS_TYPE == 'windows':
+                demucs_path = python_dir / 'demucs.exe'
+                if not demucs_path.exists():
+                    # Fallback: might be in same directory as python.exe for some setups
+                    demucs_path = python_dir / 'demucs'
+            else:
+                demucs_path = python_dir / 'demucs'
+                if not demucs_path.exists():
+                    # Try without .exe extension
+                    demucs_path = python_dir / 'demucs'
+            
+            if demucs_path.exists():
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    f.write(str(demucs_path))
+                print(f"Demucs config file created: {config_path}")
+                print(f"Demucs executable path: {demucs_path}")
+            else:
+                print(f"Warning: Could not find demucs executable at {demucs_path}")
+                print(f"Demucs may need to be run via: {python_exe_path} -m demucs")
+        except Exception as e:
+            print(f"Warning: Could not write demucs config file: {e}")
+
     def _get_python_exe(self) -> Optional[str]:
         """Find the Python executable for the embedded installation."""
         if not self.check_python_embedded_installed():
@@ -894,6 +925,9 @@ Setup Notes:
                 print(" PyTorch configured for CPU processing.")
                 print("   Use --device cpu when running Synthalingua (default behavior).")
 
+            # Write demucs config file to point to this Python installation
+            self._write_demucs_config(python_exe)
+
             return True
         except FileNotFoundError:
             print(f"\n Error: Python executable not found at {python_exe}. Cannot install packages.")
@@ -1066,6 +1100,15 @@ Setup Notes:
             sys.stdout.flush()
             result = subprocess.run(['pip', 'install', 'soundfile', 'librosa'], check=True)
             print("\nAudio libraries installation completed successfully.")
+
+            # Write demucs config file to point to the Python where demucs was installed
+            try:
+                # Use sys.executable to get the actual Python being used (respects virtual environments)
+                import sys
+                python_path = sys.executable
+                self._write_demucs_config(python_path)
+            except Exception as e:
+                print(f"Warning: Could not determine Python path: {e}")
 
             print(" Vocal isolation setup with system Python completed successfully!")
             return True

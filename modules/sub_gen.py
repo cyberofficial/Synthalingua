@@ -845,7 +845,21 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             demucs_cmd.append(original_audio_path)
                             
                             # Run demucs with selected model and real-time progress
-                            process = subprocess.Popen(demucs_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace')
+                            # Ensure demucs subprocess avoids torchcodec (falls back to soundfile)
+                            demucs_env = os.environ.copy()
+                            demucs_env['PYTHONIOENCODING'] = 'utf-8'
+                            demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'
+                            demucs_env['TORIO_USE_FFMPEG'] = '0'
+
+                            process = subprocess.Popen(
+                                demucs_cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True,
+                                encoding='utf-8',
+                                errors='replace',
+                                env=demucs_env
+                            )
                             
                             # Monitor progress in real-time
                             stderr_output = ""
@@ -2865,6 +2879,7 @@ def process_single_file(
             # Set up environment variables to work around torchaudio/torchcodec issues
             # Force torchaudio to use soundfile backend instead of torchcodec which requires FFmpeg
             demucs_env = os.environ.copy()
+            demucs_env['PYTHONIOENCODING'] = 'utf-8'  # Ensure proper character encoding
             demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'  # Enable dispatcher mode
             demucs_env['TORIO_USE_FFMPEG'] = '0'  # Disable FFmpeg/torchcodec backend
             
