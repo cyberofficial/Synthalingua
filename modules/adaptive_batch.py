@@ -259,6 +259,8 @@ class JobScheduler:
         self.cpu_futures: Dict[concurrent.futures.Future, Dict] = {}
         self.completed: List[Tuple[int, Any]] = []
         self.total_jobs = 0
+        self.start_time = None
+        self.last_estimate_update = 0
         
         logger.info(f"JobScheduler initialized: {max_gpu_slots} GPU slots, {max_cpu_slots} CPU slots, "
                    f"max CPU time: {max_cpu_time_sec}s, stop CPU at: {stop_cpu_at_progress*100:.0f}%")
@@ -323,13 +325,17 @@ class JobScheduler:
         """
         self.total_jobs = len(sorted_jobs)
         self.completed = []
+        self.start_time = time.time()
         queue = list(enumerate(sorted_jobs, 1))
         
         gpu_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.max_gpu_slots) if self.max_gpu_slots > 0 else None
         cpu_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.max_cpu_slots) if self.max_cpu_slots > 0 else None
         
-        print(f"{Fore.CYAN} Starting adaptive batch processing: {len(queue)} jobs{Style.RESET_ALL}")
-        print(f"{Fore.CYAN} GPU slots: {self.max_gpu_slots}, CPU slots: {self.max_cpu_slots}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}╔═══════════════════════════════════════════╗{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}║     Adaptive Batch Processing Started    ║{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}╚═══════════════════════════════════════════╝{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}Total Jobs: {len(queue)} | GPU Slots: {self.max_gpu_slots} | CPU Slots: {self.max_cpu_slots}{Style.RESET_ALL}")
+        print()
         
         try:
             while queue or self.gpu_futures or self.cpu_futures:
@@ -345,7 +351,6 @@ class JobScheduler:
                         future = gpu_executor.submit(process_function, job["segment"], "gpu", *args, **kwargs)
                         self.gpu_futures[future] = {"index": job_index, "job": job, "start_time": start_time}
                         jobs_allocated += 1
-                        print(f"{Fore.GREEN}  → GPU slot {len(self.gpu_futures)}: Job {job_index} ({job['duration']:.1f}s audio){Style.RESET_ALL}")
                     
                     elif allocation == "cpu" and cpu_executor:
                         queue.pop(0)
@@ -353,7 +358,6 @@ class JobScheduler:
                         future = cpu_executor.submit(process_function, job["segment"], "cpu", *args, **kwargs)
                         self.cpu_futures[future] = {"index": job_index, "job": job, "start_time": start_time}
                         jobs_allocated += 1
-                        print(f"{Fore.YELLOW}  → CPU slot {len(self.cpu_futures)}: Job {job_index} ({job['duration']:.1f}s audio){Style.RESET_ALL}")
                     
                     else:  # wait
                         break
@@ -361,11 +365,37 @@ class JobScheduler:
                 # Check for completed jobs
                 completed_this_round = self._check_completed_jobs(performance_tracker)
                 
+                # Update progress display after each completed job
+                if completed_this_round > 0:
+                    self._update_progress_display(performance_tracker)
+                
                 if completed_this_round == 0 and jobs_allocated == 0:
                     # Nothing completed and nothing allocated, wait a bit
                     time.sleep(0.1)
             
-            print(f"{Fore.GREEN} Adaptive batch processing complete!{Style.RESET_ALL}")
+            # Final progress update
+            print()  # New line after progress bar
+            total_time = time.time() - self.start_time
+            
+            # Format total time
+            if total_time < 60:
+                time_str = f"{total_time:.1f}s"
+            elif total_time < 3600:
+                minutes = int(total_time // 60)
+                seconds = int(total_time % 60)
+                time_str = f"{minutes}m {seconds}s"
+            else:
+                hours = int(total_time // 3600)
+                minutes = int((total_time % 3600) // 60)
+                time_str = f"{hours}h {minutes}m"
+            
+            print(f"{Fore.GREEN}╔═══════════════════════════════════════════╗{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}║   Adaptive Batch Processing Complete!    ║{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}╚═══════════════════════════════════════════╝{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}✓ Total Jobs: {self.total_jobs}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}✓ Total Time: {time_str}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}✓ Average: {total_time/self.total_jobs:.1f}s per job{Style.RESET_ALL}")
+            print()
             
         finally:
             if gpu_executor:
@@ -406,7 +436,6 @@ class JobScheduler:
                     "gpu"
                 )
                 
-                print(f"{Fore.GREEN}  ✓ GPU Job {job_info['index']} complete ({processing_time:.1f}s){Style.RESET_ALL}")
                 completed_count += 1
             
             except Exception as e:
@@ -431,7 +460,6 @@ class JobScheduler:
                     "cpu"
                 )
                 
-                print(f"{Fore.YELLOW}  ✓ CPU Job {job_info['index']} complete ({processing_time:.1f}s){Style.RESET_ALL}")
                 completed_count += 1
             
             except Exception as e:
@@ -440,6 +468,87 @@ class JobScheduler:
                 completed_count += 1
         
         return completed_count
+    
+    def _update_progress_display(self, performance_tracker: PerformanceTracker):
+        """
+        Update progress display with job counts and time estimates.
+        
+        Args:
+            performance_tracker: PerformanceTracker instance
+        """
+        completed_count = len(self.completed)
+        active_count = len(self.gpu_futures) + len(self.cpu_futures)
+        remaining_count = self.total_jobs - completed_count - active_count
+        progress_pct = (completed_count / self.total_jobs * 100) if self.total_jobs > 0 else 0
+        
+        # Basic progress line
+        progress_bar_width = 30
+        filled = int(progress_bar_width * completed_count / self.total_jobs) if self.total_jobs > 0 else 0
+        bar = '█' * filled + '░' * (progress_bar_width - filled)
+        
+        print(f"\r{Fore.CYAN}[{bar}] {progress_pct:.1f}% | Completed: {completed_count}/{self.total_jobs} | Active: {active_count} | Remaining: {remaining_count}{Style.RESET_ALL}", end='', flush=True)
+        
+        # Show time estimate after 5 completed jobs
+        if completed_count >= 5 and completed_count != self.last_estimate_update:
+            self.last_estimate_update = completed_count
+            self._show_time_estimate(performance_tracker)
+    
+    def _show_time_estimate(self, performance_tracker: PerformanceTracker):
+        """
+        Calculate and display estimated time remaining.
+        
+        Args:
+            performance_tracker: PerformanceTracker instance
+        """
+        print()  # New line after progress bar
+        
+        elapsed_time = time.time() - self.start_time
+        completed_count = len(self.completed)
+        
+        if completed_count == 0:
+            return
+        
+        # Calculate average time per job so far
+        avg_time_per_job = elapsed_time / completed_count
+        
+        # Get remaining jobs with their predicted times
+        remaining_jobs = self.total_jobs - completed_count
+        active_jobs = len(self.gpu_futures) + len(self.cpu_futures)
+        queued_jobs = remaining_jobs - active_jobs
+        
+        # Estimate time for active jobs (assume halfway done on average)
+        active_time_estimate = 0
+        for job_info in list(self.gpu_futures.values()) + list(self.cpu_futures.values()):
+            time_elapsed = time.time() - job_info["start_time"]
+            predicted_total = performance_tracker.predict_processing_time(
+                job_info["job"]["duration"],
+                "gpu" if job_info in self.gpu_futures.values() else "cpu"
+            )
+            remaining_for_this_job = max(0, predicted_total - time_elapsed)
+            active_time_estimate += remaining_for_this_job
+        
+        # Estimate time for queued jobs using predictions
+        queued_time_estimate = queued_jobs * avg_time_per_job
+        
+        total_estimate = active_time_estimate + queued_time_estimate
+        
+        # Format time estimate
+        if total_estimate < 60:
+            time_str = f"{total_estimate:.0f}s"
+        elif total_estimate < 3600:
+            minutes = int(total_estimate // 60)
+            seconds = int(total_estimate % 60)
+            time_str = f"{minutes}m {seconds}s"
+        else:
+            hours = int(total_estimate // 3600)
+            minutes = int((total_estimate % 3600) // 60)
+            time_str = f"{hours}h {minutes}m"
+        
+        # Calculate ETA
+        eta_timestamp = time.time() + total_estimate
+        eta_time = time.strftime("%H:%M:%S", time.localtime(eta_timestamp))
+        
+        print(f"{Fore.YELLOW}⏱  Estimated time remaining: {time_str} (ETA: {eta_time}){Style.RESET_ALL}")
 
 
 class BatchConfig:
