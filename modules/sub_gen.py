@@ -1755,7 +1755,24 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             
                             if is_timeout:
                                 print(f"{Fore.RED}\n Region {region_index} timed out: {exc}{Style.RESET_ALL}")
-                                failed_regions.append((region_index, region))
+                                choice = input(f"What do you want to do for region {region_index}?\n1. Retry with increased timeout\n2. Skip with placeholder text\n3. Skip (empty SRT spot)\nChoice (1/2/3): ").strip()
+                                
+                                if choice == "1":
+                                    failed_regions.append((region_index, region))
+                                elif choice == "2":
+                                    # Add placeholder segment
+                                    placeholder_segment = {
+                                        "start": region['start'],
+                                        "end": region['end'],
+                                        "text": "- Failed to Transcribe Section -"
+                                    }
+                                    batch_results.append((region_index, [placeholder_segment]))
+                                elif choice == "3":
+                                    # Add empty
+                                    batch_results.append((region_index, []))
+                                else:
+                                    print("Invalid choice, skipping (empty)")
+                                    batch_results.append((region_index, []))
                             else:
                                 print(f"{Fore.RED}\n Region {region_index} generated an exception: {exc}{Style.RESET_ALL}")
                                 batch_results.append((region_index, []))
@@ -1785,41 +1802,56 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             
                             continue  # Continue the while loop with reduced batch size
                         else:
-                            # Final attempt: remove timeout and try once more at batch size 1
-                            print(f"{Fore.YELLOW}\n  Final attempt for {len(failed_regions)} regions - removing timeout restrictions{Style.RESET_ALL}")
+                            # Final attempt: ask user what to do
+                            print(f"{Fore.YELLOW}\n  Final attempt for {len(failed_regions)} failed regions{Style.RESET_ALL}")
+                            choice = input("What do you want to do for the final attempt?\n1. Remove timeout restrictions\n2. Replace with empty SRT spots\nChoice (1/2): ").strip()
                             
-                            # Temporarily disable timeout for final attempt
-                            original_timeout = getattr(args, 'timeout', 0)
-                            args.timeout = 0  # Disable timeout
+                            if choice == "1":
+                                # Remove timeout for final attempt
+                                print(f"{Fore.YELLOW} Removing timeout restrictions for final attempt{Style.RESET_ALL}")
+                                
+                                # Temporarily disable timeout for final attempt
+                                original_timeout = getattr(args, 'timeout', 0)
+                                args.timeout = 0  # Disable timeout
+                                
+                                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                                        final_future_to_index = {
+                                            executor.submit(
+                                                process_single_speech_region,
+                                                audio_path,
+                                                region,
+                                                region_index,
+                                                len(speech_regions),
+                                                original_model_type,
+                                                decode_options,
+                                                regions_temp_dir,
+                                                original_ram_setting,
+                                                task
+                                            ): (region_index, region) for region_index, region in failed_regions
+                                        }
+                                        
+                                        for future in concurrent.futures.as_completed(final_future_to_index):
+                                            region_index, region = final_future_to_index[future]
+                                            try:
+                                                result_index, region_segments, best_model_name = future.result()
+                                                all_results.append((result_index, region_segments))
+                                                print(f"{Fore.GREEN}\nCompleted region {result_index} processing (no timeout){Style.RESET_ALL}")
+                                            except Exception as exc:
+                                                print(f"{Fore.RED}\n Region {region_index} failed even without timeout: {exc}{Style.RESET_ALL}")
+                                                all_results.append((region_index, []))
+                                
+                                # Restore original timeout setting
+                                args.timeout = original_timeout
+                            elif choice == "2":
+                                # Replace with empty SRT spots
+                                print(f"{Fore.YELLOW} Replacing failed regions with empty SRT spots{Style.RESET_ALL}")
+                                for region_index, region in failed_regions:
+                                    all_results.append((region_index, []))
+                            else:
+                                print("Invalid choice, replacing with empty SRT spots")
+                                for region_index, region in failed_regions:
+                                    all_results.append((region_index, []))
                             
-                            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                                    final_future_to_index = {
-                                        executor.submit(
-                                            process_single_speech_region,
-                                            audio_path,
-                                            region,
-                                            region_index,
-                                            len(speech_regions),
-                                            original_model_type,
-                                            decode_options,
-                                            regions_temp_dir,
-                                            original_ram_setting,
-                                            task
-                                        ): (region_index, region) for region_index, region in failed_regions
-                                    }
-                                    
-                                    for future in concurrent.futures.as_completed(final_future_to_index):
-                                        region_index, region = final_future_to_index[future]
-                                        try:
-                                            result_index, region_segments, best_model_name = future.result()
-                                            all_results.append((result_index, region_segments))
-                                            print(f"{Fore.GREEN}\nCompleted region {result_index} processing (no timeout){Style.RESET_ALL}")
-                                        except Exception as exc:
-                                            print(f"{Fore.RED}\n Region {region_index} failed even without timeout: {exc}{Style.RESET_ALL}")
-                                            all_results.append((region_index, []))
-                            
-                            # Restore original timeout setting
-                            args.timeout = original_timeout
                             regions_to_process = []  # Exit the while loop
                     else:
                         # No failed regions, exit the while loop
