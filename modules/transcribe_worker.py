@@ -100,12 +100,22 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
             except (AttributeError, KeyError):
                 logger.warning(f"Could not convert language '{lang_option}' to a 2-letter code. Transcription may fail if the code is not already valid.")
 
+        logger.info(f"Starting transcription of: {audio_path}")
+        logger.info(f"Using device: {device}, compute_type: {compute_type}")
+        
         segments_generator, info = model.transcribe(audio_path, **transcribe_options)
+        
+        logger.info(f"Detected language: {info.language}")
         
         # Convert generator to a list of dictionaries in OpenAI Whisper format
         result_segments = []
         full_text_list = []
+        segment_count = 0
         for segment in segments_generator:
+            segment_count += 1
+            if segment_count % 10 == 0 or logger.level == logging.DEBUG:
+                logger.info(f"Processed segment {segment_count}: {segment.start:.2f}s - {segment.end:.2f}s")
+                logger.debug(f"  Text: {segment.text}")
             seg_dict = {
                 "id": segment.id,
                 "seek": segment.seek,
@@ -121,6 +131,9 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
             }
             result_segments.append(seg_dict)
             full_text_list.append(segment.text)
+        
+        logger.info(f"Transcription complete: {segment_count} segments processed")
+        logger.debug(f"Full text length: {len(''.join(full_text_list))} characters")
             
         return {
             "text": "".join(full_text_list).strip(),
@@ -138,8 +151,10 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
         ov_model_path = os.path.join(model_dir, "OpenVINO", model_id)
         
         logger.info(f"Loading OpenVINO model: {model_id} from {ov_model_path}")
+        logger.info(f"Using device: {device}")
         
         ov_model = OVModelForSpeechSeq2Seq.from_pretrained(ov_model_path, device=device, compile=False)
+        logger.info("Compiling OpenVINO model...")
         ov_model.compile()  # type: ignore
         
         processor = AutoProcessor.from_pretrained(model_id)
@@ -163,7 +178,10 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
             "language": f"<|{transcribe_options.get('language')}|>",
         }
         
+        logger.info(f"Starting transcription of: {audio_path}")
         outputs = pipe(audio_path, generate_kwargs=generate_kwargs, return_timestamps=True, chunk_level_timestamps=True)
+        
+        logger.info(f"Transcription complete")
         
         # Convert pipeline output to Whisper format
         result_segments = []
@@ -186,9 +204,13 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
     else:  # Default to standard Whisper
         import whisper
         logger.info(f"Loading standard Whisper model: {model_type}")
+        logger.info(f"Using device: {device}")
         model = whisper.load_model(model_type, device=device, download_root=model_dir)
+        logger.info(f"Starting transcription of: {audio_path}")
         # Standard whisper uses 'fp16', so we use the original options
-        return model.transcribe(audio_path, **decode_options)
+        result = model.transcribe(audio_path, **decode_options)
+        logger.info(f"Transcription complete: {len(result.get('segments', []))} segments")
+        return result
 
 def main():
     """Main execution block for the worker process."""
@@ -201,8 +223,14 @@ def main():
     parser.add_argument("--decode_options_json", required=True, type=str, help="JSON string of Whisper decode options.")
     parser.add_argument("--model_source", required=True, type=str.lower, choices=["whisper", "fasterwhisper", "openvino"], help="The model engine to use.")
     parser.add_argument("--compute_type", required=True, type=str, help="Compute type for FasterWhisper models (e.g., 'int8', 'float16').")
+    parser.add_argument("--debug", action='store_true', help="Enable debug output with progress information.")
     
     args = parser.parse_args()
+    
+    # Set logging level based on debug flag
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug mode enabled - verbose output activated")
 
     try:
         decode_options = json.loads(args.decode_options_json)
