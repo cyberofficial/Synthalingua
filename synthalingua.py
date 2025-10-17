@@ -100,6 +100,12 @@ def main():
         check_for_updates()
         sys.exit(0)
 
+    # Handle bug report generation and exit if requested
+    if args.bugreport:
+        from modules.bug_report import generate_bug_report
+        generate_bug_report()
+        sys.exit(0)
+
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
@@ -127,6 +133,33 @@ def main():
         print(f"{Fore.RED}Error:{Style.RESET_ALL} --batchmode can only be used with --makecaptions for caption generation.")
         print("Parallel batch processing is not supported for HLS streaming or microphone input.")
         sys.exit("Exiting...")
+    
+    # Validate adaptive_batch usage
+    if getattr(args, 'adaptive_batch', False):
+        # Must be used with makecaptions
+        if not args.makecaptions:
+            print(f"{Fore.RED}Error:{Style.RESET_ALL} --adaptive_batch can only be used with --makecaptions for caption generation.")
+            print("Adaptive batch processing is not supported for HLS streaming or microphone input.")
+            sys.exit("Exiting...")
+        
+        # Must use FasterWhisper model source
+        if args.model_source != 'fasterwhisper':
+            print(f"{Fore.RED}Error:{Style.RESET_ALL} --adaptive_batch requires --model_source fasterwhisper")
+            print(f"Current model source: {args.model_source}")
+            print("Adaptive batch processing is only compatible with FasterWhisper.")
+            sys.exit("Exiting...")
+        
+        # Device must not be CPU (adaptive batch needs GPU to be useful)
+        if args.device and args.device.lower() == 'cpu':
+            print(f"{Fore.RED}Error:{Style.RESET_ALL} --adaptive_batch cannot be used with --device cpu")
+            print("Adaptive batch processing requires GPU acceleration to allocate jobs between GPU and CPU.")
+            print("Without a GPU, all jobs run on CPU anyway, making adaptive batch unnecessary.")
+            sys.exit("Exiting...")
+    
+    # Warn if adaptive_batch overrides batchmode
+    if getattr(args, 'adaptive_batch', False) and getattr(args, 'batchmode', 1) > 1:
+        print(f"{Fore.YELLOW}Note:{Style.RESET_ALL} --adaptive_batch is enabled, --batchmode value will be ignored.")
+        print("Adaptive batch processing will auto-detect optimal GPU/CPU slot allocation.")
 
     # Check for correct transcription arguments
     if args.stream_transcribe is True and not isinstance(args.stream_transcribe, str):
@@ -215,9 +248,21 @@ def main():
             ValueError(f"{args.model_source} is not a valid model source")
 
     # Set up API backend if needed
-    if args.portnumber:
-        print("Port number was set, so spinning up a web server...")
-        api_backend.flask_server(operation="start", portnumber=args.portnumber)    # Set up temporary directory
+    if args.portnumber or args.https:
+        host = getattr(args, 'serverip', '127.0.0.1')
+        if args.portnumber and args.https:
+            print(f"Starting web servers on {host} (HTTP {args.portnumber}, HTTPS {args.https})...")
+            print(f"Access the web interface at: http://{host}:{args.portnumber} or https://{host}:{args.https}")
+        elif args.portnumber:
+            print(f"Starting HTTP web server on {host}:{args.portnumber}...")
+            print(f"Access the web interface at: http://{host}:{args.portnumber}")
+        elif args.https:
+            print(f"Starting HTTPS web server on {host}:{args.https}...")
+            print(f"Access the web interface at: https://{host}:{args.https}")
+        
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug)
+    
+    # Set up temporary directory
     temp_dir = setup_temp_directory()
 
     # Initialize webhook
@@ -262,7 +307,7 @@ def main():
             print("Tip: Compare the different files to choose the best quality for your needs.")
         else:
             # Standard single model caption generation
-            run_sub_gen(args.file_input, args.file_output_name, args.file_output)
+            run_sub_gen(args.file_input, args.file_output_name, args.file_output or "./")
         
         print("Press enter to exit...")
         input()

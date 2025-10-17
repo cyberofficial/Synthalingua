@@ -11,7 +11,7 @@ datas = []
 datas += [('html_data', 'html_data')]
 packages_with_data = [
     'whisper', 'librosa', 'openvino', 'optimum', 'faster_whisper', 'torch',
-    'torchio', 'numpy', 'scipy', 'pandas', 'sklearn', 'pycountry',
+    'torchio', 'torchcodec', 'numpy', 'scipy', 'pandas', 'sklearn', 'pycountry',
     'certifi', 'tiktoken', 'onnx', 'onnxruntime', 'ctranslate2',
     'soundfile', 'pydub', 'av', 'huggingface_hub', 'transformers', 'datasets'
 ]
@@ -78,5 +78,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name='main_release'
+    name='release'
 )

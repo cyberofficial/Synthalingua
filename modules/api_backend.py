@@ -16,6 +16,9 @@ Key Components:
 - FlaskServerThread: Thread-based Flask server implementation
 - API Blueprint: Routes for handling web requests
 - PID file-based force shutdown mechanism to prevent hanging servers
+- HTTPS support with self-signed certificates
+- Fuzzy security monitoring to block suspicious IPs attempting to access
+  non-existent static files
 """
 
 import os
@@ -24,13 +27,15 @@ import time
 import threading
 import signal
 import atexit
-from flask import Flask, send_from_directory, url_for, Blueprint
+import socket
+from flask import Flask, send_from_directory, url_for, Blueprint, request, abort
 from threading import Thread, Event
 from functools import lru_cache
 import ssl
 import tempfile
 from werkzeug.serving import make_server
 from colorama import Fore, Style
+from collections import defaultdict, deque
 
 # State management class
 class HeaderState:
@@ -63,6 +68,16 @@ class HeaderState:
 PID_FILE = "server.pid"
 watchdog_thread = None
 force_shutdown_flag = False
+_debug_enabled = False  # Internal debug flag set from args.debug
+watchdog_lock = threading.Lock()
+
+# Security monitoring for static file access
+failed_requests = defaultdict(deque)  # IP -> deque of failed request timestamps
+blocked_ips = set()  # Set of blocked IP addresses
+FAILED_REQUEST_THRESHOLD = 3  # Number of failed requests before blocking
+FAILED_REQUEST_WINDOW = 300  # Time window in seconds (5 minutes)
+BLOCK_DURATION = 3600  # Block duration in seconds (1 hour)
+blocked_ips_timestamps = {}  # IP -> timestamp when blocked
 
 def create_pid_file():
     """Create a PID file to track server status."""
@@ -82,58 +97,154 @@ def remove_pid_file():
     except Exception as e:
         print(f"Warning: Could not remove PID file: {e}")
 
+def is_ip_blocked(ip_address):
+    """Check if an IP address is currently blocked."""
+    current_time = time.time()
+    
+    # Clean up expired blocks
+    expired_ips = []
+    for blocked_ip, block_time in blocked_ips_timestamps.items():
+        if current_time - block_time > BLOCK_DURATION:
+            expired_ips.append(blocked_ip)
+    
+    for ip in expired_ips:
+        blocked_ips.discard(ip)
+        del blocked_ips_timestamps[ip]
+        print(f"IP {ip} unblocked after timeout")
+    
+    return ip_address in blocked_ips
+
+def record_failed_request(ip_address, filename):
+    """Record a failed static file request and check if IP should be blocked."""
+    current_time = time.time()
+    
+    # Clean old entries outside the window
+    while failed_requests[ip_address] and current_time - failed_requests[ip_address][0] > FAILED_REQUEST_WINDOW:
+        failed_requests[ip_address].popleft()
+    
+    # Add new failed request
+    failed_requests[ip_address].append(current_time)
+    
+    # Check if threshold exceeded
+    if len(failed_requests[ip_address]) >= FAILED_REQUEST_THRESHOLD:
+        blocked_ips.add(ip_address)
+        blocked_ips_timestamps[ip_address] = current_time
+        print(f"SECURITY ALERT: IP {ip_address} blocked for suspicious file access attempts!")
+        print(f"   Last attempt: {filename}")
+        print(f"   Failed attempts: {len(failed_requests[ip_address])} in {FAILED_REQUEST_WINDOW//60} minutes")
+        # Clear the failed requests for this IP since it's now blocked
+        failed_requests[ip_address].clear()
+
+def get_client_ip():
+    """Get the real client IP address, considering proxies."""
+    # Check for forwarded headers (for reverse proxies)
+    x_forwarded_for = request.headers.get('X-Forwarded-For')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    
+    x_real_ip = request.headers.get('X-Real-IP')
+    if x_real_ip:
+        return x_real_ip
+    
+    return request.remote_addr
+
 def watchdog_monitor():
     """Monitor PID file existence and force shutdown if file is deleted."""
-    global force_shutdown_flag
-    while not force_shutdown_flag:
-        try:
-            if not os.path.exists(PID_FILE):
-                print("PID file deleted - Force shutting down Flask server!")
-                force_shutdown_server()
+    global force_shutdown_flag, watchdog_thread
+    try:
+        while not force_shutdown_flag:
+            try:
+                if not os.path.exists(PID_FILE):
+                    print("PID file deleted - Force shutting down Flask server!")
+                    force_shutdown_server()
+                    break
+                time.sleep(2)  # Check every 2 seconds
+            except Exception as e:
+                print(f"Watchdog error: {e}")
                 break
-            time.sleep(2)  # Check every 2 seconds
-        except Exception as e:
-            print(f"Watchdog error: {e}")
-            break
+    finally:
+        with watchdog_lock:
+            if threading.current_thread() is watchdog_thread:
+                watchdog_thread = None
+
+
+def start_watchdog_thread():
+    """Ensure the watchdog monitor is running exactly once."""
+    global watchdog_thread
+    with watchdog_lock:
+        # Check if thread exists and is alive - using try-except for safety
+        if watchdog_thread:
+            try:
+                if watchdog_thread.is_alive():
+                    return
+            except (AttributeError, RuntimeError):
+                # Thread may have been terminated or in invalid state
+                pass
+        # Create and start new watchdog thread
+        watchdog_thread = threading.Thread(
+            target=watchdog_monitor,
+            name="watchdog-monitor",
+            daemon=True,
+        )
+        watchdog_thread.start()
 
 def force_shutdown_server():
     """Force shutdown the Flask server immediately."""
     global server_thread, force_shutdown_flag
     force_shutdown_flag = True
     
-    if server_thread and server_thread.is_alive():
-        print(" Force killing Flask server...")
+    # Store reference to thread to avoid it being modified during shutdown
+    thread_ref = server_thread
+    if thread_ref:
         try:
+            # Check if thread is alive before attempting shutdown operations
+            if not thread_ref.is_alive():
+                return
+            
+            print(" Force killing Flask server...")
+            
             # Set shutdown flag
-            server_thread.shutdown_event.set()
+            if hasattr(thread_ref, 'shutdown_event'):
+                thread_ref.shutdown_event.set()
             
             # Force close the server socket if available
-            if hasattr(server_thread, 'server') and server_thread.server:
+            if hasattr(thread_ref, 'server') and thread_ref.server:
                 try:
-                    server_thread.server.server_close()
-                except:
-                    pass
+                    thread_ref.server.server_close()
+                except (AttributeError, OSError) as e:
+                    if _debug_enabled:
+                        print(f"Debug: Could not close server socket: {e}")
+                    # In production, we silently continue as the server may already be closed
+                except Exception as e:
+                    if _debug_enabled:
+                        print(f"Debug: Unexpected error closing server: {e}")
+                        import traceback
+                        traceback.print_exc()
             
             # Give it a moment to shutdown gracefully
-            server_thread.join(timeout=1)
+            thread_ref.join(timeout=1)
             
-            # If still alive, we need to force kill the process
-            if server_thread.is_alive():
-                print(" Server thread still alive, using OS kill...")
-                try:
-                    # Get current process ID and kill it
-                    import psutil
-                    current_process = psutil.Process()
-                    
-                    # Find and kill any child processes (Flask workers)
-                    for child in current_process.children():
-                        if 'flask' in child.name().lower() or 'python' in child.name().lower():
-                            child.terminate()
-                            
-                except ImportError:
-                    print("psutil not available, using basic termination")
-                except Exception as e:
-                    print(f"Error during force kill: {e}")
+            # Check again if still alive for force kill
+            try:
+                if thread_ref.is_alive():
+                    print(" Server thread still alive, using OS kill...")
+                    try:
+                        # Get current process ID and kill it
+                        import psutil
+                        current_process = psutil.Process()
+                        
+                        # Find and kill any child processes (Flask workers)
+                        for child in current_process.children():
+                            if 'flask' in child.name().lower() or 'python' in child.name().lower():
+                                child.terminate()
+                                
+                    except ImportError:
+                        print("psutil not available, using basic termination")
+                    except Exception as e:
+                        print(f"Error during force kill: {e}")
+            except (AttributeError, RuntimeError):
+                # Thread may have terminated during our operations
+                pass
                     
         except Exception as e:
             print(f"Error during force shutdown: {e}")
@@ -178,12 +289,84 @@ def serve_player():
 @api.route('/static/<path:filename>')
 def serve_static(filename):
     """
-    Serves static files (CSS, JS, images, etc.).
+    Serves static files (CSS, JS, images, etc.) with security monitoring.
     
     Args:
         filename (str): Name of the static file to serve
     """
-    return send_from_directory(get_static_dir(), filename)
+    client_ip = get_client_ip()
+    
+    # Check if IP is blocked
+    if is_ip_blocked(client_ip):
+        print(f"Blocked IP {client_ip} attempted to access: {filename}")
+        abort(403)
+    
+    try:
+        # Check if file exists before serving
+        static_dir = get_static_dir()
+        
+        # Additional security checks on filename
+        # Reject filenames with null bytes or that contain absolute path indicators
+        # Check for Windows drive letters (C:, D:, etc.) on any platform for consistency
+        if '\x00' in filename or (len(filename) >= 2 and filename[1] == ':'):
+            print(f"Invalid filename from {client_ip}: {filename}")
+            record_failed_request(client_ip, filename)
+            abort(403)
+        
+        # Normalize path separators to prevent Windows backslash path traversal
+        # Replace backslashes with forward slashes before joining
+        filename = filename.replace('\\', '/')
+        full_path = os.path.join(static_dir, filename)
+        
+        # Additional security: ensure the path doesn't escape the static directory
+        # Use pathlib.Path.resolve() for robust path validation
+        from pathlib import Path
+        
+        try:
+            # Resolve both paths to their canonical forms
+            static_dir_path = Path(static_dir).resolve()
+            file_path = Path(full_path).resolve()
+            
+            # Check if file_path is relative to static_dir_path
+            # This handles cross-drive issues on Windows
+            try:
+                file_path.relative_to(static_dir_path)
+            except ValueError:
+                # file_path is not relative to static_dir_path (path traversal attempt)
+                print(f"Path traversal attempt from {client_ip}: {filename}")
+                record_failed_request(client_ip, filename)
+                abort(403)
+            
+            # Additional validation using os.path.commonpath with exception handling
+            # This handles edge cases where paths are on different drives on Windows
+            try:
+                if os.path.commonpath([str(file_path), str(static_dir_path)]) != str(static_dir_path):
+                    print(f"Path traversal attempt from {client_ip}: {filename}")
+                    record_failed_request(client_ip, filename)
+                    abort(403)
+            except ValueError:
+                # Different drives on Windows - definitely a path traversal attempt
+                print(f"Path traversal attempt from {client_ip}: {filename} (different drives)")
+                record_failed_request(client_ip, filename)
+                abort(403)
+                
+        except (OSError, RuntimeError, ValueError) as e:
+            # Handle errors during path resolution (e.g., symlink loops, permission issues, null bytes)
+            print(f"Path resolution error from {client_ip}: {filename} - {str(e)}")
+            record_failed_request(client_ip, filename)
+            abort(403)
+        
+        if not os.path.exists(str(file_path)):
+            print(f"File not found request from {client_ip}: {filename}")
+            record_failed_request(client_ip, filename)
+            abort(404)
+
+        return send_from_directory(static_dir, filename)
+        
+    except Exception as e:
+        print(f"Error serving static file to {client_ip}: {filename} - {str(e)}")
+        record_failed_request(client_ip, filename)
+        abort(500)
 
 @api.route('/update-header')
 def update_header_route():
@@ -221,6 +404,39 @@ def get_static_dir():
     """
     return os.path.join(get_html_data_dir(), 'static')
 
+def find_available_port(start_port, host='127.0.0.1'):
+    """
+    Find an available port starting from the specified port.
+    
+    Args:
+        start_port (int): Starting port number to check
+        host (str): Host address to bind to
+        
+    Returns:
+        int: Available port number, or None if no port is available
+    """
+    # Start from at least port 8000 (development range, avoid reserved ports)
+    port = max(start_port, 8000)
+    
+    # Try up to 1000 ports to avoid infinite loops
+    for attempt in range(1000):
+        try:
+            # Try to bind to the port
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind((host, port))
+                # If bind succeeds, the port is available
+                return port
+        except OSError as e:
+            # Port is in use or permission denied, try next one
+            if _debug_enabled:
+                print(f"Debug: Port {port} unavailable: {e}")
+            port += 1
+            continue
+    
+    # If we couldn't find a port after 1000 attempts, return None
+    return None
+
 class FlaskServerThread(Thread):
     """
     Thread-based Flask server implementation supporting both HTTP and HTTPS.
@@ -229,13 +445,16 @@ class FlaskServerThread(Thread):
         port (int): Port number for the server
         use_https (bool): Whether to use HTTPS protocol
     """
-    def __init__(self, port, use_https=False):
+    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False):
         super().__init__()
         self.port = port
         self.use_https = use_https
+        self.host = host
+        self.debug = debug
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
+        self.startup_complete = Event()  # Event to signal when startup messages are complete
 
     def create_app(self):
         """Creates and configures the Flask application."""
@@ -251,13 +470,17 @@ class FlaskServerThread(Thread):
         # Register blueprint
         app.register_blueprint(api)
 
-        # Add headers
+        # Add security headers
         @app.after_request
         def add_header(response):
             response.headers.update({
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
-                "Expires": "0"
+                "Expires": "0",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+                "X-XSS-Protection": "1; mode=block",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
             })
             return response
 
@@ -308,11 +531,9 @@ class FlaskServerThread(Thread):
         
         # Create PID file when server starts
         create_pid_file()
-        
-        # Start watchdog thread
-        global watchdog_thread
-        watchdog_thread = threading.Thread(target=watchdog_monitor, daemon=True)
-        watchdog_thread.start()
+
+        # Start watchdog monitor once across all server threads
+        start_watchdog_thread()
         
         if self.use_https:
             ssl_context, ssl_dir = self.setup_https()
@@ -320,11 +541,41 @@ class FlaskServerThread(Thread):
                 print("Falling back to HTTP")
 
         try:
-            self.server = make_server('0.0.0.0', self.port, self.app, 
-                                    ssl_context=ssl_context)
-            print(f"Starting Flask Server on port: {self.port}")
-            print(f"You can access the server at http{'s' if ssl_context else ''}://localhost:{self.port}")
+            # Try to bind to the specified port, find alternative if in use
+            original_port = self.port
+            try:
+                print(f"Debug: Attempting to bind to port {self.port}")
+                self.server = make_server(self.host, self.port, self.app, 
+                                        ssl_context=ssl_context)
+                print(f"Debug: Successfully bound to port {self.port}")
+            except Exception as e:
+                print(f"Debug: Exception type: {type(e).__name__}")
+                print(f"Debug: Exception message: {e}")
+                error_msg = str(e).lower()
+                if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
+                    print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
+                    available_port = find_available_port(self.port, self.host)
+                    if available_port:
+                        self.port = available_port
+                        print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
+                        self.server = make_server(self.host, self.port, self.app, 
+                                                ssl_context=ssl_context)
+                    else:
+                        print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
+                        raise
+                else:
+                    print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
+                    raise
+            
+            protocol = 'https' if ssl_context else 'http'
+            port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
+            print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
+            print(f"You can access the server at {protocol}://{self.host}:{self.port}")
             print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+            print()  # Add empty line to separate multiple server outputs
+            
+            # Signal that startup messages are complete
+            self.startup_complete.set()
             
             while not self.shutdown_event.is_set() and not force_shutdown_flag:
                 try:
@@ -348,32 +599,67 @@ class FlaskServerThread(Thread):
         if self.server:
             self.server.shutdown()
 
-# Global server instance
+# Global server instances
 server_thread = None
+https_server_thread = None
 
-def flask_server(operation, portnumber):
+def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False):
     """
     Controls the Flask server operation.
     
     Args:
         operation (str): "start" to start the server
-        portnumber (int): Port number for the server
+        portnumber (int): Port number for the HTTP server (can be None)
+        https_port (int): Port number for the HTTPS server (can be None)
     """
-    global server_thread
+    global server_thread, https_server_thread, _debug_enabled, force_shutdown_flag
     if operation == "start":
-        create_pid_file()
-        server_thread = FlaskServerThread(portnumber)
-        server_thread.daemon = True
-        server_thread.start()
-        global watchdog_thread
-        watchdog_thread = threading.Thread(target=watchdog_monitor)
-        watchdog_thread.daemon = True
-        watchdog_thread.start()
+        _debug_enabled = debug  # Set internal debug flag from args.debug
+        force_shutdown_flag = False
+        
+        # Start HTTP server if port is specified
+        if portnumber:
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug)
+            server_thread.daemon = True
+            server_thread.start()
+            
+            # If we're also starting HTTPS server, wait for HTTP startup to complete
+            if https_port:
+                server_thread.startup_complete.wait()  # Wait for HTTP server messages to finish
+        
+        # Start HTTPS server if port is specified
+        if https_port:
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug)
+            https_server_thread.daemon = True
+            https_server_thread.start()
+        
+        # Ensure watchdog monitor is running once
+        start_watchdog_thread()
 
 def kill_server():
     """Force shutdown the server using PID file mechanism."""
-    global server_thread
-    if server_thread and server_thread.is_alive():
+    global server_thread, https_server_thread
+    servers_running = []
+    
+    # Collect threads that are alive at this moment, storing references
+    http_thread = server_thread
+    https_thread = https_server_thread
+    
+    try:
+        if http_thread and http_thread.is_alive():
+            servers_running.append(('HTTP', http_thread))
+    except (AttributeError, RuntimeError):
+        # Thread may have terminated or in invalid state
+        pass
+    
+    try:
+        if https_thread and https_thread.is_alive():
+            servers_running.append(('HTTPS', https_thread))
+    except (AttributeError, RuntimeError):
+        # Thread may have terminated or in invalid state
+        pass
+    
+    if servers_running:
         print("Initiating server shutdown...")
         
         # First try graceful shutdown by deleting PID file
@@ -382,22 +668,30 @@ def kill_server():
         # Wait a moment for watchdog to detect and shutdown
         time.sleep(3)
         
-        # If still running, force it
-        if server_thread.is_alive():
-            print("Server still running, forcing shutdown...")
-            force_shutdown_server()
+        # Check if servers are still running and force shutdown if needed
+        for server_type, thread in servers_running:
+            try:
+                if thread.is_alive():
+                    print(f"{server_type} server still running, forcing shutdown...")
+                    force_shutdown_server()
+            except (AttributeError, RuntimeError):
+                # Thread may have terminated during the wait
+                print(f"{server_type} server already terminated")
         
-        # Wait for thread to finish
-        server_thread.join(timeout=2)
-        
-        if not server_thread.is_alive():
-            print("Server shutdown complete!")
-        else:
-            print("Server may still be running in background")
+        # Wait for threads to finish
+        for server_type, thread in servers_running:
+            try:
+                thread.join(timeout=2)
+                if not thread.is_alive():
+                    print(f"{server_type} server shutdown complete!")
+                else:
+                    print(f"{server_type} server may still be running in background")
+            except (AttributeError, RuntimeError):
+                # Thread may be in invalid state
+                print(f"{server_type} server shutdown status unknown")
     else:
-        print("No server running")
+        print("No servers running")
         # Clean up PID file just in case
-        remove_pid_file()
         remove_pid_file()
 
 # Register cleanup function to remove PID file on exit

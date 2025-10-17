@@ -10,23 +10,23 @@ if [ ! -f "synthalingua.py" ]; then
     exit 1
 fi
 
-echo "Checking for Python 3.10.x"
+echo "Checking for Python 3.12.x"
 echo "Running command: python -V"
 python_version=$(python -V 2>&1)
 echo "$python_version"
 
 # User verification for Python version
-echo -n "Does this show Python 3.10.x? (Y/N): "
+echo -n "Does this show Python 3.12.x? (Y/N): "
 read user_check
 
 if [[ ! "$user_check" =~ ^[Yy]$ ]]; then
-    echo "It seems you do not have Python 3.10.x installed."
-    echo "Please download and install Python 3.10.10 from the following link:"
-    echo "https://www.python.org/downloads/release/python-31010/"
-    echo -n "If you have Python 3.10.x installed but it's not in your PATH, enter the full path to the python binary (e.g., /path/to/python): "
+    echo "It seems you do not have Python 3.12.x installed."
+    echo "Please download and install Python 3.12.10 from the following link:"
+    echo "https://www.python.org/downloads/release/python-31210/"
+    echo -n "If you have Python 3.12.x installed but it's not in your PATH, enter the full path to the python binary (e.g., /path/to/python): "
     read python_path
     if [ -z "$python_path" ]; then
-        echo "Python 3.10.x is required. Exiting..."
+        echo "Python 3.12.x is required. Exiting..."
         exit 1
     fi
     python="$python_path"
@@ -83,7 +83,7 @@ if [[ "$OS_TYPE" == "Darwin" ]]; then
     if [[ $try_cuda =~ ^[Yy]$ ]]; then
         echo "Attempting CUDA install (may fail on macOS)..."
         pip uninstall -y torch torchaudio || true
-        if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+        if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu129; then
             echo "CUDA patch applied (if supported)."
         else
             echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
@@ -105,7 +105,7 @@ else
         if [[ $use_cuda =~ ^[Yy]$ ]]; then
             echo "Applying CUDA patch to install GPU versions of PyTorch packages..."
             pip uninstall -y torch torchaudio || true
-            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128; then
+            if pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu129; then
                 echo "CUDA patch applied for Nvidia GPU support."
             else
                 echo "CUDA install failed. Reinstalling CPU versions of torch packages..."
@@ -167,5 +167,10 @@ chmod +x livetranslation.sh
 echo "Shortcut 'livetranslation.sh' created in the current directory."
 echo "You can edit this file with any text editor if necessary."
 read -p "Press Enter to continue..."
+
+# Run environment setup script if present
+if [ -f set_up_env.py ]; then
+    $python set_up_env.py
+fi
 
 echo "Setup completed successfully!"

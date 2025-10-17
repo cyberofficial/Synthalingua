@@ -227,6 +227,9 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--ignorelist` | Blocklist file (words/phrases) |
 | `--auto_blocklist` | Auto-add frequently blocked phrases to blocklist |
 | `--debug` | Print debug info for blocked/suppressed messages |
+| `--batchmode` | Number of speech regions to process simultaneously in parallel for faster transcription. Higher values (2-4) can significantly improve processing speed on multi-core systems but use more VRAM/RAM. Example: '--batchmode 2' processes 2 regions at once. Recommended: 1-4 depending on your hardware capabilities. Only works with --makecaptions mode. |
+| `--adaptive_batch` | Enable intelligent adaptive batch processing that dynamically allocates jobs between GPU and CPU based on available VRAM, performance learning, and smart job sorting. Automatically detects GPU capacity and optimizes job distribution for maximum throughput. Works with --batchmode and --makecaptions. When enabled, --batchmode value is ignored in favor of auto-detected optimal GPU/CPU slot allocation. |
+| `--batchjobsize` | Model size in GB used for GPU capacity calculation in adaptive batch processing. Specifies how much VRAM each concurrent job requires. Range: 0.1-12.0 GB. Default: 4 GB (typical for medium models like 'small'). Use smaller values (0.1-2) for tiny models or larger values (6-11) for large models to accurately calculate how many jobs fit in VRAM. Only used with --adaptive_batch. |
 ### Print SRT to Console
 The `--print_srt_to_console` flag prints the final, fully combined SRT subtitles to the console after the SRT file is created (captions mode only). This is useful for quickly viewing the generated subtitles without opening the SRT file manually. It only prints the final combined SRT (not per-segment SRTs) and works with `--makecaptions`.
 
@@ -240,6 +243,7 @@ This will save the SRT file as usual and also print its contents to the console 
 | Flag | Description |
 |-----|-----|
 | `--portnumber` | Web server port |
+| `--https` | HTTPS web server port (runs alongside HTTP server) |
 | `--discord_webhook` | Discord webhook URL |
 
 ---
@@ -270,6 +274,10 @@ This will save the SRT file as usual and also print its contents to the console 
   python synthalingua.py --ram 11gb-v3 --makecaptions --silent_detect --silent_duration 2.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
   python synthalingua.py --ram 11gb-v3 --makecaptions --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With parallel batch processing (2 regions at once):
+  python synthalingua.py --ram 11gb-v3 --makecaptions --batchmode 2 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With adaptive batch processing (auto-detect GPU/CPU capacity):
+  python synthalingua.py --ram 11gb-v3 --makecaptions --adaptive_batch --batchjobsize 4.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Captions compare mode (all models):**
   ```sh
@@ -280,6 +288,8 @@ This will save the SRT file as usual and also print its contents to the console 
   python synthalingua.py --makecaptions compare --isolate_vocals --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   # RECOMMENDED: Vocal isolation + silence detection (maximum efficiency and quality):
   python synthalingua.py --makecaptions compare --isolate_vocals --silent_detect --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
+  # With adaptive batch processing (auto-detect GPU/CPU capacity):
+  python synthalingua.py --makecaptions compare --adaptive_batch --batchjobsize 4.0 --file_input="C:\Users\username\Downloads\file.mp4" --file_output="C:\Users\username\Downloads" --file_output_name="outputname" --language Japanese --device cuda
   ```
 - **Video subtitle processing (burn subtitles permanently):**
   ```sh
@@ -349,18 +359,64 @@ python synthalingua.py --makecaptions --isolate_vocals --silent_detect --file_in
    - **Resource efficient** (processes less audio overall)
    - **Natural boundaries** (respects speech patterns, no mid-word cuts)
 
+#### **Adaptive Batch Processing (`--adaptive_batch`)**
+- **What it does:** Intelligently distributes transcription jobs between GPU and CPU for maximum throughput
+- **Benefits:** Automatically optimizes processing speed by using all available hardware resources
+- **Best for:** Large files, batch processing, systems with both GPU and CPU available
+- **Usage:** Only works with `--makecaptions` (caption generation mode)
+- **Not supported:** HLS/streaming modes or microphone input
+- **How it works:**
+  - **Auto-detects** available GPU VRAM capacity
+  - **Learns** processing performance from initial batches
+  - **Sorts** jobs by predicted time (long jobs → GPU, short jobs → CPU)
+  - **Allocates** slots dynamically as jobs complete
+- **Configuration:**
+  - **Job Size (`--batchjobsize`):** Specifies VRAM per job (0.1-12.0 GB, default 4.0)
+    - **Tiny models:** 0.1-2.0 GB (e.g., 'tiny' model)
+    - **Medium models:** 3.0-6.0 GB (e.g., 'small', 'base' models)
+    - **Large models:** 7.0-12.0 GB (e.g., 'medium', 'large' models)
+
+#### **Parallel Batch Processing (`--batchmode`)**
+- **What it does:** Processes multiple speech regions simultaneously on the same device
+- **Benefits:** Faster processing on multi-core systems, better hardware utilization
+- **Best for:** Systems with multiple CPU cores or powerful GPUs
+- **Usage:** Only works with `--makecaptions` (caption generation mode)
+- **Configuration:** 1-4 concurrent regions (higher = faster but more resource intensive)
+
+#### ** Ultimate Performance Combo (RECOMMENDED)**
+Combine all optimization features for maximum speed and quality:
+```sh
+python synthalingua.py --makecaptions --isolate_vocals --silent_detect --adaptive_batch --batchjobsize 4.0 --file_input="your_file.mp4"
+```
+
+**Why this combination is unbeatable:**
+1. **Vocal isolation** creates clean audio for better transcription
+2. **Silent detection** skips non-speech regions for faster processing
+3. **Adaptive batch** uses all available hardware (GPU + CPU) optimally
+4. **Result:** Maximum throughput with highest quality output
+5. **Benefits:**
+   - **Fastest possible processing** (parallel GPU/CPU utilization)
+   - **Highest accuracy** (clean vocal-only audio)
+   - **Resource efficient** (optimal hardware allocation)
+   - **Scalable** (adapts to your specific hardware capabilities)
+
 #### **Processing Workflow**
 1. **Input:** Original audio/video file
 2. **Vocal Isolation:** Extracts clean vocals (if `--isolate_vocals`)
 3. **Silence Detection:** Finds speech regions in vocal track (if `--silent_detect`)
-4. **Transcription:** Processes only speech regions with natural boundaries
-5. **Output:** High-quality SRT captions with perfect timestamps
+4. **Batch Allocation:** Distributes speech regions across GPU/CPU (if `--adaptive_batch`)
+5. **Parallel Processing:** Transcribes multiple regions simultaneously (if `--batchmode` or `--adaptive_batch`)
+6. **Transcription:** Processes only speech regions with natural boundaries
+7. **Output:** High-quality SRT captions with perfect timestamps
 
 #### ** Pro Tips**
 - Use `--makecaptions compare` with both flags to test all models efficiently
 - Silent detection works on any audio, but is most effective with vocal isolation
 - Both features maintain perfect timestamp accuracy in final SRT files
 - Vocal isolation creates temporary files in `temp/audio/` directory
+- Adaptive batch processing automatically detects your hardware capabilities - no configuration needed
+- Use `--batchjobsize` to fine-tune VRAM calculations for your specific model size
+- Combine `--adaptive_batch` with `--isolate_vocals` and `--silent_detect` for ultimate performance
 
 ---
 
@@ -376,21 +432,36 @@ python synthalingua.py --makecaptions --isolate_vocals --silent_detect --file_in
 ## Web & Discord Integration
 - **Discord:** Use `--discord_webhook` to send results to Discord (long messages are split, rate limits handled)
 - **Web server:** Use `--portnumber` to launch a local Flask server and view subtitles in your browser
+- **HTTPS server:** Use `--https` to launch an HTTPS server with self-signed certificate, can run alongside HTTP
 
 ### Accessing the Web Server
-Once you've launched Synthalingua with the `--portnumber` parameter:
+Once you've launched Synthalingua with web server parameters:
 
+**HTTP Server:**
 1. Open your web browser and navigate to `http://localhost:[PORT]` (replace `[PORT]` with the port number you specified)
 2. Example: `http://localhost:8080` if you used `--portnumber 8080`
-3. For accessing from other devices on your network, use your computer's IP address: `http://[YOUR_IP]:[PORT]`
+
+**HTTPS Server:**
+1. Open your web browser and navigate to `https://localhost:[PORT]` (replace `[PORT]` with the HTTPS port you specified)
+2. Example: `https://localhost:8443` if you used `--https 8443`
+3. Your browser may show a security warning for the self-signed certificate - click "Advanced" and "Proceed" to continue
+
+**Network Access:**
+- For accessing from other devices on your network, use your computer's IP address: `http://[YOUR_IP]:[HTTP_PORT]` or `https://[YOUR_IP]:[HTTPS_PORT]`
 
 **Example usage:**
 ```sh
-# Start Synthalingua with a web server on port 8080
+# Start Synthalingua with HTTP server only
 python synthalingua.py --ram 6gb --translate --language ja --portnumber 8080
 
-# For remote HLS password protection
-python synthalingua.py --ram 6gb --translate --portnumber 8080 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
+# Start Synthalingua with HTTPS server only  
+python synthalingua.py --ram 6gb --translate --language ja --https 8443
+
+# Start Synthalingua with both HTTP and HTTPS servers
+python synthalingua.py --ram 6gb --translate --language ja --portnumber 8080 --https 8443
+
+# For remote HLS password protection (works with both HTTP and HTTPS)
+python synthalingua.py --ram 6gb --translate --portnumber 8080 --https 8443 --remote_hls_password_id "user" --remote_hls_password "yourpassword"
 ```
 
 ---
