@@ -502,7 +502,7 @@ class JobScheduler:
         """
         print()  # New line after progress bar
         
-        elapsed_time = time.time() - self.start_time
+        elapsed_time = time.time() - self.start_time # type: ignore
         completed_count = len(self.completed)
         
         if completed_count == 0:

@@ -58,6 +58,7 @@ from modules.version_checker import check_for_updates
 from modules.discord import send_to_discord_webhook, send_startup_notification, send_shutdown_notification
 from modules.about import contributors
 from modules.sub_gen import run_sub_gen
+from modules.srt_fix import fix_srt_file
 
 # =================================================================
 # PyInstaller Compatibility Block
@@ -104,6 +105,11 @@ def main():
     if args.bugreport:
         from modules.bug_report import generate_bug_report
         generate_bug_report()
+        sys.exit(0)
+
+    # Handle SRT file fixing and exit if requested
+    if args.fixsrt:
+        fix_srt_file(args.fixsrt)
         sys.exit(0)
 
     # Handle microphone listing and exit if requested

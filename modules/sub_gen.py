@@ -1881,6 +1881,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
         shutil.rmtree(regions_temp_dir, ignore_errors=True)
     
     print(f"{Fore.GREEN}\n Speech processing complete: {len(all_segments)} total segments generated{Style.RESET_ALL}")
+    all_segments.sort(key=lambda x: x.get('start', 0))
     return all_segments
 
 def format_timestamp(seconds: float) -> str:

@@ -224,6 +224,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--file_input` | Input file for captions |
 | `--file_output` | Output folder for captions |
 | `--file_output_name` | Output file name |
+| `--fixsrt` | Fix SRT subtitle file with incorrect timestamp ordering. Takes a path to an SRT file and creates a new file with '_repaired' suffix containing chronologically ordered subtitles. Useful for fixing SRT files where subtitles appear out of temporal sequence despite sequential numbering. |
 | `--ignorelist` | Blocklist file (words/phrases) |
 | `--auto_blocklist` | Auto-add frequently blocked phrases to blocklist |
 | `--debug` | Print debug info for blocked/suppressed messages |
@@ -312,6 +313,10 @@ This will save the SRT file as usual and also print its contents to the console 
   ```sh
   python synthalingua.py --set_microphone "Microphone (Realtek USB2.0 Audi)"
   python synthalingua.py --set_microphone 4
+  ```
+- **Fix SRT file with incorrect timestamp ordering:**
+  ```sh
+  python synthalingua.py --fixsrt "tests/BrokenSRTTimings.srt"
   ```
 
 ---
