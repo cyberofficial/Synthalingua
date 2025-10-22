@@ -60,7 +60,7 @@ Synthalingua is an advanced, self-hosted tool that leverages the power of artifi
 
 While currently in beta and not perfect, Synthalingua is actively being developed and will receive regular updates to further enhance its capabilities.
 
-Synthalingua started as a very personal project for me. I was inspired by my love for VTubers, many of whom I could only understand through translated clips on YouTube. I wanted to experience their streams live, in real time, with the same depth and connection that native speakers enjoyed. While I could already watch live, it just wasn’t the same without fully understanding what was being said in the moment. That frustration turned into motivation, and I began working on a tool that could break through improve the experience.
+Synthalingua started as a very personal project for me. I was inspired by my love for VTubers, many of whom I could only understand through translated clips on YouTube. I wanted to experience their streams live, in real time, with the same depth and connection that native speakers enjoyed. While I could already watch live, it just wasn’t the same without fully understanding what was being said in the moment. That frustration turned into motivation, and I began working on a tool that could break through and improve the experience.
 
 What started as a small, personal endeavor quickly grew into something much larger than I could have imagined. The idea that language should never be a barrier to connection, whether in the VTuber community or beyond, really resonated with me. I wanted to create something that would allow anyone, anywhere, to fully experience the rich conversations, emotions, and stories that come from people speaking in their own native tongue - and that’s how Synthalingua was born.
 
@@ -196,7 +196,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 | `--auto_hls` | Auto HLS chunk tuning |
 | `--cookies` | Cookies file (supports absolute paths, current dir, or cookies/ folder) |
 | `--remote_hls_password_id` | Webserver password ID |
-| `--remote_hls_password` | Webserver password for|
+| `--remote_hls_password` | Webserver password for authentication |
 
 ### Language & Translation
 | Flag | Description |
