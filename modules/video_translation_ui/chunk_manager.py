@@ -384,7 +384,7 @@ class ChunkManager:
             if c.status == ChunkStatus.COMPLETED or (c.status == ChunkStatus.PROCESSING and len(c.timestamps) > 0)
         )
         
-        buffer_pct = (completed_in_buffer / len(buffer_chunks) * 100) if buffer_chunks else 0
+        buffer_pct_local = (completed_in_buffer / len(buffer_chunks) * 100) if buffer_chunks else 0
         
         # Find the furthest point we've processed (including silence)
         # This is more accurate than just looking at last speech timestamp
@@ -408,12 +408,18 @@ class ChunkManager:
         
         seconds_buffered = max(0, furthest_available - current_time)
         
+        # Calculate buffer percentage based on total video duration (for timeline display)
+        # This shows how much of the entire video has been processed, not just the buffer window
+        total_duration = self.chunks[-1].end_time if self.chunks else 1.0
+        buffer_pct_total = (furthest_available / total_duration * 100) if total_duration > 0 else 0
+        
         return {
             'current_time': float(current_time),
             'buffer_distance': float(buffer_distance),
             'buffer_chunks': int(len(buffer_chunks)),
             'completed_in_buffer': int(completed_in_buffer),
-            'buffer_pct': float(round(buffer_pct, 2)),
+            'buffer_pct': float(round(buffer_pct_total, 2)),  # Use total video percentage for timeline
+            'buffer_pct_local': float(round(buffer_pct_local, 2)),  # Keep local buffer percentage for status
             'seconds_buffered': float(round(seconds_buffered, 2)),
             'is_ready': bool(seconds_buffered >= buffer_distance * 0.5),  # At least 50% buffered
         }

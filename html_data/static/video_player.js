@@ -38,6 +38,7 @@ class VideoTranslatorApp {
         // Buffer elements
         this.bufferProgress = document.getElementById('buffer-progress');
         this.bufferText = document.getElementById('buffer-text');
+        this.timelineBuffered = document.getElementById('timeline-buffered');
         
         // Settings elements
         this.sourceLanguage = document.getElementById('source-language');
@@ -485,6 +486,11 @@ class VideoTranslatorApp {
             const bufferStatus = status.buffer.buffer_status;
             this.bufferProgress.style.width = `${bufferStatus.buffer_pct}%`;
             this.bufferText.textContent = `Buffer: ${bufferStatus.seconds_buffered}s ahead`;
+            
+            // Update timeline buffered bar (green) to show buffered portion
+            if (this.timelineBuffered) {
+                this.timelineBuffered.style.width = `${bufferStatus.buffer_pct}%`;
+            }
         }
         
         // Update language indicator
@@ -503,6 +509,11 @@ class VideoTranslatorApp {
             const bufferStatus = data.buffer_status;
             this.bufferProgress.style.width = `${bufferStatus.buffer_pct}%`;
             this.bufferText.textContent = `Buffer: ${bufferStatus.seconds_buffered.toFixed(1)}s ahead`;
+            
+            // Update timeline buffered bar (green) to show buffered portion
+            if (this.timelineBuffered) {
+                this.timelineBuffered.style.width = `${bufferStatus.buffer_pct}%`;
+            }
         }
         
         // Update segment counter in status bar
