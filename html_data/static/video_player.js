@@ -92,6 +92,14 @@ class VideoTranslatorApp {
         this.uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.uploadArea.addEventListener('drop', (e) => this.handleFileDrop(e));
         
+        // Change Video button (allows re-uploading after initial upload)
+        const changeVideoBtn = document.getElementById('change-video-btn');
+        if (changeVideoBtn) {
+            changeVideoBtn.addEventListener('click', () => {
+                this.videoInput.click();
+            });
+        }
+        
         // Video player
         this.videoPlayer.addEventListener('timeupdate', () => this.updatePlaybackPosition());
         this.videoPlayer.addEventListener('loadedmetadata', () => this.onVideoLoaded());
@@ -323,7 +331,7 @@ class VideoTranslatorApp {
             const demucsJobs = parseInt(this.demucsJobs.value);
             
             // Debug: Log configuration being sent
-            console.log('📋 Starting processing with configuration:', {
+            console.log(' Starting processing with configuration:', {
                 model_source: modelSource,
                 model_size: modelSize,
                 device: device,
@@ -433,9 +441,18 @@ class VideoTranslatorApp {
         this.statusProcessing.textContent = `Complete (${data.processed_chunks}/${data.total_chunks} chunks)`;
         this.statusProgress.textContent = '100%';
         
+        // Update segment count to show final total
+        if (data.total_segments !== undefined && data.total_segments !== null) {
+            this.statusSegments.textContent = `${data.total_segments}/${data.total_segments} segments`;
+        }
+        
         // Re-enable the start button so user can process another video
         this.startProcessingBtn.disabled = false;
         this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
+        
+        // Show upload area again so user can load a different video
+        this.uploadArea.style.display = 'block';
+        this.videoInfo.style.display = 'none';
         
         // Show success message
         const minutes = (data.total_time / 60).toFixed(1);
@@ -446,6 +463,21 @@ class VideoTranslatorApp {
         // Update progress
         if (status.progress) {
             this.statusProgress.textContent = `${status.progress.progress_pct}%`;
+            
+            // Fallback: If we reach 100% and processing flag is still true, re-enable button
+            // This handles cases where WebSocket processing_complete event might not fire
+            if (status.progress.progress_pct >= 100 && this.isProcessing) {
+                console.log('Detected 100% completion via status polling - re-enabling button');
+                this.isProcessing = false;
+                this.startProcessingBtn.disabled = false;
+                this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
+                
+                // Show upload area again so user can load a different video
+                this.uploadArea.style.display = 'block';
+                this.videoInfo.style.display = 'none';
+                
+                this.stopStatusPolling();
+            }
         }
         
         // Update buffer
@@ -460,6 +492,9 @@ class VideoTranslatorApp {
             const lang = status.transcription_stats.model_source;
             this.statusLanguage.textContent = `${lang} → ${this.targetLanguage.value}`;
         }
+        
+        // Don't update segment count here - let WebSocket buffer_update events handle it
+        // (Status polling doesn't have total_segments info, so it would show incomplete data)
     }
     
     updateBufferStatus(data) {
@@ -471,8 +506,16 @@ class VideoTranslatorApp {
         }
         
         // Update segment counter in status bar
-        if (data.segment_num && data.total_segments) {
-            this.statusSegments.textContent = `${data.segment_num}/${data.total_segments} segments`;
+        // During processing: show current count without total (e.g., "42 segments")
+        // At completion: show final count with total (e.g., "42/42 segments")
+        if (data.segment_num !== undefined && data.segment_num !== null) {
+            if (data.total_segments && data.total_segments > 0) {
+                // Final update with known total
+                this.statusSegments.textContent = `${data.segment_num}/${data.total_segments} segments`;
+            } else {
+                // Progressive update during processing (don't know final count yet)
+                this.statusSegments.textContent = `${data.segment_num} segments`;
+            }
         }
     }
     

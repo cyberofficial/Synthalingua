@@ -173,7 +173,7 @@ class BufferManager:
                     completed = len([c for c in self.chunk_manager.chunks if c.status.name == 'COMPLETED'])
                     total = len(self.chunk_manager.chunks)
                     if chunk_to_process.chunk_id % 5 == 0:  # Every 5th chunk
-                        logger.info(f"📊 Buffer status: {completed}/{total} chunks completed")
+                        logger.info(f" Buffer status: {completed}/{total} chunks completed")
                     
                     logger.debug(f"Queued chunk {chunk_to_process.chunk_id} for processing")
                 else:

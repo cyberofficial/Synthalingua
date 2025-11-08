@@ -331,7 +331,7 @@ class ChunkManager:
                 - processing: Number of chunks being processed
                 - pending: Number of pending chunks
                 - failed: Number of failed chunks
-                - progress_pct: Overall progress percentage
+                - progress_pct: Overall progress percentage (based on video duration processed)
         """
         completed = sum(1 for c in self.chunks if c.status == ChunkStatus.COMPLETED)
         processing = sum(1 for c in self.chunks if c.status == ChunkStatus.PROCESSING)
@@ -339,7 +339,18 @@ class ChunkManager:
         priority = sum(1 for c in self.chunks if c.status == ChunkStatus.PRIORITY)
         failed = len(self.failed_chunks)
         
-        progress_pct = (completed / len(self.chunks)) * 100 if self.chunks else 0
+        # Calculate progress based on actual video duration processed (more accurate than chunk count)
+        # Sum up how much time has been analyzed (start_time + processed_until for each chunk)
+        total_processed_time = 0.0
+        for chunk in self.chunks:
+            if chunk.status == ChunkStatus.COMPLETED:
+                # Completed chunks contribute their full duration
+                total_processed_time += chunk.duration
+            elif chunk.status == ChunkStatus.PROCESSING and chunk.processed_until > 0:
+                # Processing chunks contribute how much has been analyzed so far
+                total_processed_time += chunk.processed_until
+        
+        progress_pct = (total_processed_time / self.video_duration) * 100 if self.video_duration > 0 else 0
         
         return {
             'total_chunks': len(self.chunks),

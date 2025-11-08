@@ -250,7 +250,7 @@ class VideoTranscriptionManager:
                 logger.debug(f"Using specified language for chunk {chunk_id}: {result['language']}")
             
             # Transcribe
-            logger.info(f"🎤 Transcribing audio chunk {chunk_id} ({result['language']})...")
+            logger.info(f" Transcribing audio chunk {chunk_id} ({result['language']})...")
             with self.model_lock:
                 if not self.model:
                     raise RuntimeError("Model not loaded")
@@ -308,7 +308,7 @@ class VideoTranscriptionManager:
         if source_lang == self.target_language:
             return text
         
-        logger.info(f"🌐 Translating text from {source_lang} to {self.target_language}...")
+        logger.info(f" Translating text from {source_lang} to {self.target_language}...")
         try:
             # For translation to English, use Whisper's built-in translation
             if self.target_language == "en":
@@ -403,22 +403,22 @@ class VideoTranscriptionManager:
             # Check if silence detection is enabled
             if self.enable_silence_detection and self.silence_detector:
                 # Process with silence detection for accurate phrase-level timing
-                logger.info(f"🔍 Detecting speech regions in chunk {chunk_id}...")
+                logger.info(f" Detecting speech regions in chunk {chunk_id}...")
                 result = self._process_chunk_with_silence_detection(
                     audio_path, chunk_id, start_time, end_time, on_segment_complete
                 )
             else:
                 # Process entire chunk as one caption (original behavior)
-                logger.info(f"🎤 Transcribing entire chunk {chunk_id} (no silence detection)...")
+                logger.info(f" Transcribing entire chunk {chunk_id} (no silence detection)...")
                 result = self._process_chunk_without_silence_detection(
                     audio_path, chunk_id, start_time, end_time
                 )
             
             if result['success']:
-                logger.info(f"✅ Chunk {chunk_id} processed successfully "
+                logger.info(f" Chunk {chunk_id} processed successfully "
                           f"({len(result['timestamps'])} caption segments)")
             else:
-                logger.error(f"❌ Chunk {chunk_id} processing failed: {result['error']}")
+                logger.error(f" Chunk {chunk_id} processing failed: {result['error']}")
             
         except Exception as e:
             result['error'] = str(e)
@@ -603,8 +603,12 @@ class VideoTranscriptionManager:
                     # Call callback to update chunk incrementally (so captions show in real-time)
                     if on_segment_complete:
                         try:
-                            # Pass segment number and total for progress tracking
-                            on_segment_complete(timestamp_dict, i + 1, len(speech_regions))
+                            # Pass actual segment count (some regions may be skipped due to no speech)
+                            # Use len(result['timestamps']) for accurate count of successfully processed segments
+                            current_segment_count = len(result['timestamps'])
+                            # Note: We don't know the final total yet since some regions ahead may be skipped
+                            # Pass None for total_segments so UI shows "N segments" instead of "N/?" during processing
+                            on_segment_complete(timestamp_dict, current_segment_count, None)
                         except Exception as e:
                             logger.warning(f"Segment complete callback failed: {e}")
                     

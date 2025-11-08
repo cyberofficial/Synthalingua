@@ -84,9 +84,30 @@ class VideoSession:
     
     def update_config(self, new_config):
         """Update session configuration and initialize components."""
-        if self.is_initialized:
-            logger.warning(f"Cannot update config for initialized session {self.session_id}")
+        if self.is_initialized and self.is_processing:
+            logger.warning(f"Cannot update config while processing is active for session {self.session_id}")
             return False
+        
+        # Allow reconfiguration if processing has completed (for reprocessing same video)
+        if self.is_initialized and not self.is_processing:
+            logger.info(f"Reconfiguring completed session {self.session_id} for reprocessing")
+            # Reset all components for fresh reprocessing
+            self.is_initialized = False
+            
+            # Clear all managers to force reinitialization
+            if self.chunk_manager:
+                self.chunk_manager = None
+            if self.transcription_manager:
+                self.transcription_manager = None
+            if self.buffer_manager:
+                self.buffer_manager = None
+            if self.video_processor:
+                self.video_processor = None
+            
+            # Clear audio path to trigger re-extraction (important if Demucs settings changed)
+            self.full_audio_path = None
+            
+            logger.info(f"✅ Session reset complete, ready for reprocessing with new settings")
         
         # Config defaults
         config_defaults = {
@@ -132,7 +153,7 @@ class VideoSession:
             # This MUST happen before chunking so Demucs can process the entire audio
             enable_vocals = self.config.get('enable_vocal_isolation', False)
             if enable_vocals:
-                logger.info(f"🎤 Extracting full audio for vocal isolation preprocessing...")
+                logger.info(f"Extracting full audio for vocal isolation preprocessing...")
             
             full_audio_path = self.video_processor.extract_audio(
                 isolate_vocals=enable_vocals,
@@ -142,7 +163,7 @@ class VideoSession:
             
             # Store full audio path for chunk extraction
             self.full_audio_path = full_audio_path
-            logger.info(f"✅ Full audio ready: {full_audio_path}")
+            logger.info(f" Full audio ready: {full_audio_path}")
             
             # Initialize chunk manager
             # Process ENTIRE video as one chunk (no buffering/splitting)
@@ -251,7 +272,7 @@ class VideoSession:
         processed_count = 0
         start_time = time.time()
         
-        logger.info(f"🎬 Starting video processing: {total_chunks} chunks to process")
+        logger.info(f" Starting video processing: {total_chunks} chunks to process")
         
         while not self.stop_processing.is_set():
             try:
@@ -265,7 +286,7 @@ class VideoSession:
                     chunk = self.buffer_manager.processing_queue.get(timeout=1.0)
                     
                     processed_count += 1
-                    logger.info(f"📝 Processing chunk {processed_count}/{total_chunks} "
+                    logger.info(f" Processing chunk {processed_count}/{total_chunks} "
                               f"[{chunk.start_time:.1f}s - {chunk.end_time:.1f}s]")
                     
                     # Extract audio segment from preprocessed full audio (if available)
@@ -287,6 +308,9 @@ class VideoSession:
                         segment_end_relative = timestamp_dict['end'] - chunk.start_time
                         chunk.processed_until = segment_end_relative
                         
+                        # Calculate cumulative segment count across all chunks
+                        cumulative_segments = sum(len(c.timestamps) for c in self.chunk_manager.chunks)
+                        
                         # Calculate buffer status after each segment
                         buffer_status = self.chunk_manager.get_buffer_status(
                             current_time=self.current_playback_time,
@@ -301,9 +325,9 @@ class VideoSession:
                         import sys
                         sys.stdout.flush()  # Force console output to appear immediately
                         
-                        # Emit WebSocket update for real-time buffer display
+                        # Emit WebSocket update with total segments count (we know this from silence detector)
                         if hasattr(self, '_emit_buffer_update'):
-                            self._emit_buffer_update(buffer_status, segment_num, total_segments, chunk.chunk_id)
+                            self._emit_buffer_update(buffer_status, cumulative_segments, total_segments, chunk.chunk_id)
                     
                     result = self.transcription_manager.process_chunk(
                         audio_path=audio_path,
@@ -336,7 +360,7 @@ class VideoSession:
                         remaining = (total_chunks - processed_count) * avg_time
                         progress_pct = (processed_count / total_chunks * 100) if total_chunks > 0 else 0
                         
-                        logger.info(f"✅ Chunk {processed_count}/{total_chunks} completed "
+                        logger.info(f" Chunk {processed_count}/{total_chunks} completed "
                                   f"({progress_pct:.1f}% done) | "
                                   f"Buffer: {seconds_buffered:.1f}s ahead | "
                                   f"ETA: {remaining/60:.1f} minutes")
@@ -360,14 +384,44 @@ class VideoSession:
         total_time = time.time() - start_time
         logger.info(f"🎉 Video processing completed! Processed {processed_count}/{total_chunks} chunks in {total_time/60:.1f} minutes")
         
+        # Reset processing flag so user can process another video
+        self.is_processing = False
+        
+        # Emit final buffer update to show 100% completion in UI
+        if self.socketio:
+            try:
+                # Get final buffer status
+                final_buffer_status = self.chunk_manager.get_buffer_status(
+                    current_time=self.current_playback_time,
+                    buffer_distance=self.metadata['duration']
+                )
+                
+                # Count total segments across all chunks
+                total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
+                
+                # Emit final buffer update showing all segments complete
+                self.socketio.emit('buffer_update', {
+                    'buffer_status': final_buffer_status,
+                    'segment_num': total_segments,
+                    'total_segments': total_segments,
+                    'chunk_id': 'final'
+                }, to=self.session_id, namespace='/')
+                logger.debug(f"Emitted final buffer update: {total_segments}/{total_segments} segments")
+            except Exception as e:
+                logger.error(f"Could not emit final buffer update: {e}")
+        
         # Emit completion event to frontend
         if self.socketio:
             try:
+                # Count total segments for completion event
+                total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
+                
                 self.socketio.emit('processing_complete', {
                     'session_id': self.session_id,
                     'total_chunks': total_chunks,
                     'processed_chunks': processed_count,
-                    'total_time': total_time
+                    'total_time': total_time,
+                    'total_segments': total_segments
                 }, to=self.session_id, namespace='/')
                 logger.debug(f"Emitted processing_complete event for session {self.session_id}")
             except Exception as e:
@@ -417,6 +471,10 @@ class VideoSession:
         
         if self.chunk_manager:
             status['progress'] = self.chunk_manager.get_progress()
+            
+            # Add segment count for status bar
+            total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
+            status['segment_count'] = total_segments
         
         if self.buffer_manager:
             status['buffer'] = self.buffer_manager.get_status()
@@ -663,7 +721,7 @@ def upload_video():
         video_processor = VideoProcessor(str(video_path))
         metadata = video_processor.extract_metadata()
         
-        logger.info(f"✅ Session created: {session_id} (not initialized - awaiting configuration)")
+        logger.info(f" Session created: {session_id} (not initialized - awaiting configuration)")
         
         return jsonify({
             'session_id': session_id,
@@ -691,8 +749,8 @@ def start_session(session_id):
     
     # Log the configuration received
     print(f"\n{'='*60}")
-    print(f"🎬 START PROCESSING - Session: {session_id}")
-    print(f"📋 Configuration received:")
+    print(f" START PROCESSING - Session: {session_id}")
+    print(f" Configuration received:")
     print(f"   Model Source: {config.get('model_source', 'N/A')}")
     print(f"   Model Size: {config.get('model_size', 'N/A')}")
     print(f"   Device: {config.get('device', 'N/A')}")

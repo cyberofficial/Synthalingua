@@ -231,7 +231,7 @@ class VideoProcessor:
             
             # Step 2: Vocal isolation with Demucs (if enabled)
             if isolate_vocals:
-                logger.info(f"🎤 Starting vocal isolation with Demucs model: {demucs_model}")
+                logger.info(f" Starting vocal isolation with Demucs model: {demucs_model}")
                 processed_audio_path = self._isolate_vocals_demucs(
                     output_path_str,
                     demucs_model,
@@ -347,7 +347,7 @@ class VideoProcessor:
                 time.sleep(0.1)
             
             elapsed_time = time.time() - start_time
-            logger.info(f"✅ Vocal isolation complete in {elapsed_time:.1f}s")
+            logger.info(f" Vocal isolation complete in {elapsed_time:.1f}s")
             
             # Find vocals.wav output file
             base_name = Path(audio_path).stem
