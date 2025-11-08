@@ -450,13 +450,17 @@ class FlaskServerThread(Thread):
     Args:
         port (int): Port number for the server
         use_https (bool): Whether to use HTTPS protocol
+        host (str): Host address to bind to
+        debug (bool): Enable debug mode
+        model_dir (str): Directory where AI models are stored
     """
-    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False):
+    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False, model_dir='./models'):
         super().__init__()
         self.port = port
         self.use_https = use_https
         self.host = host
         self.debug = debug
+        self.model_dir = model_dir
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
