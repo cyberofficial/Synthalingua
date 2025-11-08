@@ -648,26 +648,28 @@ class VideoTranslatorApp {
             return; // Exit early during silence
         }
         
-        // Update transcription caption
-        if (hasTranscription) {
+        // Update transcription caption (shown only if "Show Original" is checked)
+        if (hasTranscription && this.showOriginal.checked) {
             this.transcriptionCaption.textContent = data.transcription;
-            this.transcriptionCaption.style.display = this.showOriginal.checked ? 'block' : 'none';
+            this.transcriptionCaption.style.display = 'block';
         } else {
             this.transcriptionCaption.textContent = '';
             this.transcriptionCaption.style.display = 'none';
         }
         
-        // Update translation caption
+        // Update translation caption (main caption display)
+        // Show translation if available AND translation is enabled
+        // OR show transcription if translation is disabled but we have text
         if (hasTranslation && this.enableTranslation.checked) {
-            // Show translation when available and enabled
+            // Translation mode: show translated text
             this.translationCaption.textContent = data.translation;
             this.translationCaption.style.display = 'block';
-        } else if (hasTranscription && !this.enableTranslation.checked) {
-            // Show transcription if translation is disabled but we have text
+        } else if (hasTranscription) {
+            // Transcription-only mode: show original text in main caption area
             this.translationCaption.textContent = data.transcription;
             this.translationCaption.style.display = 'block';
         } else {
-            // Clear translation during silence or when no text available
+            // No content available
             this.translationCaption.textContent = '';
             this.translationCaption.style.display = 'none';
         }
