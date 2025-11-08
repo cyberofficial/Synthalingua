@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthalingua Video Translator</title>
+    <link rel="stylesheet" href="/static/video_player.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Video Player Section (Left ~70%) -->
+            <div class="video-section">
+                <!-- Video Player -->
+                <div id="video-container" class="video-container">
+                    <video id="video-player" controls>
+                        <source id="video-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    
+                    <!-- Caption Overlay -->
+                    <div id="caption-overlay" class="caption-overlay">
+                        <div id="transcription-caption" class="caption transcription-caption"></div>
+                        <div id="translation-caption" class="caption translation-caption"></div>
+                    </div>
+                    
+                    <!-- Buffer Indicator -->
+                    <div id="buffer-indicator" class="buffer-indicator">
+                        <div class="buffer-bar">
+                            <div id="buffer-progress" class="buffer-progress"></div>
+                        </div>
+                        <div id="buffer-text" class="buffer-text">Buffer: 0s ahead</div>
+                    </div>
+                </div>
+                
+                <!-- Playback Controls -->
+                <div class="controls-bar">
+                    <button id="play-pause-btn" class="control-btn">
+                        <span class="icon">▶</span>
+                    </button>
+                    <button id="stop-btn" class="control-btn">
+                        <span class="icon">⏹</span>
+                    </button>
+                    <div class="timeline">
+                        <input type="range" id="timeline-slider" min="0" max="100" value="0" step="0.1">
+                        <div id="timeline-progress" class="timeline-progress"></div>
+                    </div>
+                    <span id="time-display" class="time-display">0:00 / 0:00</span>
+                    <button id="volume-btn" class="control-btn">
+                        <span class="icon">🔊</span>
+                    </button>
+                    <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100">
+                    <select id="speed-selector" class="speed-selector">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                    <button id="fullscreen-btn" class="control-btn">
+                        <span class="icon">⛶</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Control Panel (Right ~30%) -->
+            <div class="control-panel">
+                <h2 class="panel-title">⚙️ Video Translator</h2>
+                
+                <!-- Video Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🎬 Video Settings</h3>
+                    <div class="upload-area" id="upload-area">
+                        <input type="file" id="video-input" accept=".mp4,.mkv,.avi,.mov,.webm" style="display: none;">
+                        <div class="upload-content">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">Click to load video or drag & drop</div>
+                            <div class="upload-formats">Supports: MP4, MKV, AVI, MOV, WebM</div>
+                        </div>
+                    </div>
+                    <div id="video-info" class="video-info" style="display: none;">
+                        <div class="info-line"><strong>File:</strong> <span id="info-filename"></span></div>
+                        <div class="info-line"><strong>Duration:</strong> <span id="info-duration"></span></div>
+                        <div class="info-line"><strong>Resolution:</strong> <span id="info-resolution"></span></div>
+                        <div class="info-line"><strong>FPS:</strong> <span id="info-fps"></span></div>
+                    </div>
+                </div>
+                
+                <!-- Translation Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🌐 Translation</h3>
+                    <div class="form-group">
+                        <label>Source Language:</label>
+                        <select id="source-language">
+                            <option value="">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Language:</label>
+                        <select id="target-language">
+                            <option value="en" selected>English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                        </select>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-translation" checked>
+                            Enable Translation
+                        </label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="show-original">
+                            Show Original Text
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Performance Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">⚙️ Performance</h3>
+                    <div class="form-group">
+                        <label>Model Source:</label>
+                        <select id="model-source">
+                            <option value="whisper">Whisper (BaseWhisper)</option>
+                            <option value="fasterwhisper" selected>FasterWhisper (Recommended)</option>
+                            <option value="openvino">OpenVINO (Intel HW)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Model Size:</label>
+                        <select id="model-size">
+                            <option value="tiny">Tiny (~1GB)</option>
+                            <option value="base" selected>Base (~1GB)</option>
+                            <option value="small">Small (~2GB)</option>
+                            <option value="medium">Medium (~5GB)</option>
+                            <option value="large-v2">Large-v2 (~10GB)</option>
+                            <option value="large-v3">Large-v3 (~10GB)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Device:</label>
+                        <select id="device">
+                            <option value="auto" selected>Auto-detect</option>
+                            <option value="cpu">CPU</option>
+                            <option value="cuda">CUDA (NVIDIA GPU)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Buffer Size:</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="buffer" value="30"> 30s</label>
+                            <label><input type="radio" name="buffer" value="60" checked> 60s</label>
+                            <label><input type="radio" name="buffer" value="120"> 120s</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Caption Style Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">💬 Caption Style</h3>
+                    <div class="form-group">
+                        <label>Font Size:</label>
+                        <input type="range" id="font-size" min="12" max="48" value="24">
+                        <span id="font-size-value">24px</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Text Color:</label>
+                        <input type="color" id="text-color" value="#ffffff">
+                    </div>
+                    <div class="form-group">
+                        <label>Background Color:</label>
+                        <input type="color" id="bg-color" value="#000000">
+                    </div>
+                    <div class="form-group">
+                        <label>Background Opacity:</label>
+                        <input type="range" id="bg-opacity" min="0" max="100" value="70">
+                        <span id="bg-opacity-value">70%</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Position:</label>
+                        <select id="caption-position">
+                            <option value="top">Top</option>
+                            <option value="middle">Middle</option>
+                            <option value="bottom" selected>Bottom</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="start-processing-btn" class="btn btn-primary" disabled>
+                        🎬 START PROCESSING
+                    </button>
+                    <button id="pause-processing-btn" class="btn btn-secondary" disabled>
+                        ⏸️ PAUSE
+                    </button>
+                    <button id="export-btn" class="btn btn-secondary" disabled>
+                        📥 EXPORT CAPTIONS
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Bar (Bottom) -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">⏱️</span>
+                <span id="status-time">0:00 / 0:00</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🔄</span>
+                <span id="status-processing">Idle</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🌐</span>
+                <span id="status-language">-- → --</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">💾</span>
+                <span id="status-progress">0%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Processing...</div>
+    </div>
+    
+    <script src="/static/video_player.js"></script>
+</body>
+</html>

@@ -269,7 +269,7 @@ def read_cached_file(file_path):
     Returns:
         str: Content of the file
     """
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
 
 # Routes
@@ -285,6 +285,12 @@ def serve_player():
     """Serves the player page."""
     player_html_path = os.path.join(get_html_data_dir(), 'player.html')
     return read_cached_file(player_html_path)
+
+@api.route('/video_player.html')
+def serve_video_player():
+    """Serves the video translation player page."""
+    video_player_path = os.path.join(get_html_data_dir(), 'video_player.html')
+    return read_cached_file(video_player_path)
 
 @api.route('/static/<path:filename>')
 def serve_static(filename):
@@ -467,8 +473,25 @@ class FlaskServerThread(Thread):
         log.setLevel(logging.ERROR)
         log.disabled = True
 
-        # Register blueprint
+        # Register main API blueprint
         app.register_blueprint(api)
+        
+        # Try to register video translation blueprint if available
+        try:
+            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio
+            app.register_blueprint(video_bp)
+            
+            # Initialize SocketIO for video module
+            socketio = init_video_socketio(app)
+            app.socketio = socketio  # Store socketio instance in app
+            
+            if self.debug or _debug_enabled:
+                print("Video translation UI module loaded successfully")
+        except ImportError as e:
+            if self.debug or _debug_enabled:
+                print(f"Video translation UI module not available: {e}")
+        except Exception as e:
+            print(f"Error loading video translation UI module: {e}")
 
         # Add security headers
         @app.after_request
@@ -543,46 +566,68 @@ class FlaskServerThread(Thread):
         try:
             # Try to bind to the specified port, find alternative if in use
             original_port = self.port
-            try:
-                print(f"Debug: Attempting to bind to port {self.port}")
-                self.server = make_server(self.host, self.port, self.app, 
-                                        ssl_context=ssl_context)
-                print(f"Debug: Successfully bound to port {self.port}")
-            except Exception as e:
-                print(f"Debug: Exception type: {type(e).__name__}")
-                print(f"Debug: Exception message: {e}")
-                error_msg = str(e).lower()
-                if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
-                    print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
-                    available_port = find_available_port(self.port, self.host)
-                    if available_port:
-                        self.port = available_port
-                        print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
-                        self.server = make_server(self.host, self.port, self.app, 
-                                                ssl_context=ssl_context)
-                    else:
-                        print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
-                        raise
-                else:
-                    print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
-                    raise
             
-            protocol = 'https' if ssl_context else 'http'
-            port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
-            print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
-            print(f"You can access the server at {protocol}://{self.host}:{self.port}")
-            print(f" To force shutdown the server, delete the '{PID_FILE}' file")
-            print()  # Add empty line to separate multiple server outputs
+            # Check if SocketIO is available in the app
+            has_socketio = hasattr(self.app, 'socketio')
             
-            # Signal that startup messages are complete
-            self.startup_complete.set()
-            
-            while not self.shutdown_event.is_set() and not force_shutdown_flag:
+            if has_socketio:
+                # Use SocketIO's run method which handles WebSocket connections
+                socketio = self.app.socketio
+                protocol = 'https' if ssl_context else 'http'
+                print(f"Starting Flask Server with WebSocket support on {self.host}:{self.port}")
+                print(f"You can access the server at {protocol}://{self.host}:{self.port}")
+                print(f"Video Translation UI available at {protocol}://{self.host}:{self.port}/video_player.html")
+                print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+                print()
+                
+                # Signal that startup messages are complete
+                self.startup_complete.set()
+                
+                # Run SocketIO server (this will block until shutdown)
+                socketio.run(self.app, host=self.host, port=self.port, 
+                           ssl_context=ssl_context, allow_unsafe_werkzeug=True)
+            else:
+                # Original Flask server without SocketIO
                 try:
-                    self.server.handle_request()
-                except OSError:
-                    # Socket was closed, likely during shutdown
-                    break
+                    print(f"Debug: Attempting to bind to port {self.port}")
+                    self.server = make_server(self.host, self.port, self.app, 
+                                            ssl_context=ssl_context)
+                    print(f"Debug: Successfully bound to port {self.port}")
+                except Exception as e:
+                    print(f"Debug: Exception type: {type(e).__name__}")
+                    print(f"Debug: Exception message: {e}")
+                    error_msg = str(e).lower()
+                    if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
+                        print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
+                        available_port = find_available_port(self.port, self.host)
+                        if available_port:
+                            self.port = available_port
+                            print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
+                            self.server = make_server(self.host, self.port, self.app, 
+                                                    ssl_context=ssl_context)
+                        else:
+                            print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
+                            raise
+                    else:
+                        print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
+                        raise
+                
+                protocol = 'https' if ssl_context else 'http'
+                port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
+                print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
+                print(f"You can access the server at {protocol}://{self.host}:{self.port}")
+                print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+                print()  # Add empty line to separate multiple server outputs
+                
+                # Signal that startup messages are complete
+                self.startup_complete.set()
+                
+                while not self.shutdown_event.is_set() and not force_shutdown_flag:
+                    try:
+                        self.server.handle_request()
+                    except OSError:
+                        # Socket was closed, likely during shutdown
+                        break
                     
         except Exception as e:
             print(f"Server error: {e}")

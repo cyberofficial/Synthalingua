@@ -115,8 +115,8 @@ def main():
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
-        sys.exit(0)    # Check input sources
-    if args.stream is None and args.microphone_enabled is None and not args.makecaptions:
+        sys.exit(0)    # Check input sources (skip check for video UI mode)
+    if args.stream is None and args.microphone_enabled is None and not args.makecaptions and not args.launchui:
         print("No audio source was set. Please set an audio source.")
         reset_text = Style.RESET_ALL
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")

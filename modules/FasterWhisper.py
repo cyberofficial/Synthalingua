@@ -45,7 +45,9 @@ class FasterWhisperModel:
             n_mels=n_mels
         ).to(self.device)
 
-        _, _, language_probs = self.audio_model.detect_language(features=mel.numpy())  # type: ignore
+        # Convert CUDA tensor to CPU before numpy conversion
+        mel_numpy = mel.cpu().numpy() if mel.is_cuda else mel.numpy()
+        _, _, language_probs = self.audio_model.detect_language(features=mel_numpy)  # type: ignore
         return dict(language_probs)
 
     def transcribe(self, file_path: str, **kwargs) -> str:
