@@ -387,8 +387,8 @@ class ChunkManager:
         buffer_pct_local = (completed_in_buffer / len(buffer_chunks) * 100) if buffer_chunks else 0
         
         # Find the furthest point we've processed (including silence)
-        # This is more accurate than just looking at last speech timestamp
-        furthest_available = current_time
+        # This is the absolute furthest point, NOT relative to current_time
+        furthest_available = 0.0  # Start from beginning, not current_time
         for chunk in self.chunks:
             # For COMPLETED chunks, use end_time
             if chunk.status == ChunkStatus.COMPLETED:
