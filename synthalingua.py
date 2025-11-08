@@ -266,7 +266,7 @@ def main():
             print(f"Starting HTTPS web server on {host}:{args.https}...")
             print(f"Access the web interface at: https://{host}:{args.https}")
         
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug)
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir)
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()

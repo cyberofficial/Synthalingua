@@ -478,7 +478,11 @@ class FlaskServerThread(Thread):
         
         # Try to register video translation blueprint if available
         try:
-            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio
+            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir
+            
+            # Set model directory from args
+            set_model_dir(self.model_dir)
+            
             app.register_blueprint(video_bp)
             
             # Initialize SocketIO for video module
@@ -648,7 +652,7 @@ class FlaskServerThread(Thread):
 server_thread = None
 https_server_thread = None
 
-def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False):
+def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False, model_dir='./models'):
     """
     Controls the Flask server operation.
     
@@ -656,6 +660,9 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         operation (str): "start" to start the server
         portnumber (int): Port number for the HTTP server (can be None)
         https_port (int): Port number for the HTTPS server (can be None)
+        host (str): Host address to bind to
+        debug (bool): Enable debug mode
+        model_dir (str): Directory where AI models are stored
     """
     global server_thread, https_server_thread, _debug_enabled, force_shutdown_flag
     if operation == "start":
@@ -664,7 +671,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTP server if port is specified
         if portnumber:
-            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug)
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug, model_dir=model_dir)
             server_thread.daemon = True
             server_thread.start()
             
@@ -674,7 +681,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTPS server if port is specified
         if https_port:
-            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug)
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug, model_dir=model_dir)
             https_server_thread.daemon = True
             https_server_thread.start()
         

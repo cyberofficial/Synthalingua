@@ -33,6 +33,15 @@ video_bp = Blueprint('video', __name__, url_prefix='/api/video')
 video_sessions = {}
 session_lock = threading.Lock()
 
+# Global configuration (set from parser_args)
+_global_model_dir = './models'  # Default, can be overridden
+
+def set_model_dir(model_dir: str):
+    """Set the global model directory from parser_args."""
+    global _global_model_dir
+    _global_model_dir = model_dir
+    logger.info(f"Video UI model directory set to: {model_dir}")
+
 # Upload configuration
 # Use absolute path from current working directory to avoid module-relative issues
 import sys
@@ -110,6 +119,7 @@ class VideoSession:
             logger.info(f"✅ Session reset complete, ready for reprocessing with new settings")
         
         # Config defaults
+        global _global_model_dir
         config_defaults = {
             'model_source': 'fasterwhisper',
             'model_size': 'base',
@@ -122,7 +132,7 @@ class VideoSession:
             'silence_threshold_db': -35.0,
             'min_silence_duration': 0.5,
             'max_concurrent': 2,
-            'model_dir': './models'
+            'model_dir': _global_model_dir  # Use global model_dir from parser_args
         }
         
         # Merge defaults with current config
