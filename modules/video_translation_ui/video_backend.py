@@ -309,12 +309,20 @@ class VideoSession:
         
         chunk = self.chunk_manager.get_chunk_at_time(timestamp)
         
-        if chunk and chunk.transcription:
-            return {
-                'transcription': chunk.transcription,
-                'translation': chunk.translation or '',
-                'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
-            }
+        if chunk:
+            logger.debug(f"Chunk found for {timestamp:.2f}s: id={chunk.chunk_id}, "
+                        f"status={chunk.status.name}, "
+                        f"has_transcription={bool(chunk.transcription)}, "
+                        f"has_translation={bool(chunk.translation)}")
+            
+            if chunk.transcription:
+                return {
+                    'transcription': chunk.transcription,
+                    'translation': chunk.translation or '',
+                    'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
+                }
+        else:
+            logger.debug(f"No chunk found for timestamp {timestamp:.2f}s")
         
         return {'transcription': '', 'translation': '', 'language': 'unknown'}
     
@@ -730,8 +738,13 @@ def init_video_socketio(app):
             # Get captions at this timestamp
             captions = video_session.get_captions_at_time(timestamp)
             
-            # Broadcast to all clients in this session
-            emit('caption_update', captions, to=session_id)
+            # Only emit if we have captions (avoid sending empty updates)
+            if captions.get('transcription') or captions.get('translation'):
+                # Broadcast to all clients in this session
+                emit('caption_update', captions, to=session_id)
+                logger.debug(f"Caption update sent for session {session_id} at {timestamp:.2f}s: "
+                           f"transcription={bool(captions.get('transcription'))}, "
+                           f"translation={bool(captions.get('translation'))}")
     
     logger.info("Video WebSocket events initialized")
     

@@ -115,6 +115,7 @@ class VideoTranslatorApp {
         });
         
         this.socket.on('caption_update', (data) => {
+            console.log('Caption update received:', data);
             this.updateCaptions(data);
         });
         
@@ -421,17 +422,29 @@ class VideoTranslatorApp {
     }
     
     updateCaptions(data) {
+        console.log('Updating captions:', data);
+        
         // Update transcription caption
         if (data.transcription) {
             this.transcriptionCaption.textContent = data.transcription;
             this.transcriptionCaption.style.display = this.showOriginal.checked ? 'block' : 'none';
+        } else {
+            // Clear transcription if empty
+            this.transcriptionCaption.textContent = '';
+            this.transcriptionCaption.style.display = 'none';
         }
         
         // Update translation caption
         if (data.translation && this.enableTranslation.checked) {
             this.translationCaption.textContent = data.translation;
             this.translationCaption.style.display = 'block';
+        } else if (data.transcription && !this.enableTranslation.checked) {
+            // Show transcription if translation is disabled
+            this.translationCaption.textContent = data.transcription;
+            this.translationCaption.style.display = 'block';
         } else {
+            // Clear translation if empty
+            this.translationCaption.textContent = '';
             this.translationCaption.style.display = 'none';
         }
     }
