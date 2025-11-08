@@ -54,6 +54,15 @@ class VideoTranslatorApp {
         this.bgOpacityValue = document.getElementById('bg-opacity-value');
         this.captionPosition = document.getElementById('caption-position');
         
+        // Silence detection elements
+        this.enableSilenceDetection = document.getElementById('enable-silence-detection');
+        this.silenceThreshold = document.getElementById('silence-threshold');
+        this.silenceThresholdValue = document.getElementById('silence-threshold-value');
+        this.minSilenceDuration = document.getElementById('min-silence-duration');
+        this.minSilenceDurationValue = document.getElementById('min-silence-duration-value');
+        this.minSpeechDuration = document.getElementById('min-speech-duration');
+        this.minSpeechDurationValue = document.getElementById('min-speech-duration-value');
+        
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
         this.pauseProcessingBtn = document.getElementById('pause-processing-btn');
@@ -97,6 +106,17 @@ class VideoTranslatorApp {
         this.bgOpacity.addEventListener('input', (e) => this.updateCaptionStyle());
         this.captionPosition.addEventListener('change', (e) => this.updateCaptionStyle());
         this.showOriginal.addEventListener('change', (e) => this.updateCaptionVisibility());
+        
+        // Silence detection sliders
+        this.silenceThreshold.addEventListener('input', (e) => {
+            this.silenceThresholdValue.textContent = `${e.target.value} dB`;
+        });
+        this.minSilenceDuration.addEventListener('input', (e) => {
+            this.minSilenceDurationValue.textContent = `${e.target.value} s`;
+        });
+        this.minSpeechDuration.addEventListener('input', (e) => {
+            this.minSpeechDurationValue.textContent = `${e.target.value} s`;
+        });
         
         // Buttons
         this.startProcessingBtn.addEventListener('click', () => this.startProcessing());
@@ -199,17 +219,6 @@ class VideoTranslatorApp {
             const formData = new FormData();
             formData.append('video', file);
             
-            // Add configuration
-            formData.append('model_source', this.modelSource.value);
-            formData.append('model_size', this.modelSize.value);
-            formData.append('device', this.device.value);
-            formData.append('source_language', this.sourceLanguage.value);
-            formData.append('target_language', this.targetLanguage.value);
-            formData.append('enable_translation', this.enableTranslation.checked);
-            
-            const bufferSize = document.querySelector('input[name="buffer"]:checked').value;
-            formData.append('buffer_seconds', bufferSize);
-            
             const response = await fetch('/api/video/upload', {
                 method: 'POST',
                 body: formData
@@ -233,7 +242,7 @@ class VideoTranslatorApp {
                 this.startProcessingBtn.disabled = false;
                 this.exportBtn.disabled = false;
                 
-                this.statusProcessing.textContent = 'Ready to process';
+                this.statusProcessing.textContent = 'Configure settings and click Start Processing';
                 
                 this.hideLoading();
             } else {
@@ -259,12 +268,86 @@ class VideoTranslatorApp {
         this.uploadArea.style.display = 'none';
     }
     
+    displayConfiguration() {
+        const configSection = document.getElementById('current-config-section');
+        const modelText = `${this.currentConfig.model_source}/${this.currentConfig.model_size}`;
+        const langText = this.currentConfig.source_language === 'auto' ? 
+            `Auto → ${this.currentConfig.target_language}` : 
+            `${this.currentConfig.source_language} → ${this.currentConfig.target_language}`;
+        
+        document.getElementById('config-model').textContent = modelText;
+        document.getElementById('config-device').textContent = this.currentConfig.device;
+        document.getElementById('config-languages').textContent = langText;
+        document.getElementById('config-buffer').textContent = `${this.currentConfig.buffer_seconds}s`;
+        
+        configSection.style.display = 'block';
+    }
+    
     async startProcessing() {
         if (!this.sessionId) return;
         
         try {
+            // Read current configuration from UI
+            const modelSource = this.modelSource.value;
+            const modelSize = this.modelSize.value;
+            const device = this.device.value;
+            const sourceLang = this.sourceLanguage.value || 'auto';
+            const targetLang = this.targetLanguage.value;
+            const enableTranslation = this.enableTranslation.checked;
+            const bufferSize = document.querySelector('input[name="buffer"]:checked').value;
+            
+            // Silence detection settings
+            const enableSilenceDetection = this.enableSilenceDetection.checked;
+            const silenceThreshold = parseFloat(this.silenceThreshold.value);
+            const minSilenceDuration = parseFloat(this.minSilenceDuration.value);
+            const minSpeechDuration = parseFloat(this.minSpeechDuration.value);
+            
+            // Debug: Log configuration being sent
+            console.log('📋 Starting processing with configuration:', {
+                model_source: modelSource,
+                model_size: modelSize,
+                device: device,
+                source_language: sourceLang,
+                target_language: targetLang,
+                enable_translation: enableTranslation,
+                buffer_seconds: bufferSize,
+                silence_detection: {
+                    enabled: enableSilenceDetection,
+                    threshold_db: silenceThreshold,
+                    min_silence_duration: minSilenceDuration,
+                    min_speech_duration: minSpeechDuration
+                }
+            });
+            
+            // Store configuration for display
+            this.currentConfig = {
+                model_source: modelSource,
+                model_size: modelSize,
+                device: device,
+                source_language: sourceLang,
+                target_language: targetLang,
+                buffer_seconds: bufferSize
+            };
+            
+            // Send configuration with start request
             const response = await fetch(`/api/video/session/${this.sessionId}/start`, {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model_source: modelSource,
+                    model_size: modelSize,
+                    device: device,
+                    source_language: sourceLang,
+                    target_language: targetLang,
+                    enable_translation: enableTranslation,
+                    buffer_seconds: parseInt(bufferSize),
+                    enable_silence_detection: enableSilenceDetection,
+                    silence_threshold_db: silenceThreshold,
+                    min_silence_duration: minSilenceDuration,
+                    min_speech_duration: minSpeechDuration
+                })
             });
             
             if (response.ok) {
@@ -272,6 +355,9 @@ class VideoTranslatorApp {
                 this.startProcessingBtn.disabled = true;
                 this.pauseProcessingBtn.disabled = false;
                 this.statusProcessing.textContent = 'Processing...';
+                
+                // Display configuration
+                this.displayConfiguration();
                 
                 // Start polling for status updates
                 this.startStatusPolling();
@@ -424,26 +510,31 @@ class VideoTranslatorApp {
     updateCaptions(data) {
         console.log('Updating captions:', data);
         
+        // Handle empty captions during silence periods
+        const hasTranscription = data.transcription && data.transcription.trim() !== '';
+        const hasTranslation = data.translation && data.translation.trim() !== '';
+        
         // Update transcription caption
-        if (data.transcription) {
+        if (hasTranscription) {
             this.transcriptionCaption.textContent = data.transcription;
             this.transcriptionCaption.style.display = this.showOriginal.checked ? 'block' : 'none';
         } else {
-            // Clear transcription if empty
+            // Clear transcription during silence
             this.transcriptionCaption.textContent = '';
             this.transcriptionCaption.style.display = 'none';
         }
         
         // Update translation caption
-        if (data.translation && this.enableTranslation.checked) {
+        if (hasTranslation && this.enableTranslation.checked) {
+            // Show translation when available and enabled
             this.translationCaption.textContent = data.translation;
             this.translationCaption.style.display = 'block';
-        } else if (data.transcription && !this.enableTranslation.checked) {
-            // Show transcription if translation is disabled
+        } else if (hasTranscription && !this.enableTranslation.checked) {
+            // Show transcription if translation is disabled but we have text
             this.translationCaption.textContent = data.transcription;
             this.translationCaption.style.display = 'block';
         } else {
-            // Clear translation if empty
+            // Clear translation during silence or when no text available
             this.translationCaption.textContent = '';
             this.translationCaption.style.display = 'none';
         }

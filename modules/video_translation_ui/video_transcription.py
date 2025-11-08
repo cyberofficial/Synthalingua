@@ -7,8 +7,9 @@ Extends the existing sub_gen.py logic for video-specific processing.
 Handles:
 - Integration with existing Whisper models (BaseWhisper, FasterWhisper, OpenVINO)
 - Chunk-based transcription for buffered processing
+- Silence detection and speech region processing
 - Translation pipeline integration
-- SRT timestamp generation
+- SRT timestamp generation with accurate phrase-level timing
 - Resource management for model loading
 """
 
@@ -18,6 +19,7 @@ import threading
 from typing import Optional, Dict, List, Tuple
 from pathlib import Path
 import time
+import tempfile
 
 # Import existing Synthalingua modules
 from modules.BaseWhisper import BaseWhisperModel
@@ -26,6 +28,9 @@ from modules.OpenVINOWhisper import OpenVINOWhisperModel
 from modules import parser_args
 from modules.device_manager import setup_device
 from modules.languages import get_valid_languages
+
+# Import silence detection
+from modules.video_translation_ui.silence_detector import SilenceDetector
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +51,9 @@ class VideoTranscriptionManager:
                  source_language: Optional[str] = None,
                  target_language: str = "en",
                  enable_translation: bool = True,
+                 enable_silence_detection: bool = True,
+                 silence_threshold_db: float = -35.0,
+                 min_silence_duration: float = 0.5,
                  model_dir: str = "./models"):
         """
         Initialize Video Transcription Manager.
@@ -58,6 +66,9 @@ class VideoTranscriptionManager:
             source_language: Source language code (None for auto-detect)
             target_language: Target language code for translation
             enable_translation: Whether to enable translation
+            enable_silence_detection: Whether to detect and skip silence
+            silence_threshold_db: dB threshold for silence detection
+            min_silence_duration: Minimum silence duration in seconds
             model_dir: Directory containing models
         """
         self.model_source = model_source.lower()
@@ -68,10 +79,22 @@ class VideoTranscriptionManager:
         self.source_language = None if source_language in ('auto', '', None) else source_language
         self.target_language = target_language
         self.enable_translation = enable_translation
+        self.enable_silence_detection = enable_silence_detection
         self.model_dir = model_dir
         
         logger.info(f"VideoTranscriptionManager initialized: model={model_source}/{model_size}, "
-                   f"device={self.device}, source_lang={self.source_language}, target_lang={target_language}")
+                   f"device={self.device}, source_lang={self.source_language}, target_lang={target_language}, "
+                   f"silence_detection={enable_silence_detection}")
+        
+        # Silence detector
+        if self.enable_silence_detection:
+            self.silence_detector = SilenceDetector(
+                silence_threshold_db=silence_threshold_db,
+                min_silence_duration=min_silence_duration,
+                min_speech_duration=0.1
+            )
+        else:
+            self.silence_detector = None
         
         # Model instance
         self.model = None
@@ -257,13 +280,17 @@ class VideoTranscriptionManager:
         
         return result
     
-    def translate_text(self, text: str, source_lang: str) -> str:
+    def translate_text(self, text: str, source_lang: str, audio_path: Optional[str] = None) -> str:
         """
         Translate transcribed text to target language.
         
+        For translation to English, uses Whisper's built-in translation capability
+        which requires re-processing the audio with task="translate".
+        
         Args:
-            text: Text to translate
+            text: Text to translate (used if audio_path not provided)
             source_lang: Source language code
+            audio_path: Optional path to audio file for Whisper translation
             
         Returns:
             str: Translated text
@@ -277,25 +304,45 @@ class VideoTranscriptionManager:
         
         logger.info(f"🌐 Translating text from {source_lang} to {self.target_language}...")
         try:
-            # For now, use Whisper's built-in translation (X -> English)
-            # Future: integrate with external translation APIs for more languages
+            # For translation to English, use Whisper's built-in translation
             if self.target_language == "en":
                 with self.model_lock:
                     if not self.model:
                         raise RuntimeError("Model not loaded")
                     
-                    # Whisper models have built-in translation to English
-                    # This would require re-processing with task="translate"
-                    # For efficiency, we might want to do this in one pass
-                    logger.debug(f"Translation to English (built-in)")
-                    return text  # Placeholder - need to implement proper translation
+                    # If audio path provided, use Whisper's translate task
+                    if audio_path and os.path.exists(audio_path):
+                        logger.debug(f"Using Whisper translate task on audio")
+                        
+                        # Use Whisper model directly with task="translate"
+                        # Note: transcribe_chunk doesn't support task parameter,
+                        # so we call the model directly
+                        transcription = self.model.transcribe(
+                            file_path=audio_path,
+                            language=source_lang,
+                            task="translate",  # Translate to English
+                            condition_on_previous_text=False
+                        )
+                        
+                        if transcription and transcription.strip():
+                            translated = transcription.strip()
+                            logger.debug(f"Translation successful: '{translated[:80]}'")
+                            return translated
+                        else:
+                            logger.warning(f"Translation task failed, returning original text")
+                            return text
+                    else:
+                        # No audio available - cannot translate without re-processing
+                        # This is a limitation of Whisper's translate feature
+                        logger.warning(f"No audio path provided for translation, returning original text")
+                        return text
             else:
                 logger.warning(f"Translation to {self.target_language} not yet implemented")
                 return text
                 
         except Exception as e:
-            logger.error(f"Translation failed: {e}")
-            return ""
+            logger.error(f"Translation failed: {e}", exc_info=True)
+            return text  # Return original text on error
     
     def process_chunk(self,
                      audio_path: str,
@@ -305,6 +352,9 @@ class VideoTranscriptionManager:
         """
         Process a complete chunk: transcribe and optionally translate.
         
+        If silence detection is enabled, only processes speech regions within the chunk,
+        providing accurate phrase-level timestamps instead of single chunk-level captions.
+        
         Args:
             audio_path: Path to chunk audio file
             chunk_id: Chunk identifier
@@ -312,7 +362,17 @@ class VideoTranscriptionManager:
             end_time: Chunk end time in video
             
         Returns:
-            dict: Complete processing result
+            dict: Complete processing result with:
+                - chunk_id: Chunk identifier
+                - start_time: Chunk start in video
+                - end_time: Chunk end in video
+                - transcription: Full transcription text
+                - translation: Full translation text (if enabled)
+                - language: Detected/used language
+                - success: Whether processing succeeded
+                - error: Error message if failed
+                - timestamps: List of caption segments with accurate timing:
+                    [{'start': 10.5, 'end': 13.2, 'text': 'Hello world', 'translation': 'Hola mundo'}, ...]
         """
         result = {
             'chunk_id': chunk_id,
@@ -327,38 +387,224 @@ class VideoTranscriptionManager:
         }
         
         try:
-            # Transcribe
-            transcription_result = self.transcribe_chunk(audio_path, chunk_id)
-            
-            if not transcription_result['success']:
-                result['error'] = transcription_result['error']
-                return result
-            
-            result['transcription'] = transcription_result['transcription']
-            result['language'] = transcription_result['language']
-            
-            # Translate if enabled
-            if self.enable_translation and result['transcription']:
-                translation = self.translate_text(
-                    result['transcription'],
-                    result['language']
+            # Check if silence detection is enabled
+            if self.enable_silence_detection and self.silence_detector:
+                # Process with silence detection for accurate phrase-level timing
+                logger.info(f"🔍 Detecting speech regions in chunk {chunk_id}...")
+                result = self._process_chunk_with_silence_detection(
+                    audio_path, chunk_id, start_time, end_time
                 )
-                result['translation'] = translation
+            else:
+                # Process entire chunk as one caption (original behavior)
+                logger.info(f"🎤 Transcribing entire chunk {chunk_id} (no silence detection)...")
+                result = self._process_chunk_without_silence_detection(
+                    audio_path, chunk_id, start_time, end_time
+                )
             
-            # Generate basic timestamp (whole chunk as one caption)
-            result['timestamps'] = [{
-                'start': start_time,
-                'end': end_time,
-                'text': result['transcription']
-            }]
-            
-            result['success'] = True
-            logger.info(f"Chunk {chunk_id} processed successfully")
+            if result['success']:
+                logger.info(f"✅ Chunk {chunk_id} processed successfully "
+                          f"({len(result['timestamps'])} caption segments)")
+            else:
+                logger.error(f"❌ Chunk {chunk_id} processing failed: {result['error']}")
             
         except Exception as e:
             result['error'] = str(e)
             result['success'] = False
             logger.error(f"Failed to process chunk {chunk_id}: {e}", exc_info=True)
+        
+        return result
+    
+    def _process_chunk_without_silence_detection(self,
+                                                 audio_path: str,
+                                                 chunk_id: int,
+                                                 start_time: float,
+                                                 end_time: float) -> Dict:
+        """
+        Process chunk without silence detection (original behavior).
+        Creates a single caption for the entire chunk.
+        """
+        result = {
+            'chunk_id': chunk_id,
+            'start_time': start_time,
+            'end_time': end_time,
+            'transcription': '',
+            'translation': '',
+            'language': 'unknown',
+            'success': False,
+            'error': None,
+            'timestamps': []
+        }
+        
+        # Transcribe entire chunk
+        transcription_result = self.transcribe_chunk(audio_path, chunk_id)
+        
+        if not transcription_result['success']:
+            result['error'] = transcription_result['error']
+            return result
+        
+        result['transcription'] = transcription_result['transcription']
+        result['language'] = transcription_result['language']
+        
+        # Translate if enabled - pass audio path for Whisper translation
+        if self.enable_translation and result['transcription']:
+            translation = self.translate_text(
+                result['transcription'],
+                result['language'],
+                audio_path=audio_path  # Pass audio for Whisper translate task
+            )
+            result['translation'] = translation
+        
+        # Generate basic timestamp (whole chunk as one caption)
+        if result['transcription']:
+            result['timestamps'] = [{
+                'start': start_time,
+                'end': end_time,
+                'text': result['transcription'],
+                'translation': result['translation']
+            }]
+        
+        result['success'] = True
+        return result
+    
+    def _process_chunk_with_silence_detection(self,
+                                              audio_path: str,
+                                              chunk_id: int,
+                                              start_time: float,
+                                              end_time: float) -> Dict:
+        """
+        Process chunk with silence detection for accurate phrase-level timing.
+        Only transcribes speech regions, skipping silence for efficiency.
+        """
+        result = {
+            'chunk_id': chunk_id,
+            'start_time': start_time,
+            'end_time': end_time,
+            'transcription': '',
+            'translation': '',
+            'language': 'unknown',
+            'success': False,
+            'error': None,
+            'timestamps': []
+        }
+        
+        try:
+            # Detect speech regions in this chunk
+            if not self.silence_detector:
+                logger.error("Silence detector not initialized")
+                result['error'] = "Silence detector not initialized"
+                return result
+            
+            regions = self.silence_detector.detect_regions(audio_path)
+            speech_regions = [r for r in regions if r['type'] == 'speech']
+            
+            if not speech_regions:
+                logger.debug(f"No speech detected in chunk {chunk_id}")
+                result['success'] = True
+                result['language'] = self.source_language or 'unknown'
+                return result
+            
+            logger.debug(f"Found {len(speech_regions)} speech regions in chunk {chunk_id}")
+            
+            # Process each speech region
+            all_transcriptions = []
+            all_translations = []
+            detected_language = None
+            
+            for i, region in enumerate(speech_regions):
+                region_start = region['start']
+                region_end = region['end']
+                
+                # Create temporary file for this speech region
+                region_audio_path = None
+                try:
+                    # Extract speech region to temporary file
+                    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                        region_audio_path = tmp_file.name
+                    
+                    if not self.silence_detector:
+                        logger.error("Silence detector not initialized")
+                        continue
+                    
+                    success = self.silence_detector.extract_speech_region(
+                        audio_path,
+                        region_audio_path,
+                        region_start,
+                        region_end
+                    )
+                    
+                    if not success:
+                        logger.warning(f"Failed to extract speech region {i} from chunk {chunk_id}")
+                        continue
+                    
+                    # Transcribe this speech region
+                    # Note: Using chunk_id directly since transcribe_chunk expects int
+                    # The region index is tracked separately in logs
+                    transcription_result = self.transcribe_chunk(
+                        region_audio_path,
+                        chunk_id  # Use parent chunk_id for consistency
+                    )
+                    
+                    if not transcription_result['success']:
+                        logger.warning(f"Failed to transcribe speech region {i} in chunk {chunk_id}")
+                        continue
+                    
+                    transcription_text = transcription_result['transcription'].strip()
+                    if not transcription_text:
+                        continue
+                    
+                    # Store detected language (use first detected language for consistency)
+                    if detected_language is None:
+                        detected_language = transcription_result['language']
+                    
+                    all_transcriptions.append(transcription_text)
+                    
+                    # Translate if enabled - pass audio path for Whisper translation
+                    translation_text = ""
+                    if self.enable_translation:
+                        translation_text = self.translate_text(
+                            transcription_text,
+                            transcription_result['language'],
+                            audio_path=region_audio_path  # Pass audio for Whisper translate task
+                        )
+                        all_translations.append(translation_text)
+                        logger.debug(f"  Original ({transcription_result['language']}): '{transcription_text[:80]}'")
+                        logger.debug(f"  Translated ({self.target_language}): '{translation_text[:80]}'")
+                    
+                    # Calculate absolute timestamps (relative to video start)
+                    absolute_start = start_time + region_start
+                    absolute_end = start_time + region_end
+                    
+                    # Add to timestamps
+                    result['timestamps'].append({
+                        'start': absolute_start,
+                        'end': absolute_end,
+                        'text': transcription_text,
+                        'translation': translation_text
+                    })
+                    
+                    logger.debug(f"Speech region {i} in chunk {chunk_id}: "
+                               f"{absolute_start:.2f}s - {absolute_end:.2f}s")
+                    
+                finally:
+                    # Clean up temporary region file
+                    if region_audio_path and os.path.exists(region_audio_path):
+                        try:
+                            os.remove(region_audio_path)
+                        except:
+                            pass
+            
+            # Combine all transcriptions and translations
+            result['transcription'] = ' '.join(all_transcriptions)
+            result['translation'] = ' '.join(all_translations) if all_translations else ''
+            result['language'] = detected_language or self.source_language or 'unknown'
+            result['success'] = True
+            
+            logger.info(f"Processed {len(result['timestamps'])} speech segments in chunk {chunk_id}")
+            
+        except Exception as e:
+            result['error'] = str(e)
+            result['success'] = False
+            logger.error(f"Failed to process chunk {chunk_id} with silence detection: {e}", exc_info=True)
         
         return result
     

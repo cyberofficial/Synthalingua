@@ -82,6 +82,41 @@ class VideoSession:
         
         logger.info(f"VideoSession created: {session_id}")
     
+    def update_config(self, new_config):
+        """Update session configuration and initialize components."""
+        if self.is_initialized:
+            logger.warning(f"Cannot update config for initialized session {self.session_id}")
+            return False
+        
+        # Config defaults
+        config_defaults = {
+            'model_source': 'fasterwhisper',
+            'model_size': 'base',
+            'device': 'auto',
+            'compute_type': 'float16',
+            'source_language': None,
+            'target_language': 'en',
+            'enable_translation': True,
+            'enable_silence_detection': True,
+            'silence_threshold_db': -35.0,
+            'min_silence_duration': 0.5,
+            'buffer_seconds': 60.0,
+            'max_concurrent': 2,
+            'model_dir': './models'
+        }
+        
+        # Merge defaults with current config
+        for key, default_value in config_defaults.items():
+            if key not in self.config:
+                self.config[key] = default_value
+        
+        # Update with new configuration
+        self.config.update(new_config)
+        logger.info(f"Session {self.session_id} config updated: {new_config}")
+        
+        # Initialize with new configuration
+        return self.initialize()
+    
     def initialize(self):
         """Initialize all components and extract video metadata."""
         try:
@@ -110,6 +145,9 @@ class VideoSession:
                 source_language=self.config.get('source_language'),
                 target_language=self.config.get('target_language', 'en'),
                 enable_translation=self.config.get('enable_translation', True),
+                enable_silence_detection=self.config.get('enable_silence_detection', True),
+                silence_threshold_db=self.config.get('silence_threshold_db', -35.0),
+                min_silence_duration=self.config.get('min_silence_duration', 0.5),
                 model_dir=self.config.get('model_dir', './models')
             )
             
@@ -231,7 +269,8 @@ class VideoSession:
                             chunk_id=chunk.chunk_id,
                             transcription=result['transcription'],
                             translation=result.get('translation', ''),
-                            timestamps=result.get('timestamps', [])
+                            timestamps=result.get('timestamps', []),
+                            language=result.get('language', 'unknown')
                         )
                         
                         # Calculate and show progress
@@ -303,53 +342,130 @@ class VideoSession:
         return status
     
     def get_captions_at_time(self, timestamp: float) -> Dict:
-        """Get captions for a specific timestamp."""
+        """
+        Get captions for a specific timestamp.
+        
+        With silence detection, this returns the specific caption segment(s)
+        that should be displayed at the given timestamp, not the entire chunk.
+        
+        Args:
+            timestamp: Current playback timestamp in seconds
+            
+        Returns:
+            dict: Caption data with:
+                - transcription: Text to display in source language
+                - translation: Text to display in target language
+                - language: Detected language code
+        """
         if not self.chunk_manager:
-            return {'transcription': '', 'translation': ''}
+            return {'transcription': '', 'translation': '', 'language': 'unknown'}
         
         chunk = self.chunk_manager.get_chunk_at_time(timestamp)
         
-        if chunk:
-            logger.debug(f"Chunk found for {timestamp:.2f}s: id={chunk.chunk_id}, "
-                        f"status={chunk.status.name}, "
-                        f"has_transcription={bool(chunk.transcription)}, "
-                        f"has_translation={bool(chunk.translation)}")
-            
-            if chunk.transcription:
-                return {
-                    'transcription': chunk.transcription,
-                    'translation': chunk.translation or '',
-                    'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
-                }
-        else:
+        if not chunk:
             logger.debug(f"No chunk found for timestamp {timestamp:.2f}s")
+            return {'transcription': '', 'translation': '', 'language': 'unknown'}
+        
+        logger.debug(f"Chunk found for {timestamp:.2f}s: id={chunk.chunk_id}, "
+                    f"status={chunk.status.name}, "
+                    f"has_transcription={bool(chunk.transcription)}, "
+                    f"has_translation={bool(chunk.translation)}, "
+                    f"timestamps_count={len(chunk.timestamps)}")
+        
+        # If chunk has timestamp segments (from silence detection), find the active one
+        if chunk.timestamps:
+            for segment in chunk.timestamps:
+                segment_start = segment.get('start', 0)
+                segment_end = segment.get('end', 0)
+                
+                # Check if timestamp falls within this segment
+                if segment_start <= timestamp < segment_end:
+                    translation = segment.get('translation', '')
+                    transcription = segment.get('text', '')
+                    
+                    logger.debug(f"Found active caption segment at {timestamp:.2f}s: "
+                               f"{segment_start:.2f}s - {segment_end:.2f}s")
+                    logger.debug(f"  Transcription: '{transcription[:50]}...' (len={len(transcription)})")
+                    logger.debug(f"  Translation: '{translation[:50]}...' (len={len(translation)})")
+                    
+                    return {
+                        'transcription': transcription,
+                        'translation': translation,
+                        'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
+                    }
+            
+            # Timestamp is between caption segments (silence) - return empty
+            logger.debug(f"Timestamp {timestamp:.2f}s is between caption segments (silence)")
+            return {'transcription': '', 'translation': '', 'language': 'unknown'}
+        
+        # Fallback: chunk has no timestamp segments, return full chunk transcription
+        if chunk.transcription:
+            return {
+                'transcription': chunk.transcription,
+                'translation': chunk.translation or '',
+                'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
+            }
         
         return {'transcription': '', 'translation': '', 'language': 'unknown'}
     
     def export_captions(self, format: str = 'srt') -> Optional[str]:
-        """Export captions to SRT or VTT format."""
+        """
+        Export captions to SRT or VTT format.
+        
+        With silence detection, exports individual caption segments with accurate timing
+        instead of chunk-level captions.
+        """
         if not self.chunk_manager:
             return None
         
-        # Get all completed chunks
-        chunks = [c for c in self.chunk_manager.chunks if c.transcription]
+        # Collect all caption segments from all chunks
+        caption_segments = []
+        
+        for chunk in self.chunk_manager.chunks:
+            if not chunk.transcription:
+                continue
+            
+            # If chunk has timestamp segments (from silence detection), use them
+            if chunk.timestamps:
+                for segment in chunk.timestamps:
+                    caption_segments.append({
+                        'start': segment.get('start', chunk.start_time),
+                        'end': segment.get('end', chunk.end_time),
+                        'text': segment.get('text', ''),
+                        'translation': segment.get('translation', '')
+                    })
+            else:
+                # Fallback: use chunk as single caption
+                caption_segments.append({
+                    'start': chunk.start_time,
+                    'end': chunk.end_time,
+                    'text': chunk.transcription,
+                    'translation': chunk.translation or ''
+                })
+        
+        # Sort by start time
+        caption_segments.sort(key=lambda x: x['start'])
         
         if format.lower() == 'srt':
-            return self._export_srt(chunks)
+            return self._export_srt(caption_segments)
         elif format.lower() == 'vtt':
-            return self._export_vtt(chunks)
+            return self._export_vtt(caption_segments)
         else:
             return None
     
-    def _export_srt(self, chunks) -> str:
-        """Export captions as SRT format."""
+    def _export_srt(self, segments: List[Dict]) -> str:
+        """Export caption segments as SRT format."""
         srt_content = []
         
-        for i, chunk in enumerate(chunks, 1):
-            start_time = self._format_srt_time(chunk.start_time)
-            end_time = self._format_srt_time(chunk.end_time)
+        for i, segment in enumerate(segments, 1):
+            start_time = self._format_srt_time(segment['start'])
+            end_time = self._format_srt_time(segment['end'])
             
-            text = chunk.translation if chunk.translation else chunk.transcription
+            # Use translation if available, otherwise transcription
+            text = segment.get('translation') or segment.get('text', '')
+            
+            if not text.strip():
+                continue
             
             srt_content.append(f"{i}")
             srt_content.append(f"{start_time} --> {end_time}")
@@ -358,15 +474,19 @@ class VideoSession:
         
         return "\n".join(srt_content)
     
-    def _export_vtt(self, chunks) -> str:
-        """Export captions as WebVTT format."""
+    def _export_vtt(self, segments: List[Dict]) -> str:
+        """Export caption segments as WebVTT format."""
         vtt_content = ["WEBVTT\n"]
         
-        for chunk in chunks:
-            start_time = self._format_vtt_time(chunk.start_time)
-            end_time = self._format_vtt_time(chunk.end_time)
+        for segment in segments:
+            start_time = self._format_vtt_time(segment['start'])
+            end_time = self._format_vtt_time(segment['end'])
             
-            text = chunk.translation if chunk.translation else chunk.transcription
+            # Use translation if available, otherwise transcription
+            text = segment.get('translation') or segment.get('text', '')
+            
+            if not text.strip():
+                continue
             
             vtt_content.append(f"{start_time} --> {end_time}")
             vtt_content.append(text)
@@ -414,6 +534,7 @@ class VideoSession:
 def upload_video():
     """
     Upload a video file and create a new session.
+    Configuration will be set when user clicks Start Processing.
     
     Returns:
         JSON with session_id and video metadata
@@ -443,44 +564,27 @@ def upload_video():
         video_path = session_dir / filename
         file.save(str(video_path))
         
-        # Get configuration from request
-        config = {
-            'model_source': request.form.get('model_source', 'fasterwhisper'),
-            'model_size': request.form.get('model_size', 'base'),
-            'device': request.form.get('device', 'auto'),
-            'compute_type': request.form.get('compute_type', 'float16'),
-            'source_language': request.form.get('source_language'),
-            'target_language': request.form.get('target_language', 'en'),
-            'enable_translation': request.form.get('enable_translation', 'true').lower() == 'true',
-            'buffer_seconds': float(request.form.get('buffer_seconds', 60.0)),
-            'max_concurrent': int(request.form.get('max_concurrent', 2)),
-            'model_dir': request.form.get('model_dir', './models'),
-        }
+        logger.info(f"📹 Video uploaded: {filename} -> Session: {session_id}")
         
-        # Debug: Log what we received
-        logger.info(f"📋 Video upload config received: "
-                   f"source_lang='{config['source_language']}', "
-                   f"target_lang='{config['target_language']}', "
-                   f"model={config['model_source']}/{config['model_size']}")
-        
-        # Create session
+        # Create session with empty config (will be set when processing starts)
+        config = {}
         video_session = VideoSession(session_id, str(video_path), config)
         
-        # Initialize session
-        if not video_session.initialize():
-            return jsonify({'error': 'Failed to initialize video session'}), 500
-        
-        # Store session
+        # Store session (not initialized yet)
         with session_lock:
             video_sessions[session_id] = video_session
         
-        logger.info(f"Video uploaded and session created: {session_id}")
+        # Extract basic metadata for display (without full initialization)
+        video_processor = VideoProcessor(str(video_path))
+        metadata = video_processor.extract_metadata()
+        
+        logger.info(f"✅ Session created: {session_id} (not initialized - awaiting configuration)")
         
         return jsonify({
             'session_id': session_id,
             'filename': filename,
-            'metadata': video_session.metadata,
-            'status': 'initialized'
+            'metadata': metadata,
+            'status': 'uploaded'
         }), 200
         
     except Exception as e:
@@ -490,12 +594,31 @@ def upload_video():
 
 @video_bp.route('/session/<session_id>/start', methods=['POST'])
 def start_session(session_id):
-    """Start processing for a video session."""
+    """Start processing for a video session with configuration."""
     with session_lock:
         video_session = video_sessions.get(session_id)
     
     if not video_session:
         return jsonify({'error': 'Session not found'}), 404
+    
+    # Get configuration from request body
+    config = request.get_json() or {}
+    
+    # Log the configuration received
+    print(f"\n{'='*60}")
+    print(f"🎬 START PROCESSING - Session: {session_id}")
+    print(f"📋 Configuration received:")
+    print(f"   Model Source: {config.get('model_source', 'N/A')}")
+    print(f"   Model Size: {config.get('model_size', 'N/A')}")
+    print(f"   Device: {config.get('device', 'N/A')}")
+    print(f"   Source Language: {config.get('source_language', 'N/A')}")
+    print(f"   Target Language: {config.get('target_language', 'N/A')}")
+    print(f"   Translation Enabled: {config.get('enable_translation', 'N/A')}")
+    print(f"   Buffer Size: {config.get('buffer_seconds', 'N/A')}s")
+    print(f"{'='*60}\n")
+    
+    # Update session configuration
+    video_session.update_config(config)
     
     if video_session.start_processing():
         return jsonify({'status': 'processing started'}), 200

@@ -255,6 +255,14 @@ body {
     margin-top: 10px;
 }
 
+/* Configuration Display */
+.config-display {
+    background: rgba(0, 212, 255, 0.1);
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
 .info-line {
     padding: 4px 0;
     font-size: 13px;
@@ -289,6 +297,13 @@ body {
 
 .form-group input[type="range"] {
     width: 80%;
+}
+
+.help-text {
+    font-size: 11px;
+    color: #888;
+    margin-top: 4px;
+    font-style: italic;
 }
 
 .form-group input[type="color"] {

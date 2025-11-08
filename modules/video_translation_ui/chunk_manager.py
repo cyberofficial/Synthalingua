@@ -235,15 +235,18 @@ class ChunkManager:
                             chunk_id: int,
                             transcription: str,
                             translation: Optional[str] = None,
-                            timestamps: Optional[List[Dict]] = None) -> bool:
+                            timestamps: Optional[List[Dict]] = None,
+                            language: Optional[str] = None) -> bool:
         """
         Mark a chunk as completed with results.
         
         Args:
             chunk_id: Chunk identifier
-            transcription: Transcribed text
-            translation: Optional translated text
-            timestamps: Optional SRT timestamps
+            transcription: Full transcription text for the chunk
+            translation: Optional full translation text
+            timestamps: List of caption segments with accurate timing:
+                [{'start': 10.5, 'end': 13.2, 'text': 'Hello', 'translation': 'Hola'}, ...]
+            language: Detected/used language
             
         Returns:
             True if status was updated, False otherwise
@@ -257,7 +260,7 @@ class ChunkManager:
             chunk.completed_at = time.time()
             
             self.completed_chunks[chunk_id] = chunk
-            logger.debug(f"Chunk {chunk_id} marked as completed")
+            logger.debug(f"Chunk {chunk_id} marked as completed with {len(chunk.timestamps)} caption segments")
             return True
         return False
     

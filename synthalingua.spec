@@ -23,7 +23,7 @@ for pkg in packages_with_data:
 
 # --- Collect CUDA Binaries ---
 binaries = []
-CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8'
+CUDA_PATH = 'C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.9'
 cuda_bin = os.path.join(CUDA_PATH, 'bin')
 if os.path.exists(cuda_bin):
     cuda_dlls = glob.glob(os.path.join(cuda_bin, '*.dll'))
