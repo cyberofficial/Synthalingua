@@ -77,9 +77,6 @@ python synthalingua.py --portnumber 8000 --launchui
 
 # With a video file pre-loaded
 python synthalingua.py --portnumber 8000 --launchui --video_input path/to/video.mp4
-
-# Custom buffer size (30s, 60s, or 120s)
-python synthalingua.py --portnumber 8000 --launchui --video_buffer 120
 ```
 
 Then open in your browser: `http://localhost:8000/video_player.html`

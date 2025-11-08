@@ -87,7 +87,23 @@ class FasterWhisperModel:
             task = "transcribe"
         if condition_on_previous_text is None:
             condition_on_previous_text = False
-        segments, _ = self.audio_model.transcribe(audio=file_path, task=task, condition_on_previous_text=condition_on_previous_text, language=language)
+        
+        # Extract additional transcription parameters
+        temperature = kwargs.get("temperature", [0.0, 0.2, 0.4, 0.6, 0.8, 1.0])  # Default: fallback temperatures
+        compression_ratio_threshold = kwargs.get("compression_ratio_threshold", 2.4)
+        log_prob_threshold = kwargs.get("log_prob_threshold", -1.0)
+        no_speech_threshold = kwargs.get("no_speech_threshold", 0.6)
+        
+        segments, _ = self.audio_model.transcribe(
+            audio=file_path, 
+            task=task, 
+            condition_on_previous_text=condition_on_previous_text, 
+            language=language,
+            temperature=temperature,
+            compression_ratio_threshold=compression_ratio_threshold,
+            log_prob_threshold=log_prob_threshold,
+            no_speech_threshold=no_speech_threshold
+        )
 
         result = ""
         for segment in segments:

@@ -15,6 +15,10 @@ import logging
 from pathlib import Path
 from typing import Tuple, Dict, Optional, List
 import tempfile
+import time
+
+# Import Demucs helper
+from modules.demucs_path_helper import get_demucs_python_path
 
 logger = logging.getLogger(__name__)
 
@@ -169,20 +173,26 @@ class VideoProcessor:
     def extract_audio(self, 
                      output_path: Optional[str] = None,
                      sample_rate: int = 16000,
-                     channels: int = 1) -> str:
+                     channels: int = 1,
+                     isolate_vocals: bool = False,
+                     demucs_model: str = "htdemucs",
+                     demucs_jobs: int = 0) -> str:
         """
-        Extract complete audio from video file.
+        Extract complete audio from video file, optionally with vocal isolation.
         
         Args:
             output_path: Optional custom output path for audio file
             sample_rate: Audio sample rate (default: 16000 Hz for Whisper)
             channels: Number of audio channels (default: 1 for mono)
+            isolate_vocals: Whether to use Demucs vocal isolation
+            demucs_model: Demucs model to use for vocal isolation
+            demucs_jobs: Number of parallel jobs for Demucs (0 = single-threaded)
             
         Returns:
-            str: Path to extracted audio file
+            str: Path to extracted/processed audio file
             
         Raises:
-            RuntimeError: If audio extraction fails
+            RuntimeError: If audio extraction or vocal isolation fails
         """
         # Handle None case by creating default path
         if not output_path:
@@ -193,6 +203,7 @@ class VideoProcessor:
         output_path_str: str = str(output_path_obj)
         
         try:
+            # Step 1: Extract raw audio from video
             cmd = [
                 'ffmpeg',
                 '-i', str(self.video_path),
@@ -216,9 +227,25 @@ class VideoProcessor:
             if not output_path_obj.exists():
                 raise RuntimeError("Audio file was not created")
             
-            self.audio_path = output_path_str
             logger.info(f"Audio extraction complete: {output_path_str}")
             
+            # Step 2: Vocal isolation with Demucs (if enabled)
+            if isolate_vocals:
+                logger.info(f"🎤 Starting vocal isolation with Demucs model: {demucs_model}")
+                processed_audio_path = self._isolate_vocals_demucs(
+                    output_path_str,
+                    demucs_model,
+                    demucs_jobs
+                )
+                
+                # Replace original audio with isolated vocals
+                if processed_audio_path != output_path_str:
+                    # Move vocals file to replace original
+                    import shutil
+                    shutil.move(processed_audio_path, output_path_str)
+                    logger.info(f"Replaced audio with isolated vocals: {output_path_str}")
+            
+            self.audio_path = output_path_str
             return output_path_str
             
         except subprocess.CalledProcessError as e:
@@ -228,14 +255,139 @@ class VideoProcessor:
             logger.error(f"Unexpected error during audio extraction: {e}")
             raise RuntimeError(f"Failed to extract audio: {e}")
     
+    def _isolate_vocals_demucs(self,
+                               audio_path: str,
+                               demucs_model: str = "htdemucs",
+                               demucs_jobs: int = 0) -> str:
+        """
+        Isolate vocals from audio using Demucs.
+        
+        Args:
+            audio_path: Path to input audio file
+            demucs_model: Demucs model to use
+            demucs_jobs: Number of parallel jobs (0 = single-threaded)
+            
+        Returns:
+            str: Path to vocals-only audio file
+            
+        Raises:
+            RuntimeError: If vocal isolation fails
+        """
+        try:
+            # Get Demucs Python path
+            demucs_python_path = get_demucs_python_path()
+            
+            # Create temp directory for Demucs output
+            demucs_temp_dir = self.temp_dir / "demucs_output"
+            demucs_temp_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Build Demucs command
+            demucs_cmd = [
+                demucs_python_path,
+                '-m', 'demucs',
+                '-n', demucs_model,
+                '-o', str(demucs_temp_dir),
+                '--two-stems', 'vocals'
+            ]
+            
+            # Add jobs parameter if specified
+            if demucs_jobs > 0:
+                demucs_cmd.extend(['-j', str(demucs_jobs)])
+            
+            demucs_cmd.append(audio_path)
+            
+            # Set up environment variables for Demucs
+            demucs_env = os.environ.copy()
+            demucs_env['PYTHONIOENCODING'] = 'utf-8'
+            demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'
+            demucs_env['TORIO_USE_FFMPEG'] = '0'
+            
+            logger.info(f"Running Demucs: {' '.join(demucs_cmd[2:])}")
+            
+            # Run Demucs with progress monitoring
+            process = subprocess.Popen(
+                demucs_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                env=demucs_env
+            )
+            
+            # Monitor progress
+            stderr_output = ""
+            last_progress = 0.0
+            start_time = time.time()
+            
+            while True:
+                if process.stderr is not None:
+                    stderr_line = process.stderr.readline()
+                    if stderr_line:
+                        stderr_output += stderr_line
+                        line_stripped = stderr_line.strip()
+                        
+                        # Show progress updates
+                        if '%' in line_stripped or 'processing' in line_stripped.lower():
+                            logger.debug(f"Demucs: {line_stripped}")
+                
+                # Check if process finished
+                return_code = process.poll()
+                if return_code is not None:
+                    # Process finished
+                    if return_code != 0:
+                        # Read remaining stderr
+                        if process.stderr:
+                            remaining = process.stderr.read()
+                            stderr_output += remaining
+                        raise RuntimeError(f"Demucs failed with code {return_code}:\n{stderr_output}")
+                    break
+                
+                # Small delay to avoid busy waiting
+                time.sleep(0.1)
+            
+            elapsed_time = time.time() - start_time
+            logger.info(f"✅ Vocal isolation complete in {elapsed_time:.1f}s")
+            
+            # Find vocals.wav output file
+            base_name = Path(audio_path).stem
+            
+            # Search for vocals.wav in output directory
+            vocals_path = None
+            for root, dirs, files in os.walk(demucs_temp_dir):
+                if 'vocals.wav' in files:
+                    vocals_path = os.path.join(root, 'vocals.wav')
+                    logger.info(f"Found vocals.wav at: {vocals_path}")
+                    break
+            
+            if not vocals_path or not os.path.exists(vocals_path):
+                # List directory for debugging
+                logger.error(f"Demucs output directory contents:")
+                for root, dirs, files in os.walk(demucs_temp_dir):
+                    level = root.replace(str(demucs_temp_dir), '').count(os.sep)
+                    indent = ' ' * 2 * level
+                    logger.error(f"{indent}{os.path.basename(root)}/")
+                    subindent = ' ' * 2 * (level + 1)
+                    for file in files:
+                        logger.error(f"{subindent}{file}")
+                
+                raise RuntimeError(f"vocals.wav not found in Demucs output directory")
+            
+            return vocals_path
+            
+        except Exception as e:
+            logger.error(f"Vocal isolation failed: {e}", exc_info=True)
+            raise RuntimeError(f"Vocal isolation failed: {str(e)}")
+    
     def extract_audio_segment(self,
                              start_time: float,
                              duration: float,
                              output_path: Optional[str] = None,
                              sample_rate: int = 16000,
-                             channels: int = 1) -> str:
+                             channels: int = 1,
+                             source_audio: Optional[str] = None) -> str:
         """
-        Extract a specific audio segment from video (for buffering).
+        Extract a specific audio segment from preprocessed audio or video.
         
         Args:
             start_time: Start time in seconds
@@ -243,6 +395,8 @@ class VideoProcessor:
             output_path: Optional custom output path for audio file
             sample_rate: Audio sample rate (default: 16000 Hz)
             channels: Number of audio channels (default: 1 for mono)
+            source_audio: Optional path to preprocessed audio file (e.g., after Demucs)
+                         If provided, segment is extracted from this audio instead of video
             
         Returns:
             str: Path to extracted audio segment file
@@ -258,11 +412,14 @@ class VideoProcessor:
         
         output_path_str: str = str(output_path_obj)
         
+        # Determine input source (preprocessed audio or original video)
+        input_source = source_audio if source_audio and os.path.exists(source_audio) else str(self.video_path)
+        
         try:
             cmd = [
                 'ffmpeg',
                 '-ss', str(start_time),  # Start time
-                '-i', str(self.video_path),
+                '-i', input_source,
                 '-t', str(duration),  # Duration
                 '-vn',  # Disable video
                 '-acodec', 'pcm_s16le',  # PCM 16-bit
@@ -272,7 +429,7 @@ class VideoProcessor:
                 output_path_str
             ]
             
-            logger.debug(f"Extracting audio segment: {start_time}s - {start_time + duration}s")
+            logger.debug(f"Extracting audio segment: {start_time}s - {start_time + duration}s from {Path(input_source).name}")
             
             result = subprocess.run(
                 cmd,

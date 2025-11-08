@@ -203,24 +203,14 @@ class BufferManager:
         if active_count >= self.max_concurrent:
             return None
         
-        # Get buffer status
-        buffer_status = self.chunk_manager.get_buffer_status(
-            self.current_playback_time,
-            self.buffer_seconds
-        )
-        
         # Strategy 1: Priority chunks first (from seeks)
         priority_chunk = self._get_priority_chunk()
         if priority_chunk:
             self.current_strategy = BufferStrategy.PRIORITY
             return priority_chunk
         
-        # Strategy 2: If buffer is low, process next needed chunk
-        if not buffer_status['is_ready']:
-            self.current_strategy = BufferStrategy.ON_DEMAND
-            return self._get_next_needed_chunk()
-        
-        # Strategy 3: Continuously process ahead
+        # Strategy 2: Continuously process ALL chunks sequentially (like sub_gen.py)
+        # No artificial buffer limits - just process the entire file
         self.current_strategy = BufferStrategy.CONTINUOUS
         return self._get_next_continuous_chunk()
     
@@ -253,16 +243,15 @@ class BufferManager:
         return self.chunk_manager.get_next_pending_chunk()
     
     def _check_buffer_health(self):
-        """Check buffer health and adjust strategy if needed."""
+        """Check buffer health and track status without artificial limits."""
         buffer_status = self.chunk_manager.get_buffer_status(
             self.current_playback_time,
             self.buffer_seconds
         )
         
-        # If buffer is critically low, log warning
-        if buffer_status['seconds_buffered'] < self.buffer_seconds * 0.25:
-            logger.warning(f"Buffer critically low: {buffer_status['seconds_buffered']:.1f}s "
-                         f"(target: {self.buffer_seconds}s)")
+        # Just track the buffer status - no warnings during continuous processing
+        # The buffer_seconds value is used for display purposes only
+        logger.debug(f"Buffer: {buffer_status['seconds_buffered']:.1f}s ahead of playback")
     
     def mark_task_complete(self, chunk_id: int):
         """

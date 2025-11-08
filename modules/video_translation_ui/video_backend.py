@@ -100,7 +100,6 @@ class VideoSession:
             'enable_silence_detection': True,
             'silence_threshold_db': -35.0,
             'min_silence_duration': 0.5,
-            'buffer_seconds': 60.0,
             'max_concurrent': 2,
             'model_dir': './models'
         }
@@ -129,8 +128,25 @@ class VideoSession:
             # Extract metadata
             self.metadata = self.video_processor.extract_metadata()
             
+            # Extract full audio (with optional Demucs preprocessing)
+            # This MUST happen before chunking so Demucs can process the entire audio
+            enable_vocals = self.config.get('enable_vocal_isolation', False)
+            if enable_vocals:
+                logger.info(f"🎤 Extracting full audio for vocal isolation preprocessing...")
+            
+            full_audio_path = self.video_processor.extract_audio(
+                isolate_vocals=enable_vocals,
+                demucs_model=self.config.get('demucs_model', 'htdemucs'),
+                demucs_jobs=self.config.get('demucs_jobs', 0)
+            )
+            
+            # Store full audio path for chunk extraction
+            self.full_audio_path = full_audio_path
+            logger.info(f"✅ Full audio ready: {full_audio_path}")
+            
             # Initialize chunk manager
-            chunk_duration = self.config.get('buffer_seconds', 60.0)
+            # Process ENTIRE video as one chunk (no buffering/splitting)
+            chunk_duration = self.metadata['duration']  # Use full video duration
             self.chunk_manager = ChunkManager(
                 video_duration=self.metadata['duration'],
                 chunk_duration=chunk_duration
@@ -154,7 +170,7 @@ class VideoSession:
             # Initialize buffer manager
             self.buffer_manager = BufferManager(
                 chunk_manager=self.chunk_manager,
-                buffer_seconds=chunk_duration,
+                buffer_seconds=self.metadata['duration'],  # Buffer entire video
                 max_concurrent=self.config.get('max_concurrent', 2),
                 on_chunk_processed=self._on_chunk_processed
             )
@@ -177,6 +193,10 @@ class VideoSession:
         if self.is_processing:
             logger.warning("Processing already started")
             return False
+        
+        # Attach socketio reference if available
+        if '_socketio_instance' in globals():
+            self.socketio = globals()['_socketio_instance']
         
         self.is_processing = True
         self.stop_processing.clear()
@@ -248,19 +268,49 @@ class VideoSession:
                     logger.info(f"📝 Processing chunk {processed_count}/{total_chunks} "
                               f"[{chunk.start_time:.1f}s - {chunk.end_time:.1f}s]")
                     
-                    # Extract audio for this chunk
+                    # Extract audio segment from preprocessed full audio (if available)
+                    # This ensures Demucs-processed audio is used for all chunks
                     audio_path = self.video_processor.extract_audio_segment(
                         start_time=chunk.start_time,
-                        duration=chunk.duration
+                        duration=chunk.duration,
+                        source_audio=getattr(self, 'full_audio_path', None)
                     )
                     chunk.audio_path = audio_path
                     
-                    # Process chunk
+                    # Process chunk with incremental timestamp updates
+                    def on_segment_complete(timestamp_dict, segment_num, total_segments):
+                        """Callback to add timestamps incrementally so captions show in real-time"""
+                        chunk.timestamps.append(timestamp_dict)
+                        
+                        # Update processed_until to include this segment + any silence before it
+                        # This represents how far we've analyzed (speech + silence)
+                        segment_end_relative = timestamp_dict['end'] - chunk.start_time
+                        chunk.processed_until = segment_end_relative
+                        
+                        # Calculate buffer status after each segment
+                        buffer_status = self.chunk_manager.get_buffer_status(
+                            current_time=self.current_playback_time,
+                            buffer_distance=self.metadata['duration']
+                        )
+                        seconds_buffered = buffer_status['seconds_buffered']
+                        
+                        # Log segment completion with buffer status
+                        print(f"✓ Segment {segment_num}/{total_segments} in chunk {chunk.chunk_id}: "
+                              f"{timestamp_dict['start']:.2f}s - {timestamp_dict['end']:.2f}s | "
+                              f"Buffer: {seconds_buffered:.1f}s ahead")
+                        import sys
+                        sys.stdout.flush()  # Force console output to appear immediately
+                        
+                        # Emit WebSocket update for real-time buffer display
+                        if hasattr(self, '_emit_buffer_update'):
+                            self._emit_buffer_update(buffer_status, segment_num, total_segments, chunk.chunk_id)
+                    
                     result = self.transcription_manager.process_chunk(
                         audio_path=audio_path,
                         chunk_id=chunk.chunk_id,
                         start_time=chunk.start_time,
-                        end_time=chunk.end_time
+                        end_time=chunk.end_time,
+                        on_segment_complete=on_segment_complete
                     )
                     
                     # Update chunk status
@@ -273,14 +323,22 @@ class VideoSession:
                             language=result.get('language', 'unknown')
                         )
                         
-                        # Calculate and show progress
+                        # Calculate buffer status (how much is ready ahead of playback position)
+                        buffer_status = self.chunk_manager.get_buffer_status(
+                            current_time=self.current_playback_time,
+                            buffer_distance=self.metadata['duration']
+                        )
+                        seconds_buffered = buffer_status['seconds_buffered']
+                        
+                        # Calculate overall progress
                         elapsed = time.time() - start_time
                         avg_time = elapsed / processed_count
                         remaining = (total_chunks - processed_count) * avg_time
                         progress_pct = (processed_count / total_chunks * 100) if total_chunks > 0 else 0
                         
                         logger.info(f"✅ Chunk {processed_count}/{total_chunks} completed "
-                                  f"({progress_pct:.1f}% done) - "
+                                  f"({progress_pct:.1f}% done) | "
+                                  f"Buffer: {seconds_buffered:.1f}s ahead | "
                                   f"ETA: {remaining/60:.1f} minutes")
                     else:
                         self.chunk_manager.mark_chunk_failed(
@@ -301,12 +359,39 @@ class VideoSession:
         # Final summary
         total_time = time.time() - start_time
         logger.info(f"🎉 Video processing completed! Processed {processed_count}/{total_chunks} chunks in {total_time/60:.1f} minutes")
+        
+        # Emit completion event to frontend
+        if self.socketio:
+            try:
+                self.socketio.emit('processing_complete', {
+                    'session_id': self.session_id,
+                    'total_chunks': total_chunks,
+                    'processed_chunks': processed_count,
+                    'total_time': total_time
+                }, to=self.session_id, namespace='/')
+                logger.debug(f"Emitted processing_complete event for session {self.session_id}")
+            except Exception as e:
+                logger.error(f"Could not emit processing_complete event: {e}")
+        
         logger.debug(f"Chunk processing thread ended for session {self.session_id}")
     
     def _on_chunk_processed(self, chunk):
         """Callback when a chunk is processed (for WebSocket updates)."""
         # This will be used to emit WebSocket events
         pass
+    
+    def _emit_buffer_update(self, buffer_status, segment_num, total_segments, chunk_id):
+        """Emit buffer status update via WebSocket."""
+        if self.socketio:
+            try:
+                self.socketio.emit('buffer_update', {
+                    'buffer_status': buffer_status,
+                    'segment_num': segment_num,
+                    'total_segments': total_segments,
+                    'chunk_id': chunk_id
+                }, to=self.session_id, namespace='/')
+            except Exception as e:
+                logger.debug(f"Could not emit buffer update: {e}")
     
     def update_playback_position(self, timestamp: float):
         """Update current playback position."""
@@ -614,7 +699,7 @@ def start_session(session_id):
     print(f"   Source Language: {config.get('source_language', 'N/A')}")
     print(f"   Target Language: {config.get('target_language', 'N/A')}")
     print(f"   Translation Enabled: {config.get('enable_translation', 'N/A')}")
-    print(f"   Buffer Size: {config.get('buffer_seconds', 'N/A')}s")
+    print(f"   Processing Mode: Continuous (all chunks)")
     print(f"{'='*60}\n")
     
     # Update session configuration
@@ -825,6 +910,10 @@ def init_video_socketio(app):
     # Use threading mode to avoid eventlet/gevent dependencies
     socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
     
+    # Store global reference for sessions
+    global _socketio_instance
+    _socketio_instance = socketio
+    
     @socketio.on('join_video_session')
     def on_join_session(data):
         """Client joins a video session room."""
@@ -861,13 +950,17 @@ def init_video_socketio(app):
             # Get captions at this timestamp
             captions = video_session.get_captions_at_time(timestamp)
             
-            # Only emit if we have captions (avoid sending empty updates)
+            # ALWAYS emit caption updates (including empty ones during silence)
+            # This fixes the "stuck caption" issue by clearing captions during silence
+            emit('caption_update', captions, to=session_id)
+            
+            # Log only when captions change
             if captions.get('transcription') or captions.get('translation'):
-                # Broadcast to all clients in this session
-                emit('caption_update', captions, to=session_id)
                 logger.debug(f"Caption update sent for session {session_id} at {timestamp:.2f}s: "
                            f"transcription={bool(captions.get('transcription'))}, "
                            f"translation={bool(captions.get('translation'))}")
+            else:
+                logger.debug(f"Silence update sent for session {session_id} at {timestamp:.2f}s (clearing captions)")
     
     logger.info("Video WebSocket events initialized")
     

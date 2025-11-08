@@ -324,7 +324,6 @@ def parse_arguments():
     video_grp = parser.add_argument_group("Video Translation UI")
     video_grp.add_argument("--launchui", action='store_true', help="Launch the video translation UI with a web-based interface for real-time video translation and transcription. Provides interactive controls for video playback, caption overlay customization, and translation settings. Automatically starts a web server on the port specified by --portnumber (default: 8000) and opens the interface in your default browser. Access at http://localhost:[PORT]/video_player.html")
     video_grp.add_argument("--video_input", default=None, help="Path to video file for the video translation UI. Supports common formats: MP4, MKV, AVI, MOV, WebM, FLV, WMV, M4V. Can be absolute path (C:\\Videos\\file.mp4) or relative path (videos/file.mkv). When specified with --launchui, the video is automatically loaded in the UI. If not specified, you can upload videos through the web interface drag-and-drop area.", type=str)
-    video_grp.add_argument("--video_buffer", default=60, help="Buffer size in seconds for video translation processing. Determines how much content is processed ahead of playback position. Options: 30 (minimal buffering, lower memory), 60 (balanced, recommended), 120 (maximum buffering, smoother experience). Larger buffers use more memory but provide better playback continuity and allow more aggressive seeking. Only used with --launchui.", type=int, choices=[30, 60, 120])
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")

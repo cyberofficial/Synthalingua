@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Synthalingua Video Translator</title>
     <link rel="stylesheet" href="/static/video_player.css">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="/static/socket.io.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -161,13 +161,43 @@
                             <option value="cuda">CUDA (NVIDIA GPU)</option>
                         </select>
                     </div>
+                </div>
+                
+                <!-- Vocal Isolation Settings (Demucs) -->
+                <div class="settings-section">
+                    <h3 class="section-title">🎤 Vocal Isolation</h3>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-vocal-isolation">
+                            Enable Vocal Isolation (Demucs)
+                        </label>
+                        <div class="help-text">Removes background music/noise before transcription. Requires full audio preprocessing.</div>
+                    </div>
                     <div class="form-group">
-                        <label>Buffer Size:</label>
-                        <div class="radio-group">
-                            <label><input type="radio" name="buffer" value="30"> 30s</label>
-                            <label><input type="radio" name="buffer" value="60" checked> 60s</label>
-                            <label><input type="radio" name="buffer" value="120"> 120s</label>
-                        </div>
+                        <label>Demucs Model:</label>
+                        <select id="demucs-model">
+                            <option value="htdemucs" selected>htdemucs (Recommended - Best Quality)</option>
+                            <option value="htdemucs_ft">htdemucs_ft (Fine-tuned - Slower, Better)</option>
+                            <option value="htdemucs_6s">htdemucs_6s (6-source separation)</option>
+                            <option value="mdx">mdx (MDX Challenge Winner)</option>
+                            <option value="mdx_extra">mdx_extra (Extra Training Data)</option>
+                            <option value="mdx_q">mdx_q (Quantized - Faster)</option>
+                            <option value="mdx_extra_q">mdx_extra_q (Quantized + Extra Data)</option>
+                            <option value="hdemucs_mmi">hdemucs_mmi (Hybrid v3)</option>
+                            <option value="hdemucs">hdemucs (Original Hybrid v3)</option>
+                            <option value="demucs">demucs (Original Time-domain)</option>
+                        </select>
+                        <div class="help-text">Best quality: htdemucs_ft | Fastest: mdx_q | Balanced: mdx_extra</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Parallel Jobs:</label>
+                        <select id="demucs-jobs">
+                            <option value="0" selected>Single-threaded (Default)</option>
+                            <option value="2">2 threads</option>
+                            <option value="4">4 threads</option>
+                            <option value="8">8 threads</option>
+                        </select>
+                        <div class="help-text">More threads = faster processing but higher CPU/RAM usage</div>
                     </div>
                 </div>
                 
@@ -247,9 +277,6 @@
                     <button id="start-processing-btn" class="btn btn-primary" disabled>
                         🎬 START PROCESSING
                     </button>
-                    <button id="pause-processing-btn" class="btn btn-secondary" disabled>
-                        ⏸️ PAUSE
-                    </button>
                     <button id="export-btn" class="btn btn-secondary" disabled>
                         📥 EXPORT CAPTIONS
                     </button>
@@ -270,6 +297,10 @@
             <div class="status-item">
                 <span class="status-label">🌐</span>
                 <span id="status-language">-- → --</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">📄</span>
+                <span id="status-segments">0/0 segments</span>
             </div>
             <div class="status-item">
                 <span class="status-label">💾</span>

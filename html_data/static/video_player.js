@@ -6,6 +6,7 @@ class VideoTranslatorApp {
         this.socket = null;
         this.isProcessing = false;
         this.videoMetadata = null;
+        this.lastCaptionUpdate = 0; // Throttle caption updates
         
         this.initializeElements();
         this.setupEventListeners();
@@ -63,15 +64,20 @@ class VideoTranslatorApp {
         this.minSpeechDuration = document.getElementById('min-speech-duration');
         this.minSpeechDurationValue = document.getElementById('min-speech-duration-value');
         
+        // Vocal isolation elements (Demucs)
+        this.enableVocalIsolation = document.getElementById('enable-vocal-isolation');
+        this.demucsModel = document.getElementById('demucs-model');
+        this.demucsJobs = document.getElementById('demucs-jobs');
+        
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
-        this.pauseProcessingBtn = document.getElementById('pause-processing-btn');
         this.exportBtn = document.getElementById('export-btn');
         
         // Status elements
         this.statusTime = document.getElementById('status-time');
         this.statusProcessing = document.getElementById('status-processing');
         this.statusLanguage = document.getElementById('status-language');
+        this.statusSegments = document.getElementById('status-segments');
         this.statusProgress = document.getElementById('status-progress');
         
         // Other elements
@@ -90,6 +96,7 @@ class VideoTranslatorApp {
         this.videoPlayer.addEventListener('timeupdate', () => this.updatePlaybackPosition());
         this.videoPlayer.addEventListener('loadedmetadata', () => this.onVideoLoaded());
         this.videoPlayer.addEventListener('ended', () => this.onVideoEnded());
+        this.videoPlayer.addEventListener('seeked', () => this.onSeeked());
         
         // Controls
         this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
@@ -120,7 +127,6 @@ class VideoTranslatorApp {
         
         // Buttons
         this.startProcessingBtn.addEventListener('click', () => this.startProcessing());
-        this.pauseProcessingBtn.addEventListener('click', () => this.togglePauseProcessing());
         this.exportBtn.addEventListener('click', () => this.exportCaptions());
         
         // Keyboard shortcuts
@@ -137,6 +143,16 @@ class VideoTranslatorApp {
         this.socket.on('caption_update', (data) => {
             console.log('Caption update received:', data);
             this.updateCaptions(data);
+        });
+        
+        this.socket.on('buffer_update', (data) => {
+            console.log('Buffer update:', data);
+            this.updateBufferStatus(data);
+        });
+        
+        this.socket.on('processing_complete', (data) => {
+            console.log('Processing complete:', data);
+            this.onProcessingComplete(data);
         });
         
         this.socket.on('error', (data) => {
@@ -294,13 +310,17 @@ class VideoTranslatorApp {
             const sourceLang = this.sourceLanguage.value || 'auto';
             const targetLang = this.targetLanguage.value;
             const enableTranslation = this.enableTranslation.checked;
-            const bufferSize = document.querySelector('input[name="buffer"]:checked').value;
             
             // Silence detection settings
             const enableSilenceDetection = this.enableSilenceDetection.checked;
             const silenceThreshold = parseFloat(this.silenceThreshold.value);
             const minSilenceDuration = parseFloat(this.minSilenceDuration.value);
             const minSpeechDuration = parseFloat(this.minSpeechDuration.value);
+            
+            // Vocal isolation settings (Demucs)
+            const enableVocalIsolation = this.enableVocalIsolation.checked;
+            const demucsModel = this.demucsModel.value;
+            const demucsJobs = parseInt(this.demucsJobs.value);
             
             // Debug: Log configuration being sent
             console.log('📋 Starting processing with configuration:', {
@@ -310,12 +330,17 @@ class VideoTranslatorApp {
                 source_language: sourceLang,
                 target_language: targetLang,
                 enable_translation: enableTranslation,
-                buffer_seconds: bufferSize,
+                buffer_seconds: 60, // Fixed buffer size (display only)
                 silence_detection: {
                     enabled: enableSilenceDetection,
                     threshold_db: silenceThreshold,
                     min_silence_duration: minSilenceDuration,
                     min_speech_duration: minSpeechDuration
+                },
+                vocal_isolation: {
+                    enabled: enableVocalIsolation,
+                    model: demucsModel,
+                    jobs: demucsJobs
                 }
             });
             
@@ -326,7 +351,7 @@ class VideoTranslatorApp {
                 device: device,
                 source_language: sourceLang,
                 target_language: targetLang,
-                buffer_seconds: bufferSize
+                buffer_seconds: 60
             };
             
             // Send configuration with start request
@@ -342,18 +367,20 @@ class VideoTranslatorApp {
                     source_language: sourceLang,
                     target_language: targetLang,
                     enable_translation: enableTranslation,
-                    buffer_seconds: parseInt(bufferSize),
+                    buffer_seconds: 60,
                     enable_silence_detection: enableSilenceDetection,
                     silence_threshold_db: silenceThreshold,
                     min_silence_duration: minSilenceDuration,
-                    min_speech_duration: minSpeechDuration
+                    min_speech_duration: minSpeechDuration,
+                    enable_vocal_isolation: enableVocalIsolation,
+                    demucs_model: demucsModel,
+                    demucs_jobs: demucsJobs
                 })
             });
             
             if (response.ok) {
                 this.isProcessing = true;
                 this.startProcessingBtn.disabled = true;
-                this.pauseProcessingBtn.disabled = false;
                 this.statusProcessing.textContent = 'Processing...';
                 
                 // Display configuration
@@ -369,26 +396,6 @@ class VideoTranslatorApp {
         } catch (error) {
             console.error('Start processing error:', error);
             this.showError('Failed to start processing: ' + error.message);
-        }
-    }
-    
-    async togglePauseProcessing() {
-        if (!this.sessionId) return;
-        
-        try {
-            const endpoint = this.isProcessing ? 'pause' : 'resume';
-            const response = await fetch(`/api/video/session/${this.sessionId}/${endpoint}`, {
-                method: 'POST'
-            });
-            
-            if (response.ok) {
-                this.isProcessing = !this.isProcessing;
-                this.pauseProcessingBtn.textContent = this.isProcessing ? '⏸️ PAUSE' : '▶️ RESUME';
-                this.statusProcessing.textContent = this.isProcessing ? 'Processing...' : 'Paused';
-            }
-            
-        } catch (error) {
-            console.error('Toggle pause error:', error);
         }
     }
     
@@ -415,6 +422,26 @@ class VideoTranslatorApp {
         }
     }
     
+    onProcessingComplete(data) {
+        console.log('All processing complete:', data);
+        
+        // Stop polling
+        this.stopStatusPolling();
+        
+        // Update status
+        this.isProcessing = false;
+        this.statusProcessing.textContent = `Complete (${data.processed_chunks}/${data.total_chunks} chunks)`;
+        this.statusProgress.textContent = '100%';
+        
+        // Re-enable the start button so user can process another video
+        this.startProcessingBtn.disabled = false;
+        this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
+        
+        // Show success message
+        const minutes = (data.total_time / 60).toFixed(1);
+        this.showSuccess(`Processing completed in ${minutes} minutes! You can now load another video.`);
+    }
+    
     updateStatus(status) {
         // Update progress
         if (status.progress) {
@@ -435,9 +462,36 @@ class VideoTranslatorApp {
         }
     }
     
+    updateBufferStatus(data) {
+        // Update buffer display with real-time segment info
+        if (data.buffer_status) {
+            const bufferStatus = data.buffer_status;
+            this.bufferProgress.style.width = `${bufferStatus.buffer_pct}%`;
+            this.bufferText.textContent = `Buffer: ${bufferStatus.seconds_buffered.toFixed(1)}s ahead`;
+        }
+        
+        // Update segment counter in status bar
+        if (data.segment_num && data.total_segments) {
+            this.statusSegments.textContent = `${data.segment_num}/${data.total_segments} segments`;
+        }
+    }
+    
     onVideoLoaded() {
         if (this.videoPlayer.duration) {
             this.timelineSlider.max = this.videoPlayer.duration;
+        }
+    }
+    
+    onSeeked() {
+        // Called when seeking completes (user releases slider or clicks timeline)
+        // Force caption update even if video is paused
+        const current = this.videoPlayer.currentTime;
+        if (this.sessionId) {
+            console.log(`Seeked to ${current.toFixed(2)}s - requesting captions`);
+            this.socket.emit('update_playback', {
+                session_id: this.sessionId,
+                timestamp: current
+            });
         }
     }
     
@@ -466,8 +520,10 @@ class VideoTranslatorApp {
         this.timeDisplay.textContent = `${this.formatTime(current)} / ${this.formatTime(duration)}`;
         this.statusTime.textContent = this.timeDisplay.textContent;
         
-        // Update captions via WebSocket
-        if (this.sessionId) {
+        // Update captions via WebSocket (throttled to avoid spam)
+        const now = Date.now();
+        if (this.sessionId && (!this.lastCaptionUpdate || now - this.lastCaptionUpdate > 100)) {
+            this.lastCaptionUpdate = now;
             this.socket.emit('update_playback', {
                 session_id: this.sessionId,
                 timestamp: current
@@ -479,8 +535,14 @@ class VideoTranslatorApp {
         const newTime = parseFloat(event.target.value);
         this.videoPlayer.currentTime = newTime;
         
-        // Notify backend about seek
+        // Immediately request captions for the new position
         if (this.sessionId) {
+            this.socket.emit('update_playback', {
+                session_id: this.sessionId,
+                timestamp: newTime
+            });
+            
+            // Also notify backend about seek for potential priority processing
             fetch(`/api/video/session/${this.sessionId}/seek`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -514,12 +576,21 @@ class VideoTranslatorApp {
         const hasTranscription = data.transcription && data.transcription.trim() !== '';
         const hasTranslation = data.translation && data.translation.trim() !== '';
         
+        // ALWAYS clear captions first to prevent showing stale content
+        if (!hasTranscription && !hasTranslation) {
+            // During silence: hide both captions immediately
+            this.transcriptionCaption.textContent = '';
+            this.transcriptionCaption.style.display = 'none';
+            this.translationCaption.textContent = '';
+            this.translationCaption.style.display = 'none';
+            return; // Exit early during silence
+        }
+        
         // Update transcription caption
         if (hasTranscription) {
             this.transcriptionCaption.textContent = data.transcription;
             this.transcriptionCaption.style.display = this.showOriginal.checked ? 'block' : 'none';
         } else {
-            // Clear transcription during silence
             this.transcriptionCaption.textContent = '';
             this.transcriptionCaption.style.display = 'none';
         }
@@ -660,6 +731,15 @@ class VideoTranslatorApp {
     
     showError(message) {
         alert('Error: ' + message); // TODO: Better error display
+    }
+    
+    showSuccess(message) {
+        // TODO: Better success notification (toast, etc.)
+        // For now, use console and could add a success alert if needed
+        console.log('Success:', message);
+        
+        // Optionally show an alert for now
+        alert('✅ ' + message);
     }
 }
 

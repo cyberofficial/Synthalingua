@@ -16,7 +16,7 @@ Handles:
 import os
 import logging
 import threading
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Callable
 from pathlib import Path
 import time
 import tempfile
@@ -259,7 +259,13 @@ class VideoTranscriptionManager:
                     file_path=audio_path,
                     language=result['language'],
                     task="transcribe",
-                    condition_on_previous_text=False
+                    condition_on_previous_text=False,
+                    # Disable temperature fallback to speed up processing
+                    # This prevents retries when compression ratio is high (repetitive/noisy audio)
+                    temperature=0.0,  # Single temperature, no fallback
+                    compression_ratio_threshold=None,  # Disable compression ratio check
+                    log_prob_threshold=None,  # Disable log probability check
+                    no_speech_threshold=0.6  # Keep reasonable no-speech detection
                 )
             
             result['transcription'] = transcription.strip()
@@ -321,7 +327,12 @@ class VideoTranscriptionManager:
                             file_path=audio_path,
                             language=source_lang,
                             task="translate",  # Translate to English
-                            condition_on_previous_text=False
+                            condition_on_previous_text=False,
+                            # Disable temperature fallback for faster processing
+                            temperature=0.0,
+                            compression_ratio_threshold=None,
+                            log_prob_threshold=None,
+                            no_speech_threshold=0.6
                         )
                         
                         if transcription and transcription.strip():
@@ -348,7 +359,8 @@ class VideoTranscriptionManager:
                      audio_path: str,
                      chunk_id: int,
                      start_time: float,
-                     end_time: float) -> Dict:
+                     end_time: float,
+                     on_segment_complete: Optional[Callable] = None) -> Dict:
         """
         Process a complete chunk: transcribe and optionally translate.
         
@@ -360,6 +372,7 @@ class VideoTranscriptionManager:
             chunk_id: Chunk identifier
             start_time: Chunk start time in video
             end_time: Chunk end time in video
+            on_segment_complete: Optional callback(timestamp_dict) called after each segment
             
         Returns:
             dict: Complete processing result with:
@@ -392,7 +405,7 @@ class VideoTranscriptionManager:
                 # Process with silence detection for accurate phrase-level timing
                 logger.info(f"🔍 Detecting speech regions in chunk {chunk_id}...")
                 result = self._process_chunk_with_silence_detection(
-                    audio_path, chunk_id, start_time, end_time
+                    audio_path, chunk_id, start_time, end_time, on_segment_complete
                 )
             else:
                 # Process entire chunk as one caption (original behavior)
@@ -470,10 +483,14 @@ class VideoTranscriptionManager:
                                               audio_path: str,
                                               chunk_id: int,
                                               start_time: float,
-                                              end_time: float) -> Dict:
+                                              end_time: float,
+                                              on_segment_complete: Optional[Callable] = None) -> Dict:
         """
         Process chunk with silence detection for accurate phrase-level timing.
         Only transcribes speech regions, skipping silence for efficiency.
+        
+        Args:
+            on_segment_complete: Optional callback(timestamp_dict) called after each segment is processed
         """
         result = {
             'chunk_id': chunk_id,
@@ -575,14 +592,23 @@ class VideoTranscriptionManager:
                     absolute_end = start_time + region_end
                     
                     # Add to timestamps
-                    result['timestamps'].append({
+                    timestamp_dict = {
                         'start': absolute_start,
                         'end': absolute_end,
                         'text': transcription_text,
                         'translation': translation_text
-                    })
+                    }
+                    result['timestamps'].append(timestamp_dict)
                     
-                    logger.debug(f"Speech region {i} in chunk {chunk_id}: "
+                    # Call callback to update chunk incrementally (so captions show in real-time)
+                    if on_segment_complete:
+                        try:
+                            # Pass segment number and total for progress tracking
+                            on_segment_complete(timestamp_dict, i + 1, len(speech_regions))
+                        except Exception as e:
+                            logger.warning(f"Segment complete callback failed: {e}")
+                    
+                    logger.debug(f"Speech region {i+1}/{len(speech_regions)} in chunk {chunk_id}: "
                                f"{absolute_start:.2f}s - {absolute_end:.2f}s")
                     
                 finally:

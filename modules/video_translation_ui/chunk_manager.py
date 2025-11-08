@@ -46,6 +46,7 @@ class AudioChunk:
         transcription: Transcribed text (if completed)
         translation: Translated text (if completed)
         timestamps: SRT-style timestamps for captions
+        processed_until: How far into the chunk we've analyzed (including silence)
         priority: Priority level (higher = more important)
         created_at: Timestamp when chunk was created
         completed_at: Timestamp when processing completed
@@ -59,6 +60,7 @@ class AudioChunk:
     transcription: Optional[str] = None
     translation: Optional[str] = None
     timestamps: List[Dict] = field(default_factory=list)
+    processed_until: float = 0.0  # How far we've analyzed (including silence)
     priority: int = 0
     created_at: float = field(default_factory=time.time)
     completed_at: Optional[float] = None
@@ -364,29 +366,45 @@ class ChunkManager:
         buffer_end = current_time + buffer_distance
         buffer_chunks = self.get_chunks_in_range(current_time, buffer_end)
         
-        # Calculate how many are completed
+        # Calculate how many are completed OR have timestamps (PROCESSING with incremental updates)
+        # This fixes the "0s ahead" issue when chunks are PROCESSING but have usable timestamps
         completed_in_buffer = sum(
-            1 for c in buffer_chunks if c.status == ChunkStatus.COMPLETED
+            1 for c in buffer_chunks 
+            if c.status == ChunkStatus.COMPLETED or (c.status == ChunkStatus.PROCESSING and len(c.timestamps) > 0)
         )
         
         buffer_pct = (completed_in_buffer / len(buffer_chunks) * 100) if buffer_chunks else 0
         
-        # Find the furthest completed chunk ahead
-        furthest_completed = current_time
+        # Find the furthest point we've processed (including silence)
+        # This is more accurate than just looking at last speech timestamp
+        furthest_available = current_time
         for chunk in self.chunks:
-            if chunk.status == ChunkStatus.COMPLETED and chunk.end_time > furthest_completed:
-                furthest_completed = chunk.end_time
+            # For COMPLETED chunks, use end_time
+            if chunk.status == ChunkStatus.COMPLETED:
+                if chunk.end_time > furthest_available:
+                    furthest_available = chunk.end_time
+            # For PROCESSING chunks, use processed_until (accounts for speech + silence)
+            elif chunk.status == ChunkStatus.PROCESSING:
+                # Use processed_until if set, otherwise fall back to last timestamp
+                if chunk.processed_until > 0:
+                    processed_absolute = chunk.start_time + chunk.processed_until
+                    if processed_absolute > furthest_available:
+                        furthest_available = processed_absolute
+                elif len(chunk.timestamps) > 0:
+                    last_timestamp_end = chunk.timestamps[-1].get('end', chunk.start_time)
+                    if last_timestamp_end > furthest_available:
+                        furthest_available = last_timestamp_end
         
-        seconds_buffered = furthest_completed - current_time
+        seconds_buffered = max(0, furthest_available - current_time)
         
         return {
-            'current_time': current_time,
-            'buffer_distance': buffer_distance,
-            'buffer_chunks': len(buffer_chunks),
-            'completed_in_buffer': completed_in_buffer,
-            'buffer_pct': round(buffer_pct, 2),
-            'seconds_buffered': round(seconds_buffered, 2),
-            'is_ready': seconds_buffered >= buffer_distance * 0.5,  # At least 50% buffered
+            'current_time': float(current_time),
+            'buffer_distance': float(buffer_distance),
+            'buffer_chunks': int(len(buffer_chunks)),
+            'completed_in_buffer': int(completed_in_buffer),
+            'buffer_pct': float(round(buffer_pct, 2)),
+            'seconds_buffered': float(round(seconds_buffered, 2)),
+            'is_ready': bool(seconds_buffered >= buffer_distance * 0.5),  # At least 50% buffered
         }
     
     def get_all_chunks_data(self) -> List[Dict]:
