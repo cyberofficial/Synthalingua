@@ -319,13 +319,13 @@ class VideoSession:
                         chunk.processed_until = segment_end_relative
                         
                         # Calculate cumulative segment count across all chunks
-                        cumulative_segments = sum(len(c.timestamps) for c in self.chunk_manager.chunks)
+                        cumulative_segments = sum(len(c.timestamps) for c in self.chunk_manager.chunks) if self.chunk_manager else 0
                         
                         # Calculate buffer status after each segment
                         buffer_status = self.chunk_manager.get_buffer_status(
                             current_time=self.current_playback_time,
                             buffer_distance=self.metadata['duration']
-                        )
+                        ) if self.chunk_manager else {'seconds_buffered': 0}
                         seconds_buffered = buffer_status['seconds_buffered']
                         
                         # Log segment completion with buffer status
@@ -358,11 +358,14 @@ class VideoSession:
                         )
                         
                         # Calculate buffer status (how much is ready ahead of playback position)
-                        buffer_status = self.chunk_manager.get_buffer_status(
-                            current_time=self.current_playback_time,
-                            buffer_distance=self.metadata['duration']
-                        )
-                        seconds_buffered = buffer_status['seconds_buffered']
+                        if self.chunk_manager:
+                            buffer_status = self.chunk_manager.get_buffer_status(
+                                current_time=self.current_playback_time,
+                                buffer_distance=self.metadata['duration']
+                            )
+                            seconds_buffered = buffer_status['seconds_buffered']
+                        else:
+                            seconds_buffered = 0
                         
                         # Calculate overall progress
                         elapsed = time.time() - start_time
@@ -398,7 +401,7 @@ class VideoSession:
         self.is_processing = False
         
         # Emit final buffer update to show 100% completion in UI
-        if self.socketio:
+        if self.socketio and self.chunk_manager:
             try:
                 # Get final buffer status
                 final_buffer_status = self.chunk_manager.get_buffer_status(
@@ -421,7 +424,7 @@ class VideoSession:
                 logger.error(f"Could not emit final buffer update: {e}")
         
         # Emit completion event to frontend
-        if self.socketio:
+        if self.socketio and self.chunk_manager:
             try:
                 # Count total segments for completion event
                 total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
