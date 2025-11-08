@@ -45,7 +45,8 @@ class FasterWhisperModel:
             n_mels=n_mels
         ).to(self.device)
 
-        # Convert CUDA tensor to CPU before numpy conversion
+        # Convert CUDA tensor to CPU before numpy conversion for auto language detection
+        # This method is only called when language is set to auto (not explicitly provided)
         mel_numpy = mel.cpu().numpy() if mel.is_cuda else mel.numpy()
         _, _, language_probs = self.audio_model.detect_language(features=mel_numpy)  # type: ignore
         return dict(language_probs)
