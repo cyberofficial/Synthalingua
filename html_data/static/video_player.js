@@ -265,7 +265,8 @@ class VideoTranslatorApp {
                 // Update UI
                 this.displayVideoInfo(data);
                 this.startProcessingBtn.disabled = false;
-                this.exportBtn.disabled = false;
+                // Keep export button disabled until processing is complete
+                this.exportBtn.disabled = true;
                 
                 this.statusProcessing.textContent = 'Configure settings and click Start Processing';
                 
@@ -390,6 +391,7 @@ class VideoTranslatorApp {
             if (response.ok) {
                 this.isProcessing = true;
                 this.startProcessingBtn.disabled = true;
+                this.exportBtn.disabled = true;  // Disable export during processing
                 this.statusProcessing.textContent = 'Processing...';
                 
                 // Display configuration
@@ -451,6 +453,9 @@ class VideoTranslatorApp {
         this.startProcessingBtn.disabled = false;
         this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
         
+        // Enable export button now that processing is complete
+        this.exportBtn.disabled = false;
+        
         // Show upload area again so user can load a different video
         this.uploadArea.style.display = 'block';
         this.videoInfo.style.display = 'none';
@@ -472,6 +477,9 @@ class VideoTranslatorApp {
                 this.isProcessing = false;
                 this.startProcessingBtn.disabled = false;
                 this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
+                
+                // Enable export button now that processing is complete
+                this.exportBtn.disabled = false;
                 
                 // Show upload area again so user can load a different video
                 this.uploadArea.style.display = 'block';
