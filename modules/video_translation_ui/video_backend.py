@@ -607,7 +607,8 @@ class VideoSession:
         caption_segments = []
         
         for chunk in self.chunk_manager.chunks:
-            if not chunk.transcription:
+            # Check for either transcription or translation (translation-only workflow)
+            if not chunk.transcription and not chunk.translation:
                 continue
             
             # If chunk has timestamp segments (from silence detection), use them
@@ -624,7 +625,7 @@ class VideoSession:
                 caption_segments.append({
                     'start': chunk.start_time,
                     'end': chunk.end_time,
-                    'text': chunk.transcription,
+                    'text': chunk.transcription or '',
                     'translation': chunk.translation or ''
                 })
         
