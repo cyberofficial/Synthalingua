@@ -60,6 +60,9 @@
                         <option value="1.5">1.5x</option>
                         <option value="2">2x</option>
                     </select>
+                    <button id="audio-source-toggle" class="control-btn" title="Toggle between original and isolated vocals">
+                        <span class="icon">🎵</span>
+                    </button>
                     <button id="fullscreen-btn" class="control-btn">
                         <span class="icon">⛶</span>
                     </button>
@@ -86,6 +89,7 @@
                         <div class="info-line"><strong>Duration:</strong> <span id="info-duration"></span></div>
                         <div class="info-line"><strong>Resolution:</strong> <span id="info-resolution"></span></div>
                         <div class="info-line"><strong>FPS:</strong> <span id="info-fps"></span></div>
+                        <div class="info-line" id="audio-source-info" style="display: none;"><strong>Audio:</strong> <span id="audio-source-label">Original</span></div>
                         <button id="change-video-btn" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">📁 Change Video</button>
                     </div>
                 </div>
@@ -175,7 +179,24 @@
                             <option value="4">4 threads</option>
                             <option value="8">8 threads</option>
                         </select>
-                        <div class="help-text">More threads = faster processing but higher CPU/RAM usage</div>
+                        <div class="help-text">Multi-threading can speed up processing on multi-core systems.</div>
+                    </div>
+                </div>
+                
+                <!-- Temperature Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🌡️ Temperature Control</h3>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-temperature">
+                            Enable Fixed Temperature
+                        </label>
+                        <div class="help-text">When disabled, uses multiple temperature fallbacks for better accuracy. When enabled, uses single fixed temperature value.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature: <span id="temperature-value">0.0</span></label>
+                        <input type="range" id="temperature-slider" min="0" max="100" value="0" step="1">
+                        <div class="help-text">Higher values (0.8-1.0) = more creative/random. Lower values (0.0-0.2) = more focused/deterministic.</div>
                     </div>
                 </div>
                 

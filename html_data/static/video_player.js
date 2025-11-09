@@ -7,6 +7,11 @@ class VideoTranslatorApp {
         this.isProcessing = false;
         this.videoMetadata = null;
         this.lastCaptionUpdate = 0; // Throttle caption updates
+        this.currentAudioSource = 'original'; // 'original' or 'vocals'
+        this.vocalsAvailable = false; // Track if vocals audio exists
+        this.vocalsAudioElement = null; // Separate audio element for vocals WAV
+        this.audioSourceInfo = null; // Will be set in initializeElements
+        this.audioSourceLabel = null; // Will be set in initializeElements
         
         this.initializeElements();
         this.setupEventListeners();
@@ -34,6 +39,7 @@ class VideoTranslatorApp {
         this.volumeSlider = document.getElementById('volume-slider');
         this.speedSelector = document.getElementById('speed-selector');
         this.fullscreenBtn = document.getElementById('fullscreen-btn');
+        this.audioSourceToggle = document.getElementById('audio-source-toggle');
         
         // Buffer elements
         this.bufferProgress = document.getElementById('buffer-progress');
@@ -69,6 +75,11 @@ class VideoTranslatorApp {
         this.demucsModel = document.getElementById('demucs-model');
         this.demucsJobs = document.getElementById('demucs-jobs');
         
+        // Temperature control elements
+        this.enableTemperature = document.getElementById('enable-temperature');
+        this.temperatureSlider = document.getElementById('temperature-slider');
+        this.temperatureValue = document.getElementById('temperature-value');
+        
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
         this.exportBtn = document.getElementById('export-btn');
@@ -83,6 +94,8 @@ class VideoTranslatorApp {
         // Other elements
         this.videoInfo = document.getElementById('video-info');
         this.loadingOverlay = document.getElementById('loading-overlay');
+        this.audioSourceInfo = document.getElementById('audio-source-info');
+        this.audioSourceLabel = document.getElementById('audio-source-label');
     }
     
     setupEventListeners() {
@@ -113,6 +126,38 @@ class VideoTranslatorApp {
         this.volumeSlider.addEventListener('input', (e) => this.handleVolumeChange(e));
         this.speedSelector.addEventListener('change', (e) => this.handleSpeedChange(e));
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+        this.audioSourceToggle.addEventListener('click', () => this.toggleAudioSource());
+        
+        // Sync vocals audio with video playback
+        this.videoPlayer.addEventListener('play', () => {
+            if (this.currentAudioSource === 'vocals' && this.vocalsAudioElement) {
+                this.vocalsAudioElement.play();
+            }
+        });
+        
+        this.videoPlayer.addEventListener('pause', () => {
+            if (this.vocalsAudioElement) {
+                this.vocalsAudioElement.pause();
+            }
+        });
+        
+        this.videoPlayer.addEventListener('seeked', () => {
+            if (this.vocalsAudioElement) {
+                this.vocalsAudioElement.currentTime = this.videoPlayer.currentTime;
+            }
+        });
+        
+        this.videoPlayer.addEventListener('ratechange', () => {
+            if (this.vocalsAudioElement) {
+                this.vocalsAudioElement.playbackRate = this.videoPlayer.playbackRate;
+            }
+        });
+        
+        this.volumeSlider.addEventListener('input', () => {
+            if (this.vocalsAudioElement) {
+                this.vocalsAudioElement.volume = this.videoPlayer.volume;
+            }
+        });
         
         // Settings
         this.fontSizeInput.addEventListener('input', (e) => this.updateCaptionStyle());
@@ -130,6 +175,12 @@ class VideoTranslatorApp {
         });
         this.minSpeechDuration.addEventListener('input', (e) => {
             this.minSpeechDurationValue.textContent = `${e.target.value} s`;
+        });
+        
+        // Temperature slider
+        this.temperatureSlider.addEventListener('input', (e) => {
+            const tempValue = (parseInt(e.target.value) / 100).toFixed(2);
+            this.temperatureValue.textContent = tempValue;
         });
         
         // Buttons
@@ -277,6 +328,9 @@ class VideoTranslatorApp {
         
         this.videoInfo.style.display = 'block';
         this.uploadArea.style.display = 'none';
+        
+        // Check if vocals audio is available after upload completes processing
+        this.checkVocalsAvailability();
     }
     
     displayConfiguration() {
@@ -316,6 +370,10 @@ class VideoTranslatorApp {
             const enableVocalIsolation = this.enableVocalIsolation.checked;
             const demucsModel = this.demucsModel.value;
             const demucsJobs = parseInt(this.demucsJobs.value);
+            
+            // Temperature settings
+            const enableTemperature = this.enableTemperature.checked;
+            const temperature = enableTemperature ? parseFloat(this.temperatureSlider.value) / 100 : null;
             
             // Debug: Log configuration being sent
             console.log(' Starting processing with configuration:', {
@@ -369,7 +427,9 @@ class VideoTranslatorApp {
                     min_speech_duration: minSpeechDuration,
                     enable_vocal_isolation: enableVocalIsolation,
                     demucs_model: demucsModel,
-                    demucs_jobs: demucsJobs
+                    demucs_jobs: demucsJobs,
+                    enable_temperature: enableTemperature,
+                    temperature: temperature
                 })
             });
             
@@ -440,6 +500,9 @@ class VideoTranslatorApp {
         
         // Enable export button now that processing is complete
         this.exportBtn.disabled = false;
+        
+        // Check if vocals audio is available (after Demucs processing)
+        this.checkVocalsAvailability();
         
         // Show upload area again so user can load a different video
         this.uploadArea.style.display = 'block';
@@ -750,6 +813,133 @@ class VideoTranslatorApp {
     onVideoEnded() {
         this.playPauseBtn.querySelector('.icon').textContent = '▶';
         this.statusProcessing.textContent = 'Video ended';
+    }
+    
+    async checkVocalsAvailability() {
+        if (!this.sessionId) return;
+        
+        console.log(`Checking vocals availability for session: ${this.sessionId}`);
+        
+        try {
+            const response = await fetch(`/api/video/session/${this.sessionId}/audio-sources`);
+            const data = await response.json();
+            
+            console.log('Audio sources response:', data);
+            
+            if (data.success && data.vocals_available) {
+                this.vocalsAvailable = true;
+                console.log('✅ Vocals audio available - toggle ready');
+            } else {
+                this.vocalsAvailable = false;
+                console.log('❌ Vocals audio not available - using video audio only');
+            }
+        } catch (error) {
+            console.error('Error checking vocals availability:', error);
+            this.vocalsAvailable = false;
+        }
+    }
+    
+    async toggleAudioSource() {
+        if (!this.sessionId) return;
+        
+        // Toggle between original (video audio) and vocals (WAV file)
+        const newSource = this.currentAudioSource === 'original' ? 'vocals' : 'original';
+        
+        try {
+            // Always check vocals availability fresh when switching to vocals (don't rely on cached flag)
+            if (newSource === 'vocals') {
+                console.log('🔍 Checking vocals availability before toggle...');
+                const response = await fetch(`/api/video/session/${this.sessionId}/audio-sources`);
+                const data = await response.json();
+                
+                if (!data.success || !data.vocals_available) {
+                    console.log('❌ Vocals not available yet');
+                    alert('Vocals audio not available. Make sure "Enable Vocal Isolation" is checked and processing is complete.');
+                    return;
+                }
+                
+                console.log('✅ Vocals available - proceeding with toggle');
+            }
+            
+            // Save current playback state
+            const currentTime = this.videoPlayer.currentTime;
+            const wasPlaying = !this.videoPlayer.paused;
+            
+            if (newSource === 'vocals') {
+                // Switch to vocals WAV file
+                const response = await fetch(`/api/video/session/${this.sessionId}/audio/vocals`);
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Create audio element if it doesn't exist
+                    if (!this.vocalsAudioElement) {
+                        this.vocalsAudioElement = document.createElement('audio');
+                        document.body.appendChild(this.vocalsAudioElement);
+                    }
+                    
+                    // Set up vocals audio
+                    this.vocalsAudioElement.src = audioUrl;
+                    this.vocalsAudioElement.currentTime = currentTime;
+                    this.vocalsAudioElement.volume = this.videoPlayer.volume;
+                    this.vocalsAudioElement.playbackRate = this.videoPlayer.playbackRate;
+                    
+                    // Mute video, unmute vocals
+                    this.videoPlayer.muted = true;
+                    this.vocalsAudioElement.muted = false;
+                    
+                    // Resume playback if it was playing
+                    if (wasPlaying) {
+                        await this.videoPlayer.play();
+                        await this.vocalsAudioElement.play();
+                    }
+                    
+                    this.currentAudioSource = 'vocals';
+                    console.log('Switched to vocals audio');
+                } else {
+                    console.error('Failed to fetch vocals audio:', response.status);
+                }
+            } else {
+                // Switch back to original video audio
+                if (this.vocalsAudioElement) {
+                    this.vocalsAudioElement.pause();
+                    this.vocalsAudioElement.currentTime = 0;
+                }
+                
+                this.videoPlayer.muted = false;
+                this.currentAudioSource = 'original';
+                console.log('Switched to original video audio');
+            }
+            
+            this.updateAudioSourceUI();
+            
+        } catch (error) {
+            console.error('Error toggling audio source:', error);
+        }
+    }
+    
+    updateAudioSourceUI() {
+        // Update button icon and tooltip
+        const icon = this.currentAudioSource === 'original' ? '🎵' : '🎶';
+        const tooltip = this.currentAudioSource === 'original' ? 
+            'Switch to isolated vocals' : 'Switch to original audio';
+        
+        this.audioSourceToggle.querySelector('.icon').textContent = icon;
+        this.audioSourceToggle.title = tooltip;
+        
+        // Update label
+        const label = this.currentAudioSource === 'original' ? 'Original' : 'Vocals Only';
+        this.audioSourceLabel.textContent = label;
+        
+        // Highlight button when using vocals
+        if (this.currentAudioSource === 'vocals') {
+            this.audioSourceToggle.style.backgroundColor = '#00D4FF';
+            this.audioSourceToggle.style.color = '#000';
+        } else {
+            this.audioSourceToggle.style.backgroundColor = '';
+            this.audioSourceToggle.style.color = '';
+        }
     }
     
     formatTime(seconds) {

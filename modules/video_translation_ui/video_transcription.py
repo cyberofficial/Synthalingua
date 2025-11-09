@@ -51,7 +51,8 @@ def _run_transcription_in_subprocess(
     silence_threshold_db: float = -50.0,
     min_silence_duration: float = 0.1,
     chunk_start_time: float = 0.0,
-    on_segment_callback: Optional[Callable] = None
+    on_segment_callback: Optional[Callable] = None,
+    temperature: Optional[float] = None
 ) -> Dict:
     """
     Run transcription in a separate subprocess to ensure complete VRAM cleanup.
@@ -118,6 +119,8 @@ def _run_transcription_in_subprocess(
                 command.extend(['--silence_threshold_db', str(silence_threshold_db)])
                 command.extend(['--min_silence_duration', str(min_silence_duration)])
                 command.extend(['--chunk_start_time', str(chunk_start_time)])
+            if temperature is not None:
+                command.extend(['--temperature', str(temperature)])
         else:
             # In source mode, execute the worker script directly
             worker_script_path = os.path.join(
@@ -301,7 +304,8 @@ class VideoTranscriptionManager:
                  enable_silence_detection: bool = True,
                  silence_threshold_db: float = -35.0,
                  min_silence_duration: float = 0.5,
-                 model_dir: str = "./models"):
+                 model_dir: str = "./models",
+                 temperature: Optional[float] = None):
         """
         Initialize Video Transcription Manager.
         
@@ -328,6 +332,7 @@ class VideoTranscriptionManager:
         self.enable_translation = enable_translation
         self.enable_silence_detection = enable_silence_detection
         self.model_dir = model_dir
+        self.temperature = temperature  # None = use fallback, float = fixed temp
         
         logger.info(f"VideoTranscriptionManager initialized: model={model_source}/{model_size}, "
                    f"device={self.device}, source_lang={self.source_language}, target_lang={target_language}, "
@@ -733,7 +738,8 @@ class VideoTranscriptionManager:
                 silence_threshold_db=-50.0,
                 min_silence_duration=0.1,
                 chunk_start_time=start_time,
-                on_segment_callback=on_segment_complete  # Real-time callback for each segment
+                on_segment_callback=on_segment_complete,  # Real-time callback for each segment
+                temperature=self.temperature
             )
             
             if not translation_result or translation_result.get('status') == 'error':

@@ -72,7 +72,7 @@ except UnicodeError:
     pass
 
 
-def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task):
+def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None):
     """
     Load the appropriate model and perform transcription or translation.
     
@@ -85,6 +85,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
         audio_path: Path to audio file
         language: Language code (None for auto-detect)
         task: Task type (transcribe or translate)
+        temperature: Fixed temperature (0.0-1.0) or None for fallback
         
     Returns:
         dict: Result with 'text', 'language', 'processing_time'
@@ -112,12 +113,16 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             logger.info(f"Auto-detecting language")
         
         # Transcribe or translate
+        # If temperature is None, use fallback temperatures (0.0, 0.2, 0.4, 0.6, 0.8)
+        # If temperature is provided, use single fixed temperature
+        temp_value = temperature if temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8)
+        
         result_text = model.transcribe(
             file_path=audio_path,
             language=language,
             task=task,
             condition_on_previous_text=False,
-            temperature=0.0,  # Single temperature, no fallback
+            temperature=temp_value,
             compression_ratio_threshold=None,
             log_prob_threshold=None,
             no_speech_threshold=0.6
@@ -213,12 +218,16 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             logger.info(f"Auto-detecting language")
         
         # Transcribe or translate
+        # If temperature is None, use fallback temperatures (0.0, 0.2, 0.4, 0.6, 0.8)
+        # If temperature is provided, use single fixed temperature
+        temp_value = temperature if temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8)
+        
         result_text = model.transcribe(
             file_path=audio_path,
             language=language,
             task=task,
             condition_on_previous_text=False,
-            temperature=0.0,
+            temperature=temp_value,
             compression_ratio_threshold=None,
             log_prob_threshold=None,
             no_speech_threshold=0.6
@@ -262,6 +271,7 @@ def main():
     parser.add_argument("--silence_threshold_db", type=float, default=-50.0, help="Silence threshold in dB.")
     parser.add_argument("--min_silence_duration", type=float, default=0.1, help="Minimum silence duration in seconds.")
     parser.add_argument("--chunk_start_time", type=float, default=0.0, help="Chunk start time for timestamp calculation.")
+    parser.add_argument("--temperature", type=float, default=None, help="Fixed temperature value (0.0-1.0). If not set, uses multiple fallback temperatures.")
     
     args = parser.parse_args()
     
@@ -365,12 +375,15 @@ def main():
                             
                             # For translate task, we need to actually translate to English
                             # For transcribe task, we just transcribe in source language
+                            # Use fixed temperature if provided, otherwise None for fallback
+                            temp_value = args.temperature if args.temperature is not None else 0.0
+                            
                             result_text = model.transcribe(
                                 file_path=region_audio_path,
                                 language=args.language,
                                 task=args.task,  # "translate" = translate to English, "transcribe" = source language
                                 condition_on_previous_text=False,
-                                temperature=0.0,
+                                temperature=temp_value if args.temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8),
                                 compression_ratio_threshold=None,
                                 log_prob_threshold=None,
                                 no_speech_threshold=0.6
@@ -452,7 +465,8 @@ def main():
                 compute_type=args.compute_type,
                 audio_path=args.audio_path,
                 language=args.language if args.language else None,
-                task=args.task
+                task=args.task,
+                temperature=args.temperature
             )
             
             # Flatten result into output_data (don't nest under "result" key)

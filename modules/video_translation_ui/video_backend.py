@@ -102,6 +102,9 @@ class VideoSession:
         self.is_processing = False
         self.current_playback_time = 0.0
         self.metadata = {}
+        self.full_audio_path = None  # Current audio path (may be vocals if Demucs used)
+        self.original_audio_path = None  # Original audio before Demucs
+        self.vocals_audio_path = None  # Isolated vocals from Demucs
         
         # Processing thread
         self.processing_thread = None
@@ -150,7 +153,12 @@ class VideoSession:
             'silence_threshold_db': -35.0,
             'min_silence_duration': 0.5,
             'max_concurrent': 2,
-            'model_dir': _global_model_dir  # Use global model_dir from parser_args
+            'model_dir': _global_model_dir,  # Use global model_dir from parser_args
+            'enable_vocal_isolation': True,
+            'demucs_model': 'htdemucs',
+            'demucs_jobs': 0,  # Single-threaded by default
+            'enable_temperature': False,  # Use multiple temperature fallbacks by default
+            'temperature': None  # None = use fallback, float = fixed temperature
         }
         
         # Merge defaults with current config
@@ -180,18 +188,42 @@ class VideoSession:
             # Extract full audio (with optional Demucs preprocessing)
             # This MUST happen before chunking so Demucs can process the entire audio
             enable_vocals = self.config.get('enable_vocal_isolation', False)
-            if enable_vocals:
-                logger.info(f"Extracting full audio for vocal isolation preprocessing...")
             
-            full_audio_path = self.video_processor.extract_audio(
-                isolate_vocals=enable_vocals,
+            # Always extract original audio first
+            original_audio_path = self.video_processor.extract_audio(
+                isolate_vocals=False,
                 demucs_model=self.config.get('demucs_model', 'htdemucs'),
                 demucs_jobs=self.config.get('demucs_jobs', 0)
             )
+            self.original_audio_path = original_audio_path
+            logger.info(f" Original audio extracted: {original_audio_path}")
             
-            # Store full audio path for chunk extraction
-            self.full_audio_path = full_audio_path
-            logger.info(f" Full audio ready: {full_audio_path}")
+            # If vocal isolation is enabled, extract vocals separately
+            if enable_vocals:
+                logger.info(f"Extracting full audio for vocal isolation preprocessing...")
+                # Create a separate vocals file
+                vocals_output_path = str(Path(original_audio_path).parent / f"{Path(original_audio_path).stem}_vocals.wav")
+                logger.info(f"  Target vocals path: {vocals_output_path}")
+                
+                # Use Demucs to isolate vocals
+                vocals_audio_path = self.video_processor.extract_audio(
+                    output_path=vocals_output_path,
+                    isolate_vocals=True,
+                    demucs_model=self.config.get('demucs_model', 'htdemucs'),
+                    demucs_jobs=self.config.get('demucs_jobs', 0)
+                )
+                self.vocals_audio_path = vocals_audio_path
+                logger.info(f"✅ Vocals audio isolated and saved to: {vocals_audio_path}")
+                logger.info(f"  File exists: {Path(vocals_audio_path).exists()}")
+                
+                # Use vocals for processing
+                self.full_audio_path = vocals_audio_path
+            else:
+                # Use original audio for processing
+                self.full_audio_path = original_audio_path
+                self.vocals_audio_path = None
+            
+            logger.info(f" Full audio ready for processing: {self.full_audio_path}")
             
             # Initialize chunk manager
             # Process ENTIRE video as one chunk (no buffering/splitting)
@@ -202,6 +234,9 @@ class VideoSession:
             )
             
             # Initialize transcription manager
+            # Temperature: if enable_temperature is False, pass None to use fallback temps
+            temp_value = self.config.get('temperature') if self.config.get('enable_temperature', False) else None
+            
             self.transcription_manager = VideoTranscriptionManager(
                 model_source=self.config.get('model_source', 'fasterwhisper'),
                 model_size=self.config.get('model_size', 'base'),
@@ -213,7 +248,8 @@ class VideoSession:
                 enable_silence_detection=self.config.get('enable_silence_detection', True),
                 silence_threshold_db=self.config.get('silence_threshold_db', -35.0),
                 min_silence_duration=self.config.get('min_silence_duration', 0.5),
-                model_dir=self.config.get('model_dir', './models')
+                model_dir=self.config.get('model_dir', './models'),
+                temperature=temp_value
             )
             
             # Initialize buffer manager
@@ -968,6 +1004,83 @@ def serve_video(session_id):
         mimetype='video/mp4',
         as_attachment=False
     )
+
+
+@video_bp.route('/session/<session_id>/audio-sources', methods=['GET'])
+def check_audio_sources(session_id):
+    """Check which audio sources are available (original and vocals)."""
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    # Debug logging
+    logger.info(f"Checking audio sources for session {session_id}")
+    logger.info(f"  vocals_audio_path: {getattr(video_session, 'vocals_audio_path', 'NOT SET')}")
+    logger.info(f"  original_audio_path: {getattr(video_session, 'original_audio_path', 'NOT SET')}")
+    
+    # Check if vocals audio exists
+    vocals_path = getattr(video_session, 'vocals_audio_path', None)
+    vocals_available = False
+    
+    if vocals_path:
+        vocals_file = Path(vocals_path)
+        vocals_available = vocals_file.exists()
+        logger.info(f"  Vocals file exists: {vocals_available} (path: {vocals_path})")
+    else:
+        logger.info(f"  Vocals path not set")
+    
+    # Check original audio
+    original_path = getattr(video_session, 'original_audio_path', None)
+    original_available = False
+    
+    if original_path:
+        original_file = Path(original_path)
+        original_available = original_file.exists()
+        logger.info(f"  Original file exists: {original_available} (path: {original_path})")
+    else:
+        logger.info(f"  Original path not set")
+    
+    return jsonify({
+        'success': True,
+        'vocals_available': vocals_available,
+        'original_available': original_available
+    }), 200
+
+
+@video_bp.route('/session/<session_id>/audio/<source>', methods=['GET'])
+def serve_audio_source(session_id, source):
+    """
+    Serve audio file for the specified source.
+    
+    Args:
+        source: 'original' or 'vocals'
+    """
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    audio_path = None
+    
+    if source == 'original':
+        if hasattr(video_session, 'original_audio_path') and video_session.original_audio_path:
+            audio_path = Path(video_session.original_audio_path)
+    
+    elif source == 'vocals':
+        if hasattr(video_session, 'vocals_audio_path') and video_session.vocals_audio_path:
+            audio_path = Path(video_session.vocals_audio_path)
+    
+    if audio_path and audio_path.exists():
+        return send_file(
+            str(audio_path),
+            mimetype='audio/wav',
+            as_attachment=False
+        )
+    
+    return jsonify({'error': f'Audio source "{source}" not found'}), 404
 
 
 @video_bp.route('/languages', methods=['GET'])
