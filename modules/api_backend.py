@@ -482,10 +482,13 @@ class FlaskServerThread(Thread):
         
         # Try to register video translation blueprint if available
         try:
-            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir
+            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir, set_debug_mode
             
             # Set model directory from args
             set_model_dir(self.model_dir)
+            
+            # Set debug mode from args
+            set_debug_mode(self.debug or _debug_enabled)
             
             app.register_blueprint(video_bp)
             

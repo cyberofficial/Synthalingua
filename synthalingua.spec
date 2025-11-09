@@ -9,6 +9,13 @@ sys.setrecursionlimit(5000)
 # --- Data and Binary Collection ---
 datas = []
 datas += [('html_data', 'html_data')]
+
+# Add entire video translation UI module (REQUIRED for frozen executable)
+# This includes all Python files, worker scripts, and any future additions
+datas += [
+    ('modules/video_translation_ui', 'modules/video_translation_ui')
+]
+
 packages_with_data = [
     'whisper', 'librosa', 'openvino', 'optimum', 'faster_whisper', 'torch',
     'torchio', 'torchcodec', 'numpy', 'scipy', 'pandas', 'sklearn', 'pycountry',
@@ -34,10 +41,18 @@ hiddenimports = [
     'sounddevice', 'speech_recognition', 'pyaudio', 'flask', 'werkzeug',
     'jinja2', 'socketio', 'engineio', 'eventlet', 'pycountry', 'psutil',
     'colorama', 'tqdm', 'yaml', 'regex', 'Cryptodome', 'humanize',
+    # Flask-SocketIO and dependencies (REQUIRED for video translation UI)
+    'flask_socketio', 'python_socketio', 'python_engineio',
+    'simple_websocket', 'wsproto', 'h11',
+    # Additional WebSocket support
+    'websocket', 'websockets',
 ]
 hiddenimports += collect_submodules('transformers')
 hiddenimports += collect_submodules('optimum')
 hiddenimports += collect_submodules('datasets')
+hiddenimports += collect_submodules('flask_socketio')
+hiddenimports += collect_submodules('socketio')
+hiddenimports += collect_submodules('engineio')
 
 # --- The Main Analysis Block ---
 a = Analysis(

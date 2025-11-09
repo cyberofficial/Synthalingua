@@ -11,6 +11,7 @@ Handles:
 - Translation pipeline integration
 - SRT timestamp generation with accurate phrase-level timing
 - Resource management for model loading
+- Subprocess-based isolation to ensure complete VRAM cleanup
 """
 
 import os
@@ -20,11 +21,11 @@ from typing import Optional, Dict, List, Tuple, Callable
 from pathlib import Path
 import time
 import tempfile
+import subprocess
+import sys
+import json
 
 # Import existing Synthalingua modules
-from modules.BaseWhisper import BaseWhisperModel
-from modules.FasterWhisper import FasterWhisperModel
-from modules.OpenVINOWhisper import OpenVINOWhisperModel
 from modules import parser_args
 from modules.device_manager import setup_device
 from modules.languages import get_valid_languages
@@ -33,6 +34,252 @@ from modules.languages import get_valid_languages
 from modules.video_translation_ui.silence_detector import SilenceDetector
 
 logger = logging.getLogger(__name__)
+
+
+def _run_transcription_in_subprocess(
+    audio_path: str,
+    model_source: str,
+    model_size: str,
+    device: str,
+    compute_type: str,
+    model_dir: str,
+    language: Optional[str] = None,
+    task: str = "transcribe",
+    debug: bool = False,
+    timeout: int = 300,
+    enable_silence_detection: bool = False,
+    silence_threshold_db: float = -50.0,
+    min_silence_duration: float = 0.1,
+    chunk_start_time: float = 0.0,
+    on_segment_callback: Optional[Callable] = None
+) -> Dict:
+    """
+    Run transcription in a separate subprocess to ensure complete VRAM cleanup.
+    
+    Uses subprocess.Popen() pattern (like sub_gen.py) which works correctly in both
+    frozen (PyInstaller) and source mode. By running in a separate process,
+    all GPU memory is freed after completion.
+    
+    For translate task with on_segment_callback, parses stdout in real-time for
+    SEGMENT_EVENT: markers to enable incremental translation updates.
+    
+    Args:
+        audio_path: Path to audio file
+        model_source: Model source (whisper, fasterwhisper, openvino)
+        model_size: Model size (tiny, base, small, medium, large-v2, large-v3)
+        device: Device to use (cpu, cuda)
+        compute_type: Compute type for FasterWhisper/OpenVINO
+        model_dir: Directory containing models
+        language: Optional language code (None for auto-detect)
+        task: Task type (transcribe or translate)
+        debug: Enable debug output
+        timeout: Timeout in seconds (default: 300 = 5 minutes)
+        enable_silence_detection: Enable silence detection for segment-level processing
+        silence_threshold_db: Silence threshold in dB
+        min_silence_duration: Minimum silence duration in seconds
+        chunk_start_time: Chunk start time for timestamp calculation
+        on_segment_callback: Optional callback(segment_dict, index, total) for incremental updates
+        
+    Returns:
+        dict: Result with 'text', 'language', 'processing_time', and optionally 'timestamps' list
+        
+    Raises:
+        RuntimeError: If process fails
+    """
+    # Create temporary JSON file for output
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+        output_json_path = f.name
+    
+    try:
+        # Detect if we're running in a frozen PyInstaller executable
+        is_likely_frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+        
+        # Build command based on mode
+        if is_likely_frozen:
+            # In frozen mode, re-launch the frozen executable with --run-video-worker flag
+            command = [
+                sys.executable,
+                '--run-video-worker',
+                '--audio_path', audio_path,
+                '--output_json_path', output_json_path,
+                '--model_source', model_source,
+                '--model_size', model_size,
+                '--device', device,
+                '--compute_type', compute_type,
+                '--model_dir', model_dir,
+                '--task', task
+            ]
+            if language:
+                command.extend(['--language', language])
+            if debug:
+                command.append('--debug')
+            if enable_silence_detection:
+                command.append('--enable_silence_detection')
+                command.extend(['--silence_threshold_db', str(silence_threshold_db)])
+                command.extend(['--min_silence_duration', str(min_silence_duration)])
+                command.extend(['--chunk_start_time', str(chunk_start_time)])
+        else:
+            # In source mode, execute the worker script directly
+            worker_script_path = os.path.join(
+                os.path.dirname(__file__), 
+                'video_transcription_worker.py'
+            )
+            command = [
+                sys.executable,
+                worker_script_path,
+                '--audio_path', audio_path,
+                '--output_json_path', output_json_path,
+                '--model_source', model_source,
+                '--model_size', model_size,
+                '--device', device,
+                '--compute_type', compute_type,
+                '--model_dir', model_dir,
+                '--task', task
+            ]
+            if language:
+                command.extend(['--language', language])
+            if debug:
+                command.append('--debug')
+            if enable_silence_detection:
+                command.append('--enable_silence_detection')
+                command.extend(['--silence_threshold_db', str(silence_threshold_db)])
+                command.extend(['--min_silence_duration', str(min_silence_duration)])
+                command.extend(['--chunk_start_time', str(chunk_start_time)])
+        
+        # Set up UTF-8 encoding environment
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        
+        logger.debug(f"Starting video transcription worker subprocess: model={model_source}/{model_size}, task={task}, silence_detection={enable_silence_detection}")
+        if debug:
+            logger.debug(f"Command: {' '.join(command)}")
+        
+        # Start subprocess
+        creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform.startswith('win') else 0
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            env=env,
+            creationflags=creation_flags
+        )
+        
+        # For translate task with callback, parse stdout in real-time for segment events
+        if task == "translate" and on_segment_callback:
+            stdout_lines = []
+            stderr_lines = []
+            
+            import threading
+            import queue
+            
+            # Queue for collecting stderr
+            stderr_queue = queue.Queue()
+            
+            def read_stderr():
+                for line in process.stderr:
+                    stderr_queue.put(line)
+            
+            stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+            stderr_thread.start()
+            
+            # Read stdout line by line, parsing segment events
+            try:
+                for line in process.stdout:
+                    stdout_lines.append(line)
+                    
+                    # Check for segment event markers
+                    if line.startswith("SEGMENT_EVENT:"):
+                        try:
+                            segment_json = line[len("SEGMENT_EVENT:"):].strip()
+                            segment_data = json.loads(segment_json)
+                            
+                            # Build timestamp dict compatible with callback
+                            timestamp_dict = {
+                                'start': segment_data['start'],
+                                'end': segment_data['end'],
+                                'text': '',  # Original text (not used for translate task)
+                                'translation': segment_data['text']  # Translation from worker
+                            }
+                            
+                            # Call callback immediately for real-time UI update
+                            on_segment_callback(
+                                timestamp_dict,
+                                segment_data['index'] + 1,
+                                segment_data['total']
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to parse segment event: {e}")
+            except Exception as e:
+                logger.error(f"Error reading stdout: {e}")
+            
+            # Wait for process to complete
+            process.wait(timeout=timeout)
+            
+            # Collect stderr
+            stderr_thread.join(timeout=1)
+            stderr_lines_collected = []
+            while not stderr_queue.empty():
+                try:
+                    stderr_lines_collected.append(stderr_queue.get_nowait())
+                except:
+                    break
+            
+            stdout = ''.join(stdout_lines)
+            stderr = ''.join(stderr_lines_collected)
+        else:
+            # Standard communication for transcribe task or no callback
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                raise RuntimeError(f"Worker process timed out after {timeout} seconds")
+        
+        # Check exit code
+        if process.returncode != 0:
+            error_msg = f"Worker process failed with exit code {process.returncode}"
+            if stderr:
+                error_msg += f"\nStderr: {stderr}"
+            raise RuntimeError(error_msg)
+        
+        # Read result from JSON file
+        if not os.path.exists(output_json_path):
+            raise RuntimeError("Worker did not create output JSON file")
+        
+        with open(output_json_path, 'r', encoding='utf-8') as f:
+            result = json.load(f)
+        
+        # Check result status
+        if result.get("status") == "error":
+            raise RuntimeError(f"Worker reported error: {result.get('message', 'Unknown error')}")
+        
+        # Return successful result
+        return_dict = {
+            "text": result.get("text", ""),
+            "language": result.get("language", "unknown"),
+            "processing_time": result.get("processing_time", 0.0)
+        }
+        
+        # If silence detection was enabled, include timestamps
+        if enable_silence_detection and 'timestamps' in result:
+            return_dict['timestamps'] = result['timestamps']
+        
+        return return_dict
+        
+    except Exception as e:
+        logger.error(f"Worker subprocess execution failed: {e}", exc_info=True)
+        raise
+    finally:
+        # Clean up temporary JSON file
+        try:
+            if os.path.exists(output_json_path):
+                os.unlink(output_json_path)
+        except:
+            pass
+
 
 
 class VideoTranscriptionManager:
@@ -96,18 +343,16 @@ class VideoTranscriptionManager:
         else:
             self.silence_detector = None
         
-        # Model instance
+        # No model instance - models are loaded in subprocess for complete isolation
         self.model = None
         self.model_lock = threading.Lock()
+        self.model_loaded = False
         
         # Statistics
         self.chunks_processed = 0
         self.total_processing_time = 0.0
         
-        # Initialize model
-        self._load_model()
-        
-        logger.info(f"VideoTranscriptionManager initialized: "
+        logger.info(f"VideoTranscriptionManager initialized (models will run in subprocess): "
                    f"source={model_source}, size={model_size}, device={self.device}")
     
     def _auto_detect_device(self) -> str:
@@ -120,48 +365,9 @@ class VideoTranscriptionManager:
             pass
         return "cpu"
     
-    def _load_model(self):
-        """Load the Whisper model based on configuration."""
-        try:
-            with self.model_lock:
-                logger.info(f"Loading {self.model_source} model: {self.model_size}")
-                
-                if self.model_source == "whisper":
-                    self.model = BaseWhisperModel(
-                        model=self.model_size,
-                        device=self.device,
-                        download_root=self.model_dir
-                    )
-                    logger.info("BaseWhisper model loaded successfully")
-                    
-                elif self.model_source == "fasterwhisper":
-                    self.model = FasterWhisperModel(
-                        model=self.model_size,
-                        device=self.device,
-                        download_root=self.model_dir,
-                        compute_type=self.compute_type
-                    )
-                    logger.info("FasterWhisper model loaded successfully")
-                    
-                elif self.model_source == "openvino":
-                    self.model = OpenVINOWhisperModel(
-                        model=self.model_size,
-                        device=self.device,
-                        download_root=self.model_dir,
-                        compute_type=self.compute_type
-                    )
-                    logger.info("OpenVINO model loaded successfully")
-                    
-                else:
-                    raise ValueError(f"Unknown model source: {self.model_source}")
-                    
-        except Exception as e:
-            logger.error(f"Failed to load model: {e}", exc_info=True)
-            raise RuntimeError(f"Failed to load model: {e}")
-    
     def detect_language(self, audio_path: str) -> Tuple[str, float]:
         """
-        Detect language from audio file.
+        Detect language from audio file using subprocess.
         
         Args:
             audio_path: Path to audio file
@@ -170,30 +376,26 @@ class VideoTranscriptionManager:
             Tuple of (language_code, confidence)
         """
         try:
-            with self.model_lock:
-                if not self.model:
-                    raise RuntimeError("Model not loaded")
-                
-                language_probs = self.model.detect_language(audio_path)
-                
-                if not language_probs:
-                    return ("unknown", 0.0)
-                
-                # Convert any tensor values to float (handles CUDA tensors)
-                converted_probs = {}
-                for lang, prob in language_probs.items():
-                    # Handle tensor types (CUDA or CPU)
-                    if hasattr(prob, 'cpu'):
-                        prob = prob.cpu().item()  # Convert tensor to Python float
-                    elif hasattr(prob, 'item'):
-                        prob = prob.item()  # Convert numpy/tensor to Python float
-                    converted_probs[lang] = float(prob)
-                
-                # Get language with highest probability
-                best_lang = max(converted_probs.items(), key=lambda x: x[1])
-                logger.debug(f"Language detection result: {best_lang[0]} ({best_lang[1]:.2%})")
-                return best_lang
-                
+            # Use subprocess to detect language
+            # Run transcription task to get language info
+            result = _run_transcription_in_subprocess(
+                audio_path=audio_path,
+                model_source=self.model_source,
+                model_size=self.model_size,
+                device=self.device,
+                compute_type=self.compute_type,
+                model_dir=self.model_dir,
+                language=None,  # Auto-detect
+                task="transcribe",
+                debug=False
+            )
+            
+            detected_language = result.get('language', 'unknown')
+            confidence = 0.9 if detected_language != 'unknown' else 0.0
+            
+            logger.debug(f"Language detection result: {detected_language} ({confidence:.2%})")
+            return (detected_language, confidence)
+            
         except Exception as e:
             logger.error(f"Language detection failed: {e}", exc_info=True)
             return ("unknown", 0.0)
@@ -203,7 +405,7 @@ class VideoTranscriptionManager:
                         chunk_id: int,
                         language: Optional[str] = None) -> Dict:
         """
-        Transcribe a single audio chunk.
+        Transcribe a single audio chunk using subprocess isolation.
         
         Args:
             audio_path: Path to audio file
@@ -232,43 +434,44 @@ class VideoTranscriptionManager:
         }
         
         try:
-            # Detect language if not provided
-            if not language and not self.source_language:
+            # Determine language to use
+            use_language = language or self.source_language
+            
+            if not use_language:
+                # Auto-detect language
                 detected_lang, confidence = self.detect_language(audio_path)
-                # If detection failed, don't use 'unknown' - use None to trigger auto-detect in model
                 if detected_lang != "unknown":
                     result['language'] = detected_lang
                     result['language_confidence'] = confidence
+                    use_language = detected_lang
                     logger.debug(f"Detected language for chunk {chunk_id}: "
                                f"{detected_lang} ({confidence:.2%})")
                 else:
-                    # Detection failed, let the model auto-detect
+                    # Detection failed, let model auto-detect
                     result['language'] = None
+                    use_language = None
                     logger.warning(f"Language detection failed for chunk {chunk_id}, using model auto-detect")
             else:
-                result['language'] = language or self.source_language
-                logger.debug(f"Using specified language for chunk {chunk_id}: {result['language']}")
+                result['language'] = use_language
+                logger.debug(f"Using specified language for chunk {chunk_id}: {use_language}")
             
-            # Transcribe
-            logger.info(f" Transcribing audio chunk {chunk_id} ({result['language']})...")
-            with self.model_lock:
-                if not self.model:
-                    raise RuntimeError("Model not loaded")
-                
-                transcription = self.model.transcribe(
-                    file_path=audio_path,
-                    language=result['language'],
-                    task="transcribe",
-                    condition_on_previous_text=False,
-                    # Disable temperature fallback to speed up processing
-                    # This prevents retries when compression ratio is high (repetitive/noisy audio)
-                    temperature=0.0,  # Single temperature, no fallback
-                    compression_ratio_threshold=None,  # Disable compression ratio check
-                    log_prob_threshold=None,  # Disable log probability check
-                    no_speech_threshold=0.6  # Keep reasonable no-speech detection
-                )
+            # Transcribe using subprocess
+            logger.info(f" Transcribing audio chunk {chunk_id} ({use_language or 'auto'})...")
             
-            result['transcription'] = transcription.strip()
+            transcription_result = _run_transcription_in_subprocess(
+                audio_path=audio_path,
+                model_source=self.model_source,
+                model_size=self.model_size,
+                device=self.device,
+                compute_type=self.compute_type,
+                model_dir=self.model_dir,
+                language=use_language,
+                task="transcribe",
+                debug=False
+            )
+            
+            result['transcription'] = transcription_result.get('text', '').strip()
+            result['language'] = transcription_result.get('language', result['language'])
             result['success'] = True
             
             # Update statistics
@@ -288,7 +491,7 @@ class VideoTranscriptionManager:
     
     def translate_text(self, text: str, source_lang: str, audio_path: Optional[str] = None) -> str:
         """
-        Translate transcribed text to target language.
+        Translate transcribed text to target language using subprocess isolation.
         
         For translation to English, uses Whisper's built-in translation capability
         which requires re-processing the audio with task="translate".
@@ -312,41 +515,34 @@ class VideoTranscriptionManager:
         try:
             # For translation to English, use Whisper's built-in translation
             if self.target_language == "en":
-                with self.model_lock:
-                    if not self.model:
-                        raise RuntimeError("Model not loaded")
+                # If audio path provided, use Whisper's translate task
+                if audio_path and os.path.exists(audio_path):
+                    logger.debug(f"Using Whisper translate task on audio")
                     
-                    # If audio path provided, use Whisper's translate task
-                    if audio_path and os.path.exists(audio_path):
-                        logger.debug(f"Using Whisper translate task on audio")
-                        
-                        # Use Whisper model directly with task="translate"
-                        # Note: transcribe_chunk doesn't support task parameter,
-                        # so we call the model directly
-                        transcription = self.model.transcribe(
-                            file_path=audio_path,
-                            language=source_lang,
-                            task="translate",  # Translate to English
-                            condition_on_previous_text=False,
-                            # Disable temperature fallback for faster processing
-                            temperature=0.0,
-                            compression_ratio_threshold=None,
-                            log_prob_threshold=None,
-                            no_speech_threshold=0.6
-                        )
-                        
-                        if transcription and transcription.strip():
-                            translated = transcription.strip()
-                            logger.debug(f"Translation successful: '{translated[:80]}'")
-                            return translated
-                        else:
-                            logger.warning(f"Translation task failed, returning original text")
-                            return text
+                    # Run translation using subprocess
+                    translation_result = _run_transcription_in_subprocess(
+                        audio_path=audio_path,
+                        model_source=self.model_source,
+                        model_size=self.model_size,
+                        device=self.device,
+                        compute_type=self.compute_type,
+                        model_dir=self.model_dir,
+                        language=source_lang,
+                        task="translate",  # Translate to English
+                        debug=False
+                    )
+                    
+                    translated = translation_result.get('text', '').strip()
+                    if translated:
+                        logger.debug(f"Translation successful: '{translated[:80]}'")
+                        return translated
                     else:
-                        # No audio available - cannot translate without re-processing
-                        # This is a limitation of Whisper's translate feature
-                        logger.warning(f"No audio path provided for translation, returning original text")
+                        logger.warning(f"Translation task failed, returning original text")
                         return text
+                else:
+                    # No audio available - cannot translate without re-processing
+                    logger.warning(f"No audio path provided for translation, returning original text")
+                    return text
             else:
                 logger.warning(f"Translation to {self.target_language} not yet implemented")
                 return text
@@ -487,7 +683,9 @@ class VideoTranscriptionManager:
                                               on_segment_complete: Optional[Callable] = None) -> Dict:
         """
         Process chunk with silence detection for accurate phrase-level timing.
-        Only transcribes speech regions, skipping silence for efficiency.
+        
+        Calls worker subprocess ONCE with silence detection enabled.
+        Worker handles all segment extraction and processing internally.
         
         Args:
             on_segment_complete: Optional callback(timestamp_dict) called after each segment is processed
@@ -505,136 +703,73 @@ class VideoTranscriptionManager:
         }
         
         try:
-            # Detect speech regions in this chunk
-            if not self.silence_detector:
-                logger.error("Silence detector not initialized")
-                result['error'] = "Silence detector not initialized"
+            logger.info(f" Processing chunk {chunk_id} with silence detection and translation...")
+            
+            # Single pass: detect speech regions and translate each one immediately
+            # The worker subprocess will:
+            # 1. Detect speech regions using silence detection
+            # 2. For each region:
+            #    - Extract audio
+            #    - Translate to English (task="translate")
+            #    - Emit SEGMENT_EVENT to stdout
+            # 3. Return all translated segments at the end
+            #
+            # The parent process (here) will:
+            # - Parse SEGMENT_EVENT markers from stdout in real-time
+            # - Call on_segment_complete callback immediately for each segment
+            # - This creates incremental UI updates as each region is translated
+            
+            translation_result = _run_transcription_in_subprocess(
+                audio_path=audio_path,
+                model_source=self.model_source,
+                model_size=self.model_size,
+                device=self.device,
+                compute_type=self.compute_type,
+                model_dir=self.model_dir,
+                language=self.source_language,
+                task="translate",  # Translate directly to English
+                debug=False,
+                enable_silence_detection=True,
+                silence_threshold_db=-50.0,
+                min_silence_duration=0.1,
+                chunk_start_time=start_time,
+                on_segment_callback=on_segment_complete  # Real-time callback for each segment
+            )
+            
+            if not translation_result or translation_result.get('status') == 'error':
+                result['error'] = translation_result.get('message', 'Translation failed')
                 return result
             
-            regions = self.silence_detector.detect_regions(audio_path)
-            speech_regions = [r for r in regions if r['type'] == 'speech']
-            
-            if not speech_regions:
-                logger.debug(f"No speech detected in chunk {chunk_id}")
+            # Get timestamps from worker result
+            timestamps = translation_result.get('timestamps', [])
+            if not timestamps:
+                # No speech detected
                 result['success'] = True
                 result['language'] = self.source_language or 'unknown'
                 return result
             
-            logger.debug(f"Found {len(speech_regions)} speech regions in chunk {chunk_id}")
+            logger.debug(f"Received {len(timestamps)} translated segments from worker")
             
-            # Process each speech region
-            all_transcriptions = []
-            all_translations = []
-            detected_language = None
+            # Normalize timestamp format: worker returns translation in 'text' field,
+            # but we need it in 'translation' field for UI compatibility
+            for ts in timestamps:
+                if not ts.get('translation'):
+                    ts['translation'] = ts.get('text', '')
+                    ts['text'] = ''  # Clear original text since we only show translation
             
-            for i, region in enumerate(speech_regions):
-                region_start = region['start']
-                region_end = region['end']
-                
-                # Create temporary file for this speech region
-                region_audio_path = None
-                try:
-                    # Extract speech region to temporary file
-                    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
-                        region_audio_path = tmp_file.name
-                    
-                    if not self.silence_detector:
-                        logger.error("Silence detector not initialized")
-                        continue
-                    
-                    success = self.silence_detector.extract_speech_region(
-                        audio_path,
-                        region_audio_path,
-                        region_start,
-                        region_end
-                    )
-                    
-                    if not success:
-                        logger.warning(f"Failed to extract speech region {i} from chunk {chunk_id}")
-                        continue
-                    
-                    # Transcribe this speech region
-                    # Note: Using chunk_id directly since transcribe_chunk expects int
-                    # The region index is tracked separately in logs
-                    transcription_result = self.transcribe_chunk(
-                        region_audio_path,
-                        chunk_id  # Use parent chunk_id for consistency
-                    )
-                    
-                    if not transcription_result['success']:
-                        logger.warning(f"Failed to transcribe speech region {i} in chunk {chunk_id}")
-                        continue
-                    
-                    transcription_text = transcription_result['transcription'].strip()
-                    if not transcription_text:
-                        continue
-                    
-                    # Store detected language (use first detected language for consistency)
-                    if detected_language is None:
-                        detected_language = transcription_result['language']
-                    
-                    all_transcriptions.append(transcription_text)
-                    
-                    # Translate if enabled - pass audio path for Whisper translation
-                    translation_text = ""
-                    if self.enable_translation:
-                        translation_text = self.translate_text(
-                            transcription_text,
-                            transcription_result['language'],
-                            audio_path=region_audio_path  # Pass audio for Whisper translate task
-                        )
-                        all_translations.append(translation_text)
-                        logger.debug(f"  Original ({transcription_result['language']}): '{transcription_text[:80]}'")
-                        logger.debug(f"  Translated ({self.target_language}): '{translation_text[:80]}'")
-                    
-                    # Calculate absolute timestamps (relative to video start)
-                    absolute_start = start_time + region_start
-                    absolute_end = start_time + region_end
-                    
-                    # Add to timestamps
-                    timestamp_dict = {
-                        'start': absolute_start,
-                        'end': absolute_end,
-                        'text': transcription_text,
-                        'translation': translation_text
-                    }
-                    result['timestamps'].append(timestamp_dict)
-                    
-                    # Call callback to update chunk incrementally (so captions show in real-time)
-                    if on_segment_complete:
-                        try:
-                            # Pass actual segment count (some regions may be skipped due to no speech)
-                            # Use len(result['timestamps']) for accurate count of successfully processed segments
-                            current_segment_count = len(result['timestamps'])
-                            # Note: We don't know the final total yet since some regions ahead may be skipped
-                            # Pass None for total_segments so UI shows "N segments" instead of "N/?" during processing
-                            on_segment_complete(timestamp_dict, current_segment_count, None)
-                        except Exception as e:
-                            logger.warning(f"Segment complete callback failed: {e}")
-                    
-                    logger.debug(f"Speech region {i+1}/{len(speech_regions)} in chunk {chunk_id}: "
-                               f"{absolute_start:.2f}s - {absolute_end:.2f}s")
-                    
-                finally:
-                    # Clean up temporary region file
-                    if region_audio_path and os.path.exists(region_audio_path):
-                        try:
-                            os.remove(region_audio_path)
-                        except:
-                            pass
-            
-            # Combine all transcriptions and translations
-            result['transcription'] = ' '.join(all_transcriptions)
-            result['translation'] = ' '.join(all_translations) if all_translations else ''
-            result['language'] = detected_language or self.source_language or 'unknown'
+            # Build full translation text
+            all_translations = [ts.get('translation', '') for ts in timestamps]
+            result['translation'] = ' '.join(all_translations)
+            result['language'] = translation_result.get('language', self.source_language or 'unknown')
+            result['timestamps'] = timestamps
             result['success'] = True
             
-            logger.info(f"Processed {len(result['timestamps'])} speech segments in chunk {chunk_id}")
+            logger.info(f"Translated {len(timestamps)} speech segments in chunk {chunk_id}")
             
         except Exception as e:
             result['error'] = str(e)
             result['success'] = False
-            logger.error(f"Failed to process chunk {chunk_id} with silence detection: {e}", exc_info=True)
+            logger.error(f"Failed to process chunk {chunk_id} with translation: {e}", exc_info=True)
         
         return result
     
@@ -663,6 +798,9 @@ class VideoTranscriptionManager:
         """
         Change the model configuration.
         
+        Since models run in subprocess, this just updates configuration.
+        No actual model loading happens here.
+        
         Args:
             model_source: New model source (optional)
             model_size: New model size (optional)
@@ -672,15 +810,19 @@ class VideoTranscriptionManager:
         if model_size:
             self.model_size = model_size
         
-        logger.info(f"Changing model to: {self.model_source} / {self.model_size}")
-        self._load_model()
+        logger.info(f"Model configuration updated to: {self.model_source} / {self.model_size}")
     
     def unload_model(self):
-        """Unload the model to free resources."""
-        with self.model_lock:
-            self.model = None
-            logger.info("Model unloaded")
+        """
+        Unload model (no-op since models run in subprocess).
+        
+        Models are automatically cleaned up after each subprocess completes,
+        ensuring complete VRAM/RAM release.
+        """
+        # No model to unload - subprocess handles cleanup automatically
+        logger.debug("Model cleanup not needed (subprocess isolation ensures VRAM release)")
     
     def __del__(self):
-        """Destructor to ensure model cleanup."""
-        self.unload_model()
+        """Destructor (no-op since models run in subprocess)."""
+        # No cleanup needed - subprocess handles everything
+        pass

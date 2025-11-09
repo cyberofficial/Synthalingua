@@ -42,9 +42,8 @@ class VideoTranslatorApp {
         
         // Settings elements
         this.sourceLanguage = document.getElementById('source-language');
-        this.targetLanguage = document.getElementById('target-language');
-        this.enableTranslation = document.getElementById('enable-translation');
-        this.showOriginal = document.getElementById('show-original');
+        // Target language is always English (hardcoded)
+        // Translation is always enabled (no toggle)
         this.modelSource = document.getElementById('model-source');
         this.modelSize = document.getElementById('model-size');
         this.device = document.getElementById('device');
@@ -121,7 +120,6 @@ class VideoTranslatorApp {
         this.bgColor.addEventListener('input', (e) => this.updateCaptionStyle());
         this.bgOpacity.addEventListener('input', (e) => this.updateCaptionStyle());
         this.captionPosition.addEventListener('change', (e) => this.updateCaptionStyle());
-        this.showOriginal.addEventListener('change', (e) => this.updateCaptionVisibility());
         
         // Silence detection sliders
         this.silenceThreshold.addEventListener('input', (e) => {
@@ -188,7 +186,6 @@ class VideoTranslatorApp {
     populateLanguageDropdowns(languages) {
         // Clear existing options except placeholders
         this.sourceLanguage.innerHTML = '';
-        this.targetLanguage.innerHTML = '';
         
         // Populate source language (includes Auto-detect)
         languages.forEach(lang => {
@@ -198,19 +195,7 @@ class VideoTranslatorApp {
             this.sourceLanguage.appendChild(option);
         });
         
-        // Populate target language (exclude Auto-detect)
-        languages.forEach(lang => {
-            if (lang.code !== 'auto') {
-                const option = document.createElement('option');
-                option.value = lang.code;
-                option.textContent = lang.name;
-                // Set English as default target
-                if (lang.code === 'en') {
-                    option.selected = true;
-                }
-                this.targetLanguage.appendChild(option);
-            }
-        });
+        // Target language is always English (no dropdown needed)
         
         console.log(`Loaded ${languages.length} languages`);
     }
@@ -318,8 +303,8 @@ class VideoTranslatorApp {
             const modelSize = this.modelSize.value;
             const device = this.device.value;
             const sourceLang = this.sourceLanguage.value || 'auto';
-            const targetLang = this.targetLanguage.value;
-            const enableTranslation = this.enableTranslation.checked;
+            const targetLang = 'en';  // Always translate to English
+            const enableTranslation = true;  // Translation always enabled
             
             // Silence detection settings
             const enableSilenceDetection = this.enableSilenceDetection.checked;
@@ -504,7 +489,7 @@ class VideoTranslatorApp {
         // Update language indicator
         if (status.transcription_stats) {
             const lang = status.transcription_stats.model_source;
-            this.statusLanguage.textContent = `${lang} → ${this.targetLanguage.value}`;
+            this.statusLanguage.textContent = `${lang} → en`;
         }
         
         // Don't update segment count here - let WebSocket buffer_update events handle it
@@ -648,24 +633,18 @@ class VideoTranslatorApp {
             return; // Exit early during silence
         }
         
-        // Update transcription caption (shown only if "Show Original" is checked)
-        if (hasTranscription && this.showOriginal.checked) {
-            this.transcriptionCaption.textContent = data.transcription;
-            this.transcriptionCaption.style.display = 'block';
-        } else {
-            this.transcriptionCaption.textContent = '';
-            this.transcriptionCaption.style.display = 'none';
-        }
+        // Hide transcription caption (we only show English translation)
+        this.transcriptionCaption.textContent = '';
+        this.transcriptionCaption.style.display = 'none';
         
-        // Update translation caption (main caption display)
-        // Show translation if available AND translation is enabled
-        // OR show transcription if translation is disabled but we have text
-        if (hasTranslation && this.enableTranslation.checked) {
-            // Translation mode: show translated text
+        // Show translation caption (English only)
+        // Translation is always enabled and target is always English
+        if (hasTranslation) {
+            // Show translated English text
             this.translationCaption.textContent = data.translation;
             this.translationCaption.style.display = 'block';
         } else if (hasTranscription) {
-            // Transcription-only mode: show original text in main caption area
+            // Fallback: show transcription if no translation available yet
             this.translationCaption.textContent = data.transcription;
             this.translationCaption.style.display = 'block';
         } else {
@@ -718,7 +697,9 @@ class VideoTranslatorApp {
     }
     
     updateCaptionVisibility() {
-        this.transcriptionCaption.style.display = this.showOriginal.checked ? 'block' : 'none';
+        // Always show only the translation caption (English)
+        // Original text is not displayed as we translate directly
+        this.transcriptionCaption.style.display = 'none';
     }
     
     async exportCaptions() {

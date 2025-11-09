@@ -35,12 +35,30 @@ session_lock = threading.Lock()
 
 # Global configuration (set from parser_args)
 _global_model_dir = './models'  # Default, can be overridden
+_debug_mode = False  # Default, can be overridden
 
 def set_model_dir(model_dir: str):
     """Set the global model directory from parser_args."""
     global _global_model_dir
     _global_model_dir = model_dir
     logger.info(f"Video UI model directory set to: {model_dir}")
+
+def set_debug_mode(debug: bool):
+    """Set debug mode for video backend logging."""
+    global _debug_mode
+    _debug_mode = debug
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        # Also set debug for child loggers
+        for name in ['modules.video_translation_ui.video_processor',
+                     'modules.video_translation_ui.chunk_manager',
+                     'modules.video_translation_ui.buffer_manager',
+                     'modules.video_translation_ui.video_transcription']:
+            child_logger = logging.getLogger(name)
+            child_logger.setLevel(logging.DEBUG)
+        logger.debug("Video backend debug mode enabled")
+    else:
+        logger.setLevel(logging.INFO)
 
 # Upload configuration
 # Use absolute path from current working directory to avoid module-relative issues
@@ -397,6 +415,17 @@ class VideoSession:
         total_time = time.time() - start_time
         logger.info(f"🎉 Video processing completed! Processed {processed_count}/{total_chunks} chunks in {total_time/60:.1f} minutes")
         
+        # Unload the transcription model to free VRAM/RAM
+        # NOTE: With subprocess isolation, models are automatically cleaned up after each transcription
+        # This call is a no-op but kept for code clarity
+        if self.transcription_manager:
+            try:
+                logger.info("Ensuring transcription model cleanup...")
+                self.transcription_manager.unload_model()
+                logger.info("Transcription model cleanup complete (subprocess handles automatic VRAM release)")
+            except Exception as e:
+                logger.error(f"Error during transcription model cleanup: {e}")
+        
         # Reset processing flag so user can process another video
         self.is_processing = False
         
@@ -671,6 +700,17 @@ class VideoSession:
     def cleanup(self):
         """Cleanup temporary files and resources."""
         try:
+            # Unload transcription model to free VRAM/RAM
+            # NOTE: With subprocess isolation, models are automatically cleaned up after each transcription
+            # This call is a no-op but kept for code clarity
+            if self.transcription_manager:
+                try:
+                    logger.info(f"Ensuring transcription model cleanup for session {self.session_id}...")
+                    self.transcription_manager.unload_model()
+                    logger.info(f"Transcription model cleanup complete for session {self.session_id} (subprocess handles automatic VRAM release)")
+                except Exception as e:
+                    logger.error(f"Error during transcription model cleanup: {e}")
+            
             if self.video_processor:
                 self.video_processor.cleanup()
             
@@ -682,6 +722,19 @@ class VideoSession:
                 logger.info(f"Cleaned up temp directory for session {self.session_id}")
         except Exception as e:
             logger.error(f"Error cleaning up session {self.session_id}: {e}")
+    
+    def __del__(self):
+        """
+        Destructor to ensure cleanup when session is destroyed.
+        
+        NOTE: With subprocess isolation, models are automatically cleaned up after each transcription.
+        This call is a no-op but kept for safety.
+        """
+        try:
+            if hasattr(self, 'transcription_manager') and self.transcription_manager:
+                self.transcription_manager.unload_model()
+        except Exception:
+            pass  # Ignore errors during destruction
 
 
 # API Routes
@@ -978,8 +1031,42 @@ def init_video_socketio(app):
     """
     from flask_socketio import SocketIO, emit, join_room, leave_room
     
-    # Use threading mode to avoid eventlet/gevent dependencies
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    # Use threading mode with simple-websocket for PyInstaller compatibility
+    # Note: async_mode must be explicitly set for frozen applications
+    socketio = None
+    
+    # Try different async modes in order of preference
+    async_modes_to_try = ['threading', None]  # None = auto-detect
+    
+    for async_mode in async_modes_to_try:
+        try:
+            if async_mode:
+                logger.info(f"Attempting to initialize Socket.IO with async_mode='{async_mode}'")
+                socketio = SocketIO(app, cors_allowed_origins="*", async_mode=async_mode, 
+                              logger=False, engineio_logger=False)
+            else:
+                logger.info("Attempting to initialize Socket.IO with auto-detect mode")
+                socketio = SocketIO(app, cors_allowed_origins="*", 
+                              logger=False, engineio_logger=False)
+            
+            logger.info(f"Socket.IO initialized successfully with async_mode={socketio.async_mode}")  # type: ignore[attr-defined]
+            break  # Success, exit loop
+            
+        except ValueError as e:
+            logger.warning(f"async_mode '{async_mode}' failed: {e}")
+            if async_mode is None:
+                # This was our last attempt
+                logger.error("All Socket.IO initialization attempts failed!")
+                raise
+            continue  # Try next mode
+        except Exception as e:
+            logger.error(f"Unexpected error initializing Socket.IO: {e}")
+            if async_mode is None:
+                raise
+            continue
+    
+    if socketio is None:
+        raise RuntimeError("Failed to initialize Socket.IO - no compatible async mode found")
     
     # Store global reference for sessions
     global _socketio_instance

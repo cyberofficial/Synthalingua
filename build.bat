@@ -1,7 +1,7 @@
 call data_whisper\Scripts\activate.bat
 
 pyinstaller set_up_env.spec --noconfirm
-pyinstaller synthalingua.spec --noconfirm
+pyinstaller synthalingua.spec --clean --noconfirm
 
 
 

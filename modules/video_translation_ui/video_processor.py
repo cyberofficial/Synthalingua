@@ -346,8 +346,52 @@ class VideoProcessor:
                 # Small delay to avoid busy waiting
                 time.sleep(0.1)
             
+            # Ensure process is fully terminated and cleaned up
+            try:
+                process.wait(timeout=5)  # Wait up to 5 seconds for graceful exit
+            except subprocess.TimeoutExpired:
+                logger.warning("Demucs process did not exit gracefully, forcing termination")
+                process.kill()
+                process.wait()
+            
+            # Close pipes to release resources
+            if process.stdout:
+                process.stdout.close()
+            if process.stderr:
+                process.stderr.close()
+            
+            # Delete the process object to ensure no lingering references
+            del process
+            
             elapsed_time = time.time() - start_time
             logger.info(f" Vocal isolation complete in {elapsed_time:.1f}s")
+            
+            # Force aggressive garbage collection and VRAM cleanup after subprocess completes
+            # This ensures any leaked memory from subprocess is cleaned up
+            import gc
+            
+            # Run garbage collection multiple times to catch circular references
+            for _ in range(3):
+                gc.collect()
+            
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    # Clear CUDA cache multiple times to ensure full cleanup
+                    torch.cuda.empty_cache()
+                    torch.cuda.synchronize()  # Wait for all CUDA operations to complete
+                    torch.cuda.empty_cache()  # Clear again after synchronization
+                    
+                    # Log current VRAM usage if possible
+                    if hasattr(torch.cuda, 'memory_allocated'):
+                        allocated = torch.cuda.memory_allocated() / (1024**3)  # Convert to GB
+                        logger.info(f"VRAM after Demucs cleanup: {allocated:.2f} GB allocated")
+                    
+                    logger.debug("VRAM cache cleared after Demucs processing")
+            except ImportError:
+                pass  # torch not available, skip CUDA cleanup
+            except Exception as e:
+                logger.debug(f"Could not clear CUDA cache: {e}")
             
             # Find vocals.wav output file
             base_name = Path(audio_path).stem

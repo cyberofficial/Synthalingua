@@ -26,6 +26,28 @@ if '--run-worker' in sys.argv:
         # Ensure the worker process exits cleanly
         sys.exit(0)
 
+# Check if this process is being launched as a worker for video transcription
+if '--run-video-worker' in sys.argv:
+    try:
+        # This branch is for the frozen executable to re-launch itself as a video worker.
+        # It won't be triggered when running from source because video_transcription.py calls
+        # video_transcription_worker.py directly in that case.
+        from modules.video_translation_ui.video_transcription_worker import main as video_worker_main
+
+        # Re-arrange sys.argv for the video worker's argument parser.
+        # Original: [exe_path, '--run-video-worker', '--arg1', 'val1', ...]
+        # New for worker: [exe_path, '--arg1', 'val1', ...]
+        # The worker's parser will parse from index 1 onwards.
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        video_worker_main()
+    except Exception as e:
+        # Log any errors to stderr for the parent process to capture
+        print(f"Video worker process failed: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Ensure the video worker process exits cleanly
+        sys.exit(0)
+
 # If not a worker, proceed with normal imports and execution
 import os
 import torch
@@ -243,7 +265,10 @@ def main():
     # Use stream_language for model selection if in stream mode
     model_language = args.stream_language if args.stream else args.language
     model = parser_args.set_model_by_ram(args.ram, model_language)
-    if not args.makecaptions:
+    
+    # Only load model if not using makecaptions AND not launching video UI
+    # Video UI and makecaptions load models on-demand when processing starts
+    if not args.makecaptions and not args.launchui:
         if args.model_source == "fasterwhisper":
             audio_model = FasterWhisperModel(model, device=device, download_root=args.model_dir, compute_type=args.compute_type)
         elif args.model_source == "openvino":
@@ -252,6 +277,10 @@ def main():
             audio_model = BaseWhisperModel(model, device=device, download_root=args.model_dir)
         else:
             ValueError(f"{args.model_source} is not a valid model source")
+        
+        print(f"Using {args.model_source} model: {model}")
+    elif args.launchui:
+        print(f"Video UI mode: Model will load when processing starts")
 
     # Set up API backend if needed
     if args.portnumber or args.https:
@@ -318,6 +347,19 @@ def main():
         print("Press enter to exit...")
         input()
         sys.exit("Exiting...")
+
+    # Exit here if launching video UI (no streaming/microphone setup needed)
+    if args.launchui:
+        print("Video UI server is now running. Use the web interface to process videos.")
+        print("Press Ctrl+C to stop the server.")
+        try:
+            # Keep the server running until interrupted
+            while True:
+                import time
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nShutting down video UI server...")
+        sys.exit(0)
 
     # Set up stream if needed
     stream_thread = None

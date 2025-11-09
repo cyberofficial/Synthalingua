@@ -105,30 +105,7 @@
                             <option value="fr">French</option>
                             <option value="de">German</option>
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Target Language:</label>
-                        <select id="target-language">
-                            <option value="en" selected>English</option>
-                            <option value="es">Spanish</option>
-                            <option value="fr">French</option>
-                            <option value="de">German</option>
-                            <option value="ja">Japanese</option>
-                            <option value="ko">Korean</option>
-                            <option value="zh">Chinese</option>
-                        </select>
-                    </div>
-                    <div class="form-group checkbox-group">
-                        <label>
-                            <input type="checkbox" id="enable-translation" checked>
-                            Enable Translation
-                        </label>
-                    </div>
-                    <div class="form-group checkbox-group">
-                        <label>
-                            <input type="checkbox" id="show-original">
-                            Show Original Text
-                        </label>
+                        <div class="help-text">Auto-detect will identify the source language. Translation target is always English.</div>
                     </div>
                 </div>
                 
@@ -169,7 +146,7 @@
                     <h3 class="section-title">🎤 Vocal Isolation</h3>
                     <div class="form-group checkbox-group">
                         <label>
-                            <input type="checkbox" id="enable-vocal-isolation">
+                            <input type="checkbox" id="enable-vocal-isolation" checked>
                             Enable Vocal Isolation (Demucs)
                         </label>
                         <div class="help-text">Removes background music/noise before transcription. Requires full audio preprocessing.</div>
