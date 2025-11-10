@@ -579,13 +579,13 @@ class VideoSession:
                 - language: Detected language code
         """
         if not self.chunk_manager:
-            return {'transcription': '', 'translation': '', 'language': 'unknown'}
+            return {'transcription': '', 'translation': '', 'language': 'unknown', 'duration': 3.0}
         
         chunk = self.chunk_manager.get_chunk_at_time(timestamp)
         
         if not chunk:
             logger.debug(f"No chunk found for timestamp {timestamp:.2f}s")
-            return {'transcription': '', 'translation': '', 'language': 'unknown'}
+            return {'transcription': '', 'translation': '', 'language': 'unknown', 'duration': 3.0}
         
         logger.debug(f"Chunk found for {timestamp:.2f}s: id={chunk.chunk_id}, "
                     f"status={chunk.status.name}, "
@@ -603,31 +603,35 @@ class VideoSession:
                 if segment_start <= timestamp < segment_end:
                     translation = segment.get('translation', '')
                     transcription = segment.get('text', '')
+                    duration = segment_end - segment_start  # Calculate caption duration
                     
                     logger.debug(f"Found active caption segment at {timestamp:.2f}s: "
-                               f"{segment_start:.2f}s - {segment_end:.2f}s")
+                               f"{segment_start:.2f}s - {segment_end:.2f}s (duration={duration:.2f}s)")
                     logger.debug(f"  Transcription: '{transcription[:50]}...' (len={len(transcription)})")
                     logger.debug(f"  Translation: '{translation[:50]}...' (len={len(translation)})")
                     
                     return {
                         'transcription': transcription,
                         'translation': translation,
-                        'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
+                        'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown',
+                        'duration': duration  # Add duration for word highlighting timing
                     }
             
             # Timestamp is between caption segments (silence) - return empty
             logger.debug(f"Timestamp {timestamp:.2f}s is between caption segments (silence)")
-            return {'transcription': '', 'translation': '', 'language': 'unknown'}
+            return {'transcription': '', 'translation': '', 'language': 'unknown', 'duration': 3.0}  # Default for empty
         
         # Fallback: chunk has no timestamp segments, return full chunk transcription
         if chunk.transcription:
+            chunk_duration = chunk.end_time - chunk.start_time
             return {
                 'transcription': chunk.transcription,
                 'translation': chunk.translation or '',
-                'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown'
+                'language': self.transcription_manager.source_language if self.transcription_manager else 'unknown',
+                'duration': chunk_duration  # Use chunk duration for fallback
             }
         
-        return {'transcription': '', 'translation': '', 'language': 'unknown'}
+        return {'transcription': '', 'translation': '', 'language': 'unknown', 'duration': 3.0}  # Default for empty
     
     def export_captions(self, format: str = 'srt') -> Optional[str]:
         """

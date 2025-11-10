@@ -13,6 +13,11 @@ class VideoTranslatorApp {
         this.audioSourceInfo = null; // Will be set in initializeElements
         this.audioSourceLabel = null; // Will be set in initializeElements
         
+        // Word highlighting (karaoke effect)
+        this.currentCaptionData = null; // Stores current caption with timing
+        this.captionStartTime = null; // When current caption started
+        this.highlightUpdateInterval = null; // Interval for updating word highlights
+        
         this.initializeElements();
         this.setupEventListeners();
         this.initializeSocket();
@@ -59,6 +64,7 @@ class VideoTranslatorApp {
         this.bgColor = document.getElementById('bg-color');
         this.bgOpacity = document.getElementById('bg-opacity');
         this.bgOpacityValue = document.getElementById('bg-opacity-value');
+        this.highlightColor = document.getElementById('highlight-color');
         this.captionPosition = document.getElementById('caption-position');
         
         // Silence detection elements
@@ -164,6 +170,7 @@ class VideoTranslatorApp {
         this.textColor.addEventListener('input', (e) => this.updateCaptionStyle());
         this.bgColor.addEventListener('input', (e) => this.updateCaptionStyle());
         this.bgOpacity.addEventListener('input', (e) => this.updateCaptionStyle());
+        this.highlightColor.addEventListener('input', (e) => this.updateCaptionStyle());
         this.captionPosition.addEventListener('change', (e) => this.updateCaptionStyle());
         
         // Silence detection sliders
@@ -691,8 +698,14 @@ class VideoTranslatorApp {
             // During silence: hide both captions immediately
             this.transcriptionCaption.textContent = '';
             this.transcriptionCaption.style.display = 'none';
-            this.translationCaption.textContent = '';
+            this.translationCaption.innerHTML = '';
             this.translationCaption.style.display = 'none';
+            this.currentCaptionData = null;
+            this.captionStartTime = null;
+            if (this.highlightUpdateInterval) {
+                clearInterval(this.highlightUpdateInterval);
+                this.highlightUpdateInterval = null;
+            }
             return; // Exit early during silence
         }
         
@@ -700,20 +713,39 @@ class VideoTranslatorApp {
         this.transcriptionCaption.textContent = '';
         this.transcriptionCaption.style.display = 'none';
         
-        // Show translation caption (English only)
+        // Show translation caption (English only) with word-by-word highlighting
         // Translation is always enabled and target is always English
-        if (hasTranslation) {
-            // Show translated English text
-            this.translationCaption.textContent = data.translation;
-            this.translationCaption.style.display = 'block';
-        } else if (hasTranscription) {
-            // Fallback: show transcription if no translation available yet
-            this.translationCaption.textContent = data.transcription;
+        const textToShow = hasTranslation ? data.translation : (hasTranscription ? data.transcription : '');
+        
+        if (textToShow) {
+            // Check if this is a NEW caption (different text) or same caption updating
+            const isNewCaption = !this.currentCaptionData || this.currentCaptionData.text !== textToShow;
+            
+            if (isNewCaption) {
+                // New caption - reset timing and store data
+                this.currentCaptionData = {
+                    text: textToShow,
+                    duration: data.duration || 3.0  // Default 3 seconds if not provided
+                };
+                this.captionStartTime = this.videoPlayer.currentTime;
+                
+                // Initial render
+                this.renderCaptionWithHighlight();
+                
+                // Start highlight update interval
+                if (this.highlightUpdateInterval) {
+                    clearInterval(this.highlightUpdateInterval);
+                }
+                this.highlightUpdateInterval = setInterval(() => this.renderCaptionWithHighlight(), 50);
+            }
+            // If same caption, don't reset timing - let highlight continue naturally
+            
             this.translationCaption.style.display = 'block';
         } else {
             // No content available
-            this.translationCaption.textContent = '';
+            this.translationCaption.innerHTML = '';
             this.translationCaption.style.display = 'none';
+            this.currentCaptionData = null;
         }
     }
     
@@ -757,6 +789,62 @@ class VideoTranslatorApp {
         // Update value displays
         this.fontSizeValue.textContent = fontSize;
         this.bgOpacityValue.textContent = Math.round(bgOpacity * 100) + '%';
+    }
+    
+    renderCaptionWithHighlight() {
+        if (!this.currentCaptionData) return;
+        
+        const text = this.currentCaptionData.text;
+        const duration = this.currentCaptionData.duration;
+        let elapsedTime = this.videoPlayer.currentTime - this.captionStartTime;
+        
+        // Clamp elapsed time to valid range [0, duration]
+        // This prevents negative values or exceeding caption duration
+        elapsedTime = Math.max(0, Math.min(elapsedTime, duration));
+        
+        // Split text into words (exclude punctuation from word count)
+        const words = text.split(/\s+/);
+        const wordCount = words.filter(word => word.replace(/[^a-zA-Z0-9]/g, '').length > 0).length;
+        
+        if (wordCount === 0) {
+            this.translationCaption.innerHTML = text;
+            return;
+        }
+        
+        // Calculate time per word
+        const timePerWord = duration / wordCount;
+        
+        // Determine which word should be highlighted (clamp to valid range)
+        let currentWordIndex = Math.floor(elapsedTime / timePerWord);
+        currentWordIndex = Math.max(0, Math.min(currentWordIndex, wordCount - 1));
+        
+        // Build HTML with highlighted word
+        const highlightColor = this.highlightColor.value;
+        let html = '';
+        let actualWordIndex = -1;
+        
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const hasLetters = word.replace(/[^a-zA-Z0-9]/g, '').length > 0;
+            
+            if (hasLetters) {
+                actualWordIndex++;
+            }
+            
+            if (hasLetters && actualWordIndex === currentWordIndex) {
+                // Highlight current word
+                html += `<span style="color: ${highlightColor}; font-weight: bold;">${word}</span>`;
+            } else {
+                html += word;
+            }
+            
+            // Add space after word (except last word)
+            if (i < words.length - 1) {
+                html += ' ';
+            }
+        }
+        
+        this.translationCaption.innerHTML = html;
     }
     
     updateCaptionVisibility() {
