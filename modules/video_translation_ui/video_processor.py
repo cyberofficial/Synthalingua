@@ -33,15 +33,20 @@ class VideoProcessor:
         metadata (dict): Video metadata (duration, fps, resolution, etc.)
     """
     
-    # Supported video formats
-    SUPPORTED_FORMATS = ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v']
+    # Supported video and audio formats
+    SUPPORTED_FORMATS = [
+        # Video formats
+        '.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v',
+        # Audio formats (will be converted to video with black square)
+        '.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus', '.wma'
+    ]
     
     def __init__(self, video_path: str, temp_dir: Optional[str] = None):
         """
         Initialize Video Processor.
         
         Args:
-            video_path: Path to the input video file
+            video_path: Path to the input video or audio file
             temp_dir: Optional temporary directory (will create if not provided)
             
         Raises:
@@ -55,7 +60,7 @@ class VideoProcessor:
             
         if self.video_path.suffix.lower() not in self.SUPPORTED_FORMATS:
             raise ValueError(
-                f"Unsupported video format: {self.video_path.suffix}\n"
+                f"Unsupported video/audio format: {self.video_path.suffix}\n"
                 f"Supported formats: {', '.join(self.SUPPORTED_FORMATS)}"
             )
         
@@ -169,6 +174,137 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Unexpected error during metadata extraction: {e}")
             raise RuntimeError(f"Failed to extract metadata: {e}")
+    
+    def convert_to_mp4(self, output_path: Optional[str] = None) -> str:
+        """
+        Convert video to MP4 format for browser compatibility.
+        
+        This ensures HTML5 video player can play any uploaded video format.
+        Uses lossless conversion when possible (stream copy).
+        For audio-only files, creates a 100x100 black square video.
+        
+        Args:
+            output_path: Optional custom output path for MP4 file
+            
+        Returns:
+            str: Path to converted MP4 file
+            
+        Raises:
+            RuntimeError: If conversion fails
+        """
+        # If already MP4, just return the original path
+        if self.video_path.suffix.lower() == '.mp4':
+            logger.info(f"Video is already MP4 format: {self.video_path}")
+            return str(self.video_path)
+        
+        # Create output path
+        if not output_path:
+            output_path_obj: Path = self.temp_dir / f"{self.video_path.stem}_converted.mp4"
+        else:
+            output_path_obj: Path = Path(output_path) if not isinstance(output_path, Path) else output_path
+        
+        output_path_str: str = str(output_path_obj)
+        
+        try:
+            # Extract metadata to check if this is audio-only
+            if not self.metadata:
+                self.extract_metadata()
+            
+            has_video = 'width' in self.metadata and self.metadata.get('width', 0) > 0
+            has_audio = 'audio_codec' in self.metadata
+            
+            logger.info(f"Converting {self.video_path.suffix} to MP4 for browser compatibility...")
+            logger.info(f"  Input: {self.video_path}")
+            logger.info(f"  Output: {output_path_str}")
+            logger.info(f"  Has video: {has_video}, Has audio: {has_audio}")
+            
+            if has_video:
+                # Video file: Convert to browser-compatible H.264 with YUV420p
+                # Note: Even if already H.264, we need to ensure YUV420p pixel format
+                video_codec = self.metadata.get('video_codec', '').lower()
+                
+                # Check pixel format - browsers require yuv420p
+                # We'll always re-encode to ensure compatibility, but use high quality
+                logger.info(f"  Converting video to H.264 with YUV420p (browser-compatible)")
+                video_codec_param = [
+                    '-c:v', 'libx264',
+                    '-preset', 'slow',  # Better compression, slower encoding
+                    '-crf', '18',  # Near-lossless quality (visually lossless, smaller than CRF 0)
+                    '-pix_fmt', 'yuv420p',  # Force YUV420p for browser compatibility
+                    '-profile:v', 'high',  # H.264 High Profile
+                    '-level', '4.1'  # Compatible with most devices
+                ]
+                
+                # Audio: copy if AAC, otherwise encode to AAC
+                audio_codec = self.metadata.get('audio_codec', '').lower()
+                
+                if audio_codec == 'aac':
+                    logger.info(f"  Audio is already AAC, using stream copy")
+                    audio_codec_param = ['-c:a', 'copy']
+                else:
+                    logger.info(f"  Re-encoding audio to AAC (320kbps for quality)")
+                    audio_codec_param = ['-c:a', 'aac', '-b:a', '320k']
+                
+                cmd = [
+                    'ffmpeg',
+                    '-i', str(self.video_path),
+                    *video_codec_param,
+                    *audio_codec_param,
+                    '-movflags', '+faststart',  # Enable streaming
+                    '-y',  # Overwrite output file
+                    output_path_str
+                ]
+                
+            elif has_audio:
+                # Audio-only file: Create 100x100 black square video
+                logger.info(f"  Audio-only file detected, creating 100x100 black square video")
+                cmd = [
+                    'ffmpeg',
+                    '-f', 'lavfi',
+                    '-i', 'color=c=black:s=100x100:r=1',  # 100x100 black square at 1 fps
+                    '-i', str(self.video_path),
+                    '-c:v', 'libx264',
+                    '-preset', 'ultrafast',  # Fast encoding for tiny video
+                    '-crf', '23',  # Standard quality (tiny overhead anyway)
+                    '-pix_fmt', 'yuv420p',  # Browser compatibility
+                    '-profile:v', 'high',  # H.264 High Profile
+                    '-level', '4.1',  # Compatible with most devices
+                    '-c:a', 'aac',
+                    '-b:a', '320k',  # High quality audio
+                    '-shortest',  # Match audio duration
+                    '-movflags', '+faststart',
+                    '-y',
+                    output_path_str
+                ]
+            else:
+                raise RuntimeError("File has neither video nor audio streams")
+            
+            logger.info(f"Running FFmpeg conversion...")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            
+            if not output_path_obj.exists():
+                raise RuntimeError("MP4 file was not created")
+            
+            original_size_mb = self.video_path.stat().st_size / (1024 * 1024)
+            output_size_mb = output_path_obj.stat().st_size / (1024 * 1024)
+            logger.info(f"✅ Video conversion complete: {output_path_str}")
+            logger.info(f"   Original: {original_size_mb:.2f} MB → Output: {output_size_mb:.2f} MB")
+            
+            return output_path_str
+            
+        except subprocess.CalledProcessError as e:
+            logger.error(f"FFmpeg conversion failed: {e}")
+            logger.error(f"FFmpeg stderr: {e.stderr}")
+            raise RuntimeError(f"Failed to convert video to MP4: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error during video conversion: {e}")
+            raise RuntimeError(f"Failed to convert video: {e}")
     
     def extract_audio(self, 
                      output_path: Optional[str] = None,

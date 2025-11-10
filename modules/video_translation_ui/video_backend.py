@@ -66,7 +66,12 @@ import sys
 WORKSPACE_ROOT = Path(os.getcwd())
 UPLOAD_FOLDER = WORKSPACE_ROOT / 'temp' / 'video_uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-ALLOWED_EXTENSIONS = {'.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v'}
+ALLOWED_EXTENSIONS = {
+    # Video formats
+    '.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v',
+    # Audio formats (will be converted to video with black square)
+    '.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus', '.wma'
+}
 MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
 
 
@@ -105,6 +110,7 @@ class VideoSession:
         self.full_audio_path = None  # Current audio path (may be vocals if Demucs used)
         self.original_audio_path = None  # Original audio before Demucs
         self.vocals_audio_path = None  # Isolated vocals from Demucs
+        self.mp4_path = None  # MP4 version for browser playback (converted if needed)
         
         # Processing thread
         self.processing_thread = None
@@ -181,6 +187,14 @@ class VideoSession:
                 self.video_path,
                 temp_dir=str(UPLOAD_FOLDER / self.session_id)
             )
+            
+            # Convert to MP4 for browser compatibility (if not already done during upload)
+            if not self.mp4_path:
+                logger.info(f"🎬 Converting video to MP4 format for browser playback...")
+                self.mp4_path = self.video_processor.convert_to_mp4()
+                logger.info(f"✅ MP4 video ready for playback: {self.mp4_path}")
+            else:
+                logger.info(f"📺 Using existing MP4 video: {self.mp4_path}")
             
             # Extract metadata
             self.metadata = self.video_processor.extract_metadata()
@@ -824,11 +838,19 @@ def upload_video():
         with session_lock:
             video_sessions[session_id] = video_session
         
-        # Extract basic metadata for display (without full initialization)
-        video_processor = VideoProcessor(str(video_path))
+        # Convert to MP4 immediately for browser playback (if not already MP4)
+        logger.info(f"🎬 Preparing video for browser playback...")
+        video_processor = VideoProcessor(str(video_path), temp_dir=str(session_dir))
+        
+        # Convert to MP4 for browser compatibility
+        mp4_path = video_processor.convert_to_mp4()
+        video_session.mp4_path = mp4_path
+        logger.info(f"✅ Video ready for playback: {mp4_path}")
+        
+        # Extract metadata from the original video
         metadata = video_processor.extract_metadata()
         
-        logger.info(f" Session created: {session_id} (not initialized - awaiting configuration)")
+        logger.info(f"📋 Session created: {session_id} (awaiting configuration)")
         
         return jsonify({
             'session_id': session_id,
@@ -991,17 +1013,22 @@ def export_captions(session_id):
 
 @video_bp.route('/session/<session_id>/video', methods=['GET'])
 def serve_video(session_id):
-    """Serve the video file for playback."""
+    """Serve the video file for playback (MP4 format for browser compatibility)."""
     with session_lock:
         video_session = video_sessions.get(session_id)
     
     if not video_session:
         return jsonify({'error': 'Session not found'}), 404
     
-    video_path = Path(video_session.video_path)
+    # Use MP4 path if available (converted for browser compatibility)
+    # Otherwise fall back to original video path
+    video_path = Path(video_session.mp4_path) if video_session.mp4_path else Path(video_session.video_path)
     
     if not video_path.exists():
+        logger.error(f"Video file not found: {video_path}")
         return jsonify({'error': 'Video file not found'}), 404
+    
+    logger.debug(f"Serving video: {video_path} ({video_path.stat().st_size / (1024*1024):.2f} MB)")
     
     return send_file(
         str(video_path),
