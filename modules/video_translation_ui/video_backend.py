@@ -1398,7 +1398,7 @@ def get_all_segments(session_id):
 
 @video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['PUT'])
 def update_segment(session_id, segment_id):
-    """Update a specific caption segment (text and translation)."""
+    """Update a specific caption segment (text, translation, and timing)."""
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1409,17 +1409,43 @@ def update_segment(session_id, segment_id):
         data = request.get_json()
         new_text = data.get('text')
         new_translation = data.get('translation')
+        new_start = data.get('start_time')
+        new_end = data.get('end_time')
         
-        if new_text is None and new_translation is None:
+        if new_text is None and new_translation is None and new_start is None and new_end is None:
             return jsonify({'error': 'No update data provided'}), 400
         
         if not video_session.chunk_manager:
             return jsonify({'error': 'No chunks available'}), 404
         
+        # Validate timing if provided
+        if new_start is not None or new_end is not None:
+            try:
+                if new_start is not None:
+                    new_start = float(new_start)
+                    if new_start < 0:
+                        return jsonify({'error': 'Start time must be non-negative'}), 400
+                
+                if new_end is not None:
+                    new_end = float(new_end)
+                    if new_end < 0:
+                        return jsonify({'error': 'End time must be non-negative'}), 400
+                
+                # If both provided, ensure start < end and minimum duration
+                if new_start is not None and new_end is not None:
+                    if new_start >= new_end:
+                        return jsonify({'error': 'Start time must be less than end time'}), 400
+                    if (new_end - new_start) < 0.1:
+                        return jsonify({'error': 'Segment duration must be at least 0.1 seconds'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid time format'}), 400
+        
         with video_session.state_lock:
             # Collect all segments to find the target by index
             current_index = 0
             found = False
+            target_chunk = None
+            target_seg = None
             
             for chunk in video_session.chunk_manager.chunks:
                 if not chunk.timestamps:
@@ -1427,13 +1453,9 @@ def update_segment(session_id, segment_id):
                     
                 for seg in chunk.timestamps:
                     if current_index == segment_id:
-                        # Update the segment
-                        if new_text is not None:
-                            seg['text'] = new_text
-                        if new_translation is not None:
-                            seg['translation'] = new_translation
+                        target_chunk = chunk
+                        target_seg = seg
                         found = True
-                        logger.info(f"Updated segment {segment_id} in session {session_id}")
                         break
                     current_index += 1
                 
@@ -1442,6 +1464,35 @@ def update_segment(session_id, segment_id):
             
             if not found:
                 return jsonify({'error': 'Invalid segment ID'}), 404
+            
+            # If only one timing value provided, use current value for the other
+            if new_start is None and new_end is not None:
+                new_start = target_seg.get('start', 0.0)
+            if new_end is None and new_start is not None:
+                new_end = target_seg.get('end', new_start + 1.0)
+            
+            # Final validation with actual values
+            if new_start is not None and new_end is not None:
+                if new_start >= new_end:
+                    return jsonify({'error': 'Start time must be less than end time'}), 400
+                if (new_end - new_start) < 0.1:
+                    return jsonify({'error': 'Segment duration must be at least 0.1 seconds'}), 400
+            
+            # Update the segment
+            if new_text is not None:
+                target_seg['text'] = new_text
+            if new_translation is not None:
+                target_seg['translation'] = new_translation
+            if new_start is not None:
+                target_seg['start'] = new_start
+            if new_end is not None:
+                target_seg['end'] = new_end
+            
+            # Re-sort timestamps within chunk to maintain chronological order
+            if new_start is not None or new_end is not None:
+                target_chunk.timestamps.sort(key=lambda s: s.get('start', 0))
+            
+            logger.info(f"Updated segment {segment_id} in session {session_id}")
         
         return jsonify({
             'success': True,

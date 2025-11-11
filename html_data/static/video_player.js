@@ -1636,6 +1636,42 @@ class VideoTranslatorApp {
         return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
     
+    formatTimeForInput(seconds) {
+        // Always format as HH:MM:SS.mmm for editing
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    }
+    
+    parseTimeInput(timeString) {
+        // Parse time string in format HH:MM:SS.mmm or MM:SS.mmm or SS.mmm
+        if (!timeString) return null;
+        
+        const parts = timeString.split(':');
+        let hours = 0, minutes = 0, seconds = 0;
+        
+        if (parts.length === 3) {
+            // HH:MM:SS.mmm
+            hours = parseInt(parts[0]) || 0;
+            minutes = parseInt(parts[1]) || 0;
+            seconds = parseFloat(parts[2]) || 0;
+        } else if (parts.length === 2) {
+            // MM:SS.mmm
+            minutes = parseInt(parts[0]) || 0;
+            seconds = parseFloat(parts[1]) || 0;
+        } else if (parts.length === 1) {
+            // SS.mmm
+            seconds = parseFloat(parts[0]) || 0;
+        } else {
+            return null;
+        }
+        
+        return hours * 3600 + minutes * 60 + seconds;
+    }
+    
     showLoading(message = 'Loading...') {
         this.loadingOverlay.querySelector('.loading-text').textContent = message;
         this.loadingOverlay.style.display = 'flex';
@@ -1963,6 +1999,8 @@ class VideoTranslatorApp {
         const item = document.createElement('div');
         item.className = 'caption-item';
         item.dataset.segmentId = index;
+        item.dataset.startTime = segment.start;
+        item.dataset.endTime = segment.end;
         
         const startTime = this.formatTime(segment.start);
         const endTime = this.formatTime(segment.end);
@@ -1972,6 +2010,7 @@ class VideoTranslatorApp {
             <div class="caption-header">
                 <span class="caption-time">${startTime} → ${endTime} (${duration}s)</span>
                 <div class="caption-actions">
+                    <button class="caption-btn play-btn" data-action="play">▶️ Play</button>
                     <button class="caption-btn edit-btn" data-action="edit">✏️ Edit</button>
                     <button class="caption-btn redo-btn" data-action="redo">🔄 Redo</button>
                     <button class="caption-btn delete-btn" data-action="delete">🗑️ Delete</button>
@@ -1984,10 +2023,12 @@ class VideoTranslatorApp {
         `;
         
         // Add action listeners
+        const playBtn = item.querySelector('[data-action="play"]');
         const editBtn = item.querySelector('[data-action="edit"]');
         const redoBtn = item.querySelector('[data-action="redo"]');
         const deleteBtn = item.querySelector('[data-action="delete"]');
         
+        playBtn.addEventListener('click', () => this.playFromSegment(segment));
         editBtn.addEventListener('click', () => this.editCaption(segment, index, item));
         redoBtn.addEventListener('click', () => this.addToBatch(segment.start, segment.end));
         deleteBtn.addEventListener('click', () => this.deleteCaption(segment, index));
@@ -1995,13 +2036,31 @@ class VideoTranslatorApp {
         return item;
     }
     
+    playFromSegment(segment) {
+        // Jump to the segment's start time and play
+        if (this.videoPlayer) {
+            this.videoPlayer.currentTime = segment.start;
+            this.videoPlayer.play().catch(error => {
+                console.error('Error playing video:', error);
+                this.showError('Failed to play video');
+            });
+            
+            // Show visual feedback
+            this.showSuccess(`Playing from ${this.formatTime(segment.start)}`);
+        } else {
+            console.warn('Video player not initialized');
+            this.showError('Video player not ready');
+        }
+    }
+    
     editCaption(segment, index, itemElement) {
         const textDiv = itemElement.querySelector('.caption-text');
         const translationDiv = itemElement.querySelector('.caption-translation');
+        const timeSpan = itemElement.querySelector('.caption-time');
         const editBtn = itemElement.querySelector('[data-action="edit"]');
         
         if (editBtn.textContent.includes('Save')) {
-            // Save mode
+            // Save mode - get all edited values
             const textAreas = itemElement.querySelectorAll('.caption-text-editable');
             const textArea = textAreas[0];
             const translationArea = textAreas[1];
@@ -2009,10 +2068,41 @@ class VideoTranslatorApp {
             const newText = textArea ? textArea.value : segment.text;
             const newTranslation = translationArea ? translationArea.value : segment.translation;
             
-            // Update segment
-            this.updateSegment(index, newText, newTranslation);
+            // Get timing values
+            const startInput = itemElement.querySelector('.caption-time-start');
+            const endInput = itemElement.querySelector('.caption-time-end');
+            
+            let newStart = segment.start;
+            let newEnd = segment.end;
+            
+            if (startInput && endInput) {
+                newStart = this.parseTimeInput(startInput.value) || segment.start;
+                newEnd = this.parseTimeInput(endInput.value) || segment.end;
+                
+                // Validate timing
+                if (newStart >= newEnd) {
+                    this.showError('Start time must be before end time');
+                    return;
+                }
+                if (newEnd - newStart < 0.1) {
+                    this.showError('Duration must be at least 0.1 seconds');
+                    return;
+                }
+            }
+            
+            // Update segment with all changes
+            this.updateSegment(index, newText, newTranslation, newStart, newEnd);
+            
+            // Update data attributes
+            itemElement.dataset.startTime = newStart;
+            itemElement.dataset.endTime = newEnd;
             
             // Restore display
+            const startTime = this.formatTime(newStart);
+            const endTime = this.formatTime(newEnd);
+            const duration = (newEnd - newStart).toFixed(1);
+            timeSpan.textContent = `${startTime} → ${endTime} (${duration}s)`;
+            
             textDiv.innerHTML = this.escapeHtml(newText);
             translationDiv.innerHTML = this.escapeHtml(newTranslation);
             editBtn.textContent = '✏️ Edit';
@@ -2020,6 +2110,18 @@ class VideoTranslatorApp {
             // Edit mode
             const currentText = segment.text || '';
             const currentTranslation = segment.translation || '';
+            const currentStart = parseFloat(itemElement.dataset.startTime) || segment.start;
+            const currentEnd = parseFloat(itemElement.dataset.endTime) || segment.end;
+            
+            // Replace time display with editable inputs
+            const startTimeStr = this.formatTimeForInput(currentStart);
+            const endTimeStr = this.formatTimeForInput(currentEnd);
+            
+            timeSpan.innerHTML = `
+                <input type="text" class="caption-time-start" value="${startTimeStr}" placeholder="00:00:00.000" />
+                <span style="margin: 0 4px;">→</span>
+                <input type="text" class="caption-time-end" value="${endTimeStr}" placeholder="00:00:00.000" />
+            `;
             
             textDiv.innerHTML = `<textarea class="caption-text-editable" placeholder="Original transcribed text...">${this.escapeHtml(currentText)}</textarea>`;
             translationDiv.innerHTML = `<textarea class="caption-text-editable" placeholder="English translation...">${this.escapeHtml(currentTranslation)}</textarea>`;
@@ -2027,18 +2129,28 @@ class VideoTranslatorApp {
         }
     }
     
-    async updateSegment(index, text, translation) {
+    async updateSegment(index, text, translation, startTime, endTime) {
         if (!this.sessionId) return;
         
         try {
+            const payload = { text, translation };
+            
+            // Include timing if provided
+            if (startTime !== undefined && endTime !== undefined) {
+                payload.start_time = startTime;
+                payload.end_time = endTime;
+            }
+            
             const response = await fetch(`/api/video/session/${this.sessionId}/segment/${index}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text, translation })
+                body: JSON.stringify(payload)
             });
             
             if (response.ok) {
                 this.showSuccess('Caption updated');
+                // Reload segments to reflect changes
+                await this.loadCaptions();
             } else {
                 this.showError('Failed to update caption');
             }

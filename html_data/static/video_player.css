@@ -896,6 +896,11 @@ body {
     color: #00D4FF;
 }
 
+.caption-btn.play-btn:hover {
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
 .caption-btn.delete-btn:hover {
     border-color: #f44336;
     color: #f44336;
@@ -948,6 +953,26 @@ body {
     outline: none;
     border-color: #00D4FF;
     box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+.caption-time-start,
+.caption-time-end {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #00D4FF;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    width: 110px;
+    text-align: center;
+}
+
+.caption-time-start:focus,
+.caption-time-end:focus {
+    outline: none;
+    border-color: #00D4FF;
+    box-shadow: 0 0 6px rgba(0, 212, 255, 0.4);
 }
 
 /* Batch Redo Section */
