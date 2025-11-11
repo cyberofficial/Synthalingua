@@ -507,8 +507,6 @@ def main():
                                 # For translate task, emit each segment IMMEDIATELY to stdout for incremental updates
                                 # Parent process can parse these and update UI in real-time
                                 if args.task == "translate":
-                                    import json
-                                    import sys
                                     segment_event = {
                                         'type': 'segment',
                                         'index': i,
@@ -687,13 +685,21 @@ def main():
             output_data = {"status": "success", **result}
         
     except Exception as e:
+        import traceback
         error_msg = str(e)
+        error_traceback = traceback.format_exc()
+        
         try:
             logger.error("An error occurred during transcription: %s", error_msg, exc_info=True)
         except UnicodeError:
             logger.error("An error occurred during transcription (details suppressed due to encoding)")
         
-        output_data = {"status": "error", "message": error_msg}
+        # Include traceback in error message for better debugging
+        output_data = {
+            "status": "error", 
+            "message": error_msg,
+            "traceback": error_traceback
+        }
         
         # Write error result with robust encoding handling
         try:

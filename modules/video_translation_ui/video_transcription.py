@@ -46,7 +46,7 @@ def _run_transcription_in_subprocess(
     language: Optional[str] = None,
     task: str = "transcribe",
     debug: bool = False,
-    timeout: int = 300,
+    timeout: int = 900,
     enable_silence_detection: bool = False,
     silence_threshold_db: float = -50.0,
     min_silence_duration: float = 0.1,
@@ -271,21 +271,46 @@ def _run_transcription_in_subprocess(
                 stdout, stderr = process.communicate()
                 raise RuntimeError(f"Worker process timed out after {timeout} seconds")
         
-        # Check exit code
+        # Check exit code and read result from JSON file
+        # IMPORTANT: Always try to read JSON file first - worker writes errors there
+        result = None
+        if os.path.exists(output_json_path):
+            try:
+                with open(output_json_path, 'r', encoding='utf-8') as f:
+                    result = json.load(f)
+            except Exception as json_error:
+                logger.error(f"Failed to read worker output JSON: {json_error}")
+        
+        # If process failed, build comprehensive error message
         if process.returncode != 0:
             error_msg = f"Worker process failed with exit code {process.returncode}"
-            if stderr:
-                error_msg += f"\nStderr: {stderr}"
+            
+            # Include worker's error message if available in JSON
+            if result and result.get("status") == "error":
+                worker_error = result.get('message', 'Unknown error')
+                error_msg += f"\nWorker error: {worker_error}"
+                
+                # Include full traceback if available
+                if 'traceback' in result:
+                    error_msg += f"\nWorker traceback:\n{result['traceback']}"
+            
+            # Include stderr if available
+            if stderr and stderr.strip():
+                error_msg += f"\nStderr: {stderr.strip()}"
+            
+            # Include last few lines of stdout for context
+            if stdout and stdout.strip():
+                stdout_lines = stdout.strip().split('\n')
+                last_lines = stdout_lines[-10:] if len(stdout_lines) > 10 else stdout_lines
+                error_msg += f"\nLast stdout lines:\n" + "\n".join(last_lines)
+            
             raise RuntimeError(error_msg)
         
-        # Read result from JSON file
-        if not os.path.exists(output_json_path):
+        # If process succeeded but no output file
+        if not result:
             raise RuntimeError("Worker did not create output JSON file")
         
-        with open(output_json_path, 'r', encoding='utf-8') as f:
-            result = json.load(f)
-        
-        # Check result status
+        # Check result status (redundant check but safe)
         if result.get("status") == "error":
             raise RuntimeError(f"Worker reported error: {result.get('message', 'Unknown error')}")
         
