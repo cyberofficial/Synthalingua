@@ -29,6 +29,353 @@ class VideoTranslatorApp {
         this.setupEventListeners();
         this.initializeSocket();
         this.loadAvailableLanguages();
+        this.checkForExistingSession(); // Check if URL has session ID
+    }
+    
+    checkForExistingSession() {
+        // Check if URL contains session parameter OR any config parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        
+        // Always store URL params if they exist (even without session)
+        if (urlParams.toString()) {
+            console.log('📋 Found URL parameters:', urlParams.toString());
+            this.pendingUrlParams = urlParams;
+        }
+        
+        if (sessionId) {
+            console.log(`📋 Found session ID in URL: ${sessionId}`);
+            // Store params for later restoration after languages load
+            this.pendingUrlParams = urlParams;
+            this.restoreSession(sessionId, urlParams);
+        }
+    }
+    
+    async restoreSession(sessionId, urlParams = null) {
+        try {
+            console.log(`🔄 Restoring session: ${sessionId}`);
+            this.showLoading('Restoring session...');
+            
+            // Configuration will be restored after languages load
+            // (see loadAvailableLanguages method)
+            
+            // Check if session exists on backend
+            const response = await fetch(`/api/video/session/${sessionId}/status`);
+            
+            if (!response.ok) {
+                console.warn('Session not found or expired');
+                this.hideLoading();
+                this.showError('Session not found or expired. Please upload a new video.');
+                return;
+            }
+            
+            const data = await response.json();
+            
+            // Restore session ID
+            this.sessionId = sessionId;
+            
+            // Join socket room
+            this.socket.emit('join_video_session', { session_id: sessionId });
+            
+            // Hide upload area, show player
+            this.uploadArea.style.display = 'none';
+            
+            // Load video
+            this.videoSource.src = `/api/video/session/${sessionId}/video`;
+            this.videoPlayer.load();
+            
+            // Restore video metadata if available
+            if (data.metadata) {
+                this.videoMetadata = data.metadata;
+                
+                // Wait for video to load before displaying info
+                this.videoPlayer.addEventListener('loadedmetadata', () => {
+                    // Create a properly formatted data object for displayVideoInfo
+                    const videoInfoData = {
+                        filename: data.metadata.filename || 'Unknown',
+                        metadata: data.metadata
+                    };
+                    this.displayVideoInfo(videoInfoData);
+                }, { once: true });
+            }
+            
+            // Check if processing is active
+            if (data.is_processing) {
+                this.isProcessing = true;
+                this.startProcessingBtn.disabled = true;
+                this.exportBtn.disabled = true;
+                this.statusProcessing.textContent = 'Processing...';
+                this.startStatusPolling();
+            } else if (data.is_initialized) {
+                // Session was processed before
+                this.startProcessingBtn.disabled = false;
+                this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
+                this.exportBtn.disabled = false; // Enable export if processing is done
+            } else {
+                // Session exists but hasn't been processed yet (video uploaded, ready to process)
+                this.startProcessingBtn.disabled = false;
+                this.startProcessingBtn.textContent = '🎬 START PROCESSING';
+                this.exportBtn.disabled = true; // Can't export until processed
+                this.statusProcessing.textContent = 'Ready to process';
+            }
+            
+            // Update segment count if available
+            if (data.segment_count !== undefined && data.segment_count !== null) {
+                this.statusSegments.textContent = `${data.segment_count}/${data.segment_count} segments`;
+            } else if (data.progress && data.progress.segment_count !== undefined) {
+                // Alternative location in progress object
+                this.statusSegments.textContent = `${data.progress.segment_count} segments`;
+            }
+            
+            // Load captions if available
+            this.checkVocalsAvailability();
+            
+            // Display session URL (will include current config from UI)
+            this.displaySessionUrl(sessionId);
+            
+            this.hideLoading();
+            console.log('✅ Session restored successfully');
+            
+        } catch (error) {
+            console.error('Error restoring session:', error);
+            this.hideLoading();
+            this.showError('Failed to restore session: ' + error.message);
+        }
+    }
+    
+    restoreConfigFromUrl(urlParams) {
+        // Restore all configuration settings from URL parameters
+        console.log('🔧 Restoring configuration from URL...');
+        console.log('📝 URL Params:', Array.from(urlParams.entries()));
+        
+        // Model settings
+        if (urlParams.has('model_source')) {
+            const value = urlParams.get('model_source');
+            console.log('Setting model_source to:', value);
+            this.modelSource.value = value;
+            console.log('✅ model_source now:', this.modelSource.value);
+        }
+        if (urlParams.has('model_size')) {
+            const value = urlParams.get('model_size');
+            console.log('Setting model_size to:', value);
+            this.modelSize.value = value;
+            console.log('✅ model_size now:', this.modelSize.value);
+        }
+        if (urlParams.has('device')) {
+            const value = urlParams.get('device');
+            console.log('Setting device to:', value);
+            this.device.value = value;
+            console.log('✅ device now:', this.device.value);
+        }
+        if (urlParams.has('source_lang')) {
+            const value = urlParams.get('source_lang');
+            console.log('Setting source_lang to:', value);
+            console.log('Source language dropdown has', this.sourceLanguage.options.length, 'options');
+            console.log('Source language dropdown options:', Array.from(this.sourceLanguage.options).map(o => o.value));
+            this.sourceLanguage.value = value;
+            console.log('✅ source_lang now:', this.sourceLanguage.value);
+        }
+        
+        // Silence detection
+        if (urlParams.has('silence_detect')) {
+            const value = urlParams.get('silence_detect') === 'true';
+            console.log('Setting silence_detect to:', value);
+            this.enableSilenceDetection.checked = value;
+        }
+        if (urlParams.has('silence_thresh')) {
+            const value = urlParams.get('silence_thresh');
+            console.log('Setting silence_thresh to:', value);
+            this.silenceThreshold.value = value;
+            this.silenceThresholdValue.textContent = value + ' dB';
+        }
+        if (urlParams.has('min_silence')) {
+            const value = urlParams.get('min_silence');
+            console.log('Setting min_silence to:', value);
+            this.minSilenceDuration.value = value;
+            this.minSilenceDurationValue.textContent = value + 's';
+        }
+        if (urlParams.has('min_speech')) {
+            const value = urlParams.get('min_speech');
+            console.log('Setting min_speech to:', value);
+            this.minSpeechDuration.value = value;
+            this.minSpeechDurationValue.textContent = value + 's';
+        }
+        
+        // Vocal isolation
+        if (urlParams.has('vocal_iso')) {
+            const value = urlParams.get('vocal_iso') === 'true';
+            console.log('Setting vocal_iso to:', value);
+            this.enableVocalIsolation.checked = value;
+        }
+        if (urlParams.has('demucs_model')) {
+            const value = urlParams.get('demucs_model');
+            console.log('Setting demucs_model to:', value);
+            this.demucsModel.value = value;
+        }
+        if (urlParams.has('demucs_jobs')) {
+            const value = urlParams.get('demucs_jobs');
+            console.log('Setting demucs_jobs to:', value);
+            this.demucsJobs.value = value;
+        }
+        
+        // Temperature
+        if (urlParams.has('temp_enable')) {
+            const value = urlParams.get('temp_enable') === 'true';
+            console.log('Setting temp_enable to:', value);
+            this.enableTemperature.checked = value;
+        }
+        if (urlParams.has('temp_val')) {
+            const value = urlParams.get('temp_val');
+            console.log('Setting temp_val to:', value);
+            this.temperatureSlider.value = value;
+            this.temperatureValue.textContent = (parseFloat(value) / 100).toFixed(2);
+        }
+        
+        // Compression ratio
+        if (urlParams.has('comp_ratio')) {
+            const value = urlParams.get('comp_ratio');
+            console.log('Setting comp_ratio to:', value);
+            this.compressionRatioSlider.value = value;
+            this.compressionRatioValue.textContent = (parseFloat(value) / 10).toFixed(1);
+            this.updateCompressionRatioWarning(parseFloat(value) / 10);
+        }
+        
+        console.log('✅ Configuration restored from URL');
+        
+        // Verify restoration by logging final UI state
+        console.log('📊 Final UI State:');
+        console.log('  - Model Source:', this.modelSource.value, '(selected text:', this.modelSource.options[this.modelSource.selectedIndex]?.text + ')');
+        console.log('  - Model Size:', this.modelSize.value, '(selected text:', this.modelSize.options[this.modelSize.selectedIndex]?.text + ')');
+        console.log('  - Device:', this.device.value, '(selected text:', this.device.options[this.device.selectedIndex]?.text + ')');
+        console.log('  - Source Lang:', this.sourceLanguage.value, '(selected text:', this.sourceLanguage.options[this.sourceLanguage.selectedIndex]?.text + ')');
+        console.log('  - Vocal Isolation:', this.enableVocalIsolation.checked);
+        console.log('  - Demucs Model:', this.demucsModel.value);
+        console.log('  - Demucs Jobs:', this.demucsJobs.value);
+        console.log('  - Silence Threshold:', this.silenceThreshold.value, '(display:', this.silenceThresholdValue.textContent + ')');
+        console.log('  - Min Silence:', this.minSilenceDuration.value, '(display:', this.minSilenceDurationValue.textContent + ')');
+        console.log('  - Min Speech:', this.minSpeechDuration.value, '(display:', this.minSpeechDurationValue.textContent + ')');
+        console.log('  - Temperature Enable:', this.enableTemperature.checked);
+        console.log('  - Temperature Value:', this.temperatureSlider.value, '(display:', this.temperatureValue.textContent + ')');
+        console.log('  - Compression Ratio:', this.compressionRatioSlider.value, '(display:', this.compressionRatioValue.textContent + ')');
+        
+        // Debug: Check again after 2 seconds to see if anything changed
+        setTimeout(() => {
+            console.log('🔍 Configuration check after 2 seconds:');
+            console.log('  - Model Source:', this.modelSource.value);
+            console.log('  - Source Lang:', this.sourceLanguage.value);
+            console.log('  - Silence Threshold:', this.silenceThreshold.value, '(display:', this.silenceThresholdValue.textContent + ')');
+            console.log('  - Temperature:', this.temperatureSlider.value, '(display:', this.temperatureValue.textContent + ')');
+            console.log('  - Compression Ratio:', this.compressionRatioSlider.value, '(display:', this.compressionRatioValue.textContent + ')');
+        }, 2000);
+    }
+    
+    buildConfigUrlParams() {
+        // Build URL parameters from current UI settings
+        const params = new URLSearchParams();
+        
+        // Model settings
+        params.set('model_source', this.modelSource.value);
+        params.set('model_size', this.modelSize.value);
+        params.set('device', this.device.value);
+        params.set('source_lang', this.sourceLanguage.value || 'auto');
+        
+        // Silence detection
+        params.set('silence_detect', this.enableSilenceDetection.checked);
+        params.set('silence_thresh', this.silenceThreshold.value);
+        params.set('min_silence', this.minSilenceDuration.value);
+        params.set('min_speech', this.minSpeechDuration.value);
+        
+        // Vocal isolation
+        params.set('vocal_iso', this.enableVocalIsolation.checked);
+        params.set('demucs_model', this.demucsModel.value);
+        params.set('demucs_jobs', this.demucsJobs.value);
+        
+        // Temperature
+        params.set('temp_enable', this.enableTemperature.checked);
+        params.set('temp_val', this.temperatureSlider.value);
+        
+        // Compression ratio
+        params.set('comp_ratio', this.compressionRatioSlider.value);
+        
+        return params;
+    }
+    
+    updateSessionUrl() {
+        // Update session URL with current configuration (if session exists)
+        if (this.sessionId) {
+            this.displaySessionUrl(this.sessionId);
+            
+            // Also update browser URL bar
+            const configParams = this.buildConfigUrlParams();
+            configParams.set('session', this.sessionId);
+            const newUrl = `${window.location.pathname}?${configParams.toString()}`;
+            window.history.replaceState({ sessionId: this.sessionId }, '', newUrl);
+        }
+    }
+    
+    displaySessionUrl(sessionId) {
+        // Create or update session URL display with current configuration
+        let sessionUrlDiv = document.getElementById('session-url-display');
+        
+        if (!sessionUrlDiv) {
+            sessionUrlDiv = document.createElement('div');
+            sessionUrlDiv.id = 'session-url-display';
+            sessionUrlDiv.style.cssText = `
+                background: #2a2a2a;
+                border: 2px solid #00D4FF;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 15px 0;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            `;
+            
+            // Insert after video info
+            const videoInfo = this.videoInfo;
+            if (videoInfo && videoInfo.parentNode) {
+                videoInfo.parentNode.insertBefore(sessionUrlDiv, videoInfo.nextSibling);
+            }
+        }
+        
+        // Build full URL with session ID and current configuration
+        const configParams = this.buildConfigUrlParams();
+        configParams.set('session', sessionId);
+        const sessionUrl = `${window.location.origin}/video_player.html?${configParams.toString()}`;
+        
+        sessionUrlDiv.innerHTML = `
+            <div style="flex: 1;">
+                <div style="color: #00D4FF; font-weight: bold; margin-bottom: 5px;">📋 Session URL (bookmark to return later):</div>
+                <input type="text" 
+                       id="session-url-input" 
+                       value="${sessionUrl}" 
+                       readonly 
+                       style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 4px; font-family: monospace; font-size: 12px;">
+            </div>
+            <button id="copy-session-url-btn" 
+                    style="padding: 10px 20px; background: #00D4FF; color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; white-space: nowrap;">
+                📋 Copy URL
+            </button>
+        `;
+        
+        // Add copy functionality
+        const copyBtn = document.getElementById('copy-session-url-btn');
+        const urlInput = document.getElementById('session-url-input');
+        
+        copyBtn.addEventListener('click', () => {
+            urlInput.select();
+            document.execCommand('copy');
+            
+            // Visual feedback
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✅ Copied!';
+            copyBtn.style.background = '#4CAF50';
+            
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.background = '#00D4FF';
+            }, 2000);
+        });
     }
     
     initializeElements() {
@@ -164,6 +511,16 @@ class VideoTranslatorApp {
         this.batchQueue = []; // Array of {start, end, duration} objects
         this.isBatchProcessing = false;
         this.currentBatchIndex = 0;
+        
+        // Store URL params for restoration after languages load
+        this.pendingUrlParams = null;
+        
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', (event) => {
+            if (event.state && event.state.sessionId) {
+                this.restoreSession(event.state.sessionId);
+            }
+        });
     }
     
     setupEventListeners() {
@@ -249,21 +606,36 @@ class VideoTranslatorApp {
         this.highlightColor.addEventListener('input', (e) => this.updateCaptionStyle());
         this.captionPosition.addEventListener('change', (e) => this.updateCaptionStyle());
         
+        // Update URL when any config setting changes
+        this.modelSource.addEventListener('change', () => this.updateSessionUrl());
+        this.modelSize.addEventListener('change', () => this.updateSessionUrl());
+        this.device.addEventListener('change', () => this.updateSessionUrl());
+        this.sourceLanguage.addEventListener('change', () => this.updateSessionUrl());
+        this.enableSilenceDetection.addEventListener('change', () => this.updateSessionUrl());
+        this.enableVocalIsolation.addEventListener('change', () => this.updateSessionUrl());
+        this.demucsModel.addEventListener('change', () => this.updateSessionUrl());
+        this.demucsJobs.addEventListener('change', () => this.updateSessionUrl());
+        this.enableTemperature.addEventListener('change', () => this.updateSessionUrl());
+        
         // Silence detection sliders
         this.silenceThreshold.addEventListener('input', (e) => {
             this.silenceThresholdValue.textContent = `${e.target.value} dB`;
+            this.updateSessionUrl();
         });
         this.minSilenceDuration.addEventListener('input', (e) => {
             this.minSilenceDurationValue.textContent = `${e.target.value} s`;
+            this.updateSessionUrl();
         });
         this.minSpeechDuration.addEventListener('input', (e) => {
             this.minSpeechDurationValue.textContent = `${e.target.value} s`;
+            this.updateSessionUrl();
         });
         
         // Temperature slider
         this.temperatureSlider.addEventListener('input', (e) => {
             const tempValue = (parseInt(e.target.value) / 100).toFixed(2);
             this.temperatureValue.textContent = tempValue;
+            this.updateSessionUrl();
         });
         
         // Compression ratio slider
@@ -272,6 +644,7 @@ class VideoTranslatorApp {
             this.compressionRatioValue.textContent = ratioValue;
             this.updateCompressionRatioWarning(parseFloat(ratioValue));
             this.updatePresetButtonStates(parseFloat(ratioValue));
+            this.updateSessionUrl();
         });
         
         // Compression ratio preset buttons
@@ -356,11 +729,30 @@ class VideoTranslatorApp {
     
     async loadAvailableLanguages() {
         try {
+            console.log('🌐 Loading available languages...');
             const response = await fetch('/api/video/languages');
             const data = await response.json();
             
             if (data.success && data.languages) {
                 this.populateLanguageDropdowns(data.languages);
+                console.log('✅ Languages loaded, dropdown has', this.sourceLanguage.options.length, 'options');
+                
+                // Restore config from URL after languages are loaded
+                if (this.pendingUrlParams) {
+                    console.log('🔧 Languages loaded, now restoring config from URL...');
+                    console.log('📦 pendingUrlParams exists:', this.pendingUrlParams !== null);
+                    this.restoreConfigFromUrl(this.pendingUrlParams);
+                    
+                    // Update the session URL display with restored config
+                    if (this.sessionId) {
+                        console.log('🔗 Updating session URL with restored configuration...');
+                        this.displaySessionUrl(this.sessionId);
+                    }
+                    
+                    this.pendingUrlParams = null;
+                } else {
+                    console.log('⚠️ Languages loaded but no pendingUrlParams found!');
+                }
             } else {
                 console.error('Failed to load languages:', data);
             }
@@ -426,6 +818,10 @@ class VideoTranslatorApp {
                 this.sessionId = data.session_id;
                 this.videoMetadata = data.metadata;
                 
+                // Update URL with session ID (without page reload)
+                const newUrl = `${window.location.pathname}?session=${this.sessionId}`;
+                window.history.pushState({ sessionId: this.sessionId }, '', newUrl);
+                
                 // Join WebSocket room
                 this.socket.emit('join_video_session', { session_id: this.sessionId });
                 
@@ -435,6 +831,10 @@ class VideoTranslatorApp {
                 
                 // Update UI
                 this.displayVideoInfo(data);
+                
+                // Display session URL for bookmarking
+                this.displaySessionUrl(this.sessionId);
+                
                 this.startProcessingBtn.disabled = false;
                 // Keep export button disabled until processing is complete
                 this.exportBtn.disabled = true;
@@ -454,12 +854,20 @@ class VideoTranslatorApp {
     }
     
     displayVideoInfo(data) {
-        document.getElementById('info-filename').textContent = data.filename;
-        document.getElementById('info-duration').textContent = this.formatTime(data.metadata.duration);
+        // Safely access metadata with defaults
+        const metadata = data.metadata || {};
+        const filename = data.filename || 'Unknown';
+        const duration = metadata.duration || 0;
+        const width = metadata.width || 0;
+        const height = metadata.height || 0;
+        const fps = metadata.fps;
+        
+        document.getElementById('info-filename').textContent = filename;
+        document.getElementById('info-duration').textContent = this.formatTime(duration);
         document.getElementById('info-resolution').textContent = 
-            `${data.metadata.width}x${data.metadata.height}`;
+            width && height ? `${width}x${height}` : 'Unknown';
         document.getElementById('info-fps').textContent = 
-            data.metadata.fps ? `${data.metadata.fps} fps` : 'Unknown';
+            fps ? `${fps} fps` : 'Unknown';
         
         this.videoInfo.style.display = 'block';
         this.uploadArea.style.display = 'none';
@@ -577,6 +985,15 @@ class VideoTranslatorApp {
                 this.startProcessingBtn.disabled = true;
                 this.exportBtn.disabled = true;  // Disable export during processing
                 this.statusProcessing.textContent = 'Processing...';
+                
+                // Update URL with configuration (so refresh preserves settings)
+                const configParams = this.buildConfigUrlParams();
+                configParams.set('session', this.sessionId);
+                const newUrl = `${window.location.pathname}?${configParams.toString()}`;
+                window.history.replaceState({ sessionId: this.sessionId }, '', newUrl);
+                
+                // Update session URL display to include config
+                this.displaySessionUrl(this.sessionId);
                 
                 // Display configuration
                 this.displayConfiguration();
@@ -706,8 +1123,16 @@ class VideoTranslatorApp {
             this.statusLanguage.textContent = `${lang} → en`;
         }
         
-        // Don't update segment count here - let WebSocket buffer_update events handle it
-        // (Status polling doesn't have total_segments info, so it would show incomplete data)
+        // Update segment count from status if available
+        if (status.segment_count !== undefined && status.segment_count !== null) {
+            // Processing complete - show total
+            if (status.progress && status.progress.progress_pct >= 100) {
+                this.statusSegments.textContent = `${status.segment_count}/${status.segment_count} segments`;
+            } else {
+                // Processing ongoing - show current count only
+                this.statusSegments.textContent = `${status.segment_count} segments`;
+            }
+        }
     }
     
     updateBufferStatus(data) {

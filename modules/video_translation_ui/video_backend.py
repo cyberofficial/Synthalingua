@@ -36,6 +36,7 @@ session_lock = threading.Lock()
 # Global configuration (set from parser_args)
 _global_model_dir = './models'  # Default, can be overridden
 _debug_mode = False  # Default, can be overridden
+_keep_temp_global = False  # Default, can be overridden - tracks if any session wants to keep temp files
 
 def set_model_dir(model_dir: str):
     """Set the global model directory from parser_args."""
@@ -59,6 +60,15 @@ def set_debug_mode(debug: bool):
         logger.debug("Video backend debug mode enabled")
     else:
         logger.setLevel(logging.INFO)
+
+def set_keep_temp(keep_temp: bool):
+    """Set keep_temp flag for video backend."""
+    global _keep_temp_global
+    _keep_temp_global = keep_temp
+    if keep_temp:
+        logger.info("Video backend will keep temporary files")
+    else:
+        logger.info("Video backend will clean temporary files on shutdown")
 
 # Upload configuration
 # Use absolute path from current working directory to avoid module-relative issues
@@ -733,7 +743,7 @@ class VideoSession:
             # Allow redo if processing is complete (all chunks done) even if thread is still running
             if self.is_processing and self.chunk_manager:
                 progress = self.chunk_manager.get_progress()
-                if progress['completed_chunks'] < progress['total_chunks']:
+                if progress['completed'] < progress['total_chunks']:
                     return {'success': False, 'error': 'Cannot redo section while processing is active'}
                 # else: All chunks completed, allow redo even if background thread is cleaning up
             elif self.is_processing:
@@ -1020,12 +1030,16 @@ class VideoSession:
             if self.video_processor:
                 self.video_processor.cleanup()
             
-            # Clean up temp directory
-            temp_dir = UPLOAD_FOLDER / self.session_id
-            if temp_dir.exists():
-                import shutil
-                shutil.rmtree(temp_dir)
-                logger.info(f"Cleaned up temp directory for session {self.session_id}")
+            # Clean up temp directory unless keep_temp flag is set
+            keep_temp = self.config.get('keep_temp', False)
+            if keep_temp:
+                logger.info(f"Keeping temp files for session {self.session_id} as requested")
+            else:
+                temp_dir = UPLOAD_FOLDER / self.session_id
+                if temp_dir.exists():
+                    import shutil
+                    shutil.rmtree(temp_dir)
+                    logger.info(f"Cleaned up temp directory for session {self.session_id}")
         except Exception as e:
             logger.error(f"Error cleaning up session {self.session_id}: {e}")
     
@@ -1800,4 +1814,21 @@ def cleanup_all_sessions():
         
         video_sessions.clear()
     
+    # Clean up entire video_uploads folder if no keep_temp flag is globally set
+    # Check if any session had keep_temp enabled
+    global _keep_temp_global
+    if not _keep_temp_global and UPLOAD_FOLDER.exists():
+        try:
+            import shutil
+            shutil.rmtree(UPLOAD_FOLDER)
+            logger.info(f"Cleaned up video uploads folder: {UPLOAD_FOLDER}")
+            # Recreate the folder for future use
+            UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            logger.error(f"Error cleaning up video uploads folder: {e}")
+    
     logger.info("All video sessions cleaned up")
+
+# Register cleanup on exit
+import atexit
+atexit.register(cleanup_all_sessions)

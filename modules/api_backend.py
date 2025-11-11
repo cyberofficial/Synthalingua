@@ -454,13 +454,14 @@ class FlaskServerThread(Thread):
         debug (bool): Enable debug mode
         model_dir (str): Directory where AI models are stored
     """
-    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False, model_dir='./models'):
+    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False, model_dir='./models', keep_temp=False):
         super().__init__()
         self.port = port
         self.use_https = use_https
         self.host = host
         self.debug = debug
         self.model_dir = model_dir
+        self.keep_temp = keep_temp
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
@@ -482,13 +483,17 @@ class FlaskServerThread(Thread):
         
         # Try to register video translation blueprint if available
         try:
-            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir, set_debug_mode
+            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir, set_debug_mode, set_keep_temp
             
             # Set model directory from args
             set_model_dir(self.model_dir)
             
             # Set debug mode from args
             set_debug_mode(self.debug or _debug_enabled)
+            
+            # Set keep_temp flag from args (if available)
+            keep_temp = getattr(self, 'keep_temp', False)
+            set_keep_temp(keep_temp)
             
             app.register_blueprint(video_bp)
             
@@ -659,7 +664,7 @@ class FlaskServerThread(Thread):
 server_thread = None
 https_server_thread = None
 
-def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False, model_dir='./models'):
+def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False, model_dir='./models', keep_temp=False):
     """
     Controls the Flask server operation.
     
@@ -670,6 +675,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         host (str): Host address to bind to
         debug (bool): Enable debug mode
         model_dir (str): Directory where AI models are stored
+        keep_temp (bool): If True, keep temporary files on cleanup
     """
     global server_thread, https_server_thread, _debug_enabled, force_shutdown_flag
     if operation == "start":
@@ -678,7 +684,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTP server if port is specified
         if portnumber:
-            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug, model_dir=model_dir)
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug, model_dir=model_dir, keep_temp=keep_temp)
             server_thread.daemon = True
             server_thread.start()
             
@@ -688,7 +694,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTPS server if port is specified
         if https_port:
-            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug, model_dir=model_dir)
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug, model_dir=model_dir, keep_temp=keep_temp)
             https_server_thread.daemon = True
             https_server_thread.start()
         

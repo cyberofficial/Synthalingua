@@ -295,7 +295,7 @@ def main():
             print(f"Starting HTTPS web server on {host}:{args.https}...")
             print(f"Access the web interface at: https://{host}:{args.https}")
         
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir)
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir, keep_temp=getattr(args, 'keep_temp', False))
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()
@@ -401,7 +401,7 @@ def main():
         if args.stream:
             print("Stopping stream transcription...")
             stop_transcription()
-            clean_temp_directory(temp_dir)
+            clean_temp_directory(temp_dir, keep_temp=getattr(args, 'keep_temp', False))
         
         # Clean up any temporary cookie files
         if hasattr(args, '_temp_cookie_files'):
