@@ -193,6 +193,10 @@ def _run_transcription_in_subprocess(
                 for line in process.stdout:
                     stdout_lines.append(line)
                     
+                    # Log worker output if debug enabled
+                    if debug and line.strip():
+                        logger.debug(f"[Worker] {line.rstrip()}")
+                    
                     # Check for segment event markers
                     if line.startswith("SEGMENT_EVENT:"):
                         try:
@@ -230,12 +234,29 @@ def _run_transcription_in_subprocess(
                 except:
                     break
             
+            # Log stderr if debug enabled
+            if debug and stderr_lines_collected:
+                for line in stderr_lines_collected:
+                    if line.strip():
+                        logger.debug(f"[Worker stderr] {line.rstrip()}")
+            
             stdout = ''.join(stdout_lines)
             stderr = ''.join(stderr_lines_collected)
         else:
             # Standard communication for transcribe task or no callback
             try:
                 stdout, stderr = process.communicate(timeout=timeout)
+                
+                # Log worker output if debug enabled
+                if debug:
+                    if stdout and stdout.strip():
+                        for line in stdout.split('\n'):
+                            if line.strip():
+                                logger.debug(f"[Worker] {line}")
+                    if stderr and stderr.strip():
+                        for line in stderr.split('\n'):
+                            if line.strip():
+                                logger.debug(f"[Worker stderr] {line}")
             except subprocess.TimeoutExpired:
                 process.kill()
                 stdout, stderr = process.communicate()
@@ -305,7 +326,8 @@ class VideoTranscriptionManager:
                  silence_threshold_db: float = -35.0,
                  min_silence_duration: float = 0.5,
                  model_dir: str = "./models",
-                 temperature: Optional[float] = None):
+                 temperature: Optional[float] = None,
+                 debug_mode: bool = False):
         """
         Initialize Video Transcription Manager.
         
@@ -333,6 +355,7 @@ class VideoTranscriptionManager:
         self.enable_silence_detection = enable_silence_detection
         self.model_dir = model_dir
         self.temperature = temperature  # None = use fallback, float = fixed temp
+        self.debug_mode = debug_mode  # Enable debug logging in worker subprocess
         
         logger.info(f"VideoTranscriptionManager initialized: model={model_source}/{model_size}, "
                    f"device={self.device}, source_lang={self.source_language}, target_lang={target_language}, "
@@ -392,7 +415,7 @@ class VideoTranscriptionManager:
                 model_dir=self.model_dir,
                 language=None,  # Auto-detect
                 task="transcribe",
-                debug=False
+                debug=self.debug_mode
             )
             
             detected_language = result.get('language', 'unknown')
@@ -470,9 +493,9 @@ class VideoTranscriptionManager:
                 device=self.device,
                 compute_type=self.compute_type,
                 model_dir=self.model_dir,
-                language=use_language,
+                language=self.source_language,
                 task="transcribe",
-                debug=False
+                debug=self.debug_mode
             )
             
             result['transcription'] = transcription_result.get('text', '').strip()
@@ -534,7 +557,7 @@ class VideoTranscriptionManager:
                         model_dir=self.model_dir,
                         language=source_lang,
                         task="translate",  # Translate to English
-                        debug=False
+                        debug=self.debug_mode
                     )
                     
                     translated = translation_result.get('text', '').strip()
@@ -733,10 +756,10 @@ class VideoTranscriptionManager:
                 model_dir=self.model_dir,
                 language=self.source_language,
                 task="translate",  # Translate directly to English
-                debug=False,
+                debug=self.debug_mode,
                 enable_silence_detection=True,
-                silence_threshold_db=-50.0,
-                min_silence_duration=0.1,
+                silence_threshold_db=self.silence_detector.silence_threshold_db if self.silence_detector else -50.0,
+                min_silence_duration=self.silence_detector.min_silence_duration if self.silence_detector else 0.1,
                 chunk_start_time=start_time,
                 on_segment_callback=on_segment_complete,  # Real-time callback for each segment
                 temperature=self.temperature

@@ -42,7 +42,8 @@ class BufferManager:
                  chunk_manager,
                  buffer_seconds: float = 60.0,
                  max_concurrent: int = 2,
-                 on_chunk_processed: Optional[Callable] = None):
+                 on_chunk_processed: Optional[Callable] = None,
+                 debug: bool = False):
         """
         Initialize Buffer Manager.
         
@@ -51,11 +52,13 @@ class BufferManager:
             buffer_seconds: Desired buffer distance in seconds (30, 60, or 120)
             max_concurrent: Maximum concurrent chunk processing tasks
             on_chunk_processed: Optional callback when chunk is processed
+            debug: Enable debug logging
         """
         self.chunk_manager = chunk_manager
         self.buffer_seconds = buffer_seconds
         self.max_concurrent = max_concurrent
         self.on_chunk_processed = on_chunk_processed
+        self.debug = debug
         
         # Processing state
         self.current_playback_time = 0.0
@@ -151,6 +154,9 @@ class BufferManager:
     def _processing_loop(self):
         """Main processing loop that maintains the buffer."""
         logger.debug("Processing loop started")
+        if self.debug:
+            logger.debug("[DEBUG] BufferManager: Processing loop initialized")
+            logger.debug(f"[DEBUG] BufferManager: buffer_seconds={self.buffer_seconds}, max_concurrent={self.max_concurrent}")
         
         while not self.stop_event.is_set():
             try:
@@ -163,6 +169,10 @@ class BufferManager:
                 chunk_to_process = self._get_next_chunk_to_process()
                 
                 if chunk_to_process:
+                    if self.debug:
+                        logger.debug(f"[DEBUG] BufferManager: Selected chunk {chunk_to_process.chunk_id} for processing")
+                        logger.debug(f"[DEBUG] BufferManager: Chunk range: {chunk_to_process.start_time:.2f}s - {chunk_to_process.end_time:.2f}s")
+                    
                     # Add to queue (actual processing happens elsewhere)
                     self.processing_queue.put(chunk_to_process)
                     
@@ -175,9 +185,16 @@ class BufferManager:
                     if chunk_to_process.chunk_id % 5 == 0:  # Every 5th chunk
                         logger.info(f" Buffer status: {completed}/{total} chunks completed")
                     
+                    if self.debug:
+                        logger.debug(f"[DEBUG] BufferManager: Buffer status: {completed}/{total} completed")
+                    
                     logger.debug(f"Queued chunk {chunk_to_process.chunk_id} for processing")
                 else:
                     # No chunks to process, wait a bit
+                    if self.debug:
+                        completed = len([c for c in self.chunk_manager.chunks if c.status.name == 'COMPLETED'])
+                        total = len(self.chunk_manager.chunks)
+                        logger.debug(f"[DEBUG] BufferManager: No chunks to process. Status: {completed}/{total} completed")
                     time.sleep(1.0)
                 
                 # Small delay to prevent busy-waiting
@@ -185,9 +202,14 @@ class BufferManager:
                 
             except Exception as e:
                 logger.error(f"Error in processing loop: {e}", exc_info=True)
+                if self.debug:
+                    import traceback
+                    logger.debug(f"[DEBUG] BufferManager: Processing loop error traceback:\n{traceback.format_exc()}")
                 time.sleep(1.0)
         
         logger.debug("Processing loop ended")
+        if self.debug:
+            logger.debug("[DEBUG] BufferManager: Processing loop terminated")
     
     def _get_next_chunk_to_process(self):
         """

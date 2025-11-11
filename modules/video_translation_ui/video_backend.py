@@ -182,10 +182,12 @@ class VideoSession:
     def initialize(self):
         """Initialize all components and extract video metadata."""
         try:
-            # Initialize video processor
+            # Initialize video processor with device from config (auto-detect if not specified)
+            device = self.config.get('device', 'auto')
             self.video_processor = VideoProcessor(
                 self.video_path,
-                temp_dir=str(UPLOAD_FOLDER / self.session_id)
+                temp_dir=str(UPLOAD_FOLDER / self.session_id),
+                device=device
             )
             
             # Convert to MP4 for browser compatibility (if not already done during upload)
@@ -263,7 +265,8 @@ class VideoSession:
                 silence_threshold_db=self.config.get('silence_threshold_db', -35.0),
                 min_silence_duration=self.config.get('min_silence_duration', 0.5),
                 model_dir=self.config.get('model_dir', './models'),
-                temperature=temp_value
+                temperature=temp_value,
+                debug_mode=_debug_mode
             )
             
             # Initialize buffer manager
@@ -271,7 +274,8 @@ class VideoSession:
                 chunk_manager=self.chunk_manager,
                 buffer_seconds=self.metadata['duration'],  # Buffer entire video
                 max_concurrent=self.config.get('max_concurrent', 2),
-                on_chunk_processed=self._on_chunk_processed
+                on_chunk_processed=self._on_chunk_processed,
+                debug=_debug_mode
             )
             
             self.is_initialized = True
@@ -344,6 +348,8 @@ class VideoSession:
     def _process_chunks(self):
         """Background thread for processing chunks."""
         logger.debug(f"Chunk processing thread started for session {self.session_id}")
+        if _debug_mode:
+            logger.debug(f"[DEBUG] VideoBackend: Starting chunk processing thread for session {self.session_id}")
         
         # Get total chunk count for progress tracking
         total_chunks = len(self.chunk_manager.chunks) if self.chunk_manager else 0
@@ -351,6 +357,8 @@ class VideoSession:
         start_time = time.time()
         
         logger.info(f" Starting video processing: {total_chunks} chunks to process")
+        if _debug_mode:
+            logger.debug(f"[DEBUG] VideoBackend: Total chunks to process: {total_chunks}")
         
         while not self.stop_processing.is_set():
             try:
@@ -366,6 +374,11 @@ class VideoSession:
                     processed_count += 1
                     logger.info(f" Processing chunk {processed_count}/{total_chunks} "
                               f"[{chunk.start_time:.1f}s - {chunk.end_time:.1f}s]")
+                    
+                    if _debug_mode:
+                        logger.debug(f"[DEBUG] VideoBackend: ===== Processing chunk {processed_count}/{total_chunks} =====")
+                        logger.debug(f"[DEBUG] VideoBackend: Chunk ID: {chunk.chunk_id}, Range: {chunk.start_time:.2f}s - {chunk.end_time:.2f}s")
+                        logger.debug(f"[DEBUG] VideoBackend: Audio source: {getattr(self, 'full_audio_path', 'None')}")
                     
                     # Extract audio segment from preprocessed full audio (if available)
                     # This ensures Demucs-processed audio is used for all chunks
@@ -415,8 +428,15 @@ class VideoSession:
                         on_segment_complete=on_segment_complete
                     )
                     
+                    if _debug_mode:
+                        logger.debug(f"[DEBUG] VideoBackend: Chunk {chunk.chunk_id} processing returned: success={result['success']}")
+                    
                     # Update chunk status
                     if result['success']:
+                        if _debug_mode:
+                            logger.debug(f"[DEBUG] VideoBackend: Marking chunk {chunk.chunk_id} as completed")
+                            logger.debug(f"[DEBUG] VideoBackend: Transcription length: {len(result.get('transcription', ''))}")
+                            logger.debug(f"[DEBUG] VideoBackend: Timestamps count: {len(result.get('timestamps', []))}")
                         self.chunk_manager.mark_chunk_completed(
                             chunk_id=chunk.chunk_id,
                             transcription=result['transcription'],
@@ -839,10 +859,12 @@ def upload_video():
             video_sessions[session_id] = video_session
         
         # Convert to MP4 immediately for browser playback (if not already MP4)
+        # Note: At upload time, config is not yet set, so we use auto-detection
+        # This will use CUDA if available for faster initial conversion
         logger.info(f"🎬 Preparing video for browser playback...")
-        video_processor = VideoProcessor(str(video_path), temp_dir=str(session_dir))
+        video_processor = VideoProcessor(str(video_path), temp_dir=str(session_dir), device='auto')
         
-        # Convert to MP4 for browser compatibility
+        # Convert to MP4 for browser compatibility (auto-detect CUDA for speed)
         mp4_path = video_processor.convert_to_mp4()
         video_session.mp4_path = mp4_path
         logger.info(f"✅ Video ready for playback: {mp4_path}")

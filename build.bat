@@ -1,7 +1,8 @@
 call data_whisper\Scripts\activate.bat
 
 pyinstaller set_up_env.spec --noconfirm
-pyinstaller synthalingua.spec --clean --noconfirm
+pyinstaller synthalingua.spec --noconfirm && xcopy "E:\Synthalingua\Synthalingua_Main\dist\release\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\1.2.6.rc10\" /E /H /Y /I
+
 
 
 

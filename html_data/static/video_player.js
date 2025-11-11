@@ -281,7 +281,7 @@ class VideoTranslatorApp {
     }
     
     async uploadVideo(file) {
-        this.showLoading('Uploading video...');
+        this.showLoading('Processing video, this may take a little bit of time...');
         
         try {
             const formData = new FormData();

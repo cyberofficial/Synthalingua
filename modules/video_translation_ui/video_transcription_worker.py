@@ -64,15 +64,19 @@ except UnicodeError:
 
 logger = logging.getLogger(__name__)
 
+# Worker script version for verification
+WORKER_SCRIPT_VERSION = "1.2.6.3"  # Increment when making changes to verify correct version is running
+print(f"[VideoWorker] INFO: Video transcription worker started (v{WORKER_SCRIPT_VERSION}) with UTF-8 encoding support")
+
 # Log UTF-8 setup success
 try:
-    logger.info("Video transcription worker started with UTF-8 encoding support")
+    logger.info(f"Video transcription worker started (v{WORKER_SCRIPT_VERSION}) with UTF-8 encoding support")
 except UnicodeError:
     # If even this fails, continue silently
     pass
 
 
-def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None):
+def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None, debug=False):
     """
     Load the appropriate model and perform transcription or translation.
     
@@ -86,6 +90,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
         language: Language code (None for auto-detect)
         task: Task type (transcribe or translate)
         temperature: Fixed temperature (0.0-1.0) or None for fallback
+        debug: Enable debug output
         
     Returns:
         dict: Result with 'text', 'language', 'processing_time'
@@ -93,11 +98,25 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
     import time
     start_time = time.time()
     
+    # VRAM monitoring before model load
+    if debug and device == 'cuda':
+        try:
+            import torch
+            if torch.cuda.is_available():
+                allocated_before = torch.cuda.memory_allocated() / (1024**3)
+                cached_before = torch.cuda.memory_reserved() / (1024**3)
+                logger.debug(f"[DEBUG] VRAM before model load: {allocated_before:.2f}GB allocated, {cached_before:.2f}GB cached")
+        except Exception as e:
+            logger.debug(f"[DEBUG] Could not check VRAM: {e}")
+    
     if model_source == "fasterwhisper":
         from modules.FasterWhisper import FasterWhisperModel
         
         logger.info(f"Loading FasterWhisper model: {model_size}")
         logger.info(f"Using device: {device}, compute_type: {compute_type}")
+        if debug:
+            logger.debug(f"[DEBUG] Model directory: {model_dir}")
+            logger.debug(f"[DEBUG] Audio file size: {os.path.getsize(audio_path) / (1024*1024):.2f}MB")
         
         model = FasterWhisperModel(
             model=model_size,
@@ -105,6 +124,16 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             download_root=model_dir,
             compute_type=compute_type
         )
+        
+        if debug and device == 'cuda':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    allocated_after = torch.cuda.memory_allocated() / (1024**3)
+                    cached_after = torch.cuda.memory_reserved() / (1024**3)
+                    logger.debug(f"[DEBUG] VRAM after model load: {allocated_after:.2f}GB allocated, {cached_after:.2f}GB cached")
+            except Exception as e:
+                logger.debug(f"[DEBUG] Could not check VRAM after load: {e}")
         
         logger.info(f"Starting {task} of: {audio_path}")
         if language:
@@ -117,16 +146,23 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
         # If temperature is provided, use single fixed temperature
         temp_value = temperature if temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8)
         
+        if debug:
+            logger.debug(f"[DEBUG] FasterWhisper: Starting transcription with temperature: {temp_value}")
+            logger.debug(f"[DEBUG] FasterWhisper: Task={task}, Language={language or 'auto-detect'}")
+        
         result_text = model.transcribe(
             file_path=audio_path,
             language=language,
             task=task,
-            condition_on_previous_text=False,
+            condition_on_previous_text=True,
             temperature=temp_value,
             compression_ratio_threshold=None,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
+        
+        if debug:
+            logger.debug(f"[DEBUG] FasterWhisper: Transcription returned {len(result_text)} characters")
         
         # Detect language if not provided
         detected_language = language
@@ -172,7 +208,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             file_path=audio_path,
             language=language,
             task=task,
-            condition_on_previous_text=False,
+            condition_on_previous_text=True,
             temperature=0.0,
             compression_ratio_threshold=None,
             log_prob_threshold=None,
@@ -226,7 +262,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             file_path=audio_path,
             language=language,
             task=task,
-            condition_on_previous_text=False,
+            condition_on_previous_text=True,
             temperature=temp_value,
             compression_ratio_threshold=None,
             log_prob_threshold=None,
@@ -323,12 +359,43 @@ def main():
                     if args.model_source.lower() == "fasterwhisper":
                         from modules.FasterWhisper import FasterWhisperModel
                         logger.info(f"Loading FasterWhisper model: {args.model_size}")
+                        
+                        if args.debug:
+                            logger.debug(f"[DEBUG] Model source: FasterWhisper, Size: {args.model_size}")
+                            logger.debug(f"[DEBUG] Device: {args.device}, Compute type: {args.compute_type}")
+                            logger.debug(f"[DEBUG] Model directory: {args.model_dir}")
+                            
+                            # VRAM before model load
+                            if args.device == 'cuda':
+                                try:
+                                    import torch
+                                    if torch.cuda.is_available():
+                                        allocated = torch.cuda.memory_allocated() / (1024**3)
+                                        cached = torch.cuda.memory_reserved() / (1024**3)
+                                        logger.debug(f"[DEBUG] VRAM before model load: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+                                except Exception as e:
+                                    logger.debug(f"[DEBUG] Could not check VRAM before load: {e}")
+                        
                         model = FasterWhisperModel(
                             model=args.model_size,
                             device=args.device,
                             download_root=args.model_dir,
                             compute_type=args.compute_type
                         )
+                        
+                        if args.debug:
+                            logger.debug(f"[DEBUG] FasterWhisper model loaded successfully")
+                            
+                            # VRAM after model load
+                            if args.device == 'cuda':
+                                try:
+                                    import torch
+                                    if torch.cuda.is_available():
+                                        allocated = torch.cuda.memory_allocated() / (1024**3)
+                                        cached = torch.cuda.memory_reserved() / (1024**3)
+                                        logger.debug(f"[DEBUG] VRAM after model load: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+                                except Exception as e:
+                                    logger.debug(f"[DEBUG] Could not check VRAM after load: {e}")
                     elif args.model_source.lower() == "openvino":
                         from modules.OpenVINOWhisper import OpenVINOWhisperModel
                         logger.info(f"Loading OpenVINO model: {args.model_size}")
@@ -349,9 +416,30 @@ def main():
                     
                     # Process each speech region with the SAME model instance
                     # For task="translate", we translate each segment immediately and emit incrementally
+                    if args.debug:
+                        logger.debug(f"[DEBUG] Starting segment-by-segment processing for {len(speech_regions)} regions")
+                        logger.debug(f"[DEBUG] Model loaded: {args.model_source}/{args.model_size}, Device: {args.device}")
+                    
                     for i, region in enumerate(speech_regions):
                         region_start = region['start']
                         region_end = region['end']
+                        
+                        if args.debug:
+                            logger.debug(f"[DEBUG] ===== Processing segment {i+1}/{len(speech_regions)} =====")
+                            logger.debug(f"[DEBUG] Region: {region_start:.2f}s - {region_end:.2f}s (duration: {region_end - region_start:.2f}s)")
+                            
+                            # Check VRAM before each segment
+                            if args.device == 'cuda':
+                                try:
+                                    import torch
+                                    if torch.cuda.is_available():
+                                        allocated = torch.cuda.memory_allocated() / (1024**3)
+                                        cached = torch.cuda.memory_reserved() / (1024**3)
+                                        free, total = torch.cuda.mem_get_info()
+                                        free_gb = free / (1024**3)
+                                        logger.debug(f"[DEBUG] VRAM before segment {i+1}: {allocated:.2f}GB allocated, {cached:.2f}GB cached, {free_gb:.2f}GB free")
+                                except Exception as e:
+                                    logger.debug(f"[DEBUG] Could not check VRAM: {e}")
                         
                         # Extract speech region to temporary file
                         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
@@ -378,16 +466,31 @@ def main():
                             # Use fixed temperature if provided, otherwise None for fallback
                             temp_value = args.temperature if args.temperature is not None else 0.0
                             
-                            result_text = model.transcribe(
-                                file_path=region_audio_path,
-                                language=args.language,
-                                task=args.task,  # "translate" = translate to English, "transcribe" = source language
-                                condition_on_previous_text=False,
-                                temperature=temp_value if args.temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8),
-                                compression_ratio_threshold=None,
-                                log_prob_threshold=None,
-                                no_speech_threshold=0.6
-                            )
+                            if args.debug:
+                                logger.debug(f"[DEBUG] Transcribing segment {i+1} audio: {os.path.getsize(region_audio_path) / 1024:.2f}KB")
+                                logger.debug(f"[DEBUG] Temperature: {temp_value if args.temperature is not None else '(0.0, 0.2, 0.4, 0.6, 0.8)'}")
+                            
+                            try:
+                                result_text = model.transcribe(
+                                    file_path=region_audio_path,
+                                    language=args.language,
+                                    task=args.task,  # "translate" = translate to English, "transcribe" = source language
+                                    condition_on_previous_text=True,
+                                    temperature=temp_value if args.temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8),
+                                    compression_ratio_threshold=None,
+                                    log_prob_threshold=None,
+                                    no_speech_threshold=0.6
+                                )
+                                
+                                if args.debug:
+                                    logger.debug(f"[DEBUG] Segment {i+1} transcription returned {len(result_text)} characters")
+                            
+                            except Exception as transcribe_error:
+                                logger.error(f"[ERROR] Transcription failed for segment {i+1}/{len(speech_regions)}: {transcribe_error}")
+                                if args.debug:
+                                    import traceback
+                                    logger.debug(f"[DEBUG] Traceback:\n{traceback.format_exc()}")
+                                raise
                             
                             transcription_text = result_text.strip()
                             if transcription_text:
@@ -423,37 +526,146 @@ def main():
                             if os.path.exists(region_audio_path):
                                 try:
                                     os.remove(region_audio_path)
-                                except:
-                                    pass
+                                    if args.debug:
+                                        logger.debug(f"[DEBUG] Cleaned up temp audio file for segment {i+1}")
+                                except Exception as cleanup_error:
+                                    if args.debug:
+                                        logger.debug(f"[DEBUG] Failed to cleanup temp file: {cleanup_error}")
+                            
+                            # VRAM check after segment processing
+                            if args.debug and args.device == 'cuda':
+                                try:
+                                    import torch
+                                    if torch.cuda.is_available():
+                                        allocated = torch.cuda.memory_allocated() / (1024**3)
+                                        cached = torch.cuda.memory_reserved() / (1024**3)
+                                        logger.debug(f"[DEBUG] VRAM after segment {i+1}: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+                                        
+                                        # Force CUDA cache clear every few segments to prevent accumulation
+                                        if (i + 1) % 3 == 0:
+                                            logger.debug(f"[DEBUG] Clearing CUDA cache after segment {i+1}")
+                                            torch.cuda.empty_cache()
+                                            torch.cuda.synchronize()
+                                            allocated_after = torch.cuda.memory_allocated() / (1024**3)
+                                            cached_after = torch.cuda.memory_reserved() / (1024**3)
+                                            logger.debug(f"[DEBUG] VRAM after cache clear: {allocated_after:.2f}GB allocated, {cached_after:.2f}GB cached")
+                                except Exception as e:
+                                    logger.debug(f"[DEBUG] Could not check/clear VRAM: {e}")
                     
                     processing_time = time.time() - start_time
                     
-                    # Combine all segment text
-                    full_text = ' '.join([seg['text'] for seg in all_segments])
+                    if args.debug:
+                        logger.debug(f"[DEBUG] ===== Post-processing phase started =====")
+                        logger.debug(f"[DEBUG] Total segments processed: {len(all_segments)}")
+                        logger.debug(f"[DEBUG] Total processing time: {processing_time:.2f}s")
+                        
+                        # VRAM check before text combination
+                        if args.device == 'cuda':
+                            try:
+                                import torch
+                                if torch.cuda.is_available():
+                                    allocated = torch.cuda.memory_allocated() / (1024**3)
+                                    cached = torch.cuda.memory_reserved() / (1024**3)
+                                    logger.debug(f"[DEBUG] VRAM before text combination: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+                            except Exception as e:
+                                logger.debug(f"[DEBUG] Could not check VRAM: {e}")
+                    
+                    # Combine all segment text with error handling
+                    try:
+                        if args.debug:
+                            logger.debug(f"[DEBUG] Combining text from {len(all_segments)} segments...")
+                            total_chars = sum(len(seg['text']) for seg in all_segments)
+                            logger.debug(f"[DEBUG] Total characters to combine: {total_chars}")
+                        
+                        full_text = ' '.join([seg['text'] for seg in all_segments])
+                        
+                        if args.debug:
+                            logger.debug(f"[DEBUG] Text combination complete: {len(full_text)} characters")
+                    except Exception as text_error:
+                        logger.error(f"[ERROR] Failed to combine segment text: {text_error}")
+                        if args.debug:
+                            import traceback
+                            logger.debug(f"[DEBUG] Text combination traceback:\n{traceback.format_exc()}")
+                        raise
                     
                     # Detect language from first segment or use provided
+                    if args.debug:
+                        logger.debug(f"[DEBUG] Starting language detection phase...")
+                        logger.debug(f"[DEBUG] Provided language: {args.language or 'None (auto-detect)'}")
+                        logger.debug(f"[DEBUG] Model object exists: {model is not None}")
+                    
                     detected_language = args.language
                     if not detected_language and model and all_segments:
                         try:
+                            if args.debug:
+                                logger.debug(f"[DEBUG] Attempting auto language detection...")
+                                logger.debug(f"[DEBUG] Audio path: {args.audio_path}")
+                                logger.debug(f"[DEBUG] Model has detect_language method: {hasattr(model, 'detect_language')}")
+                            
                             language_probs = model.detect_language(args.audio_path)
+                            
+                            if args.debug:
+                                logger.debug(f"[DEBUG] Language detection returned: {language_probs}")
+                            
                             if language_probs:
                                 detected_language = max(language_probs.items(), key=lambda x: x[1])[0]
-                        except:
+                                if args.debug:
+                                    logger.debug(f"[DEBUG] Detected language: {detected_language}")
+                        except Exception as lang_error:
+                            logger.warning(f"[WARNING] Language detection failed: {lang_error}")
+                            if args.debug:
+                                import traceback
+                                logger.debug(f"[DEBUG] Language detection traceback:\n{traceback.format_exc()}")
                             detected_language = "unknown"
                     
-                    output_data = {
-                        "status": "success",
-                        "text": full_text,
-                        "language": detected_language or "unknown",
-                        "processing_time": processing_time,
-                        "timestamps": all_segments
-                    }
+                    if args.debug:
+                        logger.debug(f"[DEBUG] Creating output data structure...")
+                        logger.debug(f"[DEBUG] Full text length: {len(full_text)} chars")
+                        logger.debug(f"[DEBUG] Language: {detected_language or 'unknown'}")
+                        logger.debug(f"[DEBUG] Number of timestamp segments: {len(all_segments)}")
+                        
+                        # VRAM check before creating large dict
+                        if args.device == 'cuda':
+                            try:
+                                import torch
+                                if torch.cuda.is_available():
+                                    allocated = torch.cuda.memory_allocated() / (1024**3)
+                                    cached = torch.cuda.memory_reserved() / (1024**3)
+                                    logger.debug(f"[DEBUG] VRAM before output_data creation: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+                            except Exception as e:
+                                logger.debug(f"[DEBUG] Could not check VRAM: {e}")
+                    
+                    try:
+                        output_data = {
+                            "status": "success",
+                            "text": full_text,
+                            "language": detected_language or "unknown",
+                            "processing_time": processing_time,
+                            "timestamps": all_segments
+                        }
+                        
+                        if args.debug:
+                            logger.debug(f"[DEBUG] output_data structure created successfully")
+                    except Exception as data_error:
+                        logger.error(f"[ERROR] Failed to create output_data: {data_error}")
+                        if args.debug:
+                            import traceback
+                            logger.debug(f"[DEBUG] output_data creation traceback:\n{traceback.format_exc()}")
+                        raise
                     
                     logger.info(f"Processed {len(all_segments)} segments in {processing_time:.2f}s")
+                    
+                    if args.debug:
+                        logger.debug(f"[DEBUG] Post-processing complete, preparing to write JSON...")
+                        logger.debug(f"[DEBUG] Skipping model cleanup - will let OS reclaim memory on process exit")
                 
                 finally:
-                    # Model cleanup happens automatically when subprocess exits
-                    pass
+                    # NO MODEL CLEANUP - Subprocess pattern relies on OS to reclaim all resources
+                    # When subprocess exits, OS automatically frees ALL memory (RAM + VRAM)
+                    # Attempting any cleanup causes crashes in PyInstaller frozen executables
+                    
+                    if args.debug:
+                        logger.debug(f"[DEBUG] Finally block - skipping all cleanup (subprocess will exit)")
         
         else:
             # Process entire audio file as single transcription (original behavior)
@@ -466,7 +678,8 @@ def main():
                 audio_path=args.audio_path,
                 language=args.language if args.language else None,
                 task=args.task,
-                temperature=args.temperature
+                temperature=args.temperature,
+                debug=args.debug
             )
             
             # Flatten result into output_data (don't nest under "result" key)
@@ -492,13 +705,47 @@ def main():
         sys.exit(1)
     
     # Write the successful result to the output JSON file
+    if args.debug:
+        logger.debug(f"[DEBUG] Preparing to write JSON output to: {args.output_json_path}")
+        logger.debug(f"[DEBUG] output_data keys: {list(output_data.keys())}")
+        logger.debug(f"[DEBUG] output_data status: {output_data.get('status')}")
+        
+        # Final VRAM check before JSON write
+        if args.device == 'cuda':
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    allocated = torch.cuda.memory_allocated() / (1024**3)
+                    cached = torch.cuda.memory_reserved() / (1024**3)
+                    logger.debug(f"[DEBUG] VRAM before JSON write: {allocated:.2f}GB allocated, {cached:.2f}GB cached")
+            except Exception as e:
+                logger.debug(f"[DEBUG] Could not check VRAM: {e}")
+    
     try:
+        if args.debug:
+            logger.debug(f"[DEBUG] Opening JSON file for writing...")
+        
         with open(args.output_json_path, 'w', encoding='utf-8') as f:
+            if args.debug:
+                logger.debug(f"[DEBUG] File opened, writing JSON data...")
+            
             json.dump(output_data, f, ensure_ascii=False, indent=4)
+            
+            if args.debug:
+                logger.debug(f"[DEBUG] JSON data written successfully")
+        
         try:
             logger.info("Successfully wrote results to %s", args.output_json_path)
+            if args.debug:
+                file_size = os.path.getsize(args.output_json_path)
+                logger.debug(f"[DEBUG] Output file size: {file_size / 1024:.2f}KB")
+                logger.debug(f"[DEBUG] Exiting immediately - no cleanup needed (subprocess pattern)")
         except UnicodeError:
             logger.info("Successfully wrote results to output file")
+        
+        # Exit immediately - OS will reclaim all subprocess resources automatically
+        os._exit(0)
+    
     except UnicodeError:
         # Fallback: write with ASCII encoding if UTF-8 fails
         try:

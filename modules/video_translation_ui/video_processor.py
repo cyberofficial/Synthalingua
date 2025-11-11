@@ -41,13 +41,14 @@ class VideoProcessor:
         '.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.opus', '.wma'
     ]
     
-    def __init__(self, video_path: str, temp_dir: Optional[str] = None):
+    def __init__(self, video_path: str, temp_dir: Optional[str] = None, device: str = 'auto'):
         """
         Initialize Video Processor.
         
         Args:
             video_path: Path to the input video or audio file
             temp_dir: Optional temporary directory (will create if not provided)
+            device: Device to use for encoding ('auto', 'cpu', 'cuda'). Default 'auto' uses CUDA if available.
             
         Raises:
             FileNotFoundError: If video file doesn't exist
@@ -70,6 +71,25 @@ class VideoProcessor:
             self.temp_dir.mkdir(parents=True, exist_ok=True)
         else:
             self.temp_dir: Path = Path(tempfile.mkdtemp(prefix="synth_video_"))
+        
+        # Store device for encoding (auto-detect CUDA if 'auto')
+        if device and device.lower() == 'auto':
+            # Auto-detect: Use CUDA if available, otherwise CPU
+            try:
+                import torch
+                if torch.cuda.is_available():
+                    self.device = 'cuda'
+                    logger.info(f"CUDA detected and will be used for video encoding (GPU: {torch.cuda.get_device_name(0)})")
+                else:
+                    self.device = 'cpu'
+                    logger.info("CUDA not available, using CPU for video encoding")
+            except ImportError:
+                self.device = 'cpu'
+                logger.info("PyTorch not available, using CPU for video encoding")
+        else:
+            self.device: str = device.lower() if device else 'cpu'
+            if self.device == 'cuda':
+                logger.info("CUDA explicitly requested for video encoding")
         
         self.metadata: Dict = {}
         self.audio_path: Optional[str] = None
@@ -219,21 +239,70 @@ class VideoProcessor:
             logger.info(f"  Has video: {has_video}, Has audio: {has_audio}")
             
             if has_video:
-                # Video file: Convert to browser-compatible H.264 with YUV420p
-                # Note: Even if already H.264, we need to ensure YUV420p pixel format
+                # Video file: Convert to MP4 H.264 with YUV420p for browser compatibility
+                # Preserve source resolution, FPS, and bitrate
                 video_codec = self.metadata.get('video_codec', '').lower()
                 
-                # Check pixel format - browsers require yuv420p
-                # We'll always re-encode to ensure compatibility, but use high quality
-                logger.info(f"  Converting video to H.264 with YUV420p (browser-compatible)")
-                video_codec_param = [
-                    '-c:v', 'libx264',
-                    '-preset', 'slow',  # Better compression, slower encoding
-                    '-crf', '18',  # Near-lossless quality (visually lossless, smaller than CRF 0)
-                    '-pix_fmt', 'yuv420p',  # Force YUV420p for browser compatibility
-                    '-profile:v', 'high',  # H.264 High Profile
-                    '-level', '4.1'  # Compatible with most devices
-                ]
+                # Get video metadata
+                width = self.metadata.get('width', 0)
+                height = self.metadata.get('height', 0)
+                fps = self.metadata.get('fps', 24)
+                bit_rate = self.metadata.get('bit_rate', 0)
+                
+                logger.info(f"  Preserving source resolution: {width}x{height} @ {fps}fps")
+                
+                # No scaling - keep original resolution
+                scale_filter = []
+                
+                # Use original bitrate if available, otherwise auto
+                bitrate_param = []
+                if bit_rate > 0:
+                    bitrate_mb = bit_rate / 1_000_000  # Convert to Mbps
+                    logger.info(f"  Using source bitrate: {bitrate_mb:.1f} Mbps")
+                    bitrate_param = ['-b:v', str(bit_rate)]
+                
+                # Check if CUDA encoding should be used
+                use_cuda = self.device == 'cuda'
+                
+                if use_cuda:
+                    logger.info(f"  Converting to H.264 with YUV420p (CUDA-accelerated)")
+                    video_codec_param = [
+                        '-c:v', 'h264_nvenc',
+                        '-preset', 'p7',           # Highest quality
+                        '-pix_fmt', 'yuv420p',     # Browser compatible
+                        '-profile:v', 'high',
+                        '-r', str(fps)             # Preserve source FPS
+                    ]
+                    if bitrate_param:
+                        video_codec_param.extend(bitrate_param)
+                    else:
+                        video_codec_param.extend(['-rc:v', 'vbr', '-cq:v', '19'])  # High quality VBR
+                    
+                    fallback_video_codec_param = [
+                        '-c:v', 'libx264',
+                        '-preset', 'slow',
+                        '-pix_fmt', 'yuv420p',
+                        '-profile:v', 'high',
+                        '-r', str(fps)
+                    ]
+                    if bitrate_param:
+                        fallback_video_codec_param.extend(bitrate_param)
+                    else:
+                        fallback_video_codec_param.extend(['-crf', '18'])
+                else:
+                    logger.info(f"  Converting to H.264 with YUV420p (CPU encoding)")
+                    video_codec_param = [
+                        '-c:v', 'libx264',
+                        '-preset', 'slow',
+                        '-pix_fmt', 'yuv420p',
+                        '-profile:v', 'high',
+                        '-r', str(fps)             # Preserve source FPS
+                    ]
+                    if bitrate_param:
+                        video_codec_param.extend(bitrate_param)
+                    else:
+                        video_codec_param.extend(['-crf', '18'])
+                    scale_filter = []
                 
                 # Audio: copy if AAC, otherwise encode to AAC
                 audio_codec = self.metadata.get('audio_codec', '').lower()
@@ -248,6 +317,7 @@ class VideoProcessor:
                 cmd = [
                     'ffmpeg',
                     '-i', str(self.video_path),
+                    *scale_filter,  # Add scale filter if resolution exceeds 1080p
                     *video_codec_param,
                     *audio_codec_param,
                     '-movflags', '+faststart',  # Enable streaming
@@ -285,15 +355,59 @@ class VideoProcessor:
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                encoding='utf-8',
+                errors='replace'
             )
+            
+            # If CUDA encoding failed and we were using CUDA, try CPU fallback
+            if result.returncode != 0 and use_cuda and has_video:
+                logger.warning(f"  CUDA hardware acceleration failed, falling back to CPU encoding...")
+                logger.debug(f"  CUDA error: {result.stderr}")
+                
+                # Clean up failed output file if it exists
+                if output_path_obj.exists():
+                    output_path_obj.unlink()
+                
+                # Build fallback command with CPU encoding
+                fallback_cmd = [
+                    'ffmpeg',
+                    '-i', str(self.video_path),
+                    *scale_filter,  # Add scale filter if resolution exceeds 1080p
+                    *fallback_video_codec_param,
+                    *audio_codec_param,
+                    '-movflags', '+faststart',
+                    '-y',
+                    output_path_str
+                ]
+                
+                logger.info(f"  Retrying with CPU encoding...")
+                result = subprocess.run(
+                    fallback_cmd,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace'
+                )
+            
+            # Check if conversion was successful
+            if result.returncode != 0:
+                logger.error(f"FFmpeg conversion failed with exit code {result.returncode}")
+                logger.error(f"FFmpeg stderr: {result.stderr}")
+                raise RuntimeError(f"Failed to convert video to MP4: FFmpeg returned error code {result.returncode}")
             
             if not output_path_obj.exists():
                 raise RuntimeError("MP4 file was not created")
             
             original_size_mb = self.video_path.stat().st_size / (1024 * 1024)
             output_size_mb = output_path_obj.stat().st_size / (1024 * 1024)
-            logger.info(f"✅ Video conversion complete: {output_path_str}")
+            
+            # Determine which encoder was actually used
+            if has_video:
+                encoder_type = "CUDA-accelerated" if (use_cuda and result.returncode == 0 and 'nvenc' in ' '.join(cmd)) else "CPU"
+                logger.info(f"✅ Video conversion complete using {encoder_type} encoding: {output_path_str}")
+            else:
+                logger.info(f"✅ Audio-to-video conversion complete: {output_path_str}")
+            
             logger.info(f"   Original: {original_size_mb:.2f} MB → Output: {output_size_mb:.2f} MB")
             
             return output_path_str
