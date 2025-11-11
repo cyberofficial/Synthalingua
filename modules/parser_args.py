@@ -325,6 +325,34 @@ def parse_arguments():
     video_grp.add_argument("--launchui", action='store_true', help="Launch the video translation UI with a web-based interface for real-time video translation and transcription. Provides interactive controls for video playback, caption overlay customization, and translation settings. Automatically starts a web server on the port specified by --portnumber (default: 8000) and opens the interface in your default browser. Access at http://localhost:[PORT]/video_player.html")
     video_grp.add_argument("--video_input", default=None, help="Path to video file for the video translation UI. Supports common formats: MP4, MKV, AVI, MOV, WebM, FLV, WMV, M4V. Can be absolute path (C:\\Videos\\file.mp4) or relative path (videos/file.mkv). When specified with --launchui, the video is automatically loaded in the UI. If not specified, you can upload videos through the web interface drag-and-drop area.", type=str)
 
+    # Model Preloading
+    preload_grp = parser.add_argument_group("Model Preloading")
+    preload_grp.add_argument("--preload", default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO). 
+    
+Examples:
+  • Single model:
+    --preload whisper:1gb              # Preload Whisper tiny model
+    --preload faster:3gb               # Preload FasterWhisper small model
+    --preload openvino:1gb.int8        # Preload OpenVINO tiny with int8 quantization
+    
+  • English-only variants:
+    --preload whisper:1gb.en           # Preload English-only tiny model
+    --preload faster:2gb.en            # Preload English-only base model
+    
+  • Multiple models from same source:
+    --preload faster:1gb+1gb.en        # Preload both multilingual and English tiny
+    --preload whisper:1gb+2gb+3gb      # Preload multiple model sizes
+    
+  • Multiple sources:
+    --preload whisper:1gb,faster:1gb                    # Preload tiny from both sources
+    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8   # Mix sources and variants
+    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8   # Multiple sizes + source combo
+    
+  • Comprehensive preload:
+    --preload whisper:1gb+2gb,faster:1gb+2gb.en+3gb,openvino:1gb.int8+2gb.int8
+    
+Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""", type=str)
+
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")
     filter_grp.add_argument("--ignorelist", type=str, help="Path to blacklist/filter file containing words or phrases to exclude from transcription output. Must be a .txt file with one term per line. Useful for filtering profanity, repetitive phrases, or background noise words. Works with both real-time and file processing modes. Use with --auto_blocklist for automatic blacklist management.")

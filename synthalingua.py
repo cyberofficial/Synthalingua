@@ -137,7 +137,52 @@ def main():
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
-        sys.exit(0)    # Check input sources (skip check for video UI mode)
+        sys.exit(0)
+
+    # Handle model preloading
+    if args.preload:
+        from modules.model_preloader import preload_models
+        
+        # Set up device for preloading (same as normal operation)
+        device = setup_device(args)
+        
+        # Set up model directory (create if doesn't exist)
+        if not os.path.exists(args.model_dir):
+            print("Creating models folder...")
+            os.makedirs(args.model_dir)
+        
+        # Run preloading
+        successful, total = preload_models(
+            preload_spec=args.preload,
+            model_dir=args.model_dir,
+            device=device,
+            compute_type=args.compute_type
+        )
+        
+        # Check if preload is being used standalone (no other operations)
+        is_standalone = (
+            args.stream is None and 
+            args.microphone_enabled is None and 
+            not args.makecaptions and 
+            not args.launchui
+        )
+        
+        # Only exit if preload is standalone
+        if is_standalone:
+            if successful == total:
+                print(f"{Fore.GREEN}All models cached successfully. You can now run Synthalingua normally.{Style.RESET_ALL}")
+                sys.exit(0)
+            else:
+                print(f"{Fore.YELLOW}Some models failed to cache. Check errors above.{Style.RESET_ALL}")
+                sys.exit(1)
+        else:
+            # Continue to main operation after preloading
+            if successful == total:
+                print(f"{Fore.GREEN}Models preloaded successfully. Continuing with main operation...{Style.RESET_ALL}\n")
+            else:
+                print(f"{Fore.YELLOW}Warning: Some models failed to preload. Continuing anyway...{Style.RESET_ALL}\n")
+
+    # Check input sources (skip check for video UI mode)
     if args.stream is None and args.microphone_enabled is None and not args.makecaptions and not args.launchui:
         print("No audio source was set. Please set an audio source.")
         reset_text = Style.RESET_ALL
