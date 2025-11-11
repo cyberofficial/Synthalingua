@@ -786,6 +786,80 @@ class VideoProcessor:
         else:
             return f"{minutes:02d}:{secs:02d}"
     
+    def generate_waveform_image(self,
+                                audio_path: str,
+                                output_path: Optional[str] = None,
+                                width: int = 1260,
+                                height: int = 64) -> str:
+        """
+        Generate a waveform visualization image from audio using ffmpeg.
+        
+        Args:
+            audio_path: Path to the audio file (vocals or original)
+            output_path: Optional custom output path for PNG file
+            width: Width of the waveform image (default: 1260px)
+            height: Height of the waveform image (default: 64px)
+            
+        Returns:
+            str: Path to generated waveform PNG file
+            
+        Raises:
+            RuntimeError: If waveform generation fails
+        """
+        try:
+            audio_path = Path(audio_path)
+            if not audio_path.exists():
+                raise FileNotFoundError(f"Audio file not found: {audio_path}")
+            
+            # Generate output path if not provided
+            if not output_path:
+                output_path = str(audio_path.parent / f"{audio_path.stem}_waveform.png")
+            
+            logger.info(f"🎨 Generating waveform image: {width}x{height}px")
+            logger.info(f"   Source: {audio_path}")
+            logger.info(f"   Output: {output_path}")
+            
+            # FFmpeg command to generate waveform visualization
+            # Uses showwavespic filter to create a waveform image
+            cmd = [
+                'ffmpeg',
+                '-i', str(audio_path),
+                '-filter_complex',
+                f'[0:a]compand=0.3:0.9,aformat=channel_layouts=mono,showwavespic=s={width}x{height}:colors=#00D4FF',
+                '-frames:v', '1',
+                '-y',  # Overwrite output file
+                str(output_path)
+            ]
+            
+            logger.debug(f"FFmpeg command: {' '.join(cmd)}")
+            
+            # Run FFmpeg
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            )
+            
+            if result.returncode != 0:
+                logger.error(f"FFmpeg stderr: {result.stderr}")
+                raise RuntimeError(f"FFmpeg waveform generation failed: {result.stderr}")
+            
+            # Verify output file exists
+            output_file = Path(output_path)
+            if not output_file.exists():
+                raise RuntimeError(f"Waveform image not created: {output_path}")
+            
+            file_size_kb = output_file.stat().st_size / 1024
+            logger.info(f"✅ Waveform image generated: {output_path} ({file_size_kb:.1f} KB)")
+            
+            return str(output_path)
+            
+        except Exception as e:
+            logger.error(f"Waveform generation failed: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to generate waveform: {str(e)}")
+    
     def cleanup(self):
         """Clean up temporary files."""
         try:

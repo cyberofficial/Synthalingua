@@ -66,12 +66,40 @@
                     <button id="fullscreen-btn" class="control-btn">
                         <span class="icon">⛶</span>
                     </button>
+                    <!-- Section Redo Controls -->
+                    <div class="section-redo-controls">
+                        <button id="set-marker-a-btn" class="control-btn marker-btn" title="Set start point for section redo">
+                            <span class="icon">[A]</span>
+                        </button>
+                        <button id="set-marker-b-btn" class="control-btn marker-btn" title="Set end point for section redo">
+                            <span class="icon">[B]</span>
+                        </button>
+                        <span id="section-range-display" class="section-range-display"></span>
+                    </div>
+                </div>
+                
+                <!-- Waveform Visualization -->
+                <div id="waveform-container" class="waveform-container">
+                    <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
+                    <div id="waveform-progress" class="waveform-progress"></div>
+                    <div id="waveform-loading" class="waveform-loading" style="display: none;">
+                        <span>Loading waveform...</span>
+                    </div>
                 </div>
             </div>
             
             <!-- Control Panel (Right ~30%) -->
             <div class="control-panel">
                 <h2 class="panel-title">⚙️ Video Translator</h2>
+                
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class="tab-btn active" data-tab="settings">⚙️ Settings</button>
+                    <button class="tab-btn" data-tab="editor">✏️ Editor</button>
+                </div>
+                
+                <!-- Settings Tab -->
+                <div id="settings-tab" class="tab-content active">
                 
                 <!-- Video Settings -->
                 <div class="settings-section">
@@ -321,10 +349,101 @@
                     <button id="start-processing-btn" class="btn btn-primary" disabled>
                         🎬 START PROCESSING
                     </button>
+                    <button id="redo-section-btn" class="btn btn-warning" disabled title="Set A and B markers to redo a specific section">
+                        🔄 REDO SECTION (A→B)
+                    </button>
                     <button id="export-btn" class="btn btn-secondary" disabled>
                         📥 EXPORT CAPTIONS
                     </button>
                 </div>
+                
+                <!-- Section Redo Info -->
+                <div id="section-redo-info" class="settings-section" style="display: none;">
+                    <h3 class="section-title">🎯 Section Redo</h3>
+                    <div class="info-box">
+                        <strong>📍 Markers Set:</strong>
+                        <div id="marker-info" style="margin-top: 8px;">
+                            <div><strong>Start (A):</strong> <span id="marker-a-time">--:--</span></div>
+                            <div><strong>End (B):</strong> <span id="marker-b-time">--:--</span></div>
+                            <div><strong>Duration:</strong> <span id="marker-duration">--:--</span></div>
+                        </div>
+                    </div>
+                    <div class="help-text" style="margin-top: 8px;">
+                        Use [A] and [B] buttons to mark start/end points on the timeline. The section will be re-transcribed using the current settings (model, temperature, compression ratio, etc.).
+                    </div>
+                    <button id="clear-markers-btn" class="btn btn-small" style="margin-top: 8px; width: 100%;">
+                        ✖️ Clear Markers
+                    </button>
+                </div>
+                
+                </div><!-- End Settings Tab -->
+                
+                <!-- Editor Tab -->
+                <div id="editor-tab" class="tab-content">
+                    <div class="editor-section">
+                        <h3 class="section-title">✏️ Caption Editor</h3>
+                        <div class="help-text" style="margin-bottom: 10px;">Edit, remove, or batch-redo caption segments after processing completes.</div>
+                        
+                        <!-- Editor Toolbar -->
+                        <div class="editor-toolbar">
+                            <button id="refresh-captions-btn" class="btn btn-small" title="Reload caption list">
+                                🔄 Refresh
+                            </button>
+                            <button id="add-section-btn" class="btn btn-small" title="Add a custom section to batch queue">
+                                ➕ Add Section
+                            </button>
+                            <button id="export-edited-btn" class="btn btn-small" title="Export edited captions">
+                                💾 Export
+                            </button>
+                            <button id="clear-batch-btn" class="btn btn-small btn-warning" title="Clear batch list">
+                                🗑️ Clear Batch
+                            </button>
+                        </div>
+                        
+                        <!-- Add Section Form (Hidden by default) -->
+                        <div id="add-section-form" class="add-section-form" style="display: none;">
+                            <h4 class="section-subtitle">➕ Add Custom Section</h4>
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Start Time (seconds):</label>
+                                    <input type="number" id="section-start-input" min="0" step="0.1" placeholder="0.0">
+                                </div>
+                                <div class="form-col">
+                                    <label>End Time (seconds):</label>
+                                    <input type="number" id="section-end-input" min="0" step="0.1" placeholder="10.0">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button id="add-section-confirm-btn" class="btn btn-small btn-primary">✓ Add to Queue</button>
+                                <button id="add-section-cancel-btn" class="btn btn-small">✗ Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Caption List -->
+                        <div id="caption-list-container" class="caption-list-container">
+                            <div id="caption-list-empty" class="empty-state">
+                                <div class="empty-icon">📝</div>
+                                <div class="empty-text">No captions available</div>
+                                <div class="empty-subtext">Process a video to see captions here</div>
+                            </div>
+                            <div id="caption-list" class="caption-list" style="display: none;">
+                                <!-- Captions will be populated here dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Batch Redo Section -->
+                        <div id="batch-redo-section" class="batch-redo-section" style="display: none;">
+                            <h4 class="section-subtitle">📋 Batch Redo Queue</h4>
+                            <div id="batch-list" class="batch-list">
+                                <!-- Batch items will be added here -->
+                            </div>
+                            <button id="start-batch-btn" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                                🚀 START BATCH REDO (<span id="batch-count">0</span> sections)
+                            </button>
+                        </div>
+                    </div>
+                </div><!-- End Editor Tab -->
+                
             </div>
         </div>
         

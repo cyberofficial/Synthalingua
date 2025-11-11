@@ -1,7 +1,8 @@
 call data_whisper\Scripts\activate.bat
 
 pyinstaller set_up_env.spec --noconfirm
-pyinstaller synthalingua.spec --noconfirm && xcopy "E:\Synthalingua\Synthalingua_Main\dist\release\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\1.2.6.rc10\" /E /H /Y /I
+set VERSION=1.2.6.rc11 && pyinstaller synthalingua.spec --noconfirm && xcopy "E:\Synthalingua\Synthalingua_Main\dist\release\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I && xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I && xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\deps\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I && xcopy "E:\Synthalingua\Synthalingua_Main\dist\set_up_env.exe" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /Y && xcopy "E:\Synthalingua\Synthalingua_Main\dist\remote_microphone.exe" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /Y
+
 
 
 

@@ -110,7 +110,11 @@ class VideoSession:
         self.full_audio_path = None  # Current audio path (may be vocals if Demucs used)
         self.original_audio_path = None  # Original audio before Demucs
         self.vocals_audio_path = None  # Isolated vocals from Demucs
+        self.waveform_image_path = None  # Waveform PNG image
         self.mp4_path = None  # MP4 version for browser playback (converted if needed)
+        
+        # Thread safety
+        self.state_lock = threading.Lock()
         
         # Processing thread
         self.processing_thread = None
@@ -235,10 +239,34 @@ class VideoSession:
                 
                 # Use vocals for processing
                 self.full_audio_path = vocals_audio_path
+                
+                # Generate waveform from vocals
+                try:
+                    self.waveform_image_path = self.video_processor.generate_waveform_image(
+                        audio_path=vocals_audio_path,
+                        width=1260,
+                        height=64
+                    )
+                    logger.info(f"🎨 Waveform generated from vocals: {self.waveform_image_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to generate waveform from vocals: {e}")
+                    self.waveform_image_path = None
             else:
                 # Use original audio for processing
                 self.full_audio_path = original_audio_path
                 self.vocals_audio_path = None
+                
+                # Generate waveform from original audio
+                try:
+                    self.waveform_image_path = self.video_processor.generate_waveform_image(
+                        audio_path=original_audio_path,
+                        width=1260,
+                        height=64
+                    )
+                    logger.info(f"🎨 Waveform generated from original audio: {self.waveform_image_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to generate waveform from original: {e}")
+                    self.waveform_image_path = None
             
             logger.info(f" Full audio ready for processing: {self.full_audio_path}")
             
@@ -672,6 +700,204 @@ class VideoSession:
         
         return {'transcription': '', 'translation': '', 'language': 'unknown', 'duration': 3.0}  # Default for empty
     
+    def redo_section(self, start_time: float, end_time: float, config: Dict) -> Dict:
+        """
+        Re-transcribe and re-translate a specific section of the video.
+        
+        This method:
+        1. Extracts audio for the specified time range
+        2. Re-runs Whisper transcription with provided config
+        3. Updates existing segments in the time range
+        4. Saves updated captions to JSON/SRT files
+        5. Emits WebSocket updates for real-time UI refresh
+        
+        Args:
+            start_time: Start time in seconds
+            end_time: End time in seconds
+            config: Updated configuration dict with keys:
+                - temperature: Optional[float]
+                - compression_ratio_threshold: float
+                - silence_threshold_db: float
+                - min_silence_duration: float
+                
+        Returns:
+            dict: Result with 'success', 'segments_updated', and 'error' keys
+        """
+        logger.info(f"🔄 Redoing section {start_time:.2f}s - {end_time:.2f}s for session {self.session_id}")
+        
+        with self.state_lock:
+            # Validate state
+            if not self.is_initialized:
+                return {'success': False, 'error': 'Session not initialized'}
+            
+            # Allow redo if processing is complete (all chunks done) even if thread is still running
+            if self.is_processing and self.chunk_manager:
+                progress = self.chunk_manager.get_progress()
+                if progress['completed_chunks'] < progress['total_chunks']:
+                    return {'success': False, 'error': 'Cannot redo section while processing is active'}
+                # else: All chunks completed, allow redo even if background thread is cleaning up
+            elif self.is_processing:
+                return {'success': False, 'error': 'Cannot redo section while processing is active'}
+            
+            if not self.chunk_manager or not self.transcription_manager or not self.video_processor:
+                return {'success': False, 'error': 'Required managers not initialized'}
+        
+        try:
+            # Extract audio segment for this time range
+            duration = end_time - start_time
+            
+            # Use vocals audio if available, otherwise full audio
+            source_audio = self.vocals_audio_path if self.vocals_audio_path and os.path.exists(self.vocals_audio_path) else self.full_audio_path
+            
+            logger.info(f"  Extracting audio segment from {source_audio}...")
+            segment_audio_path = self.video_processor.extract_audio_segment(
+                start_time=start_time,
+                duration=duration,
+                source_audio=source_audio
+            )
+            
+            # Create temporary transcription manager with updated config
+            logger.info(f"  Creating temporary transcription manager with updated config...")
+            temp_manager = VideoTranscriptionManager(
+                model_source=config.get('model_source', self.config.get('model_source', 'fasterwhisper')),
+                model_size=config.get('model_size', self.config.get('model_size', 'base')),
+                device=config.get('device', self.config.get('device', 'auto')),
+                compute_type=config.get('compute_type', self.config.get('compute_type', 'float16')),
+                source_language=config.get('source_language', self.config.get('source_language', None)),
+                target_language=config.get('target_language', self.config.get('target_language', 'en')),
+                enable_translation=config.get('enable_translation', self.config.get('enable_translation', True)),
+                enable_silence_detection=config.get('enable_silence_detection', self.config.get('enable_silence_detection', True)),
+                silence_threshold_db=config.get('silence_threshold_db', self.config.get('silence_threshold_db', -35.0)),
+                min_silence_duration=config.get('min_silence_duration', self.config.get('min_silence_duration', 0.5)),
+                model_dir=self.config.get('model_dir', './models'),
+                temperature=config.get('temperature'),
+                compression_ratio_threshold=config.get('compression_ratio_threshold', self.config.get('compression_ratio_threshold', 2.4)),
+                debug_mode=self.config.get('debug_mode', False)
+            )
+            
+            # Process the segment
+            logger.info(f"  Transcribing segment...")
+            result = temp_manager.process_chunk(
+                audio_path=segment_audio_path,
+                chunk_id=-1,  # Temporary ID for redo
+                start_time=start_time,
+                end_time=end_time,
+                on_segment_complete=None
+            )
+            
+            if not result['success']:
+                return {'success': False, 'error': result.get('error', 'Transcription failed')}
+            
+            # Remove old segments in this time range
+            logger.info(f"  Removing old segments in range {start_time:.2f}s - {end_time:.2f}s...")
+            removed_count = self._remove_segments_in_range(start_time, end_time)
+            logger.info(f"  Removed {removed_count} old segments")
+            
+            # Add new segments
+            logger.info(f"  Adding {len(result.get('timestamps', []))} new segments...")
+            added_count = self._add_segments_from_result(result)
+            logger.info(f"  Added {added_count} new segments")
+            
+            # Cleanup temporary audio file
+            try:
+                if os.path.exists(segment_audio_path):
+                    os.remove(segment_audio_path)
+            except Exception as e:
+                logger.warning(f"Could not remove temporary audio file: {e}")
+            
+            # Emit WebSocket update to notify frontend
+            try:
+                from flask_socketio import emit
+                emit('section_updated', {
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'segments_updated': added_count
+                }, namespace='/video', room=self.session_id)
+            except Exception as e:
+                logger.warning(f"Could not emit WebSocket update: {e}")
+            
+            logger.info(f"✅ Section redo completed: {removed_count} removed, {added_count} added")
+            
+            return {
+                'success': True,
+                'segments_removed': removed_count,
+                'segments_added': added_count,
+                'language': result.get('language', 'unknown')
+            }
+            
+        except Exception as e:
+            logger.error(f"Error redoing section: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+    
+    def _remove_segments_in_range(self, start_time: float, end_time: float) -> int:
+        """
+        Remove all segments that overlap with the given time range.
+        
+        Args:
+            start_time: Start time in seconds
+            end_time: End time in seconds
+            
+        Returns:
+            int: Number of segments removed
+        """
+        removed_count = 0
+        
+        if not self.chunk_manager:
+            return 0
+        
+        # Iterate through all chunks and remove overlapping segments
+        for chunk in self.chunk_manager.chunks:
+            if not chunk.timestamps:
+                continue
+            
+            # Filter out segments that overlap with the time range
+            original_count = len(chunk.timestamps)
+            chunk.timestamps = [
+                seg for seg in chunk.timestamps
+                if not (seg['start'] < end_time and seg['end'] > start_time)
+            ]
+            removed_count += original_count - len(chunk.timestamps)
+        
+        return removed_count
+    
+    def _add_segments_from_result(self, result: Dict) -> int:
+        """
+        Add new segments from transcription result to appropriate chunks.
+        
+        Args:
+            result: Transcription result dict with 'timestamps' list
+            
+        Returns:
+            int: Number of segments added
+        """
+        added_count = 0
+        
+        if not self.chunk_manager or not result.get('timestamps'):
+            return 0
+        
+        # Add each segment to the appropriate chunk
+        for segment in result['timestamps']:
+            start = segment['start']
+            end = segment['end']
+            
+            # Find the chunk that contains this segment
+            for chunk in self.chunk_manager.chunks:
+                # Check if segment falls within this chunk's time range
+                if chunk.start_time <= start < chunk.end_time:
+                    if not chunk.timestamps:
+                        chunk.timestamps = []
+                    
+                    chunk.timestamps.append(segment)
+                    added_count += 1
+                    break
+        
+        # Sort timestamps within each chunk
+        for chunk in self.chunk_manager.chunks:
+            if chunk.timestamps:
+                chunk.timestamps.sort(key=lambda x: x['start'])
+        
+        return added_count
+    
     def export_captions(self, format: str = 'srt') -> Optional[str]:
         """
         Export captions to SRT or VTT format.
@@ -1038,6 +1264,230 @@ def export_captions(session_id):
     )
 
 
+@video_bp.route('/session/<session_id>/redo_section', methods=['POST'])
+def redo_section(session_id):
+    """
+    Re-transcribe a specific time section of the video with updated settings.
+    This allows users to fine-tune problematic sections after full processing.
+    """
+    try:
+        data = request.get_json()
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        
+        if start_time is None or end_time is None:
+            return jsonify({'error': 'start_time and end_time are required'}), 400
+        
+        if start_time >= end_time:
+            return jsonify({'error': 'start_time must be less than end_time'}), 400
+        
+        if end_time - start_time < 0.5:
+            return jsonify({'error': 'Section must be at least 0.5 seconds'}), 400
+        
+        with session_lock:
+            video_session = video_sessions.get(session_id)
+        
+        if not video_session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # Extract settings from request (allow user to change settings for this section)
+        config = {
+            'model_source': data.get('model_source', video_session.config.get('model_source', 'fasterwhisper')),
+            'model_size': data.get('model_size', video_session.config.get('model_size', 'base')),
+            'device': data.get('device', video_session.config.get('device', 'auto')),
+            'source_language': data.get('source_language', video_session.config.get('source_language', 'auto')),
+            'target_language': data.get('target_language', video_session.config.get('target_language', 'en')),
+            'enable_silence_detection': data.get('enable_silence_detection', 
+                                                video_session.config.get('enable_silence_detection', True)),
+            'silence_threshold_db': data.get('silence_threshold_db', 
+                                            video_session.config.get('silence_threshold_db', -35)),
+            'min_silence_duration': data.get('min_silence_duration', 
+                                            video_session.config.get('min_silence_duration', 0.5)),
+            'min_speech_duration': data.get('min_speech_duration', 
+                                           video_session.config.get('min_speech_duration', 0.1)),
+            'enable_temperature': data.get('enable_temperature', 
+                                         video_session.config.get('enable_temperature', False)),
+            'temperature': data.get('temperature', video_session.config.get('temperature')),
+            'compression_ratio_threshold': data.get('compression_ratio_threshold', 
+                                                   video_session.config.get('compression_ratio_threshold', 2.4))
+        }
+        
+        logger.info(f"Redoing section {start_time:.2f}s - {end_time:.2f}s for session {session_id}")
+        logger.debug(f"Section redo config: {config}")
+        
+        # Call the session's redo_section method
+        result = video_session.redo_section(start_time, end_time, config)
+        
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': f'Section {start_time:.2f}s - {end_time:.2f}s redone successfully',
+                'segments_removed': result.get('segments_removed', 0),
+                'segments_added': result.get('segments_added', 0),
+                'language': result.get('language', 'unknown'),
+                'start_time': start_time,
+                'end_time': end_time
+            })
+        else:
+            return jsonify({'error': result.get('error', 'Failed to redo section')}), 500
+            
+    except Exception as e:
+        logger.error(f"Error redoing section: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@video_bp.route('/session/<session_id>/segments', methods=['GET'])
+def get_all_segments(session_id):
+    """Get all caption segments for the editor."""
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    try:
+        if not video_session.chunk_manager:
+            return jsonify({
+                'success': True,
+                'segments': [],
+                'total': 0
+            }), 200
+        
+        with video_session.state_lock:
+            segments = []
+            # Collect all segments from all chunks
+            for chunk in video_session.chunk_manager.chunks:
+                if chunk.timestamps:
+                    for seg in chunk.timestamps:
+                        segments.append({
+                            'start': seg.get('start', 0),
+                            'end': seg.get('end', 0),
+                            'text': seg.get('text', ''),
+                            'translation': seg.get('translation', ''),
+                            'words': seg.get('words', [])
+                        })
+            
+            # Sort by start time
+            segments.sort(key=lambda x: x['start'])
+        
+        logger.info(f"Retrieved {len(segments)} segments for session {session_id}")
+        return jsonify({
+            'success': True,
+            'segments': segments,
+            'total': len(segments)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting segments: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['PUT'])
+def update_segment(session_id, segment_id):
+    """Update a specific caption segment (text and translation)."""
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    try:
+        data = request.get_json()
+        new_text = data.get('text')
+        new_translation = data.get('translation')
+        
+        if new_text is None and new_translation is None:
+            return jsonify({'error': 'No update data provided'}), 400
+        
+        if not video_session.chunk_manager:
+            return jsonify({'error': 'No chunks available'}), 404
+        
+        with video_session.state_lock:
+            # Collect all segments to find the target by index
+            current_index = 0
+            found = False
+            
+            for chunk in video_session.chunk_manager.chunks:
+                if not chunk.timestamps:
+                    continue
+                    
+                for seg in chunk.timestamps:
+                    if current_index == segment_id:
+                        # Update the segment
+                        if new_text is not None:
+                            seg['text'] = new_text
+                        if new_translation is not None:
+                            seg['translation'] = new_translation
+                        found = True
+                        logger.info(f"Updated segment {segment_id} in session {session_id}")
+                        break
+                    current_index += 1
+                
+                if found:
+                    break
+            
+            if not found:
+                return jsonify({'error': 'Invalid segment ID'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Segment updated successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error updating segment: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['DELETE'])
+def delete_segment(session_id, segment_id):
+    """Delete a specific caption segment."""
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    try:
+        if not video_session.chunk_manager:
+            return jsonify({'error': 'No chunks available'}), 404
+        
+        with video_session.state_lock:
+            # Collect all segments to find the target by index
+            current_index = 0
+            found = False
+            removed_segment = None
+            
+            for chunk in video_session.chunk_manager.chunks:
+                if not chunk.timestamps:
+                    continue
+                
+                for i, seg in enumerate(chunk.timestamps):
+                    if current_index == segment_id:
+                        # Remove this segment
+                        removed_segment = chunk.timestamps.pop(i)
+                        found = True
+                        logger.info(f"Deleted segment {segment_id} from session {session_id}: "
+                                  f"{removed_segment.get('start')}-{removed_segment.get('end')}")
+                        break
+                    current_index += 1
+                
+                if found:
+                    break
+            
+            if not found:
+                return jsonify({'error': 'Invalid segment ID'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': 'Segment deleted successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting segment: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @video_bp.route('/session/<session_id>/video', methods=['GET'])
 def serve_video(session_id):
     """Serve the video file for playback (MP4 format for browser compatibility)."""
@@ -1139,6 +1589,43 @@ def serve_audio_source(session_id, source):
         )
     
     return jsonify({'error': f'Audio source "{source}" not found'}), 404
+
+
+@video_bp.route('/session/<session_id>/waveform', methods=['GET'])
+def serve_waveform_image(session_id):
+    """
+    Serve waveform visualization PNG image.
+    
+    Returns:
+        PNG image file if available, 404 if not found
+    """
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        logger.warning(f"Waveform request: Session {session_id} not found")
+        return jsonify({'error': 'Session not found'}), 404
+    
+    # Check if waveform image exists
+    waveform_path = getattr(video_session, 'waveform_image_path', None)
+    
+    logger.debug(f"Waveform request for session {session_id}: path={waveform_path}")
+    
+    if waveform_path:
+        waveform_file = Path(waveform_path)
+        if waveform_file.exists():
+            logger.info(f"✅ Serving waveform image: {waveform_path} ({waveform_file.stat().st_size} bytes)")
+            return send_file(
+                str(waveform_file),
+                mimetype='image/png',
+                as_attachment=False
+            )
+        else:
+            logger.warning(f"❌ Waveform file does not exist: {waveform_path}")
+    else:
+        logger.warning(f"❌ Waveform path is None for session {session_id}")
+    
+    return jsonify({'error': 'Waveform image not available'}), 404
 
 
 @video_bp.route('/languages', methods=['GET'])

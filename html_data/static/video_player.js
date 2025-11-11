@@ -18,6 +18,13 @@ class VideoTranslatorApp {
         this.captionStartTime = null; // When current caption started
         this.highlightUpdateInterval = null; // Interval for updating word highlights
         
+        // Section redo markers
+        this.markerA = null; // Start time in seconds
+        this.markerB = null; // End time in seconds
+        this.markerAElement = null; // DOM element for A marker
+        this.markerBElement = null; // DOM element for B marker
+        this.isRedoingSection = false; // Track if section redo is in progress
+        
         this.initializeElements();
         this.setupEventListeners();
         this.initializeSocket();
@@ -50,6 +57,16 @@ class VideoTranslatorApp {
         this.bufferProgress = document.getElementById('buffer-progress');
         this.bufferText = document.getElementById('buffer-text');
         this.timelineBuffered = document.getElementById('timeline-buffered');
+        
+        // Waveform elements
+        this.waveformContainer = document.getElementById('waveform-container');
+        this.waveformCanvas = document.getElementById('waveform-canvas');
+        this.waveformProgress = document.getElementById('waveform-progress');
+        this.waveformLoading = document.getElementById('waveform-loading');
+        this.waveformContext = null;
+        this.waveformData = null;
+        this.isWaveformLoaded = false;
+        this.isScrubbingWaveform = false;
         
         // Settings elements
         this.sourceLanguage = document.getElementById('source-language');
@@ -96,6 +113,17 @@ class VideoTranslatorApp {
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
         this.exportBtn = document.getElementById('export-btn');
+        this.redoSectionBtn = document.getElementById('redo-section-btn');
+        this.setMarkerABtn = document.getElementById('set-marker-a-btn');
+        this.setMarkerBBtn = document.getElementById('set-marker-b-btn');
+        this.clearMarkersBtn = document.getElementById('clear-markers-btn');
+        
+        // Section redo display elements
+        this.sectionRangeDisplay = document.getElementById('section-range-display');
+        this.sectionRedoInfo = document.getElementById('section-redo-info');
+        this.markerATimeDisplay = document.getElementById('marker-a-time');
+        this.markerBTimeDisplay = document.getElementById('marker-b-time');
+        this.markerDurationDisplay = document.getElementById('marker-duration');
         
         // Status elements
         this.statusTime = document.getElementById('status-time');
@@ -109,6 +137,33 @@ class VideoTranslatorApp {
         this.loadingOverlay = document.getElementById('loading-overlay');
         this.audioSourceInfo = document.getElementById('audio-source-info');
         this.audioSourceLabel = document.getElementById('audio-source-label');
+        
+        // Editor tab elements
+        this.tabBtns = document.querySelectorAll('.tab-btn');
+        this.tabContents = document.querySelectorAll('.tab-content');
+        this.captionListContainer = document.getElementById('caption-list-container');
+        this.captionListEmpty = document.getElementById('caption-list-empty');
+        this.captionList = document.getElementById('caption-list');
+        this.refreshCaptionsBtn = document.getElementById('refresh-captions-btn');
+        this.addSectionBtn = document.getElementById('add-section-btn');
+        this.exportEditedBtn = document.getElementById('export-edited-btn');
+        this.clearBatchBtn = document.getElementById('clear-batch-btn');
+        this.batchRedoSection = document.getElementById('batch-redo-section');
+        this.batchList = document.getElementById('batch-list');
+        this.startBatchBtn = document.getElementById('start-batch-btn');
+        this.batchCount = document.getElementById('batch-count');
+        
+        // Add Section form elements
+        this.addSectionForm = document.getElementById('add-section-form');
+        this.sectionStartInput = document.getElementById('section-start-input');
+        this.sectionEndInput = document.getElementById('section-end-input');
+        this.addSectionConfirmBtn = document.getElementById('add-section-confirm-btn');
+        this.addSectionCancelBtn = document.getElementById('add-section-cancel-btn');
+        
+        // Batch redo state
+        this.batchQueue = []; // Array of {start, end, duration} objects
+        this.isBatchProcessing = false;
+        this.currentBatchIndex = 0;
     }
     
     setupEventListeners() {
@@ -172,6 +227,20 @@ class VideoTranslatorApp {
             }
         });
         
+        // Waveform interactions
+        this.waveformContainer.addEventListener('click', (e) => this.handleWaveformClick(e));
+        this.waveformContainer.addEventListener('mousedown', (e) => this.handleWaveformMouseDown(e));
+        this.waveformContainer.addEventListener('mousemove', (e) => this.handleWaveformMouseMove(e));
+        this.waveformContainer.addEventListener('mouseup', () => this.handleWaveformMouseUp());
+        this.waveformContainer.addEventListener('mouseleave', () => this.handleWaveformMouseUp());
+        
+        // Redraw waveform on window resize
+        window.addEventListener('resize', () => {
+            if (this.isWaveformLoaded && this.waveformData) {
+                this.drawWaveform();
+            }
+        });
+        
         // Settings
         this.fontSizeInput.addEventListener('input', (e) => this.updateCaptionStyle());
         this.textColor.addEventListener('input', (e) => this.updateCaptionStyle());
@@ -226,6 +295,24 @@ class VideoTranslatorApp {
         this.startProcessingBtn.addEventListener('click', () => this.startProcessing());
         this.exportBtn.addEventListener('click', () => this.exportCaptions());
         
+        // Section redo buttons
+        this.setMarkerABtn.addEventListener('click', () => this.setMarkerA());
+        this.setMarkerBBtn.addEventListener('click', () => this.setMarkerB());
+        this.clearMarkersBtn.addEventListener('click', () => this.clearMarkers());
+        this.redoSectionBtn.addEventListener('click', () => this.redoSection());
+        
+        // Editor tab listeners
+        this.tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
+        this.refreshCaptionsBtn.addEventListener('click', () => this.loadCaptions());
+        this.addSectionBtn.addEventListener('click', () => this.showAddSectionForm());
+        this.exportEditedBtn.addEventListener('click', () => this.exportCaptions());
+        this.clearBatchBtn.addEventListener('click', () => this.clearBatchQueue());
+        this.startBatchBtn.addEventListener('click', () => this.startBatchRedo());
+        this.addSectionConfirmBtn.addEventListener('click', () => this.confirmAddSection());
+        this.addSectionCancelBtn.addEventListener('click', () => this.cancelAddSection());
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
     }
@@ -255,6 +342,15 @@ class VideoTranslatorApp {
         this.socket.on('error', (data) => {
             console.error('Socket error:', data);
             this.showError(data.message);
+        });
+        
+        this.socket.on('section_updated', (data) => {
+            console.log('Section updated:', data);
+            // Force caption refresh at current playback position
+            this.socket.emit('update_playback', {
+                session_id: this.sessionId,
+                timestamp: this.videoPlayer.currentTime
+            });
         });
     }
     
@@ -485,6 +581,14 @@ class VideoTranslatorApp {
                 // Display configuration
                 this.displayConfiguration();
                 
+                // Load waveform image (it's generated during session initialization)
+                // Add a small delay to allow the backend to finish initialization
+                setTimeout(() => {
+                    this.loadWaveform().catch(err => {
+                        console.warn('Failed to load waveform after start:', err);
+                    });
+                }, 1000);
+                
                 // Start polling for status updates
                 this.startStatusPolling();
             } else {
@@ -545,6 +649,7 @@ class VideoTranslatorApp {
         this.exportBtn.disabled = false;
         
         // Check if vocals audio is available (after Demucs processing)
+        // This will also trigger waveform loading now that audio exists
         this.checkVocalsAvailability();
         
         // Show upload area again so user can load a different video
@@ -554,6 +659,9 @@ class VideoTranslatorApp {
         // Show success message
         const minutes = (data.total_time / 60).toFixed(1);
         this.showSuccess(`Processing completed in ${minutes} minutes! You can now load another video.`);
+        
+        // Update marker display to enable redo button if markers are set
+        this.updateMarkerDisplay();
     }
     
     updateStatus(status) {
@@ -615,6 +723,15 @@ class VideoTranslatorApp {
             }
         }
         
+        // Try to load waveform on first buffer update if not already loaded
+        // This is a fallback in case the initial load after startProcessing() failed
+        if (!this.isWaveformLoaded && this.sessionId) {
+            console.log('📊 First buffer update received - attempting to load waveform...');
+            this.loadWaveform().catch(err => {
+                console.warn('Waveform not ready yet:', err);
+            });
+        }
+        
         // Update segment counter in status bar
         // During processing: show current count without total (e.g., "42 segments")
         // At completion: show final count with total (e.g., "42/42 segments")
@@ -672,6 +789,12 @@ class VideoTranslatorApp {
         this.timelineSlider.value = current;
         this.timeDisplay.textContent = `${this.formatTime(current)} / ${this.formatTime(duration)}`;
         this.statusTime.textContent = this.timeDisplay.textContent;
+        
+        // Update waveform progress
+        if (duration > 0) {
+            const progressPercent = (current / duration) * 100;
+            this.waveformProgress.style.width = `${progressPercent}%`;
+        }
         
         // Update captions via WebSocket (throttled to avoid spam)
         const now = Date.now();
@@ -903,8 +1026,8 @@ class VideoTranslatorApp {
     }
     
     handleKeyPress(event) {
-        // Don't handle if typing in input field
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT') return;
+        // Don't handle if typing in input field or textarea
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'SELECT' || event.target.tagName === 'TEXTAREA') return;
         
         switch(event.key) {
             case ' ':
@@ -957,6 +1080,15 @@ class VideoTranslatorApp {
                 this.vocalsAvailable = false;
                 console.log('❌ Vocals audio not available - using video audio only');
             }
+            
+            // Only load waveform if audio is actually available
+            if (data.success && (data.vocals_available || data.original_available)) {
+                console.log('🎵 Audio available, loading waveform...');
+                await this.loadWaveform();
+            } else {
+                console.log('⏳ Audio not ready yet, waveform will load after processing starts');
+            }
+            
         } catch (error) {
             console.error('Error checking vocals availability:', error);
             this.vocalsAvailable = false;
@@ -1138,6 +1270,705 @@ class VideoTranslatorApp {
                 btn.classList.remove('preset-active');
             }
         });
+    }
+    
+    // Section Redo Methods
+    setMarkerA() {
+        this.markerA = this.videoPlayer.currentTime;
+        this.setMarkerABtn.classList.add('active');
+        this.updateMarkerDisplay();
+        this.createTimelineMarker('A', this.markerA);
+        console.log(`Marker A set at ${this.formatTime(this.markerA)}`);
+    }
+    
+    setMarkerB() {
+        this.markerB = this.videoPlayer.currentTime;
+        this.setMarkerBBtn.classList.add('active');
+        this.updateMarkerDisplay();
+        this.createTimelineMarker('B', this.markerB);
+        console.log(`Marker B set at ${this.formatTime(this.markerB)}`);
+    }
+    
+    clearMarkers() {
+        this.markerA = null;
+        this.markerB = null;
+        this.setMarkerABtn.classList.remove('active');
+        this.setMarkerBBtn.classList.remove('active');
+        this.updateMarkerDisplay();
+        this.removeTimelineMarkers();
+        console.log('Markers cleared');
+    }
+    
+    createTimelineMarker(label, time) {
+        // Remove existing marker if it exists
+        if (label === 'A' && this.markerAElement) {
+            this.markerAElement.remove();
+        } else if (label === 'B' && this.markerBElement) {
+            this.markerBElement.remove();
+        }
+        
+        // Create new marker element
+        const marker = document.createElement('div');
+        marker.className = `timeline-marker timeline-marker-${label.toLowerCase()}`;
+        marker.dataset.label = label;
+        
+        // Calculate position as percentage of video duration
+        const duration = this.videoPlayer.duration;
+        const position = (time / duration) * 100;
+        marker.style.left = `${position}%`;
+        
+        // Add to timeline
+        const timeline = document.querySelector('.timeline');
+        timeline.appendChild(marker);
+        
+        // Store reference
+        if (label === 'A') {
+            this.markerAElement = marker;
+        } else {
+            this.markerBElement = marker;
+        }
+    }
+    
+    removeTimelineMarkers() {
+        if (this.markerAElement) {
+            this.markerAElement.remove();
+            this.markerAElement = null;
+        }
+        if (this.markerBElement) {
+            this.markerBElement.remove();
+            this.markerBElement = null;
+        }
+    }
+    
+    updateMarkerDisplay() {
+        const hasA = this.markerA !== null;
+        const hasB = this.markerB !== null;
+        
+        if (hasA || hasB) {
+            this.sectionRedoInfo.style.display = 'block';
+        } else {
+            this.sectionRedoInfo.style.display = 'none';
+        }
+        
+        // Update time displays
+        this.markerATimeDisplay.textContent = hasA ? this.formatTime(this.markerA) : '--:--';
+        this.markerBTimeDisplay.textContent = hasB ? this.formatTime(this.markerB) : '--:--';
+        
+        // Update duration and range display
+        if (hasA && hasB) {
+            const start = Math.min(this.markerA, this.markerB);
+            const end = Math.max(this.markerA, this.markerB);
+            const duration = end - start;
+            this.markerDurationDisplay.textContent = this.formatTime(duration);
+            this.sectionRangeDisplay.textContent = `${this.formatTime(start)} → ${this.formatTime(end)}`;
+            
+            // Enable redo button only if processing is complete
+            this.redoSectionBtn.disabled = this.isProcessing || this.isRedoingSection;
+        } else {
+            this.markerDurationDisplay.textContent = '--:--';
+            this.sectionRangeDisplay.textContent = '';
+            this.redoSectionBtn.disabled = true;
+        }
+    }
+    
+    async redoSection() {
+        if (!this.sessionId || this.markerA === null || this.markerB === null) {
+            this.showError('Please set both A and B markers first');
+            return;
+        }
+        
+        // Ensure A comes before B
+        const startTime = Math.min(this.markerA, this.markerB);
+        const endTime = Math.max(this.markerA, this.markerB);
+        
+        if (endTime - startTime < 0.5) {
+            this.showError('Section is too short. Minimum 0.5 seconds required.');
+            return;
+        }
+        
+        this.isRedoingSection = true;
+        this.redoSectionBtn.disabled = true;
+        this.redoSectionBtn.textContent = '🔄 REDOING SECTION...';
+        
+        try {
+            // Read current configuration from UI
+            const modelSource = this.modelSource.value;
+            const modelSize = this.modelSize.value;
+            const device = this.device.value;
+            const sourceLang = this.sourceLanguage.value || 'auto';
+            const targetLang = 'en';
+            
+            // Silence detection settings
+            const enableSilenceDetection = this.enableSilenceDetection.checked;
+            const silenceThreshold = parseFloat(this.silenceThreshold.value);
+            const minSilenceDuration = parseFloat(this.minSilenceDuration.value);
+            const minSpeechDuration = parseFloat(this.minSpeechDuration.value);
+            
+            // Temperature settings
+            const enableTemperature = this.enableTemperature.checked;
+            const temperature = enableTemperature ? parseFloat(this.temperatureSlider.value) / 100 : null;
+            
+            // Compression ratio threshold
+            const compressionRatioThreshold = parseFloat(this.compressionRatioSlider.value) / 10;
+            
+            console.log(`Redoing section ${this.formatTime(startTime)} → ${this.formatTime(endTime)}`);
+            
+            const response = await fetch(`/api/video/session/${this.sessionId}/redo_section`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    start_time: startTime,
+                    end_time: endTime,
+                    model_source: modelSource,
+                    model_size: modelSize,
+                    device: device,
+                    source_language: sourceLang,
+                    target_language: targetLang,
+                    enable_silence_detection: enableSilenceDetection,
+                    silence_threshold_db: silenceThreshold,
+                    min_silence_duration: minSilenceDuration,
+                    min_speech_duration: minSpeechDuration,
+                    enable_temperature: enableTemperature,
+                    temperature: temperature,
+                    compression_ratio_threshold: compressionRatioThreshold
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const segmentsRemoved = data.segments_removed || 0;
+                const segmentsAdded = data.segments_added || 0;
+                this.showSuccess(
+                    `Section redone successfully!\n` +
+                    `Removed: ${segmentsRemoved} segments | Added: ${segmentsAdded} segments\n` +
+                    `Language: ${data.language || 'unknown'}`
+                );
+                
+                // Clear markers after successful redo
+                this.clearMarkers();
+                
+                // Force caption refresh at current position
+                this.socket.emit('update_playback', {
+                    session_id: this.sessionId,
+                    timestamp: this.videoPlayer.currentTime
+                });
+            } else {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to redo section');
+            }
+            
+        } catch (error) {
+            console.error('Section redo error:', error);
+            this.showError('Failed to redo section: ' + error.message);
+        } finally {
+            this.isRedoingSection = false;
+            this.redoSectionBtn.textContent = '🔄 REDO SECTION (A→B)';
+            this.updateMarkerDisplay();
+        }
+    }
+    
+    // ===== Editor Tab Methods =====
+    
+    switchTab(tabName) {
+        // Update tab buttons
+        this.tabBtns.forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+        
+        // Update tab content
+        this.tabContents.forEach(content => {
+            if (content.id === `${tabName}-tab`) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+        
+        // Load captions when switching to editor tab
+        if (tabName === 'editor' && this.sessionId) {
+            this.loadCaptions();
+        }
+    }
+    
+    async loadCaptions() {
+        if (!this.sessionId) {
+            console.log('No session ID, cannot load captions');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/video/session/${this.sessionId}/segments`);
+            if (response.ok) {
+                const data = await response.json();
+                this.displayCaptions(data.segments || []);
+            } else {
+                console.error('Failed to load captions');
+                this.displayCaptions([]);
+            }
+        } catch (error) {
+            console.error('Error loading captions:', error);
+            this.displayCaptions([]);
+        }
+    }
+    
+    displayCaptions(segments) {
+        if (!segments || segments.length === 0) {
+            this.captionListEmpty.style.display = 'block';
+            this.captionList.style.display = 'none';
+            return;
+        }
+        
+        this.captionListEmpty.style.display = 'none';
+        this.captionList.style.display = 'flex';
+        this.captionList.innerHTML = '';
+        
+        segments.forEach((segment, index) => {
+            const item = this.createCaptionItem(segment, index);
+            this.captionList.appendChild(item);
+        });
+    }
+    
+    createCaptionItem(segment, index) {
+        const item = document.createElement('div');
+        item.className = 'caption-item';
+        item.dataset.segmentId = index;
+        
+        const startTime = this.formatTime(segment.start);
+        const endTime = this.formatTime(segment.end);
+        const duration = (segment.end - segment.start).toFixed(1);
+        
+        item.innerHTML = `
+            <div class="caption-header">
+                <span class="caption-time">${startTime} → ${endTime} (${duration}s)</span>
+                <div class="caption-actions">
+                    <button class="caption-btn edit-btn" data-action="edit">✏️ Edit</button>
+                    <button class="caption-btn redo-btn" data-action="redo">🔄 Redo</button>
+                    <button class="caption-btn delete-btn" data-action="delete">🗑️ Delete</button>
+                </div>
+            </div>
+            <div class="caption-text-label">📝 Original Text:</div>
+            <div class="caption-text">${this.escapeHtml(segment.text || '')}</div>
+            <div class="caption-translation-label">🌐 Translation:</div>
+            <div class="caption-translation">${this.escapeHtml(segment.translation || '')}</div>
+        `;
+        
+        // Add action listeners
+        const editBtn = item.querySelector('[data-action="edit"]');
+        const redoBtn = item.querySelector('[data-action="redo"]');
+        const deleteBtn = item.querySelector('[data-action="delete"]');
+        
+        editBtn.addEventListener('click', () => this.editCaption(segment, index, item));
+        redoBtn.addEventListener('click', () => this.addToBatch(segment.start, segment.end));
+        deleteBtn.addEventListener('click', () => this.deleteCaption(segment, index));
+        
+        return item;
+    }
+    
+    editCaption(segment, index, itemElement) {
+        const textDiv = itemElement.querySelector('.caption-text');
+        const translationDiv = itemElement.querySelector('.caption-translation');
+        const editBtn = itemElement.querySelector('[data-action="edit"]');
+        
+        if (editBtn.textContent.includes('Save')) {
+            // Save mode
+            const textAreas = itemElement.querySelectorAll('.caption-text-editable');
+            const textArea = textAreas[0];
+            const translationArea = textAreas[1];
+            
+            const newText = textArea ? textArea.value : segment.text;
+            const newTranslation = translationArea ? translationArea.value : segment.translation;
+            
+            // Update segment
+            this.updateSegment(index, newText, newTranslation);
+            
+            // Restore display
+            textDiv.innerHTML = this.escapeHtml(newText);
+            translationDiv.innerHTML = this.escapeHtml(newTranslation);
+            editBtn.textContent = '✏️ Edit';
+        } else {
+            // Edit mode
+            const currentText = segment.text || '';
+            const currentTranslation = segment.translation || '';
+            
+            textDiv.innerHTML = `<textarea class="caption-text-editable" placeholder="Original transcribed text...">${this.escapeHtml(currentText)}</textarea>`;
+            translationDiv.innerHTML = `<textarea class="caption-text-editable" placeholder="English translation...">${this.escapeHtml(currentTranslation)}</textarea>`;
+            editBtn.textContent = '💾 Save';
+        }
+    }
+    
+    async updateSegment(index, text, translation) {
+        if (!this.sessionId) return;
+        
+        try {
+            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${index}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, translation })
+            });
+            
+            if (response.ok) {
+                this.showSuccess('Caption updated');
+            } else {
+                this.showError('Failed to update caption');
+            }
+        } catch (error) {
+            console.error('Error updating segment:', error);
+            this.showError('Error updating caption');
+        }
+    }
+    
+    async deleteCaption(segment, index) {
+        if (!confirm('Delete this caption segment?')) return;
+        
+        try {
+            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${index}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.showSuccess('Caption deleted');
+                this.loadCaptions(); // Reload list
+            } else {
+                this.showError('Failed to delete caption');
+            }
+        } catch (error) {
+            console.error('Error deleting segment:', error);
+            this.showError('Error deleting caption');
+        }
+    }
+    
+    addToBatch(start, end) {
+        const duration = (end - start).toFixed(1);
+        this.batchQueue.push({ start, end, duration });
+        this.updateBatchDisplay();
+        this.showSuccess(`Added ${duration}s section to batch queue`);
+    }
+    
+    showAddSectionForm() {
+        this.addSectionForm.style.display = 'block';
+        // Set default values from current video time if available
+        if (this.videoPlayer && this.videoPlayer.currentTime) {
+            this.sectionStartInput.value = this.videoPlayer.currentTime.toFixed(1);
+            const defaultEnd = Math.min(this.videoPlayer.currentTime + 10, this.videoPlayer.duration || this.videoPlayer.currentTime + 10);
+            this.sectionEndInput.value = defaultEnd.toFixed(1);
+        }
+        this.sectionStartInput.focus();
+    }
+    
+    cancelAddSection() {
+        this.addSectionForm.style.display = 'none';
+        this.sectionStartInput.value = '';
+        this.sectionEndInput.value = '';
+    }
+    
+    confirmAddSection() {
+        const startTime = parseFloat(this.sectionStartInput.value);
+        const endTime = parseFloat(this.sectionEndInput.value);
+        
+        // Validation
+        if (isNaN(startTime) || isNaN(endTime)) {
+            this.showError('Please enter valid numbers for start and end times');
+            return;
+        }
+        
+        if (startTime < 0 || endTime < 0) {
+            this.showError('Times must be positive numbers');
+            return;
+        }
+        
+        if (startTime >= endTime) {
+            this.showError('End time must be greater than start time');
+            return;
+        }
+        
+        if (this.videoMetadata && endTime > this.videoMetadata.duration) {
+            this.showError(`End time exceeds video duration (${this.videoMetadata.duration.toFixed(1)}s)`);
+            return;
+        }
+        
+        // Add to batch
+        this.addToBatch(startTime, endTime);
+        
+        // Close form
+        this.cancelAddSection();
+    }
+    
+    updateBatchDisplay() {
+        this.batchCount.textContent = this.batchQueue.length;
+        
+        if (this.batchQueue.length === 0) {
+            this.batchRedoSection.style.display = 'none';
+            return;
+        }
+        
+        this.batchRedoSection.style.display = 'block';
+        this.batchList.innerHTML = '';
+        
+        this.batchQueue.forEach((item, index) => {
+            const batchItem = document.createElement('div');
+            batchItem.className = 'batch-item';
+            batchItem.innerHTML = `
+                <div class="batch-item-info">
+                    <div class="batch-item-time">${this.formatTime(item.start)} → ${this.formatTime(item.end)}</div>
+                    <div class="batch-item-duration">Duration: ${item.duration}s</div>
+                </div>
+                <button class="batch-item-remove" data-index="${index}">✖️</button>
+            `;
+            
+            const removeBtn = batchItem.querySelector('.batch-item-remove');
+            removeBtn.addEventListener('click', () => this.removeFromBatch(index));
+            
+            this.batchList.appendChild(batchItem);
+        });
+    }
+    
+    removeFromBatch(index) {
+        this.batchQueue.splice(index, 1);
+        this.updateBatchDisplay();
+    }
+    
+    clearBatchQueue() {
+        if (this.batchQueue.length === 0) return;
+        if (!confirm(`Clear all ${this.batchQueue.length} items from batch queue?`)) return;
+        
+        this.batchQueue = [];
+        this.updateBatchDisplay();
+        this.showSuccess('Batch queue cleared');
+    }
+    
+    async startBatchRedo() {
+        if (this.batchQueue.length === 0) {
+            this.showError('Batch queue is empty');
+            return;
+        }
+        
+        if (this.isBatchProcessing) {
+            this.showError('Batch processing already in progress');
+            return;
+        }
+        
+        this.isBatchProcessing = true;
+        this.currentBatchIndex = 0;
+        this.startBatchBtn.disabled = true;
+        this.startBatchBtn.innerHTML = `⏳ Processing (0/${this.batchQueue.length})`;
+        
+        try {
+            for (let i = 0; i < this.batchQueue.length; i++) {
+                this.currentBatchIndex = i;
+                const item = this.batchQueue[i];
+                
+                this.startBatchBtn.innerHTML = `⏳ Processing (${i + 1}/${this.batchQueue.length})`;
+                
+                // Call redo section API
+                await this.redoSectionAPI(item.start, item.end);
+                
+                // Wait a bit between requests to avoid overload
+                await this.sleep(500);
+            }
+            
+            this.showSuccess(`Batch redo complete! Processed ${this.batchQueue.length} sections`);
+            this.batchQueue = [];
+            this.updateBatchDisplay();
+            this.loadCaptions(); // Reload captions
+            
+        } catch (error) {
+            console.error('Batch redo error:', error);
+            this.showError('Batch processing failed: ' + error.message);
+        } finally {
+            this.isBatchProcessing = false;
+            this.startBatchBtn.disabled = false;
+            this.startBatchBtn.innerHTML = `🚀 START BATCH REDO (<span id="batch-count">${this.batchQueue.length}</span> sections)`;
+        }
+    }
+    
+    buildProcessingConfig() {
+        // Build configuration object from current UI settings
+        // This mirrors the config sent in startProcessing()
+        return {
+            model_source: this.modelSource.value,
+            model_size: this.modelSize.value,
+            device: this.device.value,
+            source_language: this.sourceLanguage.value || 'auto',
+            target_language: 'en',
+            enable_translation: true,
+            enable_silence_detection: this.enableSilenceDetection.checked,
+            silence_threshold_db: parseFloat(this.silenceThreshold.value),
+            min_silence_duration: parseFloat(this.minSilenceDuration.value),
+            min_speech_duration: parseFloat(this.minSpeechDuration.value),
+            enable_vocal_isolation: this.enableVocalIsolation.checked,
+            demucs_model: this.demucsModel.value,
+            demucs_jobs: parseInt(this.demucsJobs.value),
+            enable_temperature: this.enableTemperature.checked,
+            temperature: this.enableTemperature.checked ? parseFloat(this.temperatureSlider.value) / 100 : null,
+            compression_ratio_threshold: parseFloat(this.compressionRatioSlider.value) / 10
+        };
+    }
+    
+    async redoSectionAPI(startTime, endTime) {
+        const config = this.buildProcessingConfig();
+        
+        const response = await fetch(`/api/video/session/${this.sessionId}/redo_section`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                start_time: startTime,
+                end_time: endTime,
+                ...config  // Spread config directly into body
+            })
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to redo section');
+        }
+        
+        return await response.json();
+    }
+    
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    showSuccess(message) {
+        // Simple success notification (can be enhanced with toast library)
+        console.log('SUCCESS:', message);
+        // You could use the existing status bar or create a toast notification
+        this.statusProcessing.textContent = message;
+        this.statusProcessing.style.color = '#4CAF50';
+        setTimeout(() => {
+            this.statusProcessing.style.color = '';
+        }, 3000);
+    }
+    
+    // ===== Waveform Methods =====
+    
+    async loadWaveform() {
+        if (!this.sessionId) {
+            console.warn('Cannot load waveform: no session ID');
+            return;
+        }
+        
+        console.log('Loading waveform image...');
+        this.waveformLoading.style.display = 'block';
+        this.isWaveformLoaded = false;
+        
+        try {
+            // Fetch the waveform PNG image from backend
+            const waveformResponse = await fetch(`/api/video/session/${this.sessionId}/waveform`);
+            
+            if (!waveformResponse.ok) {
+                throw new Error(`Failed to fetch waveform image (status: ${waveformResponse.status})`);
+            }
+            
+            const waveformBlob = await waveformResponse.blob();
+            console.log(`Waveform image blob size: ${waveformBlob.size} bytes`);
+            
+            // Create an image element to load the waveform
+            const img = new Image();
+            const imageUrl = URL.createObjectURL(waveformBlob);
+            
+            // Wait for image to load
+            await new Promise((resolve, reject) => {
+                img.onload = () => {
+                    console.log(`Waveform image loaded: ${img.width}x${img.height}px`);
+                    resolve();
+                };
+                img.onerror = () => reject(new Error('Failed to load waveform image'));
+                img.src = imageUrl;
+            });
+            
+            // Draw the image to canvas
+            this.drawWaveformImage(img);
+            
+            // Clean up blob URL
+            URL.revokeObjectURL(imageUrl);
+            
+            this.isWaveformLoaded = true;
+            this.waveformLoading.style.display = 'none';
+            console.log('✅ Waveform loaded successfully');
+            
+        } catch (error) {
+            console.error('Error loading waveform:', error);
+            this.waveformLoading.textContent = 'Waveform unavailable';
+            setTimeout(() => {
+                this.waveformLoading.style.display = 'none';
+            }, 2000);
+        }
+    }
+    
+    drawWaveformImage(img) {
+        if (!img || !this.waveformCanvas) {
+            console.warn('Cannot draw waveform: missing image or canvas');
+            return;
+        }
+        
+        const canvas = this.waveformCanvas;
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to match container
+        const rect = this.waveformContainer.getBoundingClientRect();
+        
+        // If container has no size, use default dimensions
+        const width = rect.width > 0 ? rect.width : 800;
+        const height = rect.height > 0 ? rect.height : 60;
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        console.log(`Drawing waveform image to canvas: ${canvas.width}x${canvas.height}`);
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw the waveform image scaled to fit canvas
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        console.log('Waveform image drawn to canvas');
+    }
+    
+    handleWaveformClick(event) {
+        if (!this.videoPlayer.duration) return;
+        
+        const rect = this.waveformContainer.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const percentage = clickX / rect.width;
+        const newTime = percentage * this.videoPlayer.duration;
+        
+        this.videoPlayer.currentTime = newTime;
+        
+        // Update captions immediately
+        if (this.sessionId) {
+            this.socket.emit('update_playback', {
+                session_id: this.sessionId,
+                timestamp: newTime
+            });
+        }
+    }
+    
+    handleWaveformMouseDown(event) {
+        this.isScrubbingWaveform = true;
+        this.handleWaveformClick(event);
+    }
+    
+    handleWaveformMouseMove(event) {
+        if (!this.isScrubbingWaveform) return;
+        this.handleWaveformClick(event);
+    }
+    
+    handleWaveformMouseUp() {
+        this.isScrubbingWaveform = false;
     }
 }
 

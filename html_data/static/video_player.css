@@ -151,6 +151,51 @@ body {
     border-radius: 3px;
 }
 
+/* Waveform Visualization */
+.waveform-container {
+    position: relative;
+    width: calc(100% - 20px);
+    height: 60px;
+    background: rgba(0, 0, 0, 0.3);
+    margin: 5px 10px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+}
+
+.waveform-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.waveform-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(0, 212, 255, 0.15);
+    pointer-events: none;
+    width: 0%;
+    transition: width 0.1s linear;
+    border-right: 2px solid rgba(0, 212, 255, 0.8);
+}
+
+.waveform-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #00D4FF;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 8px 16px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
 .timeline-buffered {
     position: absolute;
     left: 0;
@@ -234,6 +279,48 @@ body {
     margin-bottom: 20px;
     color: #00D4FF;
     text-align: center;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid rgba(0, 212, 255, 0.2);
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #aaa;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-bottom: 3px solid transparent;
+    position: relative;
+    bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: #00D4FF;
+    background: rgba(0, 212, 255, 0.05);
+}
+
+.tab-btn.active {
+    color: #00D4FF;
+    border-bottom-color: #00D4FF;
+    background: rgba(0, 212, 255, 0.1);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
 }
 
 .settings-section {
@@ -605,4 +692,401 @@ body {
 
 .info-box li {
     margin-bottom: 4px;
+}
+
+/* Section Redo Controls */
+.section-redo-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.marker-btn {
+    min-width: 45px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.marker-btn.active {
+    background: rgba(0, 212, 255, 0.3);
+    border-color: #00d4ff;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+}
+
+.marker-btn:hover {
+    transform: scale(1.05);
+}
+
+.section-range-display {
+    font-size: 11px;
+    color: #00d4ff;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+/* Timeline Markers for A/B positions */
+.timeline-marker {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.timeline-marker-a {
+    background: linear-gradient(to bottom, #4caf50 0%, rgba(76, 175, 80, 0.3) 100%);
+}
+
+.timeline-marker-b {
+    background: linear-gradient(to bottom, #f44336 0%, rgba(244, 67, 54, 0.3) 100%);
+}
+
+.timeline-marker::before {
+    content: attr(data-label);
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    font-weight: bold;
+    color: inherit;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+/* Redo Section Button */
+.btn-warning {
+    background: linear-gradient(135deg, #ff9500 0%, #ff6b00 100%);
+    color: #fff;
+}
+
+.btn-warning:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ffb040 0%, #ff8020 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 149, 0, 0.4);
+}
+
+.btn-warning:disabled {
+    background: rgba(255, 149, 0, 0.2);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-small:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Editor Tab Styles */
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.editor-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.caption-list-container {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-text {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.empty-subtext {
+    font-size: 13px;
+    color: #666;
+}
+
+.caption-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.caption-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 6px;
+    padding: 12px;
+    transition: all 0.3s;
+}
+
+.caption-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(0, 212, 255, 0.4);
+    transform: translateX(2px);
+}
+
+.caption-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.caption-time {
+    font-size: 12px;
+    color: #00D4FF;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.caption-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.caption-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #aaa;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.caption-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: #fff;
+}
+
+.caption-btn.edit-btn:hover {
+    border-color: #00D4FF;
+    color: #00D4FF;
+}
+
+.caption-btn.delete-btn:hover {
+    border-color: #f44336;
+    color: #f44336;
+}
+
+.caption-btn.redo-btn:hover {
+    border-color: #ff9500;
+    color: #ff9500;
+}
+
+.caption-text {
+    font-size: 13px;
+    color: #ddd;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+.caption-text-label,
+.caption-translation-label {
+    font-size: 11px;
+    color: #00D4FF;
+    font-weight: 600;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.caption-translation {
+    font-size: 12px;
+    color: #aaa;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.caption-text-editable {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid #00D4FF;
+    color: #fff;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 40px;
+}
+
+.caption-text-editable:focus {
+    outline: none;
+    border-color: #00D4FF;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* Batch Redo Section */
+.batch-redo-section {
+    background: rgba(255, 149, 0, 0.05);
+    border: 1px solid rgba(255, 149, 0, 0.2);
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.section-subtitle {
+    font-size: 14px;
+    color: #ff9500;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.batch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.batch-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 149, 0, 0.3);
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.batch-item-info {
+    flex: 1;
+}
+
+.batch-item-time {
+    font-size: 11px;
+    color: #ff9500;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.batch-item-duration {
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+.batch-item-remove {
+    background: transparent;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    color: #f44336;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.batch-item-remove:hover {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: #f44336;
+}
+
+/* Scrollbar Styling for Caption List */
+.caption-list-container::-webkit-scrollbar,
+.batch-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.caption-list-container::-webkit-scrollbar-track,
+.batch-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.caption-list-container::-webkit-scrollbar-thumb,
+.batch-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 4px;
+}
+
+.caption-list-container::-webkit-scrollbar-thumb:hover,
+.batch-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 212, 255, 0.5);
+}
+
+/* Add Section Form */
+.add-section-form {
+    background: rgba(0, 212, 255, 0.05);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.form-col {
+    flex: 1;
+}
+
+.form-col label {
+    display: block;
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 4px;
+}
+
+.form-col input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.form-col input:focus {
+    outline: none;
+    border-color: #00D4FF;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+.form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.form-actions .btn {
+    flex: 1;
 }
