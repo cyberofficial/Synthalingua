@@ -492,6 +492,10 @@ class VideoTranslatorApp {
         this.captionListEmpty = document.getElementById('caption-list-empty');
         this.captionList = document.getElementById('caption-list');
         this.refreshCaptionsBtn = document.getElementById('refresh-captions-btn');
+        this.selectAllBtn = document.getElementById('select-all-btn');
+        this.selectNoneBtn = document.getElementById('select-none-btn');
+        this.massRedoBtn = document.getElementById('mass-redo-btn');
+        this.massRemoveBtn = document.getElementById('mass-remove-btn');
         this.addSectionBtn = document.getElementById('add-section-btn');
         this.exportEditedBtn = document.getElementById('export-edited-btn');
         this.clearBatchBtn = document.getElementById('clear-batch-btn');
@@ -684,6 +688,10 @@ class VideoTranslatorApp {
             btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
         });
         this.refreshCaptionsBtn.addEventListener('click', () => this.loadCaptions());
+        this.selectAllBtn.addEventListener('click', () => this.selectAllCaptions());
+        this.selectNoneBtn.addEventListener('click', () => this.selectNoneCaptions());
+        this.massRedoBtn.addEventListener('click', () => this.massRedoSelected());
+        this.massRemoveBtn.addEventListener('click', () => this.massRemoveSelected());
         this.addSectionBtn.addEventListener('click', () => this.showAddSectionForm());
         this.exportEditedBtn.addEventListener('click', () => this.exportCaptions());
         this.clearBatchBtn.addEventListener('click', () => this.clearBatchQueue());
@@ -2047,6 +2055,7 @@ class VideoTranslatorApp {
         
         item.innerHTML = `
             <div class="caption-header">
+                <input type="checkbox" class="caption-checkbox" title="Select for mass operations">
                 <span class="caption-time">${startTime} → ${endTime} (${duration}s)</span>
                 <div class="caption-actions">
                     <button class="caption-btn play-btn" data-action="play">▶️ Play</button>
@@ -2664,6 +2673,111 @@ class VideoTranslatorApp {
                 });
             }
         }, { once: true });
+    }
+    
+    // Mass operation methods
+    selectAllCaptions() {
+        const checkboxes = this.captionList.querySelectorAll('.caption-checkbox');
+        checkboxes.forEach(checkbox => checkbox.checked = true);
+        console.log(`✅ Selected all ${checkboxes.length} captions`);
+    }
+    
+    selectNoneCaptions() {
+        const checkboxes = this.captionList.querySelectorAll('.caption-checkbox');
+        checkboxes.forEach(checkbox => checkbox.checked = false);
+        console.log('❌ Deselected all captions');
+    }
+    
+    getSelectedCaptions() {
+        const selected = [];
+        const items = this.captionList.querySelectorAll('.caption-item');
+        
+        items.forEach(item => {
+            const checkbox = item.querySelector('.caption-checkbox');
+            if (checkbox && checkbox.checked) {
+                selected.push({
+                    element: item,
+                    segmentId: parseInt(item.dataset.segmentId),
+                    startTime: parseFloat(item.dataset.startTime),
+                    endTime: parseFloat(item.dataset.endTime)
+                });
+            }
+        });
+        
+        return selected;
+    }
+    
+    async massRedoSelected() {
+        const selected = this.getSelectedCaptions();
+        
+        if (selected.length === 0) {
+            this.showError('No captions selected. Please select captions using the checkboxes.');
+            return;
+        }
+        
+        console.log(`🔄 Mass Redo: Adding ${selected.length} selected segments to batch queue`);
+        
+        // Add all selected segments to batch queue
+        selected.forEach(item => {
+            this.addToBatch(item.startTime, item.endTime);
+        });
+        
+        // Deselect after adding to batch
+        this.selectNoneCaptions();
+        
+        this.showSuccess(`Added ${selected.length} segment(s) to batch redo queue`);
+    }
+    
+    async massRemoveSelected() {
+        const selected = this.getSelectedCaptions();
+        
+        if (selected.length === 0) {
+            this.showError('No captions selected. Please select captions using the checkboxes.');
+            return;
+        }
+        
+        // Confirm deletion
+        const confirmed = confirm(`Are you sure you want to remove ${selected.length} selected caption(s)? This action cannot be undone.`);
+        if (!confirmed) {
+            return;
+        }
+        
+        console.log(`🗑️ Mass Remove: Deleting ${selected.length} selected segments`);
+        
+        try {
+            // Collect segment IDs to delete
+            const segmentIds = selected.map(item => item.segmentId);
+            
+            // Send batch delete request to backend
+            const response = await fetch(`/api/video/session/${this.sessionId}/segments/batch-delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ segment_ids: segmentIds })
+            });
+            
+            if (response.ok) {
+                console.log('✅ Mass deletion successful');
+                this.showSuccess(`Removed ${selected.length} caption(s)`);
+                
+                // Reload caption list to reflect changes
+                await this.loadCaptions();
+                
+                // Force caption refresh at current playback position
+                if (this.sessionId) {
+                    this.socket.emit('update_playback', {
+                        session_id: this.sessionId,
+                        timestamp: this.videoPlayer.currentTime
+                    });
+                }
+            } else {
+                const error = await response.json();
+                console.error('Failed to delete captions:', error);
+                this.showError(`Failed to remove captions: ${error.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Error during mass remove:', error);
+            this.showError('Failed to remove captions: ' + error.message);
+        }
     }
 }
 

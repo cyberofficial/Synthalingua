@@ -1553,6 +1553,67 @@ def delete_segment(session_id, segment_id):
         return jsonify({'error': str(e)}), 500
 
 
+@video_bp.route('/session/<session_id>/segments/batch-delete', methods=['POST'])
+def batch_delete_segments(session_id):
+    """Delete multiple caption segments in a single request."""
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+    
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+    
+    try:
+        data = request.get_json()
+        segment_ids = data.get('segment_ids', [])
+        
+        if not segment_ids:
+            return jsonify({'error': 'No segment IDs provided'}), 400
+        
+        if not video_session.chunk_manager:
+            return jsonify({'error': 'No chunks available'}), 404
+        
+        # Sort segment IDs in descending order to delete from end to start
+        # This prevents index shifting issues during deletion
+        segment_ids_sorted = sorted(segment_ids, reverse=True)
+        
+        with video_session.state_lock:
+            deleted_count = 0
+            
+            for target_id in segment_ids_sorted:
+                current_index = 0
+                found = False
+                
+                for chunk in video_session.chunk_manager.chunks:
+                    if not chunk.timestamps:
+                        continue
+                    
+                    for i, seg in enumerate(chunk.timestamps):
+                        if current_index == target_id:
+                            # Remove this segment
+                            removed_segment = chunk.timestamps.pop(i)
+                            deleted_count += 1
+                            found = True
+                            logger.info(f"Deleted segment {target_id} from session {session_id}: "
+                                      f"{removed_segment.get('start')}-{removed_segment.get('end')}")
+                            break
+                        current_index += 1
+                    
+                    if found:
+                        break
+            
+            logger.info(f"Batch deleted {deleted_count} segments from session {session_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Deleted {deleted_count} segment(s) successfully',
+            'deleted_count': deleted_count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error batch deleting segments: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @video_bp.route('/session/<session_id>/video', methods=['GET'])
 def serve_video(session_id):
     """Serve the video file for playback (MP4 format for browser compatibility)."""
