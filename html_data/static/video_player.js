@@ -2189,12 +2189,40 @@ class VideoTranslatorApp {
     
     showAddSectionForm() {
         this.addSectionForm.style.display = 'block';
-        // Set default values from current video time if available
-        if (this.videoPlayer && this.videoPlayer.currentTime) {
-            this.sectionStartInput.value = this.videoPlayer.currentTime.toFixed(1);
-            const defaultEnd = Math.min(this.videoPlayer.currentTime + 10, this.videoPlayer.duration || this.videoPlayer.currentTime + 10);
-            this.sectionEndInput.value = defaultEnd.toFixed(1);
+        
+        // Priority 1: Use A/B markers if set
+        // Priority 2: Use current video time position
+        // Priority 3: Default to 0
+        
+        let startTime = 0;
+        let endTime = 10;
+        
+        // Check if marker A is set and valid
+        if (this.markerA !== null && !isNaN(this.markerA) && this.markerA >= 0) {
+            startTime = this.markerA;
+        } else if (this.videoPlayer && !isNaN(this.videoPlayer.currentTime) && this.videoPlayer.currentTime >= 0) {
+            // Fallback to current video time
+            startTime = this.videoPlayer.currentTime;
         }
+        
+        // Check if marker B is set and valid
+        if (this.markerB !== null && !isNaN(this.markerB) && this.markerB >= 0) {
+            endTime = this.markerB;
+        } else if (this.videoPlayer && !isNaN(this.videoPlayer.currentTime) && this.videoPlayer.currentTime >= 0) {
+            // Fallback to current video time + 10 seconds
+            const videoDuration = this.videoPlayer.duration || (this.videoPlayer.currentTime + 10);
+            endTime = Math.min(this.videoPlayer.currentTime + 10, videoDuration);
+        }
+        
+        // Ensure end time is after start time
+        if (endTime <= startTime) {
+            endTime = startTime + 10;
+        }
+        
+        // Set the input values
+        this.sectionStartInput.value = startTime.toFixed(1);
+        this.sectionEndInput.value = endTime.toFixed(1);
+        
         this.sectionStartInput.focus();
     }
     
