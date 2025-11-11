@@ -507,3 +507,102 @@ body {
 .control-panel::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 212, 255, 0.7);
 }
+
+/* Compression Ratio UI Enhancements */
+.slider-markers {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin-top: 4px;
+    height: 20px;
+}
+
+.marker {
+    font-size: 10px;
+    color: #888;
+    position: absolute;
+    transform: translateX(-50%);
+    padding: 2px 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.marker-low {
+    color: #ff9500;
+}
+
+.marker-default {
+    color: #00d4ff;
+    font-weight: bold;
+}
+
+.marker-high {
+    color: #4caf50;
+}
+
+.preset-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.preset-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.preset-btn:hover {
+    background: rgba(0, 212, 255, 0.2);
+    border-color: rgba(0, 212, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.preset-btn.preset-active {
+    background: rgba(0, 212, 255, 0.3);
+    border-color: #00d4ff;
+    color: #00d4ff;
+    font-weight: bold;
+}
+
+.warning-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255, 149, 0, 0.1);
+    border-left: 3px solid #ff9500;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #ffb366;
+}
+
+.warning-box strong {
+    color: #ff9500;
+}
+
+.info-box {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(0, 212, 255, 0.05);
+    border-left: 3px solid #00d4ff;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #b8e6f7;
+}
+
+.info-box strong {
+    color: #00d4ff;
+}
+
+.info-box ul {
+    line-height: 1.6;
+}
+
+.info-box li {
+    margin-bottom: 4px;
+}

@@ -89,6 +89,9 @@ class VideoTranslatorApp {
         // Compression ratio control elements
         this.compressionRatioSlider = document.getElementById('compression-ratio-slider');
         this.compressionRatioValue = document.getElementById('compression-ratio-value');
+        this.compressionRatioWarning = document.getElementById('compression-ratio-warning');
+        this.compressionRatioWarningText = document.getElementById('compression-ratio-warning-text');
+        this.modelSize = document.getElementById('model-size');
         
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
@@ -198,6 +201,25 @@ class VideoTranslatorApp {
         this.compressionRatioSlider.addEventListener('input', (e) => {
             const ratioValue = (parseFloat(e.target.value) / 10).toFixed(1);
             this.compressionRatioValue.textContent = ratioValue;
+            this.updateCompressionRatioWarning(parseFloat(ratioValue));
+            this.updatePresetButtonStates(parseFloat(ratioValue));
+        });
+        
+        // Compression ratio preset buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const ratio = parseFloat(e.target.dataset.ratio);
+                this.compressionRatioSlider.value = ratio * 10;
+                this.compressionRatioValue.textContent = ratio.toFixed(1);
+                this.updateCompressionRatioWarning(ratio);
+                this.updatePresetButtonStates(ratio);
+            });
+        });
+        
+        // Model size change listener for compression ratio tips
+        this.modelSize.addEventListener('change', () => {
+            const currentRatio = parseFloat(this.compressionRatioValue.textContent);
+            this.updateCompressionRatioWarning(currentRatio);
         });
         
         // Buttons
@@ -1077,6 +1099,45 @@ class VideoTranslatorApp {
         
         // Optionally show an alert for now
         alert('✅ ' + message);
+    }
+    
+    updateCompressionRatioWarning(ratio) {
+        const modelSize = this.modelSize.value;
+        let warning = '';
+        let showWarning = false;
+        
+        // Model-specific warnings based on the guide
+        if ((modelSize === 'medium' || modelSize === 'large-v2' || modelSize === 'large-v3') && ratio > 2.3) {
+            warning = 'Larger models (medium/large) may produce repetitive text with higher thresholds. Consider 2.0-2.2 for non-speech content.';
+            showWarning = true;
+        } else if ((modelSize === 'tiny' || modelSize === 'base') && ratio < 2.0) {
+            warning = 'Smaller models work well with default 2.4. Very low thresholds may reject valid speech.';
+            showWarning = true;
+        } else if (ratio < 1.9) {
+            warning = 'Very strict filtering. May reject valid transcriptions. Use only for music/non-speech content.';
+            showWarning = true;
+        } else if (ratio > 3.5) {
+            warning = 'Very lenient filtering. May allow repetitive hallucinations. Use only for highly technical content.';
+            showWarning = true;
+        }
+        
+        if (showWarning) {
+            this.compressionRatioWarningText.textContent = warning;
+            this.compressionRatioWarning.style.display = 'block';
+        } else {
+            this.compressionRatioWarning.style.display = 'none';
+        }
+    }
+    
+    updatePresetButtonStates(currentRatio) {
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            const btnRatio = parseFloat(btn.dataset.ratio);
+            if (Math.abs(btnRatio - currentRatio) < 0.05) {
+                btn.classList.add('preset-active');
+            } else {
+                btn.classList.remove('preset-active');
+            }
+        });
     }
 }
 

@@ -206,7 +206,37 @@
                     <div class="form-group">
                         <label>Compression Ratio Threshold: <span id="compression-ratio-value">2.4</span></label>
                         <input type="range" id="compression-ratio-slider" min="10" max="50" value="24" step="1">
-                        <div class="help-text">Rejects transcriptions with high compression ratio (text much shorter than expected). Lower = stricter filtering. Default: 2.4</div>
+                        <div class="slider-markers">
+                            <span class="marker marker-low" style="left: 30%;">1.9</span>
+                            <span class="marker marker-default" style="left: 48%;">2.4</span>
+                            <span class="marker marker-high" style="left: 70%;">3.0</span>
+                        </div>
+                        <div class="help-text">
+                            <strong>What it does:</strong> Prevents the model from getting stuck and repeating phrases by checking text compressibility.
+                            <br><strong>Default (2.4):</strong> Whisper's recommended value, works well for most content.
+                            <br><strong>Lower (1.9-2.3):</strong> Stricter filtering - use when model produces repetitive text or with non-speech audio.
+                            <br><strong>Higher (2.5-3.0):</strong> More lenient - use with complex/technical speech that naturally compresses less.
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quick Presets:</label>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" data-ratio="1.9" title="Aggressive filtering for non-speech/music">Strict (1.9)</button>
+                            <button class="preset-btn preset-active" data-ratio="2.4" title="Whisper default, balanced">Default (2.4)</button>
+                            <button class="preset-btn" data-ratio="3.0" title="Lenient for technical content">Lenient (3.0)</button>
+                        </div>
+                    </div>
+                    <div id="compression-ratio-warning" class="warning-box" style="display: none;">
+                        <strong>⚠️ Note:</strong> <span id="compression-ratio-warning-text"></span>
+                    </div>
+                    <div class="info-box">
+                        <strong>💡 Pro Tips:</strong>
+                        <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 12px;">
+                            <li><strong>Music/Non-speech:</strong> Lower to 1.9-2.0 to prevent hallucinations like "I'm not going to lie..." repeating.</li>
+                            <li><strong>Larger models (medium/large):</strong> May need lower threshold (2.0-2.2) as they're more "wordy" under uncertainty.</li>
+                            <li><strong>Smaller models (base/tiny):</strong> Default 2.4 works well. Lower threshold may reject valid speech.</li>
+                            <li><strong>Technical/Complex speech:</strong> Raise to 2.6-3.0 if valid transcriptions are being rejected.</li>
+                        </ul>
                     </div>
                 </div>
                 
