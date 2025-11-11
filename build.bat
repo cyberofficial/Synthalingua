@@ -1,7 +1,7 @@
 call data_whisper\Scripts\activate.bat
 
 pyinstaller set_up_env.spec --noconfirm
-set VERSION=1.2.6.rc11
+set VERSION=1.2.6.rc12
 pyinstaller synthalingua.spec --noconfirm
 xcopy "E:\Synthalingua\Synthalingua_Main\dist\release\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
 xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I

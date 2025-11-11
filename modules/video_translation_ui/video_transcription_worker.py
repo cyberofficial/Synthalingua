@@ -703,7 +703,15 @@ def main():
             # Fallback: write with ASCII encoding
             with open(args.output_json_path, 'w', encoding='ascii') as f:
                 json.dump(output_data, f, ensure_ascii=True, indent=4)
-        sys.exit(1)
+        except Exception as write_error:
+            # If we can't write the error JSON, log it and exit
+            try:
+                logger.error(f"Failed to write error JSON: {write_error}")
+            except:
+                pass
+        
+        # Use os._exit instead of sys.exit to avoid any potential import issues
+        os._exit(1)
     
     # Write the successful result to the output JSON file
     if args.debug:
@@ -755,10 +763,10 @@ def main():
             logger.info("Successfully wrote results with ASCII encoding fallback")
         except Exception as e:
             logger.error("Failed to write output JSON: %s", e, exc_info=True)
-            sys.exit(1)
+            os._exit(1)
     except Exception as e:
         logger.error("Failed to write output JSON: %s", e, exc_info=True)
-        sys.exit(1)
+        os._exit(1)
 
 
 if __name__ == "__main__":
