@@ -86,6 +86,10 @@ class VideoTranslatorApp {
         this.temperatureSlider = document.getElementById('temperature-slider');
         this.temperatureValue = document.getElementById('temperature-value');
         
+        // Compression ratio control elements
+        this.compressionRatioSlider = document.getElementById('compression-ratio-slider');
+        this.compressionRatioValue = document.getElementById('compression-ratio-value');
+        
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
         this.exportBtn = document.getElementById('export-btn');
@@ -188,6 +192,12 @@ class VideoTranslatorApp {
         this.temperatureSlider.addEventListener('input', (e) => {
             const tempValue = (parseInt(e.target.value) / 100).toFixed(2);
             this.temperatureValue.textContent = tempValue;
+        });
+        
+        // Compression ratio slider
+        this.compressionRatioSlider.addEventListener('input', (e) => {
+            const ratioValue = (parseFloat(e.target.value) / 10).toFixed(1);
+            this.compressionRatioValue.textContent = ratioValue;
         });
         
         // Buttons
@@ -382,6 +392,9 @@ class VideoTranslatorApp {
             const enableTemperature = this.enableTemperature.checked;
             const temperature = enableTemperature ? parseFloat(this.temperatureSlider.value) / 100 : null;
             
+            // Compression ratio threshold
+            const compressionRatioThreshold = parseFloat(this.compressionRatioSlider.value) / 10;
+            
             // Debug: Log configuration being sent
             console.log(' Starting processing with configuration:', {
                 model_source: modelSource,
@@ -436,7 +449,8 @@ class VideoTranslatorApp {
                     demucs_model: demucsModel,
                     demucs_jobs: demucsJobs,
                     enable_temperature: enableTemperature,
-                    temperature: temperature
+                    temperature: temperature,
+                    compression_ratio_threshold: compressionRatioThreshold
                 })
             });
             

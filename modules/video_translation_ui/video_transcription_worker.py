@@ -156,7 +156,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=temp_value,
-            compression_ratio_threshold=None,
+            compression_ratio_threshold=args.compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -210,7 +210,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=0.0,
-            compression_ratio_threshold=None,
+            compression_ratio_threshold=args.compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -264,7 +264,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=temp_value,
-            compression_ratio_threshold=None,
+            compression_ratio_threshold=args.compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -308,6 +308,7 @@ def main():
     parser.add_argument("--min_silence_duration", type=float, default=0.1, help="Minimum silence duration in seconds.")
     parser.add_argument("--chunk_start_time", type=float, default=0.0, help="Chunk start time for timestamp calculation.")
     parser.add_argument("--temperature", type=float, default=None, help="Fixed temperature value (0.0-1.0). If not set, uses multiple fallback temperatures.")
+    parser.add_argument("--compression_ratio_threshold", type=float, default=2.4, help="Compression ratio threshold for filtering low-quality transcriptions.")
     
     args = parser.parse_args()
     
@@ -477,7 +478,7 @@ def main():
                                     task=args.task,  # "translate" = translate to English, "transcribe" = source language
                                     condition_on_previous_text=True,
                                     temperature=temp_value if args.temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8),
-                                    compression_ratio_threshold=None,
+                                    compression_ratio_threshold=args.compression_ratio_threshold,
                                     log_prob_threshold=None,
                                     no_speech_threshold=0.6
                                 )

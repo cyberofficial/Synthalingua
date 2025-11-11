@@ -164,7 +164,8 @@ class VideoSession:
             'demucs_model': 'htdemucs',
             'demucs_jobs': 0,  # Single-threaded by default
             'enable_temperature': False,  # Use multiple temperature fallbacks by default
-            'temperature': None  # None = use fallback, float = fixed temperature
+            'temperature': None,  # None = use fallback, float = fixed temperature
+            'compression_ratio_threshold': 2.4  # Default from Whisper
         }
         
         # Merge defaults with current config
@@ -253,6 +254,9 @@ class VideoSession:
             # Temperature: if enable_temperature is False, pass None to use fallback temps
             temp_value = self.config.get('temperature') if self.config.get('enable_temperature', False) else None
             
+            # Compression ratio threshold
+            compression_ratio = self.config.get('compression_ratio_threshold', 2.4)
+            
             self.transcription_manager = VideoTranscriptionManager(
                 model_source=self.config.get('model_source', 'fasterwhisper'),
                 model_size=self.config.get('model_size', 'base'),
@@ -266,6 +270,7 @@ class VideoSession:
                 min_silence_duration=self.config.get('min_silence_duration', 0.5),
                 model_dir=self.config.get('model_dir', './models'),
                 temperature=temp_value,
+                compression_ratio_threshold=compression_ratio,
                 debug_mode=_debug_mode
             )
             

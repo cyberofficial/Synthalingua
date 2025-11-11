@@ -200,6 +200,16 @@
                     </div>
                 </div>
                 
+                <!-- Compression Ratio Threshold -->
+                <div class="settings-section">
+                    <h3 class="section-title">📊 Compression Ratio</h3>
+                    <div class="form-group">
+                        <label>Compression Ratio Threshold: <span id="compression-ratio-value">2.4</span></label>
+                        <input type="range" id="compression-ratio-slider" min="10" max="50" value="24" step="1">
+                        <div class="help-text">Rejects transcriptions with high compression ratio (text much shorter than expected). Lower = stricter filtering. Default: 2.4</div>
+                    </div>
+                </div>
+                
                 <!-- Silence Detection Settings -->
                 <div class="settings-section">
                     <h3 class="section-title">🔇 Silence Detection</h3>

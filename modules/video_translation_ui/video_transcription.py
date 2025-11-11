@@ -52,7 +52,8 @@ def _run_transcription_in_subprocess(
     min_silence_duration: float = 0.1,
     chunk_start_time: float = 0.0,
     on_segment_callback: Optional[Callable] = None,
-    temperature: Optional[float] = None
+    temperature: Optional[float] = None,
+    compression_ratio_threshold: float = 2.4
 ) -> Dict:
     """
     Run transcription in a separate subprocess to ensure complete VRAM cleanup.
@@ -121,6 +122,9 @@ def _run_transcription_in_subprocess(
                 command.extend(['--chunk_start_time', str(chunk_start_time)])
             if temperature is not None:
                 command.extend(['--temperature', str(temperature)])
+            
+            # Add compression_ratio_threshold
+            command.extend(['--compression_ratio_threshold', str(compression_ratio_threshold)])
         else:
             # In source mode, execute the worker script directly
             worker_script_path = os.path.join(
@@ -148,6 +152,11 @@ def _run_transcription_in_subprocess(
                 command.extend(['--silence_threshold_db', str(silence_threshold_db)])
                 command.extend(['--min_silence_duration', str(min_silence_duration)])
                 command.extend(['--chunk_start_time', str(chunk_start_time)])
+            if temperature is not None:
+                command.extend(['--temperature', str(temperature)])
+            
+            # Add compression_ratio_threshold
+            command.extend(['--compression_ratio_threshold', str(compression_ratio_threshold)])
         
         # Set up UTF-8 encoding environment
         env = os.environ.copy()
@@ -327,6 +336,7 @@ class VideoTranscriptionManager:
                  min_silence_duration: float = 0.5,
                  model_dir: str = "./models",
                  temperature: Optional[float] = None,
+                 compression_ratio_threshold: float = 2.4,
                  debug_mode: bool = False):
         """
         Initialize Video Transcription Manager.
@@ -355,6 +365,7 @@ class VideoTranscriptionManager:
         self.enable_silence_detection = enable_silence_detection
         self.model_dir = model_dir
         self.temperature = temperature  # None = use fallback, float = fixed temp
+        self.compression_ratio_threshold = compression_ratio_threshold
         self.debug_mode = debug_mode  # Enable debug logging in worker subprocess
         
         logger.info(f"VideoTranscriptionManager initialized: model={model_source}/{model_size}, "
@@ -762,7 +773,8 @@ class VideoTranscriptionManager:
                 min_silence_duration=self.silence_detector.min_silence_duration if self.silence_detector else 0.1,
                 chunk_start_time=start_time,
                 on_segment_callback=on_segment_complete,  # Real-time callback for each segment
-                temperature=self.temperature
+                temperature=self.temperature,
+                compression_ratio_threshold=self.compression_ratio_threshold
             )
             
             if not translation_result or translation_result.get('status') == 'error':
