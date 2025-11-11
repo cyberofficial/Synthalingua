@@ -544,6 +544,11 @@ class VideoTranslatorApp {
         this.videoPlayer.addEventListener('ended', () => this.onVideoEnded());
         this.videoPlayer.addEventListener('seeked', () => this.onSeeked());
         
+        // Video error handling
+        this.videoPlayer.addEventListener('error', (e) => this.handleVideoError(e));
+        this.videoPlayer.addEventListener('stalled', () => this.handleVideoStalled());
+        this.videoPlayer.addEventListener('suspend', () => this.handleVideoSuspend());
+        
         // Controls
         this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
         this.stopBtn.addEventListener('click', () => this.stopPlayback());
@@ -695,6 +700,40 @@ class VideoTranslatorApp {
         
         this.socket.on('connect', () => {
             console.log('Connected to server');
+            // Rejoin session room if we were disconnected
+            if (this.sessionId) {
+                console.log('🔄 Reconnected - rejoining session:', this.sessionId);
+                this.socket.emit('join_video_session', { session_id: this.sessionId });
+                // Resume caption updates at current playback position
+                if (!this.videoPlayer.paused && this.videoPlayer.currentTime > 0) {
+                    console.log('🔄 Resuming caption updates at:', this.videoPlayer.currentTime);
+                    this.socket.emit('update_playback', {
+                        session_id: this.sessionId,
+                        timestamp: this.videoPlayer.currentTime
+                    });
+                }
+            }
+        });
+        
+        this.socket.on('disconnect', (reason) => {
+            console.warn('⚠️ WebSocket disconnected:', reason);
+            // Clear captions to prevent stale display
+            if (this.transcriptionCaption) {
+                this.transcriptionCaption.textContent = '';
+                this.transcriptionCaption.style.display = 'none';
+            }
+            if (this.translationCaption) {
+                this.translationCaption.innerHTML = '';
+                this.translationCaption.style.display = 'none';
+            }
+        });
+        
+        this.socket.on('reconnect', (attemptNumber) => {
+            console.log('🔄 WebSocket reconnected after', attemptNumber, 'attempts');
+        });
+        
+        this.socket.on('reconnect_error', (error) => {
+            console.error('❌ WebSocket reconnection error:', error);
         });
         
         this.socket.on('caption_update', (data) => {
@@ -2534,6 +2573,97 @@ class VideoTranslatorApp {
     
     handleWaveformMouseUp() {
         this.isScrubbingWaveform = false;
+    }
+    
+    // Video error handling methods
+    handleVideoError(event) {
+        const video = event.target;
+        const error = video.error;
+        
+        console.error('❌ Video error occurred:', {
+            code: error?.code,
+            message: error?.message,
+            networkState: video.networkState,
+            readyState: video.readyState
+        });
+        
+        let errorMessage = 'Video playback error';
+        
+        if (error) {
+            switch (error.code) {
+                case error.MEDIA_ERR_ABORTED:
+                    errorMessage = 'Video playback aborted';
+                    console.warn('Video playback was aborted by user');
+                    break;
+                case error.MEDIA_ERR_NETWORK:
+                    errorMessage = 'Network error while loading video';
+                    console.error('Network error loading video - connection may be unstable');
+                    // Try to reload video after a delay
+                    setTimeout(() => this.attemptVideoReload(), 2000);
+                    break;
+                case error.MEDIA_ERR_DECODE:
+                    errorMessage = 'Video decoding error';
+                    console.error('Video codec error - file may be corrupted');
+                    break;
+                case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                    errorMessage = 'Video format not supported';
+                    console.error('Video source not supported by browser');
+                    break;
+                default:
+                    errorMessage = `Video error (code: ${error.code})`;
+            }
+        }
+        
+        this.showError(errorMessage);
+    }
+    
+    handleVideoStalled() {
+        console.warn('⚠️ Video playback stalled - buffering');
+        // Show loading indicator if video is playing
+        if (!this.videoPlayer.paused) {
+            this.showLoading('Buffering video...');
+            
+            // Auto-hide loading after 5 seconds if playback resumes
+            const checkResumed = setInterval(() => {
+                if (this.videoPlayer.readyState >= 3) { // HAVE_FUTURE_DATA or better
+                    this.hideLoading();
+                    clearInterval(checkResumed);
+                }
+            }, 500);
+            
+            // Timeout after 10 seconds
+            setTimeout(() => clearInterval(checkResumed), 10000);
+        }
+    }
+    
+    handleVideoSuspend() {
+        console.log('ℹ️ Video loading suspended (browser optimization)');
+        // This is normal browser behavior - no action needed
+    }
+    
+    attemptVideoReload() {
+        if (!this.sessionId || !this.videoPlayer) {
+            return;
+        }
+        
+        console.log('🔄 Attempting to reload video...');
+        const currentTime = this.videoPlayer.currentTime;
+        const wasPaused = this.videoPlayer.paused;
+        
+        // Reload video source
+        this.videoPlayer.load();
+        
+        // Restore playback position when metadata loads
+        this.videoPlayer.addEventListener('loadedmetadata', () => {
+            console.log('✅ Video reloaded, restoring position:', currentTime);
+            this.videoPlayer.currentTime = currentTime;
+            
+            if (!wasPaused) {
+                this.videoPlayer.play().catch(err => {
+                    console.error('Could not resume playback after reload:', err);
+                });
+            }
+        }, { once: true });
     }
 }
 
