@@ -39,7 +39,7 @@ from datetime import datetime
 VERSION_NUMBER = "0.0.52"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
-APP_VERSION = "1.2.5"
+APP_VERSION = "1.2.6"
 
 @dataclass
 class Config:
