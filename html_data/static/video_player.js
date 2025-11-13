@@ -2484,11 +2484,35 @@ class VideoTranslatorApp {
             return;
         }
         
-        // Add to batch
-        this.addToBatch(startTime, endTime);
-        
-        // Close form
-        this.cancelAddSection();
+        // Directly add the section to current captions so user can edit it
+        if (!this.sessionId) {
+            this.showError('No active session to add section to');
+            return;
+        }
+
+        try {
+            fetch(`/api/video/session/${this.sessionId}/segments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ start_time: startTime, end_time: endTime })
+            }).then(async (resp) => {
+                if (resp.ok) {
+                    this.showSuccess('Section added — you can now edit it in the editor');
+                    // Close form and reload captions
+                    this.cancelAddSection();
+                    this.loadCaptions();
+                } else {
+                    const data = await resp.json().catch(() => ({}));
+                    this.showError(data.error || 'Failed to add section');
+                }
+            }).catch(err => {
+                console.error('Add section error:', err);
+                this.showError('Failed to add section');
+            });
+        } catch (error) {
+            console.error('Add section failed:', error);
+            this.showError('Failed to add section');
+        }
     }
     
     updateBatchDisplay() {

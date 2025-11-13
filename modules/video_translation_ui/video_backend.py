@@ -1534,6 +1534,70 @@ def get_all_segments(session_id):
         return jsonify({'error': str(e)}), 500
 
 
+@video_bp.route('/session/<session_id>/segments', methods=['POST'])
+def add_segment(session_id):
+    """Add a new, empty caption segment into the session at the given start/end times.
+
+    This creates an editable segment with empty transcription/translation so the user
+    can manually edit it in the editor.
+    """
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+
+    try:
+        data = request.get_json() or {}
+        start_time = float(data.get('start_time', 0))
+        end_time = float(data.get('end_time', 0))
+
+        if start_time < 0 or end_time <= start_time:
+            return jsonify({'error': 'Invalid start/end times'}), 400
+
+        with video_session.state_lock:
+            if not video_session.chunk_manager:
+                return jsonify({'error': 'No chunk manager available'}), 400
+
+            # Try to find a chunk that contains the segment start
+            inserted = False
+            for chunk in video_session.chunk_manager.chunks:
+                if chunk.start_time <= start_time < chunk.end_time:
+                    if not getattr(chunk, 'timestamps', None):
+                        chunk.timestamps = []
+                    # Create empty editable segment
+                    seg = {
+                        'start': start_time,
+                        'end': end_time,
+                        'text': '',
+                        'translation': ''
+                    }
+                    chunk.timestamps.append(seg)
+                    # Keep timestamps sorted
+                    chunk.timestamps.sort(key=lambda x: x.get('start', 0))
+                    inserted = True
+                    break
+
+            # If no containing chunk found, append to the last chunk if it exists
+            if not inserted and video_session.chunk_manager.chunks:
+                last_chunk = video_session.chunk_manager.chunks[-1]
+                if not getattr(last_chunk, 'timestamps', None):
+                    last_chunk.timestamps = []
+                last_chunk.timestamps.append({
+                    'start': start_time,
+                    'end': end_time,
+                    'text': '',
+                    'translation': ''
+                })
+
+        logger.info(f"Added new editable segment {start_time:.2f}-{end_time:.2f} to session {session_id}")
+        return jsonify({'success': True}), 200
+
+    except Exception as e:
+        logger.error(f"Error adding segment: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['PUT'])
 def update_segment(session_id, segment_id):
     """Update a specific caption segment (text, translation, and timing)."""
