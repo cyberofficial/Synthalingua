@@ -560,7 +560,7 @@ class VideoSession:
                     'segment_num': total_segments,
                     'total_segments': total_segments,
                     'chunk_id': 'final'
-                }, to=self.session_id, namespace='/')
+                }, room=self.session_id, namespace='/')
                 logger.debug(f"Emitted final buffer update: {total_segments}/{total_segments} segments")
             except Exception as e:
                 logger.error(f"Could not emit final buffer update: {e}")
@@ -577,7 +577,7 @@ class VideoSession:
                     'processed_chunks': processed_count,
                     'total_time': total_time,
                     'total_segments': total_segments
-                }, to=self.session_id, namespace='/')
+                }, room=self.session_id, namespace='/')
                 logger.debug(f"Emitted processing_complete event for session {self.session_id}")
             except Exception as e:
                 logger.error(f"Could not emit processing_complete event: {e}")
@@ -598,7 +598,7 @@ class VideoSession:
                     'segment_num': segment_num,
                     'total_segments': total_segments,
                     'chunk_id': chunk_id
-                }, to=self.session_id, namespace='/')
+                }, room=self.session_id, namespace='/')
             except Exception as e:
                 logger.debug(f"Could not emit buffer update: {e}")
     
@@ -1552,6 +1552,11 @@ def update_segment(session_id, segment_id):
             
             if not found:
                 return jsonify({'error': 'Invalid segment ID'}), 404
+
+            # Safety: ensure we actually found the target segment and chunk
+            if target_seg is None or target_chunk is None:
+                logger.error(f"Segment lookup failed despite found flag: segment_id={segment_id}, found={found}")
+                return jsonify({'error': 'Segment lookup error'}), 500
             
             # If only one timing value provided, use current value for the other
             if new_start is None and new_end is not None:

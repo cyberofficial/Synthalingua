@@ -499,7 +499,8 @@ class FlaskServerThread(Thread):
             
             # Initialize SocketIO for video module
             socketio = init_video_socketio(app)
-            app.socketio = socketio  # Store socketio instance in app
+            # Store socketio instance in app safely (use setattr to avoid typing complaints)
+            setattr(app, 'socketio', socketio)
             
             if self.debug or _debug_enabled:
                 print("Video translation UI module loaded successfully")
@@ -584,11 +585,11 @@ class FlaskServerThread(Thread):
             original_port = self.port
             
             # Check if SocketIO is available in the app
-            has_socketio = hasattr(self.app, 'socketio')
+            socketio = getattr(self.app, 'socketio', None)
+            has_socketio = socketio is not None
             
             if has_socketio:
                 # Use SocketIO's run method which handles WebSocket connections
-                socketio = self.app.socketio
                 protocol = 'https' if ssl_context else 'http'
                 print(f"Starting Flask Server with WebSocket support on {self.host}:{self.port}")
                 print(f"You can access the server at {protocol}://{self.host}:{self.port}")
