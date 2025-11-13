@@ -799,9 +799,63 @@ body {
 .editor-toolbar {
     display: flex;
     gap: 8px;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    align-items: center;
+    box-sizing: border-box;
+    max-width: 100%;
+    flex-wrap: wrap; /* allow multiple rows */
+    overflow-x: hidden;
+    /* if content still overflows vertically, allow scroll on x as fallback */
+    min-height: 44px;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Compact toolbar-style buttons */
+.toolbar-btn {
+    padding: 6px;
+    min-width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    color: #fff;
+}
+
+.toolbar-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* If button text is long, keep it compact by reducing whitespace */
+.toolbar-btn { white-space: nowrap; }
+
+/* Break element to force a new row */
+.toolbar-break {
+    flex-basis: 100%;
+    height: 0;
+    width: 0;
+}
+
+/* Ensure toolbar rows have spacing between them */
+.editor-toolbar > * {
+    margin-bottom: 6px;
 }
 
 .caption-list-container {
