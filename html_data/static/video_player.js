@@ -17,6 +17,7 @@ class VideoTranslatorApp {
         this.currentCaptionData = null; // Stores current caption with timing
         this.captionStartTime = null; // When current caption started
         this.highlightUpdateInterval = null; // Interval for updating word highlights
+        this.currentFocusedCaptionIndex = null; // Editor caption currently focused by playback
         
         // Section redo markers
         this.markerA = null; // Start time in seconds
@@ -1288,6 +1289,13 @@ class VideoTranslatorApp {
                 timestamp: current
             });
         }
+
+        // Also update editor caption focus to keep the currently-playing segment in view
+        try {
+            this.highlightCurrentCaption(current);
+        } catch (e) {
+            console.warn('Highlight caption error:', e);
+        }
     }
     
     handleSeek(event) {
@@ -2146,6 +2154,9 @@ class VideoTranslatorApp {
     createCaptionItem(segment, index) {
         const item = document.createElement('div');
         item.className = 'caption-item';
+        // Make item focusable programmatically (not in tab order)
+        item.tabIndex = -1;
+        item.setAttribute('role', 'listitem');
         item.dataset.segmentId = index;
         item.dataset.startTime = segment.start;
         item.dataset.endTime = segment.end;
@@ -2186,6 +2197,70 @@ class VideoTranslatorApp {
         deleteBtn.addEventListener('click', () => this.deleteCaption(segment, index));
         
         return item;
+    }
+
+    // Highlight and scroll the caption that corresponds to the given playback time
+    highlightCurrentCaption(currentTime) {
+        if (!this.captionList || !this.captionList.children || this.captionList.children.length === 0) return;
+
+        // Find the first caption item that contains the current time
+        let foundIndex = null;
+        for (let i = 0; i < this.captionList.children.length; i++) {
+            const itm = this.captionList.children[i];
+            const start = parseFloat(itm.dataset.startTime || '0');
+            const end = parseFloat(itm.dataset.endTime || '0');
+
+            // If current time falls within this segment, select it
+            if (!isNaN(start) && !isNaN(end) && currentTime >= start && currentTime < end) {
+                foundIndex = i;
+                break;
+            }
+        }
+
+        // If not found, optionally highlight the nearest previous caption
+        if (foundIndex === null) {
+            // Find the last caption that starts before currentTime
+            for (let i = this.captionList.children.length - 1; i >= 0; i--) {
+                const itm = this.captionList.children[i];
+                const start = parseFloat(itm.dataset.startTime || '0');
+                if (!isNaN(start) && start <= currentTime) { foundIndex = i; break; }
+            }
+        }
+
+        // If still not found, clear focus
+        if (foundIndex === null) {
+            if (this.currentFocusedCaptionIndex !== null) {
+                const prev = this.captionList.children[this.currentFocusedCaptionIndex];
+                if (prev) prev.classList.remove('focused');
+                this.currentFocusedCaptionIndex = null;
+            }
+            return;
+        }
+
+        // If index unchanged, do nothing
+        if (this.currentFocusedCaptionIndex === foundIndex) return;
+
+        // Remove previous focus
+        if (this.currentFocusedCaptionIndex !== null) {
+            const prev = this.captionList.children[this.currentFocusedCaptionIndex];
+            if (prev) prev.classList.remove('focused');
+        }
+
+        // Apply focus to new item
+        const newItem = this.captionList.children[foundIndex];
+        if (newItem) {
+            newItem.classList.add('focused');
+            // Scroll into center of container for visibility
+            try {
+                newItem.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+                // Programmatically focus for screen readers
+                newItem.focus({ preventScroll: true });
+            } catch (e) {
+                // Some older browsers may not support options
+                try { newItem.scrollIntoView(); } catch (e) {}
+            }
+            this.currentFocusedCaptionIndex = foundIndex;
+        }
     }
     
     playFromSegment(segment) {

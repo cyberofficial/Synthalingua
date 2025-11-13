@@ -909,6 +909,18 @@ body {
     transform: translateX(2px);
 }
 
+/* Focused caption while playback is within its time range */
+.caption-item.focused {
+    background: linear-gradient(90deg, rgba(0,212,255,0.06), rgba(76,175,80,0.03));
+    border-color: rgba(0,212,255,0.8);
+    box-shadow: 0 8px 28px rgba(0, 212, 255, 0.08);
+    transform: translateX(0px) scale(1.01);
+}
+
+.caption-item.focused .caption-time {
+    color: #4CAF50;
+}
+
 .caption-header {
     display: flex;
     justify-content: space-between;

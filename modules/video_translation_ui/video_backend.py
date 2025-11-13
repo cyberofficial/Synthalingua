@@ -555,12 +555,12 @@ class VideoSession:
                 total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
                 
                 # Emit final buffer update showing all segments complete
-                self.socketio.emit('buffer_update', {
+                self._safe_emit('buffer_update', {
                     'buffer_status': final_buffer_status,
                     'segment_num': total_segments,
                     'total_segments': total_segments,
                     'chunk_id': 'final'
-                }, room=self.session_id, namespace='/')
+                }, namespace='/', room=self.session_id)
                 logger.debug(f"Emitted final buffer update: {total_segments}/{total_segments} segments")
             except Exception as e:
                 logger.error(f"Could not emit final buffer update: {e}")
@@ -571,18 +571,68 @@ class VideoSession:
                 # Count total segments for completion event
                 total_segments = sum(len(chunk.timestamps) for chunk in self.chunk_manager.chunks)
                 
-                self.socketio.emit('processing_complete', {
+                self._safe_emit('processing_complete', {
                     'session_id': self.session_id,
                     'total_chunks': total_chunks,
                     'processed_chunks': processed_count,
                     'total_time': total_time,
                     'total_segments': total_segments
-                }, room=self.session_id, namespace='/')
+                }, namespace='/', room=self.session_id)
                 logger.debug(f"Emitted processing_complete event for session {self.session_id}")
             except Exception as e:
                 logger.error(f"Could not emit processing_complete event: {e}")
         
         logger.debug(f"Chunk processing thread ended for session {self.session_id}")
+
+    def _safe_emit(self, event: str, data: Dict, namespace: str = '/', room: Optional[str] = None):
+        """
+        Emit socket events in a way that is compatible with different SocketIO emit signatures.
+        Tries common kwarg orders and falls back to the flask_socketio.emit function if needed.
+        """
+        try:
+            if self.socketio:
+                # Build kwargs dynamically to avoid static-analysis complaints about specific parameter names
+                kw = {}
+                if namespace is not None:
+                    kw['namespace'] = namespace
+                if room is not None:
+                    kw['room'] = room
+                try:
+                    return self.socketio.emit(event, data, **kw)
+                except TypeError:
+                    # Some socketio implementations use 'to' instead of 'room'
+                    if 'room' in kw:
+                        kw.pop('room')
+                        kw['to'] = room
+                    try:
+                        return self.socketio.emit(event, data, **kw)
+                    except TypeError:
+                        # As a last resort, call without kwargs
+                        return self.socketio.emit(event, data)
+            else:
+                # Fallback to flask_socketio.emit if available
+                try:
+                    from flask_socketio import emit
+                    kw = {}
+                    if namespace is not None:
+                        kw['namespace'] = namespace
+                    if room is not None:
+                        kw['room'] = room
+                    try:
+                        return emit(event, data, **kw)
+                    except TypeError:
+                        if 'room' in kw:
+                            kw.pop('room')
+                            kw['to'] = room
+                        try:
+                            return emit(event, data, **kw)
+                        except TypeError:
+                            return emit(event, data, namespace=namespace)
+                except Exception:
+                    # No socketio available; silently ignore
+                    logger.debug('No socketio available to emit event')
+        except Exception as e:
+            logger.debug(f"Safe emit failed: {e}")
     
     def _on_chunk_processed(self, chunk):
         """Callback when a chunk is processed (for WebSocket updates)."""
@@ -593,12 +643,12 @@ class VideoSession:
         """Emit buffer status update via WebSocket."""
         if self.socketio:
             try:
-                self.socketio.emit('buffer_update', {
+                self._safe_emit('buffer_update', {
                     'buffer_status': buffer_status,
                     'segment_num': segment_num,
                     'total_segments': total_segments,
                     'chunk_id': chunk_id
-                }, room=self.session_id, namespace='/')
+                }, namespace='/', room=self.session_id)
             except Exception as e:
                 logger.debug(f"Could not emit buffer update: {e}")
     
@@ -817,8 +867,8 @@ class VideoSession:
             
             # Emit WebSocket update to notify frontend
             try:
-                from flask_socketio import emit
-                emit('section_updated', {
+                # Use safe emit wrapper to handle different socketio signatures
+                self._safe_emit('section_updated', {
                     'start_time': start_time,
                     'end_time': end_time,
                     'segments_updated': added_count
