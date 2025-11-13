@@ -103,19 +103,24 @@ class VideoTranslatorApp {
             if (data.is_processing) {
                 this.isProcessing = true;
                 this.startProcessingBtn.disabled = true;
-                this.exportBtn.disabled = true;
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = true;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = true;
                 this.statusProcessing.textContent = 'Processing...';
                 this.startStatusPolling();
             } else if (data.is_initialized) {
                 // Session was processed before
                 this.startProcessingBtn.disabled = false;
                 this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
-                this.exportBtn.disabled = false; // Enable export if processing is done
+                // Enable both export buttons
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = false;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = false;
             } else {
                 // Session exists but hasn't been processed yet (video uploaded, ready to process)
                 this.startProcessingBtn.disabled = false;
                 this.startProcessingBtn.textContent = '🎬 START PROCESSING';
-                this.exportBtn.disabled = true; // Can't export until processed
+                // Disable both export buttons until processing completes
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = true;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = true;
                 this.statusProcessing.textContent = 'Ready to process';
             }
             
@@ -459,7 +464,8 @@ class VideoTranslatorApp {
         
         // Button elements
         this.startProcessingBtn = document.getElementById('start-processing-btn');
-        this.exportBtn = document.getElementById('export-btn');
+        this.exportEnglishBtn = document.getElementById('export-english-btn');
+        this.exportOriginalBtn = document.getElementById('export-original-btn');
         this.redoSectionBtn = document.getElementById('redo-section-btn');
         this.setMarkerABtn = document.getElementById('set-marker-a-btn');
         this.setMarkerBBtn = document.getElementById('set-marker-b-btn');
@@ -675,7 +681,8 @@ class VideoTranslatorApp {
         
         // Buttons
         this.startProcessingBtn.addEventListener('click', () => this.startProcessing());
-        this.exportBtn.addEventListener('click', () => this.exportCaptions());
+        if (this.exportEnglishBtn) this.exportEnglishBtn.addEventListener('click', () => this.exportCaptions('srt', 'english'));
+        if (this.exportOriginalBtn) this.exportOriginalBtn.addEventListener('click', () => this.exportCaptions('srt', 'original'));
         
         // Section redo buttons
         this.setMarkerABtn.addEventListener('click', () => this.setMarkerA());
@@ -883,8 +890,9 @@ class VideoTranslatorApp {
                 this.displaySessionUrl(this.sessionId);
                 
                 this.startProcessingBtn.disabled = false;
-                // Keep export button disabled until processing is complete
-                this.exportBtn.disabled = true;
+                // Keep export buttons disabled until processing is complete
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = true;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = true;
                 
                 this.statusProcessing.textContent = 'Configure settings and click Start Processing';
                 
@@ -1030,7 +1038,8 @@ class VideoTranslatorApp {
             if (response.ok) {
                 this.isProcessing = true;
                 this.startProcessingBtn.disabled = true;
-                this.exportBtn.disabled = true;  // Disable export during processing
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = true;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = true;
                 this.statusProcessing.textContent = 'Processing...';
                 
                 // Update URL with configuration (so refresh preserves settings)
@@ -1109,8 +1118,9 @@ class VideoTranslatorApp {
         this.startProcessingBtn.disabled = false;
         this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
         
-        // Enable export button now that processing is complete
-        this.exportBtn.disabled = false;
+        // Enable both export buttons now that processing is complete
+        if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = false;
+        if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = false;
         
         // Check if vocals audio is available (after Demucs processing)
         // This will also trigger waveform loading now that audio exists
@@ -1135,14 +1145,15 @@ class VideoTranslatorApp {
             
             // Fallback: If we reach 100% and processing flag is still true, re-enable button
             // This handles cases where WebSocket processing_complete event might not fire
-            if (status.progress.progress_pct >= 100 && this.isProcessing) {
+                if (status.progress.progress_pct >= 100 && this.isProcessing) {
                 console.log('Detected 100% completion via status polling - re-enabling button');
                 this.isProcessing = false;
                 this.startProcessingBtn.disabled = false;
                 this.startProcessingBtn.textContent = '🎬 PROCESS ANOTHER VIDEO';
                 
-                // Enable export button now that processing is complete
-                this.exportBtn.disabled = false;
+                // Enable both export buttons now that processing is complete
+                if (this.exportEnglishBtn) this.exportEnglishBtn.disabled = false;
+                if (this.exportOriginalBtn) this.exportOriginalBtn.disabled = false;
                 
                 // Show upload area again so user can load a different video
                 this.uploadArea.style.display = 'block';
@@ -1484,16 +1495,82 @@ class VideoTranslatorApp {
         this.transcriptionCaption.style.display = 'none';
     }
     
-    async exportCaptions() {
-        if (!this.sessionId) return;
-        
-        const format = 'srt'; // Could add format selection
-        
+    async exportCaptions(format = 'srt', exportType = 'english') {
+        if (!this.sessionId) {
+            this.showError('No active session.');
+            return;
+        }
+
         try {
-            window.location.href = `/api/video/session/${this.sessionId}/export?format=${format}`;
+            // Validate original text availability before exporting original captions
+            if (exportType === 'original') {
+                const response = await fetch(`/api/video/session/${this.sessionId}/segments`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const hasOriginalText = data.segments.some(seg => seg.text && seg.text.trim() !== '');
+                    if (!hasOriginalText) {
+                        this.showError('No original text available to export. Use the "Transcribe" button on captions to generate it.');
+                        return;
+                    }
+                }
+            }
+            window.location.href = `/api/video/session/${this.sessionId}/export?format=${format}&type=${exportType}`;
         } catch (error) {
             console.error('Export error:', error);
-            this.showError('Failed to export captions');
+            this.showError('Failed to export captions.');
+        }
+    }
+
+    async transcribeSegment(segment, index, itemElement) {
+        if (!this.sessionId) {
+            this.showError('No active session.');
+            return;
+        }
+
+        const transcribeBtn = itemElement.querySelector('[data-action="transcribe"]');
+        if (transcribeBtn) {
+            transcribeBtn.textContent = '🔄';
+            transcribeBtn.disabled = true;
+        }
+
+        try {
+            const response = await fetch(`/api/video/session/${this.sessionId}/transcribe_segment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    start_time: segment.start,
+                    end_time: segment.end,
+                    model_source: this.modelSource.value,
+                    model_size: this.modelSize.value,
+                    device: this.device.value,
+                    source_language: this.sourceLanguage.value || null,
+                    temperature: this.enableTemperature.checked ? parseFloat(this.temperatureSlider.value) / 100 : null,
+                    compression_ratio_threshold: parseFloat(this.compressionRatioSlider.value) / 10
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to transcribe segment.');
+            }
+
+            const result = await response.json();
+            if (result.success) {
+                const textDiv = itemElement.querySelector('.caption-text');
+                if (textDiv) textDiv.textContent = result.transcribed_text;
+                this.showSuccess('Transcription complete!');
+                // Update the segment object locally
+                segment.text = result.transcribed_text;
+            } else {
+                throw new Error(result.error || 'Transcription returned an error.');
+            }
+        } catch (error) {
+            this.showError(`Transcription failed: ${error.message}`);
+        } finally {
+            if (transcribeBtn) {
+                transcribeBtn.textContent = '📝 Transcribe';
+                transcribeBtn.disabled = false;
+            }
         }
     }
     
@@ -2060,6 +2137,7 @@ class VideoTranslatorApp {
                 <div class="caption-actions">
                     <button class="caption-btn play-btn" data-action="play">▶️ Play</button>
                     <button class="caption-btn edit-btn" data-action="edit">✏️ Edit</button>
+                    <button class="caption-btn transcribe-btn" data-action="transcribe">📝 Transcribe</button>
                     <button class="caption-btn redo-btn" data-action="redo">🔄 Redo</button>
                     <button class="caption-btn delete-btn" data-action="delete">🗑️ Delete</button>
                 </div>
@@ -2073,11 +2151,13 @@ class VideoTranslatorApp {
         // Add action listeners
         const playBtn = item.querySelector('[data-action="play"]');
         const editBtn = item.querySelector('[data-action="edit"]');
+        const transcribeBtn = item.querySelector('[data-action="transcribe"]');
         const redoBtn = item.querySelector('[data-action="redo"]');
         const deleteBtn = item.querySelector('[data-action="delete"]');
         
         playBtn.addEventListener('click', () => this.playFromSegment(segment));
         editBtn.addEventListener('click', () => this.editCaption(segment, index, item));
+        if (transcribeBtn) transcribeBtn.addEventListener('click', () => this.transcribeSegment(segment, index, item));
         redoBtn.addEventListener('click', () => this.addToBatch(segment.start, segment.end));
         deleteBtn.addEventListener('click', () => this.deleteCaption(segment, index));
         

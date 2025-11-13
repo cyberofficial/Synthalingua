@@ -76,7 +76,7 @@ except UnicodeError:
     pass
 
 
-def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None, debug=False):
+def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None, debug=False, compression_ratio_threshold: float = 2.4):
     """
     Load the appropriate model and perform transcription or translation.
     
@@ -156,7 +156,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=temp_value,
-            compression_ratio_threshold=args.compression_ratio_threshold,
+            compression_ratio_threshold=compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -210,7 +210,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=0.0,
-            compression_ratio_threshold=args.compression_ratio_threshold,
+            compression_ratio_threshold=compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -264,7 +264,7 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
             task=task,
             condition_on_previous_text=True,
             temperature=temp_value,
-            compression_ratio_threshold=args.compression_ratio_threshold,
+            compression_ratio_threshold=compression_ratio_threshold,
             log_prob_threshold=None,
             no_speech_threshold=0.6
         )
@@ -678,7 +678,8 @@ def main():
                 language=args.language if args.language else None,
                 task=args.task,
                 temperature=args.temperature,
-                debug=args.debug
+                debug=args.debug,
+                compression_ratio_threshold=args.compression_ratio_threshold
             )
             
             # Flatten result into output_data (don't nest under "result" key)

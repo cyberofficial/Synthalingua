@@ -908,7 +908,7 @@ class VideoSession:
         
         return added_count
     
-    def export_captions(self, format: str = 'srt') -> Optional[str]:
+    def export_captions(self, format: str = 'srt', export_type: str = 'english') -> Optional[str]:
         """
         Export captions to SRT or VTT format.
         
@@ -948,51 +948,57 @@ class VideoSession:
         caption_segments.sort(key=lambda x: x['start'])
         
         if format.lower() == 'srt':
-            return self._export_srt(caption_segments)
+            return self._export_srt(caption_segments, export_type)
         elif format.lower() == 'vtt':
-            return self._export_vtt(caption_segments)
+            return self._export_vtt(caption_segments, export_type)
         else:
             return None
     
-    def _export_srt(self, segments: List[Dict]) -> str:
-        """Export caption segments as SRT format."""
+    def _export_srt(self, segments: List[Dict], export_type: str = 'english') -> str:
+        """Export caption segments as SRT format for a specific type."""
         srt_content = []
-        
+    
         for i, segment in enumerate(segments, 1):
             start_time = self._format_srt_time(segment['start'])
             end_time = self._format_srt_time(segment['end'])
-            
-            # Use translation if available, otherwise transcription
-            text = segment.get('translation') or segment.get('text', '')
-            
+    
+            # Select text based on export type
+            if export_type == 'original':
+                text = segment.get('text', '')
+            else:  # Default to english/translation
+                text = segment.get('translation', '')
+    
             if not text.strip():
                 continue
-            
+    
             srt_content.append(f"{i}")
             srt_content.append(f"{start_time} --> {end_time}")
             srt_content.append(text)
             srt_content.append("")  # Empty line between entries
-        
+    
         return "\n".join(srt_content)
     
-    def _export_vtt(self, segments: List[Dict]) -> str:
-        """Export caption segments as WebVTT format."""
+    def _export_vtt(self, segments: List[Dict], export_type: str = 'english') -> str:
+        """Export caption segments as WebVTT format for a specific type."""
         vtt_content = ["WEBVTT\n"]
-        
+    
         for segment in segments:
             start_time = self._format_vtt_time(segment['start'])
             end_time = self._format_vtt_time(segment['end'])
-            
-            # Use translation if available, otherwise transcription
-            text = segment.get('translation') or segment.get('text', '')
-            
+    
+            # Select text based on export type
+            if export_type == 'original':
+                text = segment.get('text', '')
+            else:  # Default to english/translation
+                text = segment.get('translation', '')
+    
             if not text.strip():
                 continue
-            
+    
             vtt_content.append(f"{start_time} --> {end_time}")
             vtt_content.append(text)
             vtt_content.append("")
-        
+    
         return "\n".join(vtt_content)
     
     @staticmethod
@@ -1252,30 +1258,112 @@ def seek_video(session_id):
 
 @video_bp.route('/session/<session_id>/export', methods=['GET'])
 def export_captions(session_id):
-    """Export captions as SRT or VTT file."""
+    """Export captions as SRT or VTT file for either English or Original text."""
     format = request.args.get('format', 'srt').lower()
-    
+    export_type = request.args.get('type', 'english').lower()
+
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+
+    captions = video_session.export_captions(format, export_type)
+
+    if not captions:
+        return jsonify({'error': f'No captions available for type "{export_type}" or invalid format'}), 400
+
+    # Generate a safe filename from the original video name
+    safe_video_name = secure_filename(Path(video_session.video_path).stem)
+
+    # Create temporary file
+    export_filename = f"{safe_video_name}_{export_type}.{format}"
+    export_path = UPLOAD_FOLDER / session_id / export_filename
+    export_path.write_text(captions, encoding='utf-8')
+
+    return send_file(
+        str(export_path),
+        as_attachment=True,
+        download_name=export_filename,
+        mimetype='text/plain'
+    )
+
+@video_bp.route('/session/<session_id>/transcribe_segment', methods=['POST'])
+def transcribe_segment(session_id):
+    """Re-transcribe a specific time section with the task set to 'transcribe'."""
     with session_lock:
         video_session = video_sessions.get(session_id)
     
     if not video_session:
         return jsonify({'error': 'Session not found'}), 404
-    
-    captions = video_session.export_captions(format)
-    
-    if not captions:
-        return jsonify({'error': 'No captions available or invalid format'}), 400
-    
-    # Create temporary file
-    export_path = UPLOAD_FOLDER / session_id / f"captions.{format}"
-    export_path.write_text(captions, encoding='utf-8')
-    
-    return send_file(
-        str(export_path),
-        as_attachment=True,
-        download_name=f"captions.{format}",
-        mimetype='text/plain'
-    )
+        
+    try:
+        data = request.get_json()
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+
+        if start_time is None or end_time is None:
+            return jsonify({'error': 'start_time and end_time are required'}), 400
+
+        # Use a temporary transcription manager for this one-off task
+        transcription_manager = VideoTranscriptionManager(
+            model_source=data.get('model_source', video_session.config.get('model_source')),
+            model_size=data.get('model_size', video_session.config.get('model_size')),
+            device=data.get('device', video_session.config.get('device')),
+            compute_type=video_session.config.get('compute_type', 'float16'),
+            source_language=data.get('source_language'),
+            target_language='en',
+            enable_translation=False,
+            enable_silence_detection=False,
+            silence_threshold_db=-35.0,
+            min_silence_duration=0.5,
+            model_dir=video_session.config.get('model_dir', './models'),
+            temperature=data.get('temperature'),
+            compression_ratio_threshold=data.get('compression_ratio_threshold')
+        )
+
+        # Extract the specific audio segment
+        source_audio = video_session.vocals_audio_path if video_session.vocals_audio_path and os.path.exists(video_session.vocals_audio_path) else video_session.full_audio_path
+        segment_audio_path = video_session.video_processor.extract_audio_segment(
+            start_time=start_time,
+            duration=(end_time - start_time),
+            source_audio=source_audio
+        )
+
+        # Perform transcription (not translation)
+        result = transcription_manager.transcribe_chunk(
+            audio_path=segment_audio_path,
+            chunk_id=-1,  # Temporary ID
+            language=data.get('source_language')
+        )
+        
+        # Clean up the temporary segment file
+        if os.path.exists(segment_audio_path):
+            os.remove(segment_audio_path)
+
+        if result['success']:
+            # Find the corresponding segment and update it
+            with video_session.state_lock:
+                found = False
+                for chunk in video_session.chunk_manager.chunks:
+                    for seg in chunk.timestamps:
+                        if abs(seg['start'] - start_time) < 0.1 and abs(seg['end'] - end_time) < 0.1:
+                            seg['text'] = result['transcription']
+                            found = True
+                            break
+                    if found:
+                        break
+            
+            return jsonify({
+                'success': True,
+                'transcribed_text': result['transcription']
+            })
+        else:
+            return jsonify({'error': result.get('error', 'Transcription failed')}), 500
+
+    except Exception as e:
+        logger.error(f"Error transcribing segment: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @video_bp.route('/session/<session_id>/redo_section', methods=['POST'])
