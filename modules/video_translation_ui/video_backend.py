@@ -1598,6 +1598,169 @@ def add_segment(session_id):
         return jsonify({'error': str(e)}), 500
 
 
+@video_bp.route('/session/<session_id>/import_srt', methods=['POST'])
+def import_srt(session_id):
+    """Import an SRT file into the session editor.
+
+    Query params:
+        type: 'original' or 'translation' (default 'original')
+        tolerance_ms: integer milliseconds tolerance for merging timings (default 100)
+    """
+    with session_lock:
+        video_session = video_sessions.get(session_id)
+
+    if not video_session:
+        return jsonify({'error': 'Session not found'}), 404
+
+    try:
+        import_type = request.args.get('type', request.form.get('type', 'original')) or 'original'
+        try:
+            tolerance_ms = int(request.args.get('tolerance_ms', request.form.get('tolerance_ms', 100)))
+        except Exception:
+            tolerance_ms = 100
+
+        # File must be provided as multipart form-data with field 'file'
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+
+        srt_file = request.files['file']
+        content = srt_file.read().decode('utf-8', errors='replace')
+
+        # Simple SRT parser
+        def parse_srt(srt_text):
+            entries = []
+            # Split on blank-line groups
+            blocks = [b.strip() for b in srt_text.replace('\r\n', '\n').split('\n\n') if b.strip()]
+            time_re = re.compile(r"(\d{2}:\d{2}:\d{2}[,\.]\d{1,3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{1,3})")
+
+            for blk in blocks:
+                lines = blk.split('\n')
+                # Try to find time line
+                time_line = None
+                for ln in lines:
+                    if '-->' in ln:
+                        time_line = ln
+                        break
+                if not time_line:
+                    continue
+
+                m = time_re.search(time_line)
+                if not m:
+                    continue
+
+                def to_seconds(tstr):
+                    tclean = tstr.replace(',', '.').strip()
+                    h, m_, s = tclean.split(':')
+                    sec = float(s)
+                    return int(h) * 3600 + int(m_) * 60 + sec
+
+                start = to_seconds(m.group(1))
+                end = to_seconds(m.group(2))
+
+                # Text lines are those after time_line
+                idx = lines.index(time_line)
+                text = '\n'.join(lines[idx+1:]).strip()
+
+                entries.append({'start': float(start), 'end': float(end), 'text': text})
+
+            # Sort by start
+            entries.sort(key=lambda x: x['start'])
+            return entries
+
+        srt_segments = parse_srt(content)
+
+        if not srt_segments:
+            return jsonify({'error': 'No captions found in SRT'}), 400
+
+        merged = 0
+        created = 0
+        tolerance = float(tolerance_ms) / 1000.0
+
+        with video_session.state_lock:
+            if not video_session.chunk_manager:
+                return jsonify({'error': 'No chunk manager available'}), 400
+
+            # For faster lookup, create a list of (chunk, seg) references
+            for sseg in srt_segments:
+                best_match = None
+                best_score = None
+
+                # Search existing segments for a close timing match
+                for chunk in video_session.chunk_manager.chunks:
+                    if not getattr(chunk, 'timestamps', None):
+                        continue
+                    for seg in chunk.timestamps:
+                        # compute absolute diffs
+                        ds = abs((seg.get('start', 0) - sseg['start']))
+                        de = abs((seg.get('end', 0) - sseg['end']))
+                        # If both start and end within tolerance, consider match
+                        if ds <= tolerance and de <= tolerance:
+                            score = ds + de
+                            if best_score is None or score < best_score:
+                                best_score = score
+                                best_match = seg
+
+                if best_match is not None:
+                    # Merge into existing
+                    if import_type == 'original':
+                        best_match['text'] = sseg['text']
+                    else:
+                        best_match['translation'] = sseg['text']
+                    merged += 1
+                else:
+                    # No close match found; create a new segment in containing chunk
+                    placed = False
+                    for chunk in video_session.chunk_manager.chunks:
+                        if chunk.start_time <= sseg['start'] < chunk.end_time:
+                            if not getattr(chunk, 'timestamps', None):
+                                chunk.timestamps = []
+                            new_seg = {
+                                'start': sseg['start'],
+                                'end': sseg['end'],
+                                'text': sseg['text'] if import_type == 'original' else '',
+                                'translation': sseg['text'] if import_type != 'original' else ''
+                            }
+                            chunk.timestamps.append(new_seg)
+                            placed = True
+                            created += 1
+                            break
+
+                    if not placed:
+                        # Append to last chunk if no containing chunk
+                        last_chunk = video_session.chunk_manager.chunks[-1]
+                        if not getattr(last_chunk, 'timestamps', None):
+                            last_chunk.timestamps = []
+                        last_chunk.timestamps.append({
+                            'start': sseg['start'],
+                            'end': sseg['end'],
+                            'text': sseg['text'] if import_type == 'original' else '',
+                            'translation': sseg['text'] if import_type != 'original' else ''
+                        })
+                        created += 1
+
+            # Sort timestamps in each chunk to ensure order
+            for chunk in video_session.chunk_manager.chunks:
+                if getattr(chunk, 'timestamps', None):
+                    chunk.timestamps.sort(key=lambda x: x.get('start', 0))
+
+        # Emit update to frontend so it reloads captions
+        try:
+            video_session._safe_emit('segments_imported', {
+                'import_type': import_type,
+                'imported_count': len(srt_segments),
+                'merged': merged,
+                'created': created
+            }, namespace='/video', room=session_id)
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'imported_count': len(srt_segments), 'merged': merged, 'created': created}), 200
+
+    except Exception as e:
+        logger.error(f"Error importing SRT: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['PUT'])
 def update_segment(session_id, segment_id):
     """Update a specific caption segment (text, translation, and timing)."""
@@ -2151,3 +2314,4 @@ def cleanup_all_sessions():
 # Register cleanup on exit
 import atexit
 atexit.register(cleanup_all_sessions)
+import re

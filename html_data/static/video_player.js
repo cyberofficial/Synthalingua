@@ -32,6 +32,77 @@ class VideoTranslatorApp {
         this.loadAvailableLanguages();
         this.checkForExistingSession(); // Check if URL has session ID
     }
+
+    openSrtImport(importType = 'original') {
+        if (!this.sessionId) {
+            this.showError('No active session to import into. Please upload or open a session first.');
+            return;
+        }
+
+        if (!this.srtImportInput) return;
+        // Store import type on the file input for when it changes
+        this.srtImportInput.dataset.importType = importType;
+        // Trigger file picker
+        this.srtImportInput.value = null;
+        this.srtImportInput.click();
+    }
+
+    async handleSrtFileChange(evt) {
+        const input = evt.target;
+        if (!input || !input.files || input.files.length === 0) return;
+        const file = input.files[0];
+        const importType = input.dataset.importType || 'original';
+
+        // Basic validation
+        if (!file.name.toLowerCase().endsWith('.srt')) {
+            this.showError('Please select an SRT file (.srt)');
+            return;
+        }
+
+        // Upload and apply
+        await this.uploadSrtFile(file, importType);
+        // Clear input
+        input.value = null;
+    }
+
+    async uploadSrtFile(file, importType = 'original') {
+        if (!this.sessionId) return;
+
+        const form = new FormData();
+        form.append('file', file);
+
+        // Tolerance in milliseconds (merge threshold). Default 100ms.
+        const toleranceMs = 100;
+
+        try {
+            this.showLoading(`Importing SRT (${importType})...`);
+
+            const resp = await fetch(`/api/video/session/${this.sessionId}/import_srt?type=${encodeURIComponent(importType)}&tolerance_ms=${toleranceMs}`, {
+                method: 'POST',
+                body: form
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ error: 'Import failed' }));
+                this.showError(err.error || 'Failed to import SRT');
+                return;
+            }
+
+            const result = await resp.json();
+            if (result.success) {
+                this.showSuccess(`Imported ${result.imported_count || 0} segments (${importType})`);
+                // Reload captions to reflect changes
+                await this.loadCaptions();
+            } else {
+                this.showError(result.error || 'Import returned an error');
+            }
+        } catch (e) {
+            console.error('SRT import error:', e);
+            this.showError('Failed to import SRT: ' + (e.message || e));
+        } finally {
+            this.hideLoading();
+        }
+    }
     
     checkForExistingSession() {
         // Check if URL contains session parameter OR any config parameters
@@ -468,6 +539,9 @@ class VideoTranslatorApp {
         this.exportEnglishBtn = document.getElementById('export-english-btn');
         this.exportOriginalBtn = document.getElementById('export-original-btn');
         this.redoSectionBtn = document.getElementById('redo-section-btn');
+        this.importOriginalBtn = document.getElementById('import-original-btn');
+        this.importTranslationBtn = document.getElementById('import-translation-btn');
+        this.srtImportInput = document.getElementById('srt-import-input');
         this.setMarkerABtn = document.getElementById('set-marker-a-btn');
         this.setMarkerBBtn = document.getElementById('set-marker-b-btn');
         this.clearMarkersBtn = document.getElementById('clear-markers-btn');
@@ -706,6 +780,10 @@ class VideoTranslatorApp {
         this.startBatchBtn.addEventListener('click', () => this.startBatchRedo());
         this.addSectionConfirmBtn.addEventListener('click', () => this.confirmAddSection());
         this.addSectionCancelBtn.addEventListener('click', () => this.cancelAddSection());
+        // SRT import buttons
+        if (this.importOriginalBtn) this.importOriginalBtn.addEventListener('click', () => this.openSrtImport('original'));
+        if (this.importTranslationBtn) this.importTranslationBtn.addEventListener('click', () => this.openSrtImport('translation'));
+        if (this.srtImportInput) this.srtImportInput.addEventListener('change', (e) => this.handleSrtFileChange(e));
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.handleKeyPress(e));
