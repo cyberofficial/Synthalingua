@@ -1528,10 +1528,16 @@ class VideoTranslatorApp {
         }
 
         const transcribeBtn = itemElement.querySelector('[data-action="transcribe"]');
-        if (transcribeBtn) {
-            transcribeBtn.textContent = '🔄';
-            transcribeBtn.disabled = true;
-        }
+
+        // Disable ALL transcribe buttons to prevent spawning multiple subprocesses
+        const allTranscribeBtns = Array.from(document.querySelectorAll('.transcribe-btn'));
+        allTranscribeBtns.forEach(btn => {
+            // store previous state so we can restore
+            try { btn.dataset._prevHtml = btn.innerHTML; } catch (e) {}
+            try { btn.dataset._prevDisabled = btn.disabled ? 'true' : 'false'; } catch (e) {}
+            btn.innerHTML = '🔄';
+            btn.disabled = true;
+        });
 
         try {
             const response = await fetch(`/api/video/session/${this.sessionId}/transcribe_segment`, {
@@ -1567,10 +1573,28 @@ class VideoTranslatorApp {
         } catch (error) {
             this.showError(`Transcription failed: ${error.message}`);
         } finally {
-            if (transcribeBtn) {
-                transcribeBtn.textContent = '📝 Transcribe';
-                transcribeBtn.disabled = false;
-            }
+            // Restore all transcribe buttons to their previous state
+            allTranscribeBtns.forEach(btn => {
+                try {
+                    if (typeof btn.dataset._prevHtml !== 'undefined') {
+                        btn.innerHTML = btn.dataset._prevHtml;
+                        delete btn.dataset._prevHtml;
+                    } else {
+                        btn.innerHTML = '📝 Transcribe';
+                    }
+                } catch (e) {}
+
+                try {
+                    if (typeof btn.dataset._prevDisabled !== 'undefined') {
+                        btn.disabled = btn.dataset._prevDisabled === 'true';
+                        delete btn.dataset._prevDisabled;
+                    } else {
+                        btn.disabled = false;
+                    }
+                } catch (e) {
+                    btn.disabled = false;
+                }
+            });
         }
     }
     
