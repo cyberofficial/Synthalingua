@@ -1,5 +1,9 @@
 <img width="1248" height="454" alt="image" src="https://github.com/user-attachments/assets/fcc5535f-1bc8-47f5-908f-48b043cb813a" />
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T12FOFT)
+
+### > [More ways to support](#support-synthalingua) <
+
 # Beware of scams - I do not create or endorse any crypto coins or NFTs! Do not fall for any cryptocurrency-related schemes. Please report any scams when possible.
 
 # Synthalingua
@@ -30,7 +34,7 @@ If you’re looking for a transcription API for meetings, consider checking out 
 ## Table of Contents
 - [About](#about-synthalingua)
 - [Documentation Wiki](#documentation-wiki)
-- [🎬 Video Translation UI](#-video-translation-ui) **← NEW!**
+- [Video Translation UI](#-video-translation-ui) **← NEW!**
 - [Quick Start](#quick-start)
 - [Feature Highlights](#feature-highlights)
 - [System Requirements](#system-requirements)
