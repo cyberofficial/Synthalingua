@@ -34,7 +34,7 @@ If you’re looking for a transcription API for meetings, consider checking out 
 ## Table of Contents
 - [About](#about-synthalingua)
 - [Documentation Wiki](#documentation-wiki)
-- [Video Translation UI](#-video-translation-ui) **← NEW!**
+- [Video Translation UI](#video-translation-ui) **← NEW!**
 - [Quick Start](#quick-start)
 - [Feature Highlights](#feature-highlights)
 - [System Requirements](#system-requirements)
@@ -60,7 +60,7 @@ The GitHub Wiki contains detailed guides for every feature, including setup, usa
 
 ---
 
-## 🎬 Video Translation UI
+## Video Translation UI
 
 **NEW!** Synthalingua now includes an interactive web-based video player with real-time translation and transcription capabilities!
 
@@ -79,19 +79,12 @@ The GitHub Wiki contains detailed guides for every feature, including setup, usa
 # Launch the video UI
 python synthalingua.py --portnumber 8000 --launchui
 
-# With a video file pre-loaded
-python synthalingua.py --portnumber 8000 --launchui --video_input path/to/video.mp4
 ```
 
 Then open in your browser: `http://localhost:8000/video_player.html`
 
 ### Supported Video Formats
 MP4, MKV, AVI, MOV, WebM, FLV, WMV, M4V
-
-### Documentation
-- **Full Guide**: [docs/VIDEO_TRANSLATION_UI.md](docs/VIDEO_TRANSLATION_UI.md)
-- **Quick Reference**: [docs/VIDEO_UI_QUICK_REFERENCE.md](docs/VIDEO_UI_QUICK_REFERENCE.md)
-- **Test Suite**: Run `python test_video_ui.py` to verify installation
 
 ### Usage Example
 1. Launch the UI with `--launchui`
