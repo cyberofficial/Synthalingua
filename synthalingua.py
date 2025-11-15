@@ -354,22 +354,50 @@ def main():
                 if server_thread and hasattr(server_thread, 'startup_complete'):
                     server_thread.startup_complete.wait(timeout=10)
 
-                scheme = 'https' if args.https else 'http'
-                port = args.portnumber or args.https
-                upload_url = f"{scheme}://{host}:{port}/api/video/upload"
+                # Try HTTP first (if specified), then HTTPS. This avoids connecting to
+                # the wrong protocol/port when both HTTP and HTTPS are started.
                 video_path = args.video_input
 
-                if video_path and os.path.exists(video_path):
+                tried = []
+                def try_upload(url, verify=True):
                     try:
                         with open(video_path, 'rb') as vf:
                             files = {'video': (os.path.basename(video_path), vf)}
-                            resp = requests.post(upload_url, files=files, timeout=30)
+                            return requests.post(url, files=files, timeout=30, verify=verify)
+                    except Exception as e:
+                        tried.append((url, str(e)))
+                        return None
 
+                if video_path and os.path.exists(video_path):
+                    # Build candidate URLs in preferred order
+                    candidates = []
+                    if args.portnumber:
+                        candidates.append((f"http://{host}:{args.portnumber}/api/video/upload", True))
+                    if args.https:
+                        candidates.append((f"https://{host}:{args.https}/api/video/upload", False))
+
+                    resp = None
+                    for url, verify in candidates:
+                        resp = try_upload(url, verify=verify)
+                        if resp is None:
+                            # If an SSL error occurred when verify=True, retry with verify=False
+                            continue
+                        # If request succeeded or returned HTTP error, stop trying others
+                        break
+
+                    # If no response object, print reasons
+                    if resp is None:
+                        print("Failed to upload video to UI. Attempts:")
+                        for u, err in tried:
+                            print(f" - {u}: {err}")
+                    else:
                         if resp.status_code == 200:
                             try:
                                 session_id = resp.json().get('session_id')
                                 print(f"Video uploaded to UI. Session ID: {session_id}")
-                                player_url = f"{scheme}://{host}:{port}/video_player.html?session={session_id}"
+                                # Determine protocol/port from the URL we used
+                                used_url = resp.url.rsplit('/api/video/upload', 1)[0]
+                                player_url = f"{used_url}/video_player.html?session={session_id}"
                                 print(f"Open the player at: {player_url}")
                                 try:
                                     webbrowser.open(player_url)
@@ -379,8 +407,6 @@ def main():
                                 print("Video uploaded but could not parse server response.")
                         else:
                             print(f"Failed to upload video to UI ({resp.status_code}): {resp.text}")
-                    except Exception as e:
-                        print(f"Error uploading video to UI: {e}")
                 else:
                     print(f"--video_input file not found: {video_path}")
         except Exception as e:
