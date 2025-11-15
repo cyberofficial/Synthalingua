@@ -57,6 +57,8 @@ import openvino as ov
 from queue import Queue
 from tempfile import NamedTemporaryFile
 from colorama import Fore, Style, init
+import requests
+import webbrowser
 
 # Set up proper encoding for Windows to handle Unicode characters
 if sys.platform.startswith('win'):
@@ -341,6 +343,48 @@ def main():
             print(f"Access the web interface at: https://{host}:{args.https}")
         
         api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir, keep_temp=getattr(args, 'keep_temp', False))
+
+        # If launching the video UI and a local video was provided via CLI, try to create
+        # a server-side session by POSTing the file to the upload endpoint. This mirrors
+        # the browser upload flow so the UI can restore the session via ?session=<id>.
+        try:
+            if args.launchui and getattr(args, 'video_input', None):
+                # Wait briefly for the server thread to publish startup messages
+                server_thread = getattr(api_backend, 'server_thread', None) or getattr(api_backend, 'https_server_thread', None)
+                if server_thread and hasattr(server_thread, 'startup_complete'):
+                    server_thread.startup_complete.wait(timeout=10)
+
+                scheme = 'https' if args.https else 'http'
+                port = args.portnumber or args.https
+                upload_url = f"{scheme}://{host}:{port}/api/video/upload"
+                video_path = args.video_input
+
+                if video_path and os.path.exists(video_path):
+                    try:
+                        with open(video_path, 'rb') as vf:
+                            files = {'video': (os.path.basename(video_path), vf)}
+                            resp = requests.post(upload_url, files=files, timeout=30)
+
+                        if resp.status_code == 200:
+                            try:
+                                session_id = resp.json().get('session_id')
+                                print(f"Video uploaded to UI. Session ID: {session_id}")
+                                player_url = f"{scheme}://{host}:{port}/video_player.html?session={session_id}"
+                                print(f"Open the player at: {player_url}")
+                                try:
+                                    webbrowser.open(player_url)
+                                except Exception:
+                                    pass
+                            except Exception:
+                                print("Video uploaded but could not parse server response.")
+                        else:
+                            print(f"Failed to upload video to UI ({resp.status_code}): {resp.text}")
+                    except Exception as e:
+                        print(f"Error uploading video to UI: {e}")
+                else:
+                    print(f"--video_input file not found: {video_path}")
+        except Exception as e:
+            print(f"Auto-upload helper failed: {e}")
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()

@@ -79,6 +79,8 @@ The GitHub Wiki contains detailed guides for every feature, including setup, usa
 # Launch the video UI
 python synthalingua.py --portnumber 8000 --launchui
 
+# Preload a video
+python synthalingua.py --portnumber 8000 --video_input c:\path\to\file.mp4
 ```
 
 Then open in your browser: `http://localhost:8000/video_player.html`
