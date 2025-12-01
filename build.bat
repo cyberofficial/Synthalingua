@@ -1,6 +1,6 @@
 call data_whisper\Scripts\activate.bat
 
-set VERSION=1.2.6.rc18
+set VERSION=1.2.6.rc19
 Echo building version %VERSION% 
 pyinstaller set_up_env.spec --noconfirm
 echo Moving files to portable patch folder...
