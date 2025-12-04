@@ -1,17 +1,41 @@
 """
 Subtitle Generator Module
+-------------------------
 
-This module provides functionality to generate subtitles from audio files using the Whisper ASR model.
-It supports both transcription (in original language) and translation (to English) tasks.
+The *Subtitle Generator* (``sub_gen``) module implements a high‑level interface for
+producing SRT subtitle files from audio or video inputs using the `Whisper` automatic
+speech recognition (ASR) model.  It supports both pure transcription (identical
+language) and translation to English, automatically selects an appropriate model
+based on the user‑specified RAM budget, and optionally isolates vocals with
+**Demucs** before transcription.
 
-Key features:
-- Automatic language detection
-- RAM-aware model selection
-- Confidence scoring with color-coded output
-- Progress tracking during generation
-- SRT format subtitle generation
-- Chunked processing for memory efficiency
-- Support for custom model directories
+Key features
+~~~~~~~~~~~~
+- **Automatic language detection** – Whisper can infer the spoken language when
+  ``--language`` is omitted.
+- **RAM‑aware model selection** – ``get_model_type`` maps a RAM setting (e.g. ``7gb``)
+  to the smallest Whisper model that fits the memory budget.
+- **Confidence scoring** – Per‑segment confidence is derived from Whisper’s
+  ``avg_logprob`` and colour‑coded for quick visual feedback.
+- **Progress tracking** – Both Whisper and Demucs emit progress information that is
+  parsed and displayed to the user.
+- **Chunked processing** – Long media files can be split into smaller segments
+  (either automatically or via user‑specified split points) to keep memory usage
+  low.
+- **Custom model directories** – Users may provide a directory containing pre‑downloaded
+  Whisper models.
+- **Vocal isolation** – Optional Demucs processing removes background music,
+  improving transcription quality for music videos.
+
+The module is deliberately verbose in its console output to aid debugging and
+provides numerous hook points (e.g. ``_auto_proceed_detection``) for automated
+workflows.  All public functions and classes below follow the NumPy docstring
+convention and include type annotations.
+
+Additional notes:
+- The module can be used both as a CLI entry point and as an importable library.
+- Public functions raise clear, descriptive exceptions for error conditions.
+- Default thresholds and magic numbers are documented inline where they appear.
 """
 
 import logging
@@ -47,13 +71,29 @@ init()
 
 # Parse command-line arguments first to check for debug flag
 args = parser_args.parse_arguments()
+# ------------------------------------------------------------
+# Parse command‑line arguments using the project's parser_args module.
+# This occurs early so that flags such as --debug, --keep_temp,
+# and other configuration options are available throughout the script.
 
-# Configure logging based on debug flag
+# ------------------------------------------------------------
+# Configure logging based on the debug flag.
+# If --debug is set we emit detailed DEBUG information,
+# otherwise we default to WARNING to keep console output clean.
 log_level = logging.DEBUG if getattr(args, 'debug', False) else logging.WARNING
 logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
 
+# TempFileManager: Handles creation and cleanup of temporary directories/files for the script's runtime.
+# It ensures that a single temporary base directory is used throughout the process and
+# registers an atexit handler to delete the directory unless the user asks to keep it.
+# ----------------------------------------------------------------------
+# TempFileManager:
+# Handles creation and cleanup of temporary directories/files for the script's runtime.
+# Ensures a single temporary base directory is used throughout the process and
+# registers an atexit handler to delete the directory unless the user asks to keep it.
+# ----------------------------------------------------------------------
 class TempFileManager:
     """
     Manages the creation and cleanup of temporary files and directories.
@@ -71,25 +111,36 @@ class TempFileManager:
         return cls._instance
 
     def __init__(self, keep_temp=False):
+    # ------------------------------------------------------------
+    # Initialize the TempFileManager singleton.
+    # This runs only once per process; subsequent calls return the existing instance.
         # Initialize only once
+        # Only perform full initialization the first time the manager is instantiated.
         if not hasattr(self, 'initialized'):
-            self.keep_temp = keep_temp
+            self.keep_temp = keep_temp  # If True, temporary files are retained after script exit for debugging.
 
             # Get the project's root directory (assuming sub_gen.py is in a 'modules' subdir)
+            # Determine the project root (assumes this file lives in <project>/modules).
             project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             # Define the local temp directory path within the project
+            # Define a local 'temp' folder inside the project to store all temporary data.
             local_temp_base = os.path.join(project_root, 'temp')
             
             # Create the local 'temp' directory if it doesn't exist
+            # Ensure the base temporary directory exists.
             os.makedirs(local_temp_base, exist_ok=True)
 
             # Create a unique session directory inside the local 'temp' folder
+            # Create a unique subdirectory for this script execution (session).
             self.base_dir = tempfile.mkdtemp(prefix="sub_gen_session_", dir=local_temp_base)
             
             self.initialized = True
             
+            # If the user requested to keep temporary files, announce the location.
+            # Respect the --keep_temp flag: skip deletion if the user wants to retain files.
             if self.keep_temp:
                 print(f"{Fore.YELLOW} Temporary files will be kept at: {self.base_dir}{Style.RESET_ALL}")
+            # Otherwise register a cleanup handler to delete the temporary directory on exit.
             else:
                 # Register the cleanup method to be called upon script exit
                 atexit.register(self.cleanup)
@@ -107,12 +158,15 @@ class TempFileManager:
         return dir_path
 
     def cleanup(self):
+    # ------------------------------------------------------------
+    # Remove the temporary session directory and all its contents.
         """Removes the base temporary directory and all its contents."""
         if self.keep_temp:
             logger.info("Skipping cleanup of temporary directory as requested: %s", self.base_dir)
             return
         
         try:
+            # Delete the entire temporary directory tree if it exists.
             if os.path.exists(self.base_dir):
                 shutil.rmtree(self.base_dir, ignore_errors=True)
                 print(f"{Fore.YELLOW} Temporary files cleaned up from: {self.base_dir}{Style.RESET_ALL}")
@@ -122,6 +176,7 @@ class TempFileManager:
             logger.error("Failed to cleanup temporary directory %s: %s", self.base_dir, e, exc_info=True)
 
 # Initialize the temporary file manager globally
+# Global TempFileManager instance used throughout the module.
 temp_manager = TempFileManager(keep_temp=getattr(args, 'keep_temp', False))
 
 
@@ -137,10 +192,12 @@ _last_silence_threshold = None
 _last_silence_duration = None
 
 # Inform user if word_timestamps is enabled
+# Inform the user if word‑level timestamps are enabled (adds processing overhead).
 if getattr(args, 'word_timestamps', False):
     print(f"{Fore.CYAN}  Word-level timestamps are enabled. This may make subtitle generation a bit slower as it requires more processing power. If you notice any unusual slowdowns, try removing the --word_timestamps flag next time you run this command.{Style.RESET_ALL}")
 
 # Inform user if isolate_vocals is enabled
+# Notify the user when vocal isolation via Demucs is activated.
 if getattr(args, 'isolate_vocals', False):
     jobs_info = ""
     if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
@@ -148,6 +205,7 @@ if getattr(args, 'isolate_vocals', False):
     print(f"{Fore.CYAN}  Vocal isolation is enabled. The program will attempt to extract vocals from the input audio before generating subtitles. This may take additional time and requires the demucs package.{jobs_info}{Style.RESET_ALL}")
 
 # Inform user if silent_detect is enabled
+# Activate silent‑detect mode: the script will skip silent audio chunks.
 if getattr(args, 'silent_detect', False):
     custom_threshold = hasattr(args, 'silent_threshold') and args.silent_threshold != -35.0
     custom_duration = hasattr(args, 'silent_duration') and args.silent_duration != 0.5
@@ -186,6 +244,10 @@ def group_speech_regions_by_silence(regions: List[Dict[str, Any]]) -> List[List[
     return groups
 
 # NEW HELPER FUNCTION TO RUN TRANSCRIPTION IN A SEPARATE PROCESS
+# run_transcription_in_process:
+#   Executes Whisper transcription in a separate subprocess to isolate GPU memory usage.
+#   Handles both frozen (exe) and source (python) execution modes, builds the command line,
+#   enforces UTF‑8 environment, manages timeouts, and provides robust fallback for Unicode errors.
 def run_transcription_in_process(
     audio_path: str,
     model_type: str,
@@ -431,6 +493,11 @@ def format_human_time(seconds: float) -> str:
     else:
         return f"{minutes}m{remaining_seconds:04.1f}s"
 
+# detect_silence_in_audio:
+#   Analyzes the waveform to separate speech from silence.
+#   Uses Whisper's audio loader first (more reliable), falls back to librosa.
+#   Converts dB threshold to linear amplitude, computes RMS per 25 ms frame,
+#   merges short silences, and presents statistics for user‑guided threshold tuning.
 def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0, min_silence_duration: float = 0.1) -> List[Dict[str, Any]]:
     """
     Detect silence and speech regions in audio file using intelligent segmentation.
@@ -476,7 +543,9 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
         silence_threshold_linear = 10 ** (silence_threshold_db / 20.0)
         
         # Calculate frame-wise RMS energy with overlapping windows
+        # Frame length of 25 ms (standard for RMS‑based silence detection).
         frame_length = int(0.025 * sr)  # 25ms frames
+        # Hop length of 10 ms provides overlapping windows for smoother RMS curves.
         hop_length = int(0.010 * sr)    # 10ms hop (overlap for smoother detection)
         
         # Calculate RMS for each frame
@@ -1128,6 +1197,9 @@ def get_next_higher_model(current_ram: str) -> Optional[str]:
         Optional[str]: Next higher RAM setting, or None if already at highest
     """
     model_hierarchy = ["1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"]
+        # Order reflects increasing model size and memory consumption.
+        # The list is used by :func:`get_next_higher_model` to map a current RAM
+        # setting to the next more accurate Whisper model.
     
     try:
         current_index = model_hierarchy.index(current_ram.lower())
@@ -1230,6 +1302,9 @@ def get_next_higher_model_with_turbo_handling(current_ram: str, task: str = "tra
     
     return next_model
 
+# calculate_region_confidence:
+#   Computes an average confidence score for a group of Whisper segments.
+#   Converts avg_logprob (negative) to a 0‑1 confidence via exponential scaling.
 def calculate_region_confidence(segments: List[Dict]) -> float:
     """
     Calculate average confidence for a region's segments.
@@ -1257,6 +1332,9 @@ def calculate_region_confidence(segments: List[Dict]) -> float:
     
     return total_confidence / segment_count if segment_count > 0 else 0.0
 
+# detect_repeated_segments:
+#   Scans the transcription for consecutive identical segments.
+#   Flags repetitions longer than the threshold to trigger higher‑model retries.
 def detect_repeated_segments(segments: List[Dict], threshold: int = 3) -> Tuple[bool, List[str], int]:
     """
     Detect if there are repeated segments in the transcription.
@@ -1365,6 +1443,10 @@ def detect_internal_repetitions(segments: List[Dict], min_phrase_length: int = 3
     
     return has_internal_repetitions, problematic_segments, max_repetitions_found
 
+# process_single_speech_region:
+#   Extracts a speech region to a temporary WAV file via FFmpeg,
+#   runs transcription (with retries and intelligent model upgrades),
+#   calculates confidence, detects repetitions, and adjusts timestamps.
 def process_single_speech_region(
     audio_path: str, 
     region: Dict[str, Any], 
@@ -1567,6 +1649,10 @@ def process_single_speech_region(
     
     return region_index, region_segments, best_model_name
 
+# process_speech_regions:
+#   Orchestrates batch or parallel processing of multiple speech regions.
+#   Supports adaptive batch scheduling, thread‑pool parallelism,
+#   and retries on timeouts with dynamic batch‑size reduction.
 def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model_type: str, decode_options: Dict, task: str = "translate") -> List[Dict]:
     """
     Process speech regions individually for maximum efficiency with accurate timestamps.
@@ -1602,6 +1688,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
     
     try:
         # Check if adaptive batch processing is enabled
+        # Adaptive batch processing can be toggled via the --adaptive_batch flag.
         use_adaptive_batch = getattr(args, 'adaptive_batch', False)
         
         if use_adaptive_batch:
@@ -1924,6 +2011,9 @@ def get_color_for_confidence(confidence: float) -> str:
         return Fore.YELLOW
     else:        return Fore.RED
 
+# split_text_for_subtitles:
+#   Breaks long subtitle lines into smaller chunks respecting character and word limits.
+#   Distributes time proportionally among chunks, ensuring a minimum display duration.
 def split_text_for_subtitles(text: str, start_time: float, end_time: float, max_chars: int = 60, max_words: int = 8) -> List[Tuple[str, float, float]]:
     """
     Split long text into readable subtitle chunks.
@@ -2862,6 +2952,46 @@ def process_single_file(
 ) -> Tuple[Dict[str, Any], str]:
     """
     Process a single media file (original processing logic).
+
+    This is the core entry point when a user does **not** request segmentation.
+    It handles optional vocal isolation, selects the Whisper model based on the
+    RAM setting, constructs decode options, and runs either a full‑file
+    transcription or a silence‑detected speech‑region transcription.
+
+    Parameters
+    ----------
+    input_path_obj : pathlib.Path
+        Path to the input file.
+    output_name : str
+        Desired base name for the output subtitle file (without extension).
+    output_directory : str
+        Directory where the subtitle file will be written.
+    task : {"transcribe", "translate"}
+        Whisper task – either produce a transcript in the original language or
+        translate to English.
+    model_dir : Optional[str]
+        Custom directory containing Whisper model files. If ``None`` the global
+        ``args.model_dir`` is used.
+    ram_setting : Optional[str]
+        RAM budget (e.g. ``"7gb"``). If omitted the value from the command‑line
+        arguments ``args.ram`` is used.
+
+    Returns
+    -------
+    tuple
+        ``(result, output_name)`` where ``result`` is the Whisper transcription
+        dictionary (containing ``segments`` and ``text``) and ``output_name`` is
+        the stripped filename that was used for the SRT file.
+
+    Raises
+    ------
+    ValueError
+        If ``task`` is not ``"transcribe"`` or ``"translate"``.
+    RuntimeError
+        If any step of the processing pipeline fails.
+    """
+    """
+    Process a single media file (original processing logic).
     
     Args:
         input_path_obj (Path): Path to input file
@@ -3555,6 +3685,10 @@ def sanitize_filename(filename: str) -> str:
     
     return sanitized
 
+# build_subtitle_filter:
+#   Prepares a safe FFmpeg subtitle filter string.
+#   Sanitizes the subtitle filename, copies it to a managed temp location,
+#   escapes characters that FFmpeg would misinterpret, and adds optional styling.
 def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[str, str]:
     """
     Build FFmpeg subtitle filter with custom styling.
@@ -3684,6 +3818,10 @@ def build_subtitle_filter(subtitle_path: str, style: Dict[str, str]) -> Tuple[st
             pass
         raise e
 
+# burn_subtitles_to_video:
+#   Permanently burns SRT subtitles into a video using FFmpeg.
+#   Creates a safe output filename, supports optional CUDA encoding,
+#   applies custom styling, and falls back to CPU encoding on failure.
 def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: str, substyle: Optional[str] = None) -> Tuple[bool, str]:
     """
     Burn subtitles permanently into a video using FFmpeg with custom styling.
@@ -3824,6 +3962,9 @@ def burn_subtitles_to_video(video_path: str, subtitle_path: str, output_path: st
         print(f"\n{Fore.RED} Error burning subtitles: {str(e)}{Style.RESET_ALL}")
         return False, ""
 
+# embed_subtitles_in_video:
+#   Embeds SRT subtitles as a separate stream (soft subtitles) in a video.
+#   Converts non‑MKV inputs to MKV, uses safe filenames, and can leverage CUDA encoding.
 def embed_subtitles_in_video(video_path: str, subtitle_path: str, output_path: str) -> Tuple[bool, str]:
     """
     Embed subtitles as a separate stream in a video using FFmpeg.
