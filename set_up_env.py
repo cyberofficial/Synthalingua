@@ -36,7 +36,7 @@ from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.52"
+VERSION_NUMBER = "0.0.53"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
 APP_VERSION = "1.2.6"
@@ -190,6 +190,13 @@ class EnvironmentSetup:
 
     def setup_7zr(self, skip_prompts: bool = False) -> Optional[str]:
         """Set up 7zr.exe or p7zip depending on platform."""
+        # Early detection of a local 7zr executable in the current working directory
+        exe_name = '7zr.exe' if self.config.OS_TYPE == 'windows' else '7z'  # appropriate name for Linux/macOS
+        candidate_path = Path.cwd() / exe_name
+        if candidate_path.is_file():
+            print("Found existing 7zr executable in working directory; using it.")
+            self.seven_zip_source = 'downloaded'
+            return str(candidate_path)
         # On Linux/macOS, check if p7zip is installed
         if self.config.OS_TYPE in ['linux', 'darwin']:
             try:
@@ -278,6 +285,13 @@ class EnvironmentSetup:
 
     def setup_ffmpeg(self, seven_zip_exec: str, force_download: bool = False, skip_prompts: bool = False) -> Optional[Path]:
         """Set up FFmpeg either from user input or download."""
+        # Auto-detect existing FFmpeg installation
+        if self.config.FFMPEG_ROOT_PATH.is_dir():
+            ffmpeg_bin = self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
+            if ffmpeg_bin:
+                print("Found existing FFmpeg installation; using it.")
+                self.ffmpeg_source = 'downloaded'
+                return ffmpeg_bin
         # If skip_prompts is True, user already chose to reuse existing FFmpeg folder
         if skip_prompts and self.config.FFMPEG_ROOT_PATH.is_dir():
             print("FFmpeg folder already exists, using existing installation.")
@@ -402,6 +416,14 @@ class EnvironmentSetup:
 
     def setup_ytdlp(self, force_download: bool = False, skip_prompts: bool = False) -> Optional[Path]:
         """Set up yt-dlp either from user input or download."""
+        # Auto-detect existing yt-dlp installation
+        exe_name = 'yt-dlp.exe' if self.config.OS_TYPE == 'windows' else 'yt-dlp'
+        if self.config.YTDLP_PATH.is_dir():
+            ytdlp_exe = self.config.YTDLP_PATH / exe_name
+            if ytdlp_exe.exists():
+                print("Found existing yt-dlp installation; using it.")
+                self.ytdlp_source = 'downloaded'
+                return self.config.YTDLP_PATH
         # If skip_prompts is True, user already chose to reuse existing yt-dlp folder
         if skip_prompts and self.config.YTDLP_PATH.is_dir():
             print("yt-dlp folder already exists, using existing installation.")
@@ -482,32 +504,12 @@ class EnvironmentSetup:
                 # Keep the archive for reuse: os.remove(self.config.YTDLP_ARCHIVE)
                 ytdlp_exe = self.config.YTDLP_PATH / 'yt-dlp.exe'
                 if ytdlp_exe.exists():
-                    while True:
-                        update_choice = input("Would you like to check for yt-dlp updates now? (yes/no) It's recommended to keep it up to date: ").strip().lower()
-                        if update_choice in ("yes", "y"):
-                            print("Updating yt-dlp to the latest version...")
-                            try:
-                                # Use capture_output=True for better error reporting
-                                subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
-                                print("yt-dlp updated to the latest version.")
-                            except subprocess.CalledProcessError as e:
-                                print(f"\n Warning: Failed to auto-update yt-dlp: {e}")
-                                print(f"Command: {' '.join(e.cmd)}")
-                                print(f"Return Code: {e.returncode}")
-                                if e.stdout:
-                                    print(f"Stdout:\n{e.stdout.decode()}")
-                                if e.stderr:
-                                    print(f"Stderr:\n{e.stderr.decode()}")
-                            except FileNotFoundError as e:
-                                print(f"\n Warning: Could not find yt-dlp executable to update: {e}")
-                            except Exception as e:
-                                print(f"\n An unexpected error occurred during yt-dlp update: {e}")
-                            break
-                        elif update_choice in ("no", "n"):
-                            print("Skipping yt-dlp update check.")
-                            break
-                        else:
-                            print("Please answer 'yes' or 'no'.")
+                    try:
+                        subprocess.run([str(ytdlp_exe), '-U'], check=True, capture_output=True)
+                        print("yt-dlp updated to the latest version automatically.")
+                    except subprocess.CalledProcessError as e:
+                        print("\n Warning: Failed to auto‑update yt-dlp.")
+                        # Optionally print error details for debugging
                 self.ytdlp_source = 'downloaded'
                 return self.config.YTDLP_PATH
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
@@ -1352,7 +1354,7 @@ def main() -> None:
         # Platform-specific vocal isolation setup
         if platform.system().lower() == 'windows':
             # Windows: Use Python embedded
-            default_path = 'C:\\bin\\Synthalingua\\python_embedded'
+            default_path = str(Path.cwd() / 'python_embedded')
             print(f"\nPython embedded is required for vocal isolation on Windows.")
             print(f"The recommended installation path is: {default_path}")
             while True:
@@ -1502,26 +1504,19 @@ def main() -> None:
         # Also add the python_embedded installation path if vocal isolation is requested and it exists
         if args.using_vocal_isolation and python_embedded_path and python_embedded_path.exists():
              assets_to_remove.append(python_embedded_path)
-    else:
+        # Automatic detection of existing assets (no interactive prompts)
         print("\nChecking for existing assets...")
         for name, path in assets_to_check:
             if path.exists():
-                while True:
-                    reuse = input(f"Detected existing {name} at {path}. Reuse this asset? (yes/no): ").strip().lower()
-                    if reuse in ("yes", "y"):
-                        # Track if FFmpeg, yt-dlp, or 7zr are being reused
-                        if name == 'FFmpeg folder':
-                            reuse_ffmpeg_folder = True
-                        elif name == 'yt-dlp folder':
-                            reuse_ytdlp_folder = True
-                        elif name == '7zr.exe':
-                            reuse_7zr = True
-                        break
-                    elif reuse in ("no", "n"):
-                        assets_to_remove.append(path)
-                        break
-                    else:
-                        print("Please answer 'yes', 'no', 'y', or 'n'.")
+                # Set reuse flags based on the asset type
+                if name == 'FFmpeg folder':
+                    reuse_ffmpeg_folder = True
+                elif name == 'yt-dlp folder':
+                    reuse_ytdlp_folder = True
+                elif name == '7zr.exe':
+                    reuse_7zr = True
+                # Archives are left untouched; they will be downloaded if needed later
+            # If the asset does not exist, do nothing – download will occur later
         # Special handling for Python embedded installation directory reuse
         if args.using_vocal_isolation and python_embedded_path and python_embedded_path.exists():
              while True:
