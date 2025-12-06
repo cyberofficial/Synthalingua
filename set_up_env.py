@@ -36,10 +36,10 @@ from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.50"
+VERSION_NUMBER = "0.0.52"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
-APP_VERSION = "1.2.5"
+APP_VERSION = "1.2.6"
 
 @dataclass
 class Config:
@@ -188,7 +188,7 @@ class EnvironmentSetup:
             print(f"Error finding ffmpeg.exe: {e}")
             return None
 
-    def setup_7zr(self) -> Optional[str]:
+    def setup_7zr(self, skip_prompts: bool = False) -> Optional[str]:
         """Set up 7zr.exe or p7zip depending on platform."""
         # On Linux/macOS, check if p7zip is installed
         if self.config.OS_TYPE in ['linux', 'darwin']:
@@ -220,6 +220,12 @@ class EnvironmentSetup:
         # Windows-specific 7zr.exe handling
         self.config.ASSETS_PATH.mkdir(exist_ok=True)
         seven_zip_path = self.config.ASSETS_PATH / '7zr.exe'
+
+        # If skip_prompts is True, user already chose to reuse existing 7zr.exe
+        if skip_prompts and seven_zip_path.exists():
+            print("7zr.exe already exists, using existing installation.")
+            self.seven_zip_source = 'downloaded'
+            return str(seven_zip_path)
 
         # Check if 7zr.exe exists in downloaded_assets and ask user
         if seven_zip_path.exists():
@@ -270,8 +276,14 @@ class EnvironmentSetup:
             print(" No download URL configured for this platform.")
             return None
 
-    def setup_ffmpeg(self, seven_zip_exec: str, force_download: bool = False) -> Optional[Path]:
+    def setup_ffmpeg(self, seven_zip_exec: str, force_download: bool = False, skip_prompts: bool = False) -> Optional[Path]:
         """Set up FFmpeg either from user input or download."""
+        # If skip_prompts is True, user already chose to reuse existing FFmpeg folder
+        if skip_prompts and self.config.FFMPEG_ROOT_PATH.is_dir():
+            print("FFmpeg folder already exists, using existing installation.")
+            self.ffmpeg_source = 'downloaded'
+            return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
+        
         while True:
             use_own_ffmpeg = input("Do you already have FFmpeg installed and in your PATH? (yes/no): ").strip().lower()
             if use_own_ffmpeg in ('yes', 'y'):
@@ -388,8 +400,14 @@ class EnvironmentSetup:
             self.ffmpeg_source = 'downloaded'
             return self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
 
-    def setup_ytdlp(self, force_download: bool = False) -> Optional[Path]:
+    def setup_ytdlp(self, force_download: bool = False, skip_prompts: bool = False) -> Optional[Path]:
         """Set up yt-dlp either from user input or download."""
+        # If skip_prompts is True, user already chose to reuse existing yt-dlp folder
+        if skip_prompts and self.config.YTDLP_PATH.is_dir():
+            print("yt-dlp folder already exists, using existing installation.")
+            self.ytdlp_source = 'downloaded'
+            return self.config.YTDLP_PATH
+        
         while True:
             use_own_ytdlp = input("Do you already have yt-dlp installed and in your PATH? (yes/no): ").strip().lower()
             if use_own_ytdlp in ('yes', 'y'):
@@ -1250,7 +1268,7 @@ Setup Notes:
         
         print(f"\n{self.config.CONFIG_FILE} created with path settings.")
 
-    def run(self, using_vocal_isolation: bool = False, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, use_system_python: bool = False) -> None:
+    def run(self, using_vocal_isolation: bool = False, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, use_system_python: bool = False, reuse_ffmpeg: bool = False, reuse_ytdlp: bool = False, reuse_7zr: bool = False) -> None:
         """Run the environment setup process."""
         # Store the system python preference
         self.use_system_python = use_system_python
@@ -1264,13 +1282,13 @@ Setup Notes:
                 print("4. Python Embedded (3.12.10), 5. Demucs")
         print("\nAll installers and tools will be saved locally for reuse.")
 
-        seven_zip_exec = self.setup_7zr()
+        seven_zip_exec = self.setup_7zr(skip_prompts=reuse_7zr)
         if not seven_zip_exec:
             print("Failed to set up 7zr.exe. Exiting...")
             return
 
-        ffmpeg_path = self.setup_ffmpeg(seven_zip_exec, force_download=force_ffmpeg_download)
-        ytdlp_path = self.setup_ytdlp(force_download=force_ytdlp_download)
+        ffmpeg_path = self.setup_ffmpeg(seven_zip_exec, force_download=force_ffmpeg_download, skip_prompts=reuse_ffmpeg)
+        ytdlp_path = self.setup_ytdlp(force_download=force_ytdlp_download, skip_prompts=reuse_ytdlp)
 
         if using_vocal_isolation:
             if use_system_python:
@@ -1471,6 +1489,10 @@ def main() -> None:
     ]
 
     assets_to_remove = []
+    reuse_ffmpeg_folder = False
+    reuse_ytdlp_folder = False
+    reuse_7zr = False
+    
     if args.reinstall:
         print("\n--reinstall specified: Removing all tool folders/files for a fresh setup...")
         # Add all existing assets to the removal list if --reinstall is used
@@ -1487,6 +1509,13 @@ def main() -> None:
                 while True:
                     reuse = input(f"Detected existing {name} at {path}. Reuse this asset? (yes/no): ").strip().lower()
                     if reuse in ("yes", "y"):
+                        # Track if FFmpeg, yt-dlp, or 7zr are being reused
+                        if name == 'FFmpeg folder':
+                            reuse_ffmpeg_folder = True
+                        elif name == 'yt-dlp folder':
+                            reuse_ytdlp_folder = True
+                        elif name == '7zr.exe':
+                            reuse_7zr = True
                         break
                     elif reuse in ("no", "n"):
                         assets_to_remove.append(path)
@@ -1550,7 +1579,7 @@ def main() -> None:
     force_ytdlp = cfg.YTDLP_PATH in assets_to_remove
 
     setup = EnvironmentSetup(python_embedded_path if python_embedded_path else Path.cwd() / 'python_embedded_placeholder') # Pass placeholder if no path selected
-    setup.run(using_vocal_isolation=args.using_vocal_isolation, force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, use_system_python=use_system_python)
+    setup.run(using_vocal_isolation=args.using_vocal_isolation, force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, use_system_python=use_system_python, reuse_ffmpeg=reuse_ffmpeg_folder, reuse_ytdlp=reuse_ytdlp_folder, reuse_7zr=reuse_7zr)
 
 if __name__ == "__main__":
     from multiprocessing import freeze_support

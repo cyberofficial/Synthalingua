@@ -1,5 +1,9 @@
 <img width="1248" height="454" alt="image" src="https://github.com/user-attachments/assets/fcc5535f-1bc8-47f5-908f-48b043cb813a" />
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T12FOFT)
+
+### > [More ways to support](#support-synthalingua) <
+
 # Beware of scams - I do not create or endorse any crypto coins or NFTs! Do not fall for any cryptocurrency-related schemes. Please report any scams when possible.
 
 # Synthalingua
@@ -30,6 +34,7 @@ If you’re looking for a transcription API for meetings, consider checking out 
 ## Table of Contents
 - [About](#about-synthalingua)
 - [Documentation Wiki](#documentation-wiki)
+- [Video Translation UI](#video-translation-ui) **← NEW!**
 - [Quick Start](#quick-start)
 - [Feature Highlights](#feature-highlights)
 - [System Requirements](#system-requirements)
@@ -52,6 +57,52 @@ If you’re looking for a transcription API for meetings, consider checking out 
 [https://github.com/cyberofficial/Synthalingua/wiki](https://github.com/cyberofficial/Synthalingua/wiki)
 
 The GitHub Wiki contains detailed guides for every feature, including setup, usage, troubleshooting, and advanced options. Always check the wiki for the latest documentation and tips!
+
+---
+
+## Video Translation UI
+
+**NEW!** Synthalingua now includes an interactive web-based video player with real-time translation and transcription capabilities!
+
+### Features
+- 📺 **Real-time Video Playback** with synchronized captions
+- 🌐 **Live Translation** to any supported language
+- 🎨 **Customizable Caption Styling** (font, size, color, position)
+- 🚀 **Buffered Processing** for smooth playback
+- 💾 **Export Subtitles** as SRT or VTT files
+- 🎯 **Multiple Model Support**: Whisper, FasterWhisper, OpenVINO
+- 🔧 **Device Selection**: CPU, CUDA, Intel iGPU/dGPU/NPU
+
+### Quick Start
+
+```bash
+# Launch the video UI
+python synthalingua.py --portnumber 8000 --launchui
+
+# Preload a video
+python synthalingua.py --portnumber 8000 --video_input c:\path\to\file.mp4
+```
+
+Then open in your browser: `http://localhost:8000/video_player.html`
+
+### Supported Video Formats
+MP4, MKV, AVI, MOV, WebM, FLV, WMV, M4V
+
+### Usage Example
+1. Launch the UI with `--launchui`
+2. Drag & drop a video file or click to browse
+3. Configure translation settings (source/target language, model, device)
+4. Customize caption appearance (font, colors, position)
+5. Click **START PROCESSING**
+6. Watch video with real-time translated captions!
+
+### Keyboard Shortcuts
+| Key | Action |
+|-----|--------|
+| `Space` | Play/Pause |
+| `F` | Toggle Fullscreen |
+| `←` / `→` | Seek ±5 seconds |
+| `M` | Mute/Unmute |
 
 ---
 
@@ -102,6 +153,7 @@ By using Synthalingua, you agree to use it responsibly and accept full responsib
 ---
 
 ## Feature Highlights
+- **🎬 Video Translation UI**: Interactive web-based player with real-time translation, caption overlay, and customizable styling (NEW!)
 - **Suppress repeated/similar messages**: Prevents spam from repeated or hallucinated phrases in all modes
 - **Auto blocklist**: Frequently blocked phrases are auto-added to your blocklist file
 - **Flexible input**: Microphone, HLS stream, or file

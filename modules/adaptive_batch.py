@@ -681,21 +681,37 @@ class OptimizationSuggester:
         if len(self.performance_tracker.gpu_jobs) >= 3 and len(self.performance_tracker.cpu_jobs) >= 3:
             speed_ratio = self.performance_tracker.get_speed_ratio()
             
-            if speed_ratio < 8:  # CPU is faster than expected
+            if speed_ratio <= 1.2:  # CPU is nearly as fast as GPU or faster - already optimized
                 suggestions.append({
-                    "type": "increase_cpu_usage",
+                    "type": "already_optimized",
                     "current": self.config.max_cpu_time_per_job,
-                    "suggested": self.config.max_cpu_time_per_job + 60,
-                    "reason": f"CPU performance is good (only {speed_ratio:.1f}x slower than GPU)",
-                    "estimated_benefit": "More efficient job distribution"
+                    "suggested": self.config.max_cpu_time_per_job,
+                    "reason": f"CPU performance is excellent ({speed_ratio:.1f}x slower than GPU) - already optimized",
+                    "estimated_benefit": "No changes needed"
                 })
-            elif speed_ratio > 15:  # CPU is much slower
+            elif speed_ratio < 1.5:  # Good CPU performance (1.2x - 1.5x) - reduce slightly
+                suggestions.append({
+                    "type": "decrease_cpu_usage",
+                    "current": self.config.max_cpu_time_per_job,
+                    "suggested": max(60, self.config.max_cpu_time_per_job - 30),
+                    "reason": f"CPU performance is very good ({speed_ratio:.1f}x slower than GPU)",
+                    "estimated_benefit": "Fine-tune job allocation for optimal distribution"
+                })
+            elif speed_ratio < 8:  # Decent CPU performance (1.5x - 8x) - reduce more
                 suggestions.append({
                     "type": "decrease_cpu_usage",
                     "current": self.config.max_cpu_time_per_job,
                     "suggested": max(60, self.config.max_cpu_time_per_job - 60),
+                    "reason": f"CPU performance is good ({speed_ratio:.1f}x slower than GPU)",
+                    "estimated_benefit": "Optimize job allocation to prioritize GPU for better throughput"
+                })
+            elif speed_ratio > 15:  # CPU is much slower (>15x)
+                suggestions.append({
+                    "type": "decrease_cpu_usage",
+                    "current": self.config.max_cpu_time_per_job,
+                    "suggested": max(60, self.config.max_cpu_time_per_job - 90),
                     "reason": f"CPU performance is slow ({speed_ratio:.1f}x slower than GPU)",
-                    "estimated_benefit": "Reduce CPU bottlenecks"
+                    "estimated_benefit": "Reduce CPU bottlenecks by limiting long CPU jobs"
                 })
         
         logger.info(f"Generated {len(suggestions)} optimization suggestions")

@@ -26,6 +26,28 @@ if '--run-worker' in sys.argv:
         # Ensure the worker process exits cleanly
         sys.exit(0)
 
+# Check if this process is being launched as a worker for video transcription
+if '--run-video-worker' in sys.argv:
+    try:
+        # This branch is for the frozen executable to re-launch itself as a video worker.
+        # It won't be triggered when running from source because video_transcription.py calls
+        # video_transcription_worker.py directly in that case.
+        from modules.video_translation_ui.video_transcription_worker import main as video_worker_main
+
+        # Re-arrange sys.argv for the video worker's argument parser.
+        # Original: [exe_path, '--run-video-worker', '--arg1', 'val1', ...]
+        # New for worker: [exe_path, '--arg1', 'val1', ...]
+        # The worker's parser will parse from index 1 onwards.
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
+        video_worker_main()
+    except Exception as e:
+        # Log any errors to stderr for the parent process to capture
+        print(f"Video worker process failed: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        # Ensure the video worker process exits cleanly
+        sys.exit(0)
+
 # If not a worker, proceed with normal imports and execution
 import os
 import torch
@@ -35,6 +57,8 @@ import openvino as ov
 from queue import Queue
 from tempfile import NamedTemporaryFile
 from colorama import Fore, Style, init
+import requests
+import webbrowser
 
 # Set up proper encoding for Windows to handle Unicode characters
 if sys.platform.startswith('win'):
@@ -115,8 +139,53 @@ def main():
     # Handle microphone listing and exit if requested
     if args.list_microphones:
         list_microphones()
-        sys.exit(0)    # Check input sources
-    if args.stream is None and args.microphone_enabled is None and not args.makecaptions:
+        sys.exit(0)
+
+    # Handle model preloading
+    if args.preload:
+        from modules.model_preloader import preload_models
+        
+        # Set up device for preloading (same as normal operation)
+        device = setup_device(args)
+        
+        # Set up model directory (create if doesn't exist)
+        if not os.path.exists(args.model_dir):
+            print("Creating models folder...")
+            os.makedirs(args.model_dir)
+        
+        # Run preloading
+        successful, total = preload_models(
+            preload_spec=args.preload,
+            model_dir=args.model_dir,
+            device=device,
+            compute_type=args.compute_type
+        )
+        
+        # Check if preload is being used standalone (no other operations)
+        is_standalone = (
+            args.stream is None and 
+            args.microphone_enabled is None and 
+            not args.makecaptions and 
+            not args.launchui
+        )
+        
+        # Only exit if preload is standalone
+        if is_standalone:
+            if successful == total:
+                print(f"{Fore.GREEN}All models cached successfully. You can now run Synthalingua normally.{Style.RESET_ALL}")
+                sys.exit(0)
+            else:
+                print(f"{Fore.YELLOW}Some models failed to cache. Check errors above.{Style.RESET_ALL}")
+                sys.exit(1)
+        else:
+            # Continue to main operation after preloading
+            if successful == total:
+                print(f"{Fore.GREEN}Models preloaded successfully. Continuing with main operation...{Style.RESET_ALL}\n")
+            else:
+                print(f"{Fore.YELLOW}Warning: Some models failed to preload. Continuing anyway...{Style.RESET_ALL}\n")
+
+    # Check input sources (skip check for video UI mode)
+    if args.stream is None and args.microphone_enabled is None and not args.makecaptions and not args.launchui:
         print("No audio source was set. Please set an audio source.")
         reset_text = Style.RESET_ALL
         input(f"Press {Fore.YELLOW}[enter]{reset_text} to exit.")
@@ -243,7 +312,10 @@ def main():
     # Use stream_language for model selection if in stream mode
     model_language = args.stream_language if args.stream else args.language
     model = parser_args.set_model_by_ram(args.ram, model_language)
-    if not args.makecaptions:
+    
+    # Only load model if not using makecaptions AND not launching video UI
+    # Video UI and makecaptions load models on-demand when processing starts
+    if not args.makecaptions and not args.launchui:
         if args.model_source == "fasterwhisper":
             audio_model = FasterWhisperModel(model, device=device, download_root=args.model_dir, compute_type=args.compute_type)
         elif args.model_source == "openvino":
@@ -252,6 +324,10 @@ def main():
             audio_model = BaseWhisperModel(model, device=device, download_root=args.model_dir)
         else:
             ValueError(f"{args.model_source} is not a valid model source")
+        
+        print(f"Using {args.model_source} model: {model}")
+    elif args.launchui:
+        print(f"Video UI mode: Model will load when processing starts")
 
     # Set up API backend if needed
     if args.portnumber or args.https:
@@ -266,7 +342,75 @@ def main():
             print(f"Starting HTTPS web server on {host}:{args.https}...")
             print(f"Access the web interface at: https://{host}:{args.https}")
         
-        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug)
+        api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir, keep_temp=getattr(args, 'keep_temp', False))
+
+        # If launching the video UI and a local video was provided via CLI, try to create
+        # a server-side session by POSTing the file to the upload endpoint. This mirrors
+        # the browser upload flow so the UI can restore the session via ?session=<id>.
+        try:
+            if args.launchui and getattr(args, 'video_input', None):
+                # Wait briefly for the server thread to publish startup messages
+                server_thread = getattr(api_backend, 'server_thread', None) or getattr(api_backend, 'https_server_thread', None)
+                if server_thread and hasattr(server_thread, 'startup_complete'):
+                    server_thread.startup_complete.wait(timeout=10)
+
+                # Try HTTP first (if specified), then HTTPS. This avoids connecting to
+                # the wrong protocol/port when both HTTP and HTTPS are started.
+                video_path = args.video_input
+
+                tried = []
+                def try_upload(url, verify=True):
+                    try:
+                        with open(video_path, 'rb') as vf:
+                            files = {'video': (os.path.basename(video_path), vf)}
+                            return requests.post(url, files=files, timeout=30, verify=verify)
+                    except Exception as e:
+                        tried.append((url, str(e)))
+                        return None
+
+                if video_path and os.path.exists(video_path):
+                    # Build candidate URLs in preferred order
+                    candidates = []
+                    if args.portnumber:
+                        candidates.append((f"http://{host}:{args.portnumber}/api/video/upload", True))
+                    if args.https:
+                        candidates.append((f"https://{host}:{args.https}/api/video/upload", False))
+
+                    resp = None
+                    for url, verify in candidates:
+                        resp = try_upload(url, verify=verify)
+                        if resp is None:
+                            # If an SSL error occurred when verify=True, retry with verify=False
+                            continue
+                        # If request succeeded or returned HTTP error, stop trying others
+                        break
+
+                    # If no response object, print reasons
+                    if resp is None:
+                        print("Failed to upload video to UI. Attempts:")
+                        for u, err in tried:
+                            print(f" - {u}: {err}")
+                    else:
+                        if resp.status_code == 200:
+                            try:
+                                session_id = resp.json().get('session_id')
+                                print(f"Video uploaded to UI. Session ID: {session_id}")
+                                # Determine protocol/port from the URL we used
+                                used_url = resp.url.rsplit('/api/video/upload', 1)[0]
+                                player_url = f"{used_url}/video_player.html?session={session_id}"
+                                print(f"Open the player at: {player_url}")
+                                try:
+                                    webbrowser.open(player_url)
+                                except Exception:
+                                    pass
+                            except Exception:
+                                print("Video uploaded but could not parse server response.")
+                        else:
+                            print(f"Failed to upload video to UI ({resp.status_code}): {resp.text}")
+                else:
+                    print(f"--video_input file not found: {video_path}")
+        except Exception as e:
+            print(f"Auto-upload helper failed: {e}")
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()
@@ -319,6 +463,19 @@ def main():
         input()
         sys.exit("Exiting...")
 
+    # Exit here if launching video UI (no streaming/microphone setup needed)
+    if args.launchui:
+        print("Video UI server is now running. Use the web interface to process videos.")
+        print("Press Ctrl+C to stop the server.")
+        try:
+            # Keep the server running until interrupted
+            while True:
+                import time
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nShutting down video UI server...")
+        sys.exit(0)
+
     # Set up stream if needed
     stream_thread = None
     if args.stream:
@@ -359,7 +516,7 @@ def main():
         if args.stream:
             print("Stopping stream transcription...")
             stop_transcription()
-            clean_temp_directory(temp_dir)
+            clean_temp_directory(temp_dir, keep_temp=getattr(args, 'keep_temp', False))
         
         # Clean up any temporary cookie files
         if hasattr(args, '_temp_cookie_files'):

@@ -269,7 +269,7 @@ def read_cached_file(file_path):
     Returns:
         str: Content of the file
     """
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding='utf-8') as file:
         return file.read()
 
 # Routes
@@ -285,6 +285,12 @@ def serve_player():
     """Serves the player page."""
     player_html_path = os.path.join(get_html_data_dir(), 'player.html')
     return read_cached_file(player_html_path)
+
+@api.route('/video_player.html')
+def serve_video_player():
+    """Serves the video translation player page."""
+    video_player_path = os.path.join(get_html_data_dir(), 'video_player.html')
+    return read_cached_file(video_player_path)
 
 @api.route('/static/<path:filename>')
 def serve_static(filename):
@@ -444,13 +450,18 @@ class FlaskServerThread(Thread):
     Args:
         port (int): Port number for the server
         use_https (bool): Whether to use HTTPS protocol
+        host (str): Host address to bind to
+        debug (bool): Enable debug mode
+        model_dir (str): Directory where AI models are stored
     """
-    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False):
+    def __init__(self, port, use_https=False, host: str = '127.0.0.1', debug=False, model_dir='./models', keep_temp=False):
         super().__init__()
         self.port = port
         self.use_https = use_https
         self.host = host
         self.debug = debug
+        self.model_dir = model_dir
+        self.keep_temp = keep_temp
         self.app = self.create_app()
         self.server = None
         self.shutdown_event = Event()
@@ -467,8 +478,37 @@ class FlaskServerThread(Thread):
         log.setLevel(logging.ERROR)
         log.disabled = True
 
-        # Register blueprint
+        # Register main API blueprint
         app.register_blueprint(api)
+        
+        # Try to register video translation blueprint if available
+        try:
+            from modules.video_translation_ui.video_backend import video_bp, init_video_socketio, set_model_dir, set_debug_mode, set_keep_temp
+            
+            # Set model directory from args
+            set_model_dir(self.model_dir)
+            
+            # Set debug mode from args
+            set_debug_mode(self.debug or _debug_enabled)
+            
+            # Set keep_temp flag from args (if available)
+            keep_temp = getattr(self, 'keep_temp', False)
+            set_keep_temp(keep_temp)
+            
+            app.register_blueprint(video_bp)
+            
+            # Initialize SocketIO for video module
+            socketio = init_video_socketio(app)
+            # Store socketio instance in app safely (use setattr to avoid typing complaints)
+            setattr(app, 'socketio', socketio)
+            
+            if self.debug or _debug_enabled:
+                print("Video translation UI module loaded successfully")
+        except ImportError as e:
+            if self.debug or _debug_enabled:
+                print(f"Video translation UI module not available: {e}")
+        except Exception as e:
+            print(f"Error loading video translation UI module: {e}")
 
         # Add security headers
         @app.after_request
@@ -543,46 +583,68 @@ class FlaskServerThread(Thread):
         try:
             # Try to bind to the specified port, find alternative if in use
             original_port = self.port
-            try:
-                print(f"Debug: Attempting to bind to port {self.port}")
-                self.server = make_server(self.host, self.port, self.app, 
-                                        ssl_context=ssl_context)
-                print(f"Debug: Successfully bound to port {self.port}")
-            except Exception as e:
-                print(f"Debug: Exception type: {type(e).__name__}")
-                print(f"Debug: Exception message: {e}")
-                error_msg = str(e).lower()
-                if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
-                    print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
-                    available_port = find_available_port(self.port, self.host)
-                    if available_port:
-                        self.port = available_port
-                        print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
-                        self.server = make_server(self.host, self.port, self.app, 
-                                                ssl_context=ssl_context)
-                    else:
-                        print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
-                        raise
-                else:
-                    print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
-                    raise
             
-            protocol = 'https' if ssl_context else 'http'
-            port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
-            print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
-            print(f"You can access the server at {protocol}://{self.host}:{self.port}")
-            print(f" To force shutdown the server, delete the '{PID_FILE}' file")
-            print()  # Add empty line to separate multiple server outputs
+            # Check if SocketIO is available in the app
+            socketio = getattr(self.app, 'socketio', None)
+            has_socketio = socketio is not None
             
-            # Signal that startup messages are complete
-            self.startup_complete.set()
-            
-            while not self.shutdown_event.is_set() and not force_shutdown_flag:
+            if has_socketio:
+                # Use SocketIO's run method which handles WebSocket connections
+                protocol = 'https' if ssl_context else 'http'
+                print(f"Starting Flask Server with WebSocket support on {self.host}:{self.port}")
+                print(f"You can access the server at {protocol}://{self.host}:{self.port}")
+                print(f"Video Translation UI available at {protocol}://{self.host}:{self.port}/video_player.html")
+                print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+                print()
+                
+                # Signal that startup messages are complete
+                self.startup_complete.set()
+                
+                # Run SocketIO server (this will block until shutdown)
+                socketio.run(self.app, host=self.host, port=self.port, 
+                           ssl_context=ssl_context, allow_unsafe_werkzeug=True)
+            else:
+                # Original Flask server without SocketIO
                 try:
-                    self.server.handle_request()
-                except OSError:
-                    # Socket was closed, likely during shutdown
-                    break
+                    print(f"Debug: Attempting to bind to port {self.port}")
+                    self.server = make_server(self.host, self.port, self.app, 
+                                            ssl_context=ssl_context)
+                    print(f"Debug: Successfully bound to port {self.port}")
+                except Exception as e:
+                    print(f"Debug: Exception type: {type(e).__name__}")
+                    print(f"Debug: Exception message: {e}")
+                    error_msg = str(e).lower()
+                    if "access" in error_msg or "address already in use" in error_msg or "permission" in error_msg or "forbidden" in error_msg:
+                        print(f"{Fore.YELLOW}Port {self.port} is unavailable ({e}). Searching for available port...{Style.RESET_ALL}")
+                        available_port = find_available_port(self.port, self.host)
+                        if available_port:
+                            self.port = available_port
+                            print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
+                            self.server = make_server(self.host, self.port, self.app, 
+                                                    ssl_context=ssl_context)
+                        else:
+                            print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
+                            raise
+                    else:
+                        print(f"{Fore.RED}Unexpected error binding to port {self.port}: {e}{Style.RESET_ALL}")
+                        raise
+                
+                protocol = 'https' if ssl_context else 'http'
+                port_changed_msg = f" (original port {original_port} was in use)" if self.port != original_port else ""
+                print(f"Starting Flask Server on {self.host}:{self.port}{port_changed_msg}")
+                print(f"You can access the server at {protocol}://{self.host}:{self.port}")
+                print(f" To force shutdown the server, delete the '{PID_FILE}' file")
+                print()  # Add empty line to separate multiple server outputs
+                
+                # Signal that startup messages are complete
+                self.startup_complete.set()
+                
+                while not self.shutdown_event.is_set() and not force_shutdown_flag:
+                    try:
+                        self.server.handle_request()
+                    except OSError:
+                        # Socket was closed, likely during shutdown
+                        break
                     
         except Exception as e:
             print(f"Server error: {e}")
@@ -603,7 +665,7 @@ class FlaskServerThread(Thread):
 server_thread = None
 https_server_thread = None
 
-def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False):
+def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1', debug=False, model_dir='./models', keep_temp=False):
     """
     Controls the Flask server operation.
     
@@ -611,6 +673,10 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         operation (str): "start" to start the server
         portnumber (int): Port number for the HTTP server (can be None)
         https_port (int): Port number for the HTTPS server (can be None)
+        host (str): Host address to bind to
+        debug (bool): Enable debug mode
+        model_dir (str): Directory where AI models are stored
+        keep_temp (bool): If True, keep temporary files on cleanup
     """
     global server_thread, https_server_thread, _debug_enabled, force_shutdown_flag
     if operation == "start":
@@ -619,7 +685,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTP server if port is specified
         if portnumber:
-            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug)
+            server_thread = FlaskServerThread(portnumber, use_https=False, host=host, debug=debug, model_dir=model_dir, keep_temp=keep_temp)
             server_thread.daemon = True
             server_thread.start()
             
@@ -629,7 +695,7 @@ def flask_server(operation, portnumber, https_port=None, host: str = '127.0.0.1'
         
         # Start HTTPS server if port is specified
         if https_port:
-            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug)
+            https_server_thread = FlaskServerThread(https_port, use_https=True, host=host, debug=debug, model_dir=model_dir, keep_temp=keep_temp)
             https_server_thread.daemon = True
             https_server_thread.start()
         

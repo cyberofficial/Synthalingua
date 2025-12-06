@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthalingua Video Translator</title>
+    <link rel="stylesheet" href="/static/video_player.css">
+    <script src="/static/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Video Player Section (Left ~70%) -->
+            <div class="video-section">
+                <!-- Video Player -->
+                <div id="video-container" class="video-container">
+                    <video id="video-player" controls>
+                        <source id="video-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    
+                    <!-- Caption Overlay -->
+                    <div id="caption-overlay" class="caption-overlay">
+                        <div id="transcription-caption" class="caption transcription-caption"></div>
+                        <div id="translation-caption" class="caption translation-caption"></div>
+                    </div>
+                    
+                    <!-- Buffer Indicator -->
+                    <div id="buffer-indicator" class="buffer-indicator">
+                        <div class="buffer-bar">
+                            <div id="buffer-progress" class="buffer-progress"></div>
+                        </div>
+                        <div id="buffer-text" class="buffer-text">Buffer: 0s ahead</div>
+                    </div>
+                </div>
+                
+                <!-- Playback Controls -->
+                <div class="controls-bar">
+                    <button id="play-pause-btn" class="control-btn">
+                        <span class="icon">▶</span>
+                    </button>
+                    <button id="stop-btn" class="control-btn">
+                        <span class="icon">⏹</span>
+                    </button>
+                    <div class="timeline">
+                        <input type="range" id="timeline-slider" min="0" max="100" value="0" step="0.1">
+                        <div id="timeline-buffered" class="timeline-buffered"></div>
+                    </div>
+                    <span id="time-display" class="time-display">0:00 / 0:00</span>
+                    <button id="volume-btn" class="control-btn">
+                        <span class="icon">🔊</span>
+                    </button>
+                    <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100">
+                    <select id="speed-selector" class="speed-selector">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2x</option>
+                    </select>
+                    <button id="audio-source-toggle" class="control-btn" title="Toggle between original and isolated vocals">
+                        <span class="icon">🎵</span>
+                    </button>
+                    <button id="fullscreen-btn" class="control-btn">
+                        <span class="icon">⛶</span>
+                    </button>
+                    <!-- Section Redo Controls -->
+                    <div class="section-redo-controls">
+                        <button id="set-marker-a-btn" class="control-btn marker-btn" title="Set start point for section redo">
+                            <span class="icon">[A]</span>
+                        </button>
+                        <button id="set-marker-b-btn" class="control-btn marker-btn" title="Set end point for section redo">
+                            <span class="icon">[B]</span>
+                        </button>
+                        <span id="section-range-display" class="section-range-display"></span>
+                    </div>
+                </div>
+                
+                <!-- Waveform Visualization -->
+                <div id="waveform-container" class="waveform-container">
+                    <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
+                    <div id="waveform-progress" class="waveform-progress"></div>
+                    <div id="waveform-loading" class="waveform-loading" style="display: none;">
+                        <span>Loading waveform...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Control Panel (Right ~30%) -->
+            <div class="control-panel">
+                <h2 class="panel-title">⚙️ Video Translator</h2>
+                
+                <!-- Tab Navigation -->
+                <div class="tab-navigation">
+                    <button class="tab-btn active" data-tab="settings">⚙️ Settings</button>
+                    <button class="tab-btn" data-tab="editor">✏️ Editor</button>
+                </div>
+                
+                <!-- Settings Tab -->
+                <div id="settings-tab" class="tab-content active">
+                
+                <!-- Video Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🎬 Video Settings</h3>
+                    <div class="upload-area" id="upload-area">
+                        <input type="file" id="video-input" accept=".mp4,.mkv,.avi,.mov,.webm" style="display: none;">
+                        <div class="upload-content">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">Click to load video or drag & drop</div>
+                            <div class="upload-formats">Supports: MP4, MKV, AVI, MOV, WebM</div>
+                        </div>
+                    </div>
+                    <div id="video-info" class="video-info" style="display: none;">
+                        <div class="info-line"><strong>File:</strong> <span id="info-filename"></span></div>
+                        <div class="info-line"><strong>Duration:</strong> <span id="info-duration"></span></div>
+                        <div class="info-line"><strong>Resolution:</strong> <span id="info-resolution"></span></div>
+                        <div class="info-line"><strong>FPS:</strong> <span id="info-fps"></span></div>
+                        <div class="info-line" id="audio-source-info" style="display: none;"><strong>Audio:</strong> <span id="audio-source-label">Original</span></div>
+                        <button id="change-video-btn" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">📁 Change Video</button>
+                    </div>
+                </div>
+                
+                <!-- Translation Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title"> Translation</h3>
+                    <div class="form-group">
+                        <label>Source Language:</label>
+                        <select id="source-language">
+                            <option value="">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="ja">Japanese</option>
+                            <option value="ko">Korean</option>
+                            <option value="zh">Chinese</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                        </select>
+                        <div class="help-text">Auto-detect will identify the source language. Translation target is always English.</div>
+                    </div>
+                </div>
+                
+                <!-- Performance Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">⚙️ Performance</h3>
+                    <div class="form-group">
+                        <label>Model Source:</label>
+                        <select id="model-source">
+                            <option value="whisper">Whisper (BaseWhisper)</option>
+                            <option value="fasterwhisper" selected>FasterWhisper (Recommended)</option>
+                            <option value="openvino">OpenVINO (Intel HW)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Model Size:</label>
+                        <select id="model-size">
+                            <option value="tiny">Tiny (~1GB)</option>
+                            <option value="base" selected>Base (~1GB)</option>
+                            <option value="small">Small (~2GB)</option>
+                            <option value="medium">Medium (~5GB)</option>
+                            <option value="large-v2">Large-v2 (~10GB)</option>
+                            <option value="large-v3">Large-v3 (~10GB)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Device:</label>
+                        <select id="device">
+                            <option value="auto" selected>Auto-detect</option>
+                            <option value="cpu">CPU</option>
+                            <option value="cuda">CUDA (NVIDIA GPU)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Vocal Isolation Settings (Demucs) -->
+                <div class="settings-section">
+                    <h3 class="section-title">🎤 Vocal Isolation</h3>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-vocal-isolation" checked>
+                            Enable Vocal Isolation (Demucs)
+                        </label>
+                        <div class="help-text">Removes background music/noise before transcription. Requires full audio preprocessing.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Demucs Model:</label>
+                        <select id="demucs-model">
+                            <option value="htdemucs" selected>htdemucs (Recommended - Best Quality)</option>
+                            <option value="htdemucs_ft">htdemucs_ft (Fine-tuned - Slower, Better)</option>
+                            <option value="htdemucs_6s">htdemucs_6s (6-source separation)</option>
+                            <option value="mdx">mdx (MDX Challenge Winner)</option>
+                            <option value="mdx_extra">mdx_extra (Extra Training Data)</option>
+                            <option value="mdx_q">mdx_q (Quantized - Faster)</option>
+                            <option value="mdx_extra_q">mdx_extra_q (Quantized + Extra Data)</option>
+                            <option value="hdemucs_mmi">hdemucs_mmi (Hybrid v3)</option>
+                            <option value="hdemucs">hdemucs (Original Hybrid v3)</option>
+                            <option value="demucs">demucs (Original Time-domain)</option>
+                        </select>
+                        <div class="help-text">Best quality: htdemucs_ft | Fastest: mdx_q | Balanced: mdx_extra</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Parallel Jobs:</label>
+                        <select id="demucs-jobs">
+                            <option value="0" selected>Single-threaded (Default)</option>
+                            <option value="2">2 threads</option>
+                            <option value="4">4 threads</option>
+                            <option value="8">8 threads</option>
+                        </select>
+                        <div class="help-text">Multi-threading can speed up processing on multi-core systems.</div>
+                    </div>
+                </div>
+                
+                <!-- Temperature Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🌡️ Temperature Control</h3>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-temperature">
+                            Enable Fixed Temperature
+                        </label>
+                        <div class="help-text">When disabled, uses multiple temperature fallbacks for better accuracy. When enabled, uses single fixed temperature value.</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature: <span id="temperature-value">0.0</span></label>
+                        <input type="range" id="temperature-slider" min="0" max="100" value="0" step="1">
+                        <div class="help-text">Higher values (0.8-1.0) = more creative/random. Lower values (0.0-0.2) = more focused/deterministic.</div>
+                    </div>
+                </div>
+                
+                <!-- Compression Ratio Threshold -->
+                <div class="settings-section">
+                    <h3 class="section-title">📊 Compression Ratio</h3>
+                    <div class="form-group">
+                        <label>Compression Ratio Threshold: <span id="compression-ratio-value">2.4</span></label>
+                        <input type="range" id="compression-ratio-slider" min="10" max="50" value="24" step="1">
+                        <div class="slider-markers">
+                            <span class="marker marker-low" style="left: 30%;">1.9</span>
+                            <span class="marker marker-default" style="left: 48%;">2.4</span>
+                            <span class="marker marker-high" style="left: 70%;">3.0</span>
+                        </div>
+                        <div class="help-text">
+                            <strong>What it does:</strong> Prevents the model from getting stuck and repeating phrases by checking text compressibility.
+                            <br><strong>Default (2.4):</strong> Whisper's recommended value, works well for most content.
+                            <br><strong>Lower (1.9-2.3):</strong> Stricter filtering - use when model produces repetitive text or with non-speech audio.
+                            <br><strong>Higher (2.5-3.0):</strong> More lenient - use with complex/technical speech that naturally compresses less.
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Quick Presets:</label>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" data-ratio="1.9" title="Aggressive filtering for non-speech/music">Strict (1.9)</button>
+                            <button class="preset-btn preset-active" data-ratio="2.4" title="Whisper default, balanced">Default (2.4)</button>
+                            <button class="preset-btn" data-ratio="3.0" title="Lenient for technical content">Lenient (3.0)</button>
+                        </div>
+                    </div>
+                    <div id="compression-ratio-warning" class="warning-box" style="display: none;">
+                        <strong>⚠️ Note:</strong> <span id="compression-ratio-warning-text"></span>
+                    </div>
+                    <div class="info-box">
+                        <strong>💡 Pro Tips:</strong>
+                        <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 12px;">
+                            <li><strong>Music/Non-speech:</strong> Lower to 1.9-2.0 to prevent hallucinations like "I'm not going to lie..." repeating.</li>
+                            <li><strong>Larger models (medium/large):</strong> May need lower threshold (2.0-2.2) as they're more "wordy" under uncertainty.</li>
+                            <li><strong>Smaller models (base/tiny):</strong> Default 2.4 works well. Lower threshold may reject valid speech.</li>
+                            <li><strong>Technical/Complex speech:</strong> Raise to 2.6-3.0 if valid transcriptions are being rejected.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Silence Detection Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">🔇 Silence Detection</h3>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="enable-silence-detection" checked>
+                            Enable Silence Detection
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Silence Threshold (dB):</label>
+                        <input type="range" id="silence-threshold" min="-50" max="-20" value="-35" step="1">
+                        <span id="silence-threshold-value">-35 dB</span>
+                        <div class="help-text">Lower = more aggressive (may cut speech)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Silence Duration (s):</label>
+                        <input type="range" id="min-silence-duration" min="0.1" max="2.0" value="0.5" step="0.1">
+                        <span id="min-silence-duration-value">0.5 s</span>
+                        <div class="help-text">Minimum silence to skip</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Speech Duration (s):</label>
+                        <input type="range" id="min-speech-duration" min="0.05" max="0.5" value="0.1" step="0.05">
+                        <span id="min-speech-duration-value">0.1 s</span>
+                        <div class="help-text">Filter out short noise bursts</div>
+                    </div>
+                </div>
+                
+                <!-- Current Configuration Display -->
+                <div class="settings-section" id="current-config-section" style="display: none;">
+                    <h3 class="section-title">📋 Current Configuration</h3>
+                    <div class="config-display">
+                        <div class="info-line"><strong>Model:</strong> <span id="config-model"></span></div>
+                        <div class="info-line"><strong>Device:</strong> <span id="config-device"></span></div>
+                        <div class="info-line"><strong>Languages:</strong> <span id="config-languages"></span></div>
+                        <div class="info-line"><strong>Buffer:</strong> <span id="config-buffer"></span></div>
+                    </div>
+                </div>
+                
+                <!-- Caption Style Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">💬 Caption Style</h3>
+                    <div class="form-group">
+                        <label>Font Size:</label>
+                        <input type="range" id="font-size" min="12" max="48" value="24">
+                        <span id="font-size-value">24px</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Text Color:</label>
+                        <input type="color" id="text-color" value="#ffffff">
+                    </div>
+                    <div class="form-group">
+                        <label>Background Color:</label>
+                        <input type="color" id="bg-color" value="#000000">
+                    </div>
+                    <div class="form-group">
+                        <label>Background Opacity:</label>
+                        <input type="range" id="bg-opacity" min="0" max="100" value="70">
+                        <span id="bg-opacity-value">70%</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Highlight Color:</label>
+                        <input type="color" id="highlight-color" value="#ffff00">
+                        <div class="help-text">Color for word-by-word highlighting (karaoke effect)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Position:</label>
+                        <select id="caption-position">
+                            <option value="top">Top</option>
+                            <option value="middle">Middle</option>
+                            <option value="bottom" selected>Bottom</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button id="start-processing-btn" class="btn btn-primary" disabled>
+                        🎬 START PROCESSING
+                    </button>
+                    <button id="redo-section-btn" class="btn btn-warning" disabled title="Set A and B markers to redo a specific section">
+                        🔄 REDO SECTION (A→B)
+                    </button>
+                    <button id="export-english-btn" class="btn btn-secondary" disabled>
+                        📥 EXPORT ENGLISH (SRT)
+                    </button>
+                    <button id="export-original-btn" class="btn btn-secondary" disabled>
+                        📥 EXPORT ORIGINAL (SRT)
+                    </button>
+                </div>
+                
+                <!-- Section Redo Info -->
+                <div id="section-redo-info" class="settings-section" style="display: none;">
+                    <h3 class="section-title">🎯 Section Redo</h3>
+                    <div class="info-box">
+                        <strong>📍 Markers Set:</strong>
+                        <div id="marker-info" style="margin-top: 8px;">
+                            <div><strong>Start (A):</strong> <span id="marker-a-time">--:--</span></div>
+                            <div><strong>End (B):</strong> <span id="marker-b-time">--:--</span></div>
+                            <div><strong>Duration:</strong> <span id="marker-duration">--:--</span></div>
+                        </div>
+                    </div>
+                    <div class="help-text" style="margin-top: 8px;">
+                        Use [A] and [B] buttons to mark start/end points on the timeline. The section will be re-transcribed using the current settings (model, temperature, compression ratio, etc.).
+                    </div>
+                    <button id="clear-markers-btn" class="btn btn-small" style="margin-top: 8px; width: 100%;">
+                        ✖️ Clear Markers
+                    </button>
+                </div>
+                
+                </div><!-- End Settings Tab -->
+                
+                <!-- Editor Tab -->
+                <div id="editor-tab" class="tab-content">
+                    <div class="editor-section">
+                        <h3 class="section-title">✏️ Caption Editor</h3>
+                        <div class="help-text" style="margin-bottom: 10px;">Edit, remove, or batch-redo caption segments after processing completes.</div>
+                        
+                        <!-- Editor Toolbar -->
+                        <div class="editor-toolbar">
+                            <button id="refresh-captions-btn" class="btn btn-small toolbar-btn" title="Reload caption list">
+                                🔄 Refresh
+                            </button>
+                            <button id="select-all-btn" class="btn btn-small toolbar-btn" title="Select all captions">
+                                ☑️ Select All
+                            </button>
+                            <button id="select-none-btn" class="btn btn-small toolbar-btn" title="Deselect all captions">
+                                ☐ Select None
+                            </button>
+                            <button id="mass-redo-btn" class="btn btn-small btn-primary toolbar-btn" title="Add selected captions to batch redo">
+                                🔄 Mass Redo
+                            </button>
+                            <div class="toolbar-break" aria-hidden="true"></div>
+                            <button id="mass-remove-btn" class="btn btn-small btn-danger toolbar-btn" title="Remove selected captions">
+                                🗑️ Mass Remove
+                            </button>
+                            <button id="add-section-btn" class="btn btn-small toolbar-btn" title="Add a custom section to batch queue">
+                                ➕ Add Section
+                            </button>
+                            <button id="export-edited-btn" class="btn btn-small toolbar-btn" title="Export edited captions">
+                                💾 Export
+                            </button>
+                            <button id="import-original-btn" class="btn btn-small toolbar-btn" title="Import Original SRT">
+                                📥 Import Original SRT
+                            </button>
+                            <button id="import-translation-btn" class="btn btn-small toolbar-btn" title="Import Translation SRT">
+                                📥 Import Translation SRT
+                            </button>
+                            <input type="file" id="srt-import-input" accept=".srt" style="display:none" />
+                            <button id="clear-batch-btn" class="btn btn-small btn-warning toolbar-btn" title="Clear batch list">
+                                🗑️ Clear Batch
+                            </button>
+                        </div>
+                        
+                        <!-- Add Section Form (Hidden by default) -->
+                        <div id="add-section-form" class="add-section-form" style="display: none;">
+                            <h4 class="section-subtitle">➕ Add Custom Section</h4>
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Start Time (seconds):</label>
+                                    <input type="number" id="section-start-input" min="0" step="0.1" placeholder="0.0">
+                                </div>
+                                <div class="form-col">
+                                    <label>End Time (seconds):</label>
+                                    <input type="number" id="section-end-input" min="0" step="0.1" placeholder="10.0">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button id="add-section-confirm-btn" class="btn btn-small btn-primary">✓ Add to Queue</button>
+                                <button id="add-section-cancel-btn" class="btn btn-small">✗ Cancel</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Caption List -->
+                        <div id="caption-list-container" class="caption-list-container">
+                            <div id="caption-list-empty" class="empty-state">
+                                <div class="empty-icon">📝</div>
+                                <div class="empty-text">No captions available</div>
+                                <div class="empty-subtext">Process a video to see captions here</div>
+                            </div>
+                            <div id="caption-list" class="caption-list" style="display: none;">
+                                <!-- Captions will be populated here dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Batch Redo Section -->
+                        <div id="batch-redo-section" class="batch-redo-section" style="display: none;">
+                            <h4 class="section-subtitle">📋 Batch Redo Queue</h4>
+                            <div id="batch-list" class="batch-list">
+                                <!-- Batch items will be added here -->
+                            </div>
+                            <button id="start-batch-btn" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                                🚀 START BATCH REDO (<span id="batch-count">0</span> sections)
+                            </button>
+                        </div>
+                    </div>
+                </div><!-- End Editor Tab -->
+                
+            </div>
+        </div>
+        
+        <!-- Status Bar (Bottom) -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">⏱️</span>
+                <span id="status-time">0:00 / 0:00</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">🔄</span>
+                <span id="status-processing">Idle</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label"></span>
+                <span id="status-language">-- → --</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">📄</span>
+                <span id="status-segments">0/0 segments</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">💾</span>
+                <span id="status-progress">0%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Processing...</div>
+    </div>
+    
+    <script src="/static/video_player.js"></script>
+</body>
+</html>

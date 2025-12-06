@@ -665,13 +665,13 @@ class TranscriptionCore:
         blocklist_path_valid = isinstance(self._BLOCKLIST_PATH, str) and (os.path.exists(self._BLOCKLIST_PATH) or self._AUTO_BLOCKLIST_ENABLED)
 
         if blocklist_path_valid and is_phrase_in_blocklist(text, self._BLOCKLIST_PATH):
-            if not self.args.no_log and self._DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Blocked by blocklist: '{text}'")
+            if self.args.debug and not self.args.no_log and self._DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Blocked by blocklist: '{text}'")
             return True
         
         if self._ENABLE_SIMILAR_PROTECTION:
             last = self._last_output.get(key)
             if last and is_similar(text, last):
-                if not self.args.no_log and self._DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Blocked by similarity: '{text}' (similar to '{last}')")
+                if self.args.debug and not self.args.no_log and self._DEBUG_BLOCK_SIMILAR: print(f"[DEBUG] Blocked by similarity: '{text}' (similar to '{last}')")
                 self._handle_blocked_phrase(text, key)
                 return True
                 

@@ -155,22 +155,47 @@ def setup_temp_directory():
         os.makedirs("temp")
     return "temp"
 
-def clean_temp_directory(temp_dir):
+def clean_temp_directory(temp_dir, keep_temp=False):
     """
-    Clean temporary directory of non-recording files.
+    Clean temporary directory of non-recording files and subdirectories.
 
     Removes all files in the temporary directory that don't start with 'rec_',
-    which are used to identify active recording files.
+    and removes subdirectories like 'video_uploads' unless keep_temp is True.
+    Active recording files (starting with 'rec_') are preserved.
 
     Args:
         temp_dir (str): Path to the temporary directory
+        keep_temp (bool): If True, skip cleanup and preserve temporary files/directories
     """
+    if keep_temp:
+        print_info_message(f"Keeping temporary files in {temp_dir} as requested")
+        return
+    
     try:
-        for file in os.listdir(temp_dir):
-            if not file.startswith("rec_"):
-                os.remove(os.path.join(temp_dir, file))
-    except Exception:
-        pass
+        import shutil
+        for item in os.listdir(temp_dir):
+            item_path = os.path.join(temp_dir, item)
+            
+            # Skip recording files
+            if item.startswith("rec_"):
+                continue
+            
+            # Remove files
+            if os.path.isfile(item_path):
+                try:
+                    os.remove(item_path)
+                except Exception as e:
+                    print_warning_message(f"Could not remove temp file {item_path}: {e}")
+            
+            # Remove directories (like video_uploads, sub_gen_session_*, etc.)
+            elif os.path.isdir(item_path):
+                try:
+                    shutil.rmtree(item_path)
+                    print_info_message(f"Cleaned up temp directory: {item_path}")
+                except Exception as e:
+                    print_warning_message(f"Could not remove temp directory {item_path}: {e}")
+    except Exception as e:
+        print_warning_message(f"Error during temp directory cleanup: {e}")
 
 def save_transcript(transcription, args):
     """

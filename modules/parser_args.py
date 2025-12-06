@@ -304,7 +304,7 @@ def parse_arguments():
     file_grp.add_argument("--adaptive_batch", action='store_true', help="Enable intelligent adaptive batch processing that dynamically allocates jobs between GPU and CPU based on available VRAM, performance learning, and smart job sorting. Automatically detects GPU capacity and optimizes job distribution for maximum throughput. Works with --batchmode and --makecaptions. When enabled, --batchmode value is ignored in favor of auto-detected optimal GPU/CPU slot allocation.")
     file_grp.add_argument("--cpu_batches", type=int, default=None, help="Number of concurrent CPU batch slots for adaptive batch processing. If not specified, system automatically suggests optimal value based on available RAM (1 for <16GB, 2 for 16-32GB, 3 for >32GB). Higher values increase CPU parallelization but may cause system slowdown. Recommended: 1-4. Only used with --adaptive_batch.")
     file_grp.add_argument("--max_cpu_time", type=int, default=300, help="Maximum time in seconds that a single job can run on CPU during adaptive batch processing. Jobs predicted to exceed this time will wait for GPU instead. Default: 300 seconds (5 minutes). Lower values prioritize GPU for longer jobs, higher values allow more CPU usage. Recommended: 60-600. Only used with --adaptive_batch.")
-    file_grp.add_argument("--stop_cpu_at", type=float, default=0.8, help="Progress threshold (0.0-1.0) at which to stop allocating new jobs to CPU and use GPU-only for remaining work. This 'endgame strategy' ensures predictable completion times. Default: 0.8 (80%% complete). Lower values (0.6-0.7) finish faster with more GPU usage, higher values (0.85-0.95) maximize CPU utilization. Only used with --adaptive_batch.")
+    file_grp.add_argument("--stop_cpu_at", type=float, default=0.95, help="Progress threshold (0.0-1.0) at which to stop allocating new jobs to CPU and use GPU-only for remaining work. This 'endgame strategy' ensures predictable completion times. Default: 0.8 (80%% complete). Lower values (0.6-0.7) finish faster with more GPU usage, higher values (0.85-0.95) maximize CPU utilization. Only used with --adaptive_batch.")
     file_grp.add_argument("--batchjobsize", type=valid_batchjobsize, default=4, help="Model size in GB used for GPU capacity calculation in adaptive batch processing. Specifies how much VRAM each concurrent job requires. Range: 0.1-12.0 GB. Default: 4 GB (typical for medium models like 'small'). Use smaller values (0.1-2) for tiny models or larger values (6-11) for large models to accurately calculate how many jobs fit in VRAM. Only used with --adaptive_batch.")
     file_grp.add_argument("--isolate_vocals", nargs='?', const='0', default=False, type=valid_demucs_jobs, help="Use AI-powered audio separation to isolate vocals from background music/noise before transcription. Improves accuracy for music videos, podcasts with background music, or noisy audio. Specify parallel processing: 'all' for all CPU cores, a number (1-8) for specific core count, or leave empty for single-threaded. Requires additional processing time.")
     file_grp.add_argument("--demucs_model", default="htdemucs", help="AI model for vocal isolation when --isolate_vocals is enabled. 'htdemucs' (recommended) offers best quality, 'htdemucs_ft' is fine-tuned version, 'mdx' models are faster but less accurate. Choose based on quality vs speed preference.", choices=["htdemucs", "htdemucs_ft", "htdemucs_6s", "hdemucs_mmi", "mdx", "mdx_extra", "mdx_q", "mdx_extra_q", "hdemucs", "demucs"])
@@ -319,6 +319,39 @@ def parse_arguments():
     output_grp.add_argument("--serverip", default="127.0.0.1", type=str, help="IP address for the web server to bind to. Use 127.0.0.1 for localhost only (default), 0.0.0.0 to listen on all interfaces, or a specific IP available on your machine.")
     output_grp.add_argument("--portnumber", default=None, help="TCP port number for web interface server (8000-65535 recommended). When specified, starts a web-based control panel accessible via browser at http://localhost:[PORT]. Enables remote control, file uploads, and live transcription monitoring. Use unique port numbers to avoid conflicts with other applications. Ports below 8000 may require administrator privileges on Windows.", type=valid_port_number)
     output_grp.add_argument("--https", default=None, help="TCP port number for HTTPS web interface server (8443 recommended). When specified, starts an additional HTTPS server with self-signed certificate alongside the HTTP server. Example: '--portnumber 8000 --https 8443' runs HTTP on port 8000 and HTTPS on port 8443. Both servers provide the same functionality simultaneously. Ports below 8000 may require administrator privileges on Windows.", type=valid_port_number)
+
+    # Video Translation UI
+    video_grp = parser.add_argument_group("Video Translation UI")
+    video_grp.add_argument("--launchui", action='store_true', help="Launch the video translation UI with a web-based interface for real-time video translation and transcription. Provides interactive controls for video playback, caption overlay customization, and translation settings. Automatically starts a web server on the port specified by --portnumber (default: 8000) and opens the interface in your default browser. Access at http://localhost:[PORT]/video_player.html")
+    video_grp.add_argument("--video_input", default=None, help="Path to video file for the video translation UI. Supports common formats: MP4, MKV, AVI, MOV, WebM, FLV, WMV, M4V. Can be absolute path (C:\\Videos\\file.mp4) or relative path (videos/file.mkv). When specified with --launchui, the video is automatically loaded in the UI. If not specified, you can upload videos through the web interface drag-and-drop area.", type=str)
+
+    # Model Preloading
+    preload_grp = parser.add_argument_group("Model Preloading")
+    preload_grp.add_argument("--preload", default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO). 
+    
+Examples:
+  • Single model:
+    --preload whisper:1gb              # Preload Whisper tiny model
+    --preload faster:3gb               # Preload FasterWhisper small model
+    --preload openvino:1gb.int8        # Preload OpenVINO tiny with int8 quantization
+    
+  • English-only variants:
+    --preload whisper:1gb.en           # Preload English-only tiny model
+    --preload faster:2gb.en            # Preload English-only base model
+    
+  • Multiple models from same source:
+    --preload faster:1gb+1gb.en        # Preload both multilingual and English tiny
+    --preload whisper:1gb+2gb+3gb      # Preload multiple model sizes
+    
+  • Multiple sources:
+    --preload whisper:1gb,faster:1gb                    # Preload tiny from both sources
+    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8   # Mix sources and variants
+    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8   # Multiple sizes + source combo
+    
+  • Comprehensive preload:
+    --preload whisper:1gb+2gb,faster:1gb+2gb.en+3gb,openvino:1gb.int8+2gb.int8
+    
+Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""", type=str)
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")
