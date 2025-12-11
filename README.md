@@ -2,6 +2,8 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T12FOFT)
 
+[![Wishlist on Steam](https://img.shields.io/badge/Wishlist%20on-Steam-1b2838?style=for-the-badge&logo=steam&logoColor=white)](https://store.steampowered.com/app/3352770/Synthalingua/)
+
 ### > [More ways to support](#support-synthalingua) <
 
 # Beware of scams - I do not create or endorse any crypto coins or NFTs! Do not fall for any cryptocurrency-related schemes. Please report any scams when possible.
