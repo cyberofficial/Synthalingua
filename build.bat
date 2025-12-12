@@ -1,6 +1,9 @@
 call data_whisper\Scripts\activate.bat
 
-set VERSION=1.2.6.steam.3
+set VERSION=1.2.6.steam.4
+:: set steam var to true
+set STEAM=true
+
 Echo building version %VERSION% 
 pyinstaller set_up_env.spec --noconfirm
 echo Moving files to portable patch folder...
@@ -14,8 +17,14 @@ Echo moving dep files...
 xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\deps\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\_internal\deps" /E /H /Y /I
 
 
-echo Moving GUI dev files to portable patch folder...
-xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
+:: Copy appropriate GUI files based on STEAM variable
+if "%STEAM%"=="true" (
+    echo Moving GUI steam files to portable patch folder...
+    xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev-steam\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
+) else (
+    echo Moving GUI dev files to portable patch folder...
+    xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
+)
 
 Echo building remote microphone tool...
 pyinstaller remote_microphone.py --onefile --distpath dist --icon="E:\Synthalingua\Synthalingua_Wrapper\assets\Synthalingua-chan-logo.ico" --noconfirm
