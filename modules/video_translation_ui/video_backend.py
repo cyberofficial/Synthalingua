@@ -17,6 +17,7 @@ from typing import Optional, Dict, List
 from flask import Blueprint, request, jsonify, send_file, session
 from werkzeug.utils import secure_filename
 import uuid
+import re
 
 # Import video translation modules
 from modules.video_translation_ui.video_processor import VideoProcessor
@@ -76,6 +77,28 @@ import sys
 WORKSPACE_ROOT = Path(os.getcwd())
 UPLOAD_FOLDER = WORKSPACE_ROOT / 'temp' / 'video_uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+
+
+def validate_session_id(session_id: str) -> bool:
+    """
+    Validate that session_id is a valid UUID format to prevent path injection attacks.
+
+    Since session IDs are generated as UUIDs in upload_video(), we should only accept
+    valid UUID-formatted strings to prevent path traversal attacks.
+
+    Args:
+        session_id: The session ID to validate
+
+    Returns:
+        bool: True if valid UUID format, False otherwise
+    """
+    if not session_id or not isinstance(session_id, str):
+        return False
+
+    # UUID format validation regex (standard UUID v4 format)
+    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+
+    return bool(re.match(uuid_pattern, session_id, re.IGNORECASE))
 ALLOWED_EXTENSIONS = {
     # Video formats
     '.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v',
@@ -1309,8 +1332,23 @@ def seek_video(session_id):
 @video_bp.route('/session/<session_id>/export', methods=['GET'])
 def export_captions(session_id):
     """Export captions as SRT or VTT file for either English or Original text."""
+
+    # Validate session_id to prevent path injection attacks
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
+    # Validate format and export_type to prevent path injection
+    allowed_formats = ['srt', 'vtt']
+    allowed_export_types = ['english', 'original']
+
     format = request.args.get('format', 'srt').lower()
+    if format not in allowed_formats:
+        return jsonify({'error': 'Invalid format. Must be srt or vtt'}), 400
+
     export_type = request.args.get('type', 'english').lower()
+    if export_type not in allowed_export_types:
+        return jsonify({'error': 'Invalid type. Must be english or original'}), 400
 
     with session_lock:
         video_session = video_sessions.get(session_id)
