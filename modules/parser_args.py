@@ -328,31 +328,34 @@ def parse_arguments():
 
     # Model Preloading
     preload_grp = parser.add_argument_group("Model Preloading")
-    preload_grp.add_argument("--preload", default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO). 
-    
+    preload_grp.add_argument("--preload", nargs='?', const='', default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...][,source:size...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO).
+
 Examples:
+  • Preload all models:
+    --preload                        # Preload ALL available models from all sources
+
   • Single model:
-    --preload whisper:1gb              # Preload Whisper tiny model
-    --preload faster:3gb               # Preload FasterWhisper small model
-    --preload openvino:1gb.int8        # Preload OpenVINO tiny with int8 quantization
-    
+    --preload whisper:1gb             # Preload Whisper tiny model
+    --preload faster:3gb              # Preload FasterWhisper small model
+    --preload openvino:1gb.int8       # Preload OpenVINO tiny with int8 quantization
+
   • English-only variants:
-    --preload whisper:1gb.en           # Preload English-only tiny model
-    --preload faster:2gb.en            # Preload English-only base model
-    
+    --preload whisper:1gb.en          # Preload English-only tiny model
+    --preload faster:2gb.en           # Preload English-only base model
+
   • Multiple models from same source:
-    --preload faster:1gb+1gb.en        # Preload both multilingual and English tiny
-    --preload whisper:1gb+2gb+3gb      # Preload multiple model sizes
-    
+    --preload faster:1gb+1gb.en       # Preload both multilingual and English tiny
+    --preload whisper:1gb+2gb+3gb     # Preload multiple model sizes
+
   • Multiple sources:
-    --preload whisper:1gb,faster:1gb                    # Preload tiny from both sources
-    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8   # Mix sources and variants
-    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8   # Multiple sizes + source combo
-    
+    --preload whisper:1gb,faster:1gb                     # Preload tiny from both sources
+    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8  # Mix sources and variants
+    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8    # Multiple sizes + source combo
+
   • Comprehensive preload:
     --preload whisper:1gb+2gb,faster:1gb+2gb.en+3gb,openvino:1gb.int8+2gb.int8
-    
-Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""", type=str)
+
+Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""")
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")

@@ -1,6 +1,6 @@
 call data_whisper\Scripts\activate.bat
 
-set VERSION=1.2.6.steam.4
+set VERSION=1.2.6.steam.6
 :: set steam var to true
 set STEAM=true
 

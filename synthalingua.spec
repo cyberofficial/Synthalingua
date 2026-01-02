@@ -53,6 +53,7 @@ hiddenimports += collect_submodules('datasets')
 hiddenimports += collect_submodules('flask_socketio')
 hiddenimports += collect_submodules('socketio')
 hiddenimports += collect_submodules('engineio')
+hiddenimports += collect_submodules('nncf')
 
 # --- The Main Analysis Block ---
 a = Analysis(

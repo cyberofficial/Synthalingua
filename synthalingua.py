@@ -147,20 +147,28 @@ def main():
         sys.exit(0)
 
     # Handle model preloading
-    if args.preload:
-        from modules.model_preloader import preload_models
-        
+    if args.preload is not None:
+        from modules.model_preloader import preload_models, generate_all_models_spec
+
         # Set up device for preloading (same as normal operation)
         device = setup_device(args)
-        
+
+        # If preload is used without arguments (empty/whitespace), preload all models
+        preload_spec = args.preload.strip() if args.preload else ""
+        if not preload_spec:
+            print(f"{Fore.CYAN}Preloading all available models...{Style.RESET_ALL}")
+            preload_spec = generate_all_models_spec(device)
+            print(f"{Fore.CYAN}Generated specification: {preload_spec}{Style.RESET_ALL}")
+            print()
+
         # Set up model directory (create if doesn't exist)
         if not os.path.exists(args.model_dir):
             print("Creating models folder...")
             os.makedirs(args.model_dir)
-        
+
         # Run preloading
         successful, total = preload_models(
-            preload_spec=args.preload,
+            preload_spec=preload_spec,
             model_dir=args.model_dir,
             device=device,
             compute_type=args.compute_type
