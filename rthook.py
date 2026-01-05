@@ -4,6 +4,9 @@
 import sys
 
 print("--- Executing runtime hook to patch transformers library ---")
+print(f"Python executable: {sys.executable}")
+print("Please note this may take longer on first run as it initializes the frozen environment.")
+print("Reruns after this will be faster since it'll be starting from a cached state.")
 try:
     # The 'transformers' library uses inspect.getsource to build docstrings,
     # which fails in a frozen application because the .py files are not available.
