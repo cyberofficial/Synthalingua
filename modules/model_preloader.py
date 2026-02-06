@@ -305,31 +305,75 @@ def preload_models(preload_spec: str, model_dir: str = "models", device: str = "
         return (0, 0)
 
 
+def generate_all_models_spec(device: str = "cuda") -> str:
+    """
+    Generate a preload specification string that includes all possible models.
+
+    Args:
+        device: Device being used ('cuda', 'cpu', etc.) - affects which sources to include
+
+    Returns:
+        str: Comprehensive preload specification covering all sources, sizes, and variants
+    """
+    sources = ['whisper', 'faster']
+    sizes = ['1gb', '2gb', '3gb', '6gb', '7gb', '11gb-v2', '11gb-v3']
+
+    # English-only variants are available for these sizes
+    english_sizes = ['1gb', '2gb', '3gb', '6gb']
+
+    # Only include OpenVINO if device is CPU (OpenVINO doesn't support CUDA)
+    if device.lower() == 'cpu':
+        sources.append('openvino')
+
+    source_specs = []
+
+    for source in sources:
+        size_specs = []
+
+        for size in sizes:
+            # Add base size
+            size_specs.append(size)
+
+            # Add English variant if available for this size
+            if size in english_sizes:
+                size_specs.append(f"{size}.en")
+
+            # Add quantization for OpenVINO
+            if source == 'openvino':
+                size_specs.append(f"{size}.int8")
+
+        # Join sizes for this source
+        source_specs.append(f"{source}:{'+'.join(size_specs)}")
+
+    # Join all sources
+    return ','.join(source_specs)
+
+
 def validate_preload_spec(spec: str) -> Tuple[bool, str]:
     """
     Validate preload specification without actually loading models.
-    
+
     Args:
         spec: Preload specification string
-    
+
     Returns:
         Tuple[bool, str]: (is_valid, error_message)
     """
     try:
         models = parse_preload_spec(spec)
-        
+
         if not models:
             return (False, "No models specified")
-        
+
         # Validate each model
         for model in models:
             try:
                 model.to_model_name()  # This will raise ValueError if invalid
             except ValueError as e:
                 return (False, str(e))
-        
+
         return (True, f"Valid specification: {len(models)} model(s)")
-        
+
     except ValueError as e:
         return (False, str(e))
     except Exception as e:

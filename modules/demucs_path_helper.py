@@ -4,6 +4,7 @@ import sys
 import platform
 import subprocess
 from colorama import Fore, Style
+from pathlib import Path
 
 def get_demucs_python_path():
     """
@@ -34,10 +35,15 @@ def get_demucs_python_path():
     
     # 2. Check Python embedded path (primary for end users) - OS-specific
     if is_windows:
-        python_embedded_path = r'C:\bin\Synthalingua\python_embedded\python.exe'
-        if os.path.exists(python_embedded_path) and _verify_python_version(python_embedded_path):
-            return python_embedded_path
+        candidate_path = Path.cwd() / 'python_embedded' / 'python.exe'
+        if candidate_path.is_file() and _verify_python_version(str(candidate_path)):
+            return str(candidate_path)
+        # fallback to original hard‑coded path for backward compatibility
+        fallback_path = r'C:\bin\Synthalingua\python_embedded\python.exe'
+        if os.path.exists(fallback_path) and _verify_python_version(fallback_path):
+            return fallback_path
     elif is_linux or is_macos:
+        # Windows fallback now prefers a python_embedded folder in the current working directory
         # Linux/macOS embedded Python paths
         linux_embedded_paths = [
             '/usr/local/bin/Synthalingua/python_embedded/bin/python3.12',
@@ -95,7 +101,10 @@ def get_demucs_python_path():
         print(f"{Fore.YELLOW}Expected locations:{Style.RESET_ALL}")
         
         if is_windows:
-            print(f"  - Python embedded: C:\\bin\\Synthalingua\\python_embedded\\python.exe")
+            # Show dynamic path: prefer cwd/python_embedded/python.exe if exists, else fallback path
+            candidate_path = Path.cwd() / 'python_embedded' / 'python.exe'
+            display_path = str(candidate_path) if candidate_path.is_file() else r'C:\bin\Synthalingua\python_embedded\python.exe'
+            print(f"  - Python embedded: {display_path}")
             print(f"  - Development: {os.path.join(project_root, 'data_whisper', 'Scripts', 'python.exe')}")
             print(f"  - Legacy miniconda: C:\\bin\\Synthalingua\\miniconda\\envs\\data_whisper\\python.exe")
             print(f"  - System Python: python.exe in PATH with demucs installed")

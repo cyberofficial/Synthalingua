@@ -2,7 +2,14 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T12FOFT)
 
+[![Wishlist on Steam](https://img.shields.io/badge/Wishlist%20on-Steam-1b2838?style=for-the-badge&logo=steam&logoColor=white)](https://store.steampowered.com/app/3352770/Synthalingua/)
+
 ### > [More ways to support](#support-synthalingua) <
+
+## Don't have the hardware for Synthalingua? Use Recall.ai - Meeting Transcription API
+If you’re looking for a transcription API for meetings, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=cyb3rofficial-synthalingua), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
+
+---
 
 # Beware of scams - I do not create or endorse any crypto coins or NFTs! Do not fall for any cryptocurrency-related schemes. Please report any scams when possible.
 
@@ -16,11 +23,6 @@
 - **Blocklist & repetition suppression**: Auto-filter repeated or unwanted phrases
 - **Discord & web integration**: Send results to Discord or view in browser
 - **Portable GUI version available**
-
----
-
-## Don't have the hardware for Synthalingua? Use Recall.ai - Meeting Transcription API
-If you’re looking for a transcription API for meetings, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=cyb3rofficial-synthalingua), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
 
 ---
 

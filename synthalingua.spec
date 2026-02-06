@@ -53,6 +53,7 @@ hiddenimports += collect_submodules('datasets')
 hiddenimports += collect_submodules('flask_socketio')
 hiddenimports += collect_submodules('socketio')
 hiddenimports += collect_submodules('engineio')
+hiddenimports += collect_submodules('nncf')
 
 # --- The Main Analysis Block ---
 a = Analysis(
@@ -65,7 +66,7 @@ a = Analysis(
     # *** THIS IS THE CRITICAL FIX ***
     # This tells PyInstaller to embed and run our patch script before the main app.
     runtime_hooks=['rthook.py'],
-    excludes=['PyQt5', 'tkinter', 'notebook'],
+    excludes=['PyQt5', 'tkinter', 'notebook', 'Cython'],
     noarchive=False,
 )
 

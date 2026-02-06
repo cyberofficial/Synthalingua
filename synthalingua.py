@@ -66,7 +66,7 @@ if sys.platform.startswith('win'):
     os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 from modules.audio_handlers import record_callback, handle_mic_calibration
-from modules.device_manager import get_microphone_source, list_microphones, setup_device
+from modules.device_manager import get_microphone_source, list_microphones, detect_sound, setup_device
 from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error, cleanup_temp_cookie_file
 from modules.BaseWhisper import BaseWhisperModel
 from modules.FasterWhisper import FasterWhisperModel
@@ -141,21 +141,34 @@ def main():
         list_microphones()
         sys.exit(0)
 
+    # Handle sound detection and exit if requested
+    if args.detect_sound:
+        detect_sound()
+        sys.exit(0)
+
     # Handle model preloading
-    if args.preload:
-        from modules.model_preloader import preload_models
-        
+    if args.preload is not None:
+        from modules.model_preloader import preload_models, generate_all_models_spec
+
         # Set up device for preloading (same as normal operation)
         device = setup_device(args)
-        
+
+        # If preload is used without arguments (empty/whitespace), preload all models
+        preload_spec = args.preload.strip() if args.preload else ""
+        if not preload_spec:
+            print(f"{Fore.CYAN}Preloading all available models...{Style.RESET_ALL}")
+            preload_spec = generate_all_models_spec(device)
+            print(f"{Fore.CYAN}Generated specification: {preload_spec}{Style.RESET_ALL}")
+            print()
+
         # Set up model directory (create if doesn't exist)
         if not os.path.exists(args.model_dir):
             print("Creating models folder...")
             os.makedirs(args.model_dir)
-        
+
         # Run preloading
         successful, total = preload_models(
-            preload_spec=args.preload,
+            preload_spec=preload_spec,
             model_dir=args.model_dir,
             device=device,
             compute_type=args.compute_type

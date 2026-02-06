@@ -262,12 +262,13 @@ def parse_arguments():
     # Microphone (live input)
     mic_grp = parser.add_argument_group("Microphone (Live Input)")
     mic_grp.add_argument("--list_microphones", action='store_true', help="Display all available audio input devices (microphones) on your system and exit. Shows device names, IDs, sample rates, and channel information in a detailed table. Use the Device ID number (not the name) to select a microphone with --set_microphone. Lower Device IDs typically have faster response times and lower latency. Helpful for troubleshooting audio input issues and identifying optimal microphone settings.")
+    mic_grp.add_argument("--detect_sound", action='store_true', help="Monitor all available audio input devices for sound detection. Shows which device IDs are currently detecting sound with their dB levels. Useful for identifying active microphones or audio sources in your system. Runs continuously until interrupted with Ctrl+C.")
     mic_grp.add_argument("--set_microphone", default=None, help="Set the default microphone device by exact name (case-sensitive). Use --list_microphones first to see available device names. Example: 'Microphone (USB Audio Device)'. This becomes the primary audio input source. Useful when you have multiple microphones and want to specify which one to use.", type=str)
     mic_grp.add_argument("--microphone_enabled", default=None, help="Enable a specific microphone by name and start real-time transcription immediately. Similar to --set_microphone but automatically begins listening. Use exact device name from --list_microphones output. Convenient for scripted or automated transcription setups.", type=str)
     mic_grp.add_argument("--energy_threshold", default=100, help="Energy level for mic to detect.", type=int)
     mic_grp.add_argument("--mic_calibration_time", help="How long to calibrate the mic for in seconds. To skip user input type 0 and time will be set to 5 seconds.", type=int)
     mic_grp.add_argument("--record_timeout", default=1, help="Recording buffer timeout in seconds. Lower values (e.g., 1-2) provide more real-time processing but may cut off words. Higher values (e.g., 3-5) allow for more complete phrases but introduce processing delay. Recommended: 2-3 seconds for balanced performance.", type=float)
-    mic_grp.add_argument("--phrase_timeout", default=5, help="Silence duration in seconds before considering audio as a new phrase/sentence. When this timeout is reached, accumulated audio is processed and the buffer is cleared. Lower values (1-2s) process shorter phrases quickly, higher values (5-10s) wait for longer complete sentences. Recommended: 2-5 seconds depending on speech patterns.", type=float)
+    mic_grp.add_argument("--phrase_timeout", default=1, help="Silence duration in seconds before considering audio as a new phrase/sentence. When this timeout is reached, accumulated audio is processed and the buffer is cleared. Lower values (1-2s) process shorter phrases quickly, higher values (5-10s) wait for longer complete sentences. Recommended: 2-5 seconds depending on speech patterns.", type=float)
     mic_grp.add_argument("--mic_chunk_size", default=1, help="Number of audio chunks to collect before processing a batch when using microphone input with --paddedaudio enabled. Example: --mic_chunk_size 2 --paddedaudio 1 will process 2 new chunks + 1 previous chunk (3 total) per batch. Higher values provide more context but increase processing delay. Set to 1 for immediate processing. Recommended: 1-3 chunks.", type=int)
     mic_grp.add_argument("--paddedaudio", default=0, help="Number of audio chunks from the previous batch to include as context when processing new audio. Helps maintain conversation flow and reduces word-boundary errors. Example: --paddedaudio 1 --mic_chunk_size 2 processes each batch with 1 previous chunk + 2 new chunks. For streaming: works with --stream_chunks. For microphone: works with --mic_chunk_size. Set to 0 to disable. Recommended: 1-2 chunks for better accuracy.", type=int)
     mic_grp.add_argument("--discord_webhook", default=None, help="Discord webhook URL for sending live transcription results to a Discord channel. Format: https://discord.com/api/webhooks/[ID]/[TOKEN]. Useful for live streaming integration, remote monitoring, or collaborative transcription. Test webhook URL in Discord before using. Only works with real-time microphone mode.", type=str)
@@ -327,31 +328,34 @@ def parse_arguments():
 
     # Model Preloading
     preload_grp = parser.add_argument_group("Model Preloading")
-    preload_grp.add_argument("--preload", default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO). 
-    
+    preload_grp.add_argument("--preload", nargs='?', const='', default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...][,source:size...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO).
+
 Examples:
+  • Preload all models:
+    --preload                        # Preload ALL available models from all sources
+
   • Single model:
-    --preload whisper:1gb              # Preload Whisper tiny model
-    --preload faster:3gb               # Preload FasterWhisper small model
-    --preload openvino:1gb.int8        # Preload OpenVINO tiny with int8 quantization
-    
+    --preload whisper:1gb             # Preload Whisper tiny model
+    --preload faster:3gb              # Preload FasterWhisper small model
+    --preload openvino:1gb.int8       # Preload OpenVINO tiny with int8 quantization
+
   • English-only variants:
-    --preload whisper:1gb.en           # Preload English-only tiny model
-    --preload faster:2gb.en            # Preload English-only base model
-    
+    --preload whisper:1gb.en          # Preload English-only tiny model
+    --preload faster:2gb.en           # Preload English-only base model
+
   • Multiple models from same source:
-    --preload faster:1gb+1gb.en        # Preload both multilingual and English tiny
-    --preload whisper:1gb+2gb+3gb      # Preload multiple model sizes
-    
+    --preload faster:1gb+1gb.en       # Preload both multilingual and English tiny
+    --preload whisper:1gb+2gb+3gb     # Preload multiple model sizes
+
   • Multiple sources:
-    --preload whisper:1gb,faster:1gb                    # Preload tiny from both sources
-    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8   # Mix sources and variants
-    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8   # Multiple sizes + source combo
-    
+    --preload whisper:1gb,faster:1gb                     # Preload tiny from both sources
+    --preload whisper:1gb.en,faster:2gb,openvino:1gb.int8  # Mix sources and variants
+    --preload faster:1gb+2gb+3gb.en,openvino:1gb.int8    # Multiple sizes + source combo
+
   • Comprehensive preload:
     --preload whisper:1gb+2gb,faster:1gb+2gb.en+3gb,openvino:1gb.int8+2gb.int8
-    
-Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""", type=str)
+
+Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""")
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")
