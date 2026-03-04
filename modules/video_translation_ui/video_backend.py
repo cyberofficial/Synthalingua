@@ -99,6 +99,64 @@ def validate_session_id(session_id: str) -> bool:
     uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 
     return bool(re.match(uuid_pattern, session_id, re.IGNORECASE))
+
+
+def is_path_within_directory(constructed_path: Path, base_directory: Path) -> bool:
+    """
+    Validate that a constructed path is within the expected base directory.
+
+    This prevents path traversal attacks by ensuring that user-controlled input
+    cannot be used to access files outside the designated directory.
+
+    Args:
+        constructed_path: The path to validate (e.g., UPLOAD_FOLDER / session_id / file)
+        base_directory: The expected base directory (e.g., UPLOAD_FOLDER)
+
+    Returns:
+        bool: True if path is safely within base_directory, False otherwise
+    """
+    try:
+        # Check for null bytes (path injection indicator)
+        if '\x00' in str(constructed_path):
+            return False
+
+        # Check for Windows drive letters (C:, D:, etc.)
+        path_str = str(constructed_path)
+        if len(path_str) >= 2 and path_str[1] == ':':
+            # Allow drive letter only if it matches the base directory's drive
+            base_drive = str(base_directory.resolve())
+            if len(base_drive) >= 2 and base_drive[1] != ':':
+                return False
+
+        # Resolve both paths to canonical absolute paths
+        # This resolves symlinks, .., ., and normalizes separators
+        resolved_constructed = constructed_path.resolve()
+        resolved_base = base_directory.resolve()
+
+        # Method 1: Use relative_to() to check containment
+        # This will raise ValueError if constructed_path is not within base_directory
+        try:
+            resolved_constructed.relative_to(resolved_base)
+        except ValueError:
+            # Path is not within base directory (path traversal attempt)
+            return False
+
+        # Method 2: Additional validation using commonpath for Windows cross-drive handling
+        # This handles edge cases where paths are on different drives
+        try:
+            common = os.path.commonpath([str(resolved_constructed), str(resolved_base)])
+            if common != str(resolved_base):
+                return False
+        except ValueError:
+            # Different drives on Windows - path traversal attempt
+            return False
+
+        return True
+
+    except (OSError, RuntimeError, ValueError) as e:
+        # Handle errors during path resolution (symlink loops, permission issues, etc.)
+        logger.warning(f"Path resolution error during validation: {e}")
+        return False
 ALLOWED_EXTENSIONS = {
     # Video formats
     '.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v',
@@ -1213,6 +1271,11 @@ def upload_video():
 @video_bp.route('/session/<session_id>/start', methods=['POST'])
 def start_session(session_id):
     """Start processing for a video session with configuration."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1247,6 +1310,11 @@ def start_session(session_id):
 @video_bp.route('/session/<session_id>/pause', methods=['POST'])
 def pause_session(session_id):
     """Pause processing for a video session."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1260,6 +1328,11 @@ def pause_session(session_id):
 @video_bp.route('/session/<session_id>/resume', methods=['POST'])
 def resume_session(session_id):
     """Resume processing for a video session."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1288,6 +1361,11 @@ def stop_session(session_id):
 @video_bp.route('/session/<session_id>/status', methods=['GET'])
 def get_session_status(session_id):
     """Get current status of a video session."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1367,6 +1445,12 @@ def export_captions(session_id):
     # Create temporary file
     export_filename = f"{safe_video_name}_{export_type}.{format}"
     export_path = UPLOAD_FOLDER / session_id / export_filename
+    
+    # Validate path is within UPLOAD_FOLDER to prevent path traversal
+    if not is_path_within_directory(export_path, UPLOAD_FOLDER):
+        logger.error(f"Path traversal attempt detected: {export_path}")
+        return jsonify({"error": "Invalid path"}), 403
+    
     export_path.write_text(captions, encoding='utf-8')
 
     return send_file(
@@ -1379,6 +1463,11 @@ def export_captions(session_id):
 @video_bp.route('/session/<session_id>/transcribe_segment', methods=['POST'])
 def transcribe_segment(session_id):
     """Re-transcribe a specific time section with the task set to 'transcribe'."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1529,6 +1618,11 @@ def redo_section(session_id):
 @video_bp.route('/session/<session_id>/segments', methods=['GET'])
 def get_all_segments(session_id):
     """Get all caption segments for the editor."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1579,6 +1673,11 @@ def add_segment(session_id):
     This creates an editable segment with empty transcription/translation so the user
     can manually edit it in the editor.
     """
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
 
@@ -1644,6 +1743,11 @@ def import_srt(session_id):
         type: 'original' or 'translation' (default 'original')
         tolerance_ms: integer milliseconds tolerance for merging timings (default 100)
     """
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
 
@@ -1802,6 +1906,11 @@ def import_srt(session_id):
 @video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['PUT'])
 def update_segment(session_id, segment_id):
     """Update a specific caption segment (text, translation, and timing)."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1915,6 +2024,11 @@ def update_segment(session_id, segment_id):
 @video_bp.route('/session/<session_id>/segment/<int:segment_id>', methods=['DELETE'])
 def delete_segment(session_id, segment_id):
     """Delete a specific caption segment."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -1964,6 +2078,11 @@ def delete_segment(session_id, segment_id):
 @video_bp.route('/session/<session_id>/segments/batch-delete', methods=['POST'])
 def batch_delete_segments(session_id):
     """Delete multiple caption segments in a single request."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -2025,6 +2144,11 @@ def batch_delete_segments(session_id):
 @video_bp.route('/session/<session_id>/video', methods=['GET'])
 def serve_video(session_id):
     """Serve the video file for playback (MP4 format for browser compatibility)."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -2051,6 +2175,11 @@ def serve_video(session_id):
 @video_bp.route('/session/<session_id>/audio-sources', methods=['GET'])
 def check_audio_sources(session_id):
     """Check which audio sources are available (original and vocals)."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -2099,6 +2228,16 @@ def serve_audio_source(session_id, source):
     Args:
         source: 'original' or 'vocals'
     """
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
+
+        # Validate source parameter against whitelist
+        allowed_sources = ['original', 'vocals']
+        if source not in allowed_sources:
+            return jsonify({"error": f"Invalid source. Must be one of: {allowed_sources}"}), 400
     with session_lock:
         video_session = video_sessions.get(session_id)
     
