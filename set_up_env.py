@@ -1500,12 +1500,19 @@ def main() -> None:
             return
         print("Steam mode: Installing everything fresh without prompts...")
         args.using_vocal_isolation = True
-        args.reinstall = True
+        # Only reinstall if config file doesn't exist (fresh install)
+        args.reinstall = not config_exists
         python_embedded_path = Path.cwd() / 'python_embedded'
         use_system_python = False
         skip_all_prompts = True
         # For steam, always treat as not fresh to skip prompts
         is_fresh_install = False
+
+        # Early exit if config already exists in steam mode
+        if config_exists:
+            print("\nSteam mode: Config file already exists. Setup completed previously.")
+            print("To reinstall, delete 'ffmpeg_path.bat' and run setup again.")
+            return
 
     # If fresh install and no arguments provided, enable vocal isolation by default
     if is_fresh_install and not args.reinstall and not args.using_vocal_isolation and not skip_all_prompts:
