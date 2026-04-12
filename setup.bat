@@ -62,6 +62,9 @@ call data_whisper\Scripts\activate.bat
 echo Upgrading pip to the latest version...
 python.exe -m pip install --upgrade pip
 
+echo Upgrading setuptools to ensure pkg_resources is available...
+python.exe -m pip install --upgrade setuptools
+
 echo Installing wheel and setuptools-rust...
 pip install wheel
 pip install setuptools-rust
