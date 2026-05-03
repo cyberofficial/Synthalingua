@@ -7,6 +7,12 @@
 ### > [More ways to support](#support-synthalingua) <
 
 ## Don't have the hardware for Synthalingua? Use Recall.ai - Meeting Transcription API
+<p align="center">
+<img width="186" height="73" alt="image" src="https://github.com/user-attachments/assets/ffadc3a7-6b41-4bb7-85c7-bb9df89fd562" />
+</p>
+
+
+
 If you’re looking for a transcription API for meetings, consider checking out [Recall.ai](https://www.recall.ai/?utm_source=github&utm_medium=sponsorship&utm_campaign=cyb3rofficial-synthalingua), an API that works with Zoom, Google Meet, Microsoft Teams, and more. Recall.ai diarizes by pulling the speaker data and separate audio streams from the meeting platforms, which means 100% accurate speaker diarization with actual speaker names.
 
 ---
