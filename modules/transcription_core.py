@@ -538,13 +538,21 @@ class TranscriptionCore:
             }
                 
             transcribed_result = self.audio_model.transcribe(temp_file, **kwargs)
-            if isinstance(transcribed_result, dict) and 'text' in transcribed_result:
+
+            # Handle both string and dictionary return types
+            if isinstance(transcribed_result, str):
+                self.transcribed_text = transcribed_result.strip()
+            elif isinstance(transcribed_result, dict) and 'text' in transcribed_result:
                 self.transcribed_text = str(transcribed_result['text']).strip()
-            
+
             if not self.transcribed_text and self.args.retry:
                 if not self.args.no_log: print("Transcribe failed, trying again...")
                 transcribed_result_retry = self.audio_model.transcribe(temp_file, **kwargs)
-                if isinstance(transcribed_result_retry, dict) and 'text' in transcribed_result_retry:
+
+                # Handle retry result type as well
+                if isinstance(transcribed_result_retry, str):
+                    self.transcribed_text = transcribed_result_retry.strip()
+                elif isinstance(transcribed_result_retry, dict) and 'text' in transcribed_result_retry:
                     self.transcribed_text = str(transcribed_result_retry['text']).strip()
         except Exception as e:
             if not self.args.no_log:
