@@ -65,6 +65,24 @@ if sys.platform.startswith('win'):
     # Set environment variables for proper UTF-8 handling
     os.environ['PYTHONIOENCODING'] = 'utf-8'
 
+    # The env var only reaches processes spawned from here on. The current
+    # process stdout and stderr were already initialized with the console
+    # code page (cp1252 on most systems), so anything that prints Unicode,
+    # like the about screen art or non English transcripts, dies with a
+    # UnicodeEncodeError when output is piped or redirected. Reconfigure
+    # the streams to UTF-8. On a real console this is a no op because
+    # python already exposes the console as UTF-8 through WriteConsoleW.
+    # https://github.com/cyberofficial/Synthalingua/issues/221
+    try:
+        for stream in (sys.stdout, sys.stderr):
+            if stream is not None and hasattr(stream, 'reconfigure'):
+                stream.flush()
+                stream.reconfigure(encoding='utf-8')
+    except (AttributeError, ValueError, OSError):
+        # UnsupportedOperation subclasses both ValueError and OSError.
+        # If reconfiguring ever fails, fall back to the console code page.
+        pass
+
 from modules.audio_handlers import record_callback, handle_mic_calibration
 from modules.device_manager import get_microphone_source, list_microphones, detect_sound, setup_device
 from modules.file_handlers import load_blacklist, setup_temp_directory, clean_temp_directory, save_transcript, handle_error, cleanup_temp_cookie_file
