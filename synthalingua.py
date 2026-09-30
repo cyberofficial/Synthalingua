@@ -474,7 +474,8 @@ def main():
         
         print("Press enter to exit...")
         input()
-        sys.exit("Exiting...")
+        print("Exiting...")
+        sys.exit(0)
 
     # Exit here if launching video UI (no streaming/microphone setup needed)
     if args.launchui:
