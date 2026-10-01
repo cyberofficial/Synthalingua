@@ -375,9 +375,10 @@ def main():
         
         api_backend.flask_server(operation="start", portnumber=args.portnumber, https_port=args.https, host=host, debug=args.debug, model_dir=args.model_dir, keep_temp=getattr(args, 'keep_temp', False))
 
-        # If launching the video UI and a local video was provided via CLI, try to create
-        # a server-side session by POSTing the file to the upload endpoint. This mirrors
-        # the browser upload flow so the UI can restore the session via ?session=<id>.
+        # If launching the video UI and a local video was provided via CLI, create a
+        # server-side session for it. The fast path hands the on-disk path straight
+        # to the server (no file copy); the fallback streams the file through the
+        # /upload endpoint exactly like a browser upload.
         try:
             if args.launchui and getattr(args, 'video_input', None):
                 # Wait briefly for the server thread to publish startup messages
@@ -385,63 +386,92 @@ def main():
                 if server_thread and hasattr(server_thread, 'startup_complete'):
                     server_thread.startup_complete.wait(timeout=10)
 
-                # Try HTTP first (if specified), then HTTPS. This avoids connecting to
-                # the wrong protocol/port when both HTTP and HTTPS are started.
-                video_path = args.video_input
+                video_path = os.path.abspath(args.video_input)
 
-                tried = []
-                def try_upload(url, verify=True):
-                    try:
-                        with open(video_path, 'rb') as vf:
-                            files = {'video': (os.path.basename(video_path), vf)}
-                            return requests.post(url, files=files, timeout=30, verify=verify)
-                    except Exception as e:
-                        tried.append((url, str(e)))
-                        return None
-
-                if video_path and os.path.exists(video_path):
-                    # Build candidate URLs in preferred order
-                    candidates = []
-                    if args.portnumber:
-                        candidates.append((f"http://{host}:{args.portnumber}/api/video/upload", True))
-                    if args.https:
-                        candidates.append((f"https://{host}:{args.https}/api/video/upload", False))
-
-                    resp = None
-                    for url, verify in candidates:
-                        resp = try_upload(url, verify=verify)
-                        if resp is None:
-                            # If an SSL error occurred when verify=True, retry with verify=False
-                            continue
-                        # If request succeeded or returned HTTP error, stop trying others
-                        break
-
-                    # If no response object, print reasons
-                    if resp is None:
-                        print("Failed to upload video to UI. Attempts:")
-                        for u, err in tried:
-                            print(f" - {u}: {err}")
-                    else:
-                        if resp.status_code == 200:
-                            try:
-                                session_id = resp.json().get('session_id')
-                                print(f"Video uploaded to UI. Session ID: {session_id}")
-                                # Determine protocol/port from the URL we used
-                                used_url = resp.url.rsplit('/api/video/upload', 1)[0]
-                                player_url = f"{used_url}/video_player.html?session={session_id}"
-                                print(f"Open the player at: {player_url}")
-                                try:
-                                    webbrowser.open(player_url)
-                                except Exception:
-                                    pass
-                            except Exception:
-                                print("Video uploaded but could not parse server response.")
-                        else:
-                            print(f"Failed to upload video to UI ({resp.status_code}): {resp.text}")
-                else:
+                if not os.path.exists(video_path):
                     print(f"--video_input file not found: {video_path}")
+                else:
+                    resp = None
+
+                    # Fast path: pass the local path to the server directly.
+                    # The endpoint only accepts loopback callers, no file copy
+                    # happens, and the CLI can wait out format conversion.
+                    create_candidates = []
+                    if args.portnumber:
+                        create_candidates.append((f"http://127.0.0.1:{args.portnumber}/api/video/create_from_path", True))
+                    if args.https:
+                        create_candidates.append((f"https://127.0.0.1:{args.https}/api/video/create_from_path", False))
+
+                    if create_candidates:
+                        print("Preparing video for the player (this can take a while for formats that need conversion)...")
+
+                    for url, verify in create_candidates:
+                        try:
+                            resp = requests.post(
+                                url,
+                                json={'path': video_path},
+                                timeout=7200,
+                                verify=verify
+                            )
+                        except Exception as e:
+                            print(f"Direct session creation failed ({url}): {e}")
+                            resp = None
+
+                        if resp is not None and resp.status_code == 200:
+                            break
+
+                    # Fallback: stream the file through the upload endpoint like a browser.
+                    # Used when the fast path is unavailable (older server, non-loopback bind).
+                    if resp is None or resp.status_code != 200:
+                        tried = []
+                        def try_upload(url, verify=True):
+                            try:
+                                with open(video_path, 'rb') as vf:
+                                    files = {'video': (os.path.basename(video_path), vf)}
+                                    return requests.post(url, files=files, timeout=30, verify=verify)
+                            except Exception as e:
+                                tried.append((url, str(e)))
+                                return None
+
+                        upload_candidates = []
+                        if args.portnumber:
+                            upload_candidates.append((f"http://{host}:{args.portnumber}/api/video/upload", True))
+                        if args.https:
+                            upload_candidates.append((f"https://{host}:{args.https}/api/video/upload", False))
+
+                        resp = None
+                        for url, verify in upload_candidates:
+                            resp = try_upload(url, verify=verify)
+                            if resp is None:
+                                # If a connection error occurred, try the next protocol/port
+                                continue
+                            # If request succeeded or returned HTTP error, stop trying others
+                            break
+
+                        # If no response object, print reasons
+                        if resp is None:
+                            print("Failed to upload video to UI. Attempts:")
+                            for u, err in tried:
+                                print(f" - {u}: {err}")
+
+                    if resp is not None and resp.status_code == 200:
+                        try:
+                            session_id = resp.json().get('session_id')
+                            print(f"Video loaded into the UI. Session ID: {session_id}")
+                            # Determine protocol/port from the URL that worked
+                            used_url = resp.url.rsplit('/api/video/', 1)[0]
+                            player_url = f"{used_url}/video_player.html?session={session_id}"
+                            print(f"Open the player at: {player_url}")
+                            try:
+                                webbrowser.open(player_url)
+                            except Exception:
+                                pass
+                        except Exception:
+                            print("Video was loaded but could not parse the server response.")
+                    elif resp is not None:
+                        print(f"Failed to load video into the UI ({resp.status_code}): {resp.text[:300]}")
         except Exception as e:
-            print(f"Auto-upload helper failed: {e}")
+            print(f"Auto-load helper failed: {e}")
     
     # Set up temporary directory
     temp_dir = setup_temp_directory()
@@ -498,12 +528,19 @@ def main():
     # Exit here if launching video UI (no streaming/microphone setup needed)
     if args.launchui:
         print("Video UI server is now running. Use the web interface to process videos.")
-        print("Press Ctrl+C to stop the server.")
+        print("Press Ctrl+C to stop the server (or delete the server.pid file).")
         try:
-            # Keep the server running until interrupted
+            # Keep the server running until interrupted or the PID file is
+            # deleted (the PID file deletion is the force-shutdown mechanism:
+            # the watchdog sets api_backend.force_shutdown_flag, and exiting
+            # the main thread takes the whole process down with it).
+            # api_backend is imported at module level (line 98).
             while True:
                 import time
                 time.sleep(1)
+                if getattr(api_backend, 'force_shutdown_flag', False):
+                    print("\nPID file removed - shutting down video UI server...")
+                    break
         except KeyboardInterrupt:
             print("\nShutting down video UI server...")
         sys.exit(0)

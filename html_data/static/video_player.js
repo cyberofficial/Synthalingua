@@ -31,6 +31,7 @@ class VideoTranslatorApp {
         this.initializeSocket();
         this.loadAvailableLanguages();
         this.checkForExistingSession(); // Check if URL has session ID
+        this.checkRecoverableSessions(); // Offer to resume sessions saved on the server
     }
 
     openSrtImport(importType = 'original') {
@@ -131,9 +132,17 @@ class VideoTranslatorApp {
             // Configuration will be restored after languages load
             // (see loadAvailableLanguages method)
             
-            // Check if session exists on backend
-            const response = await fetch(`/api/video/session/${sessionId}/status`);
+            // Check if session exists on backend (recovering from disk if the
+            // server restarted since this URL was bookmarked)
+            let response = await fetch(`/api/video/session/${sessionId}/status`);
             
+            if (!response.ok) {
+                const recovered = await this.tryRecoverSession(sessionId);
+                if (recovered) {
+                    response = await fetch(`/api/video/session/${sessionId}/status`);
+                }
+            }
+
             if (!response.ok) {
                 console.warn('Session not found or expired');
                 this.hideLoading();
@@ -211,12 +220,140 @@ class VideoTranslatorApp {
             this.displaySessionUrl(sessionId);
             
             this.hideLoading();
+            this.hideRecoverableSessions();
             console.log('✅ Session restored successfully');
             
         } catch (error) {
             console.error('Error restoring session:', error);
             this.hideLoading();
             this.showError('Failed to restore session: ' + error.message);
+        }
+    }
+    
+    async tryRecoverSession(sessionId) {
+        // Ask the backend to rebuild the session from its autosaved project file
+        try {
+            const resp = await fetch(`/api/video/session/${sessionId}/recover`, { method: 'POST' });
+            if (resp.ok) {
+                const data = await resp.json();
+                console.log('Session recovered from disk:', data);
+                return true;
+            }
+        } catch (e) {
+            console.warn('Session recovery attempt failed:', e);
+        }
+        return false;
+    }
+    
+    async checkRecoverableSessions() {
+        // Skip if a session is already being restored via URL
+        if (this.sessionId) return;
+        try {
+            const response = await fetch('/api/video/recoverable_sessions');
+            if (!response.ok) return;
+            const data = await response.json();
+            if (data.success && data.sessions && data.sessions.length > 0) {
+                this.renderRecoverableSessions(data.sessions);
+            } else {
+                this.hideRecoverableSessions();
+            }
+        } catch (e) {
+            console.warn('Could not check for recoverable sessions:', e);
+        }
+    }
+    
+    hideRecoverableSessions() {
+        const container = document.getElementById('recoverable-sessions');
+        if (container) container.remove();
+    }
+    
+    renderRecoverableSessions(sessions) {
+        let container = document.getElementById('recoverable-sessions');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'recoverable-sessions';
+            container.style.cssText = `
+                background: #1a1a1a;
+                border: 1px solid #00D4FF;
+                border-radius: 8px;
+                padding: 12px;
+                margin-top: 10px;
+            `;
+            if (this.uploadArea && this.uploadArea.parentNode) {
+                this.uploadArea.parentNode.insertBefore(container, this.uploadArea.nextSibling);
+            }
+        }
+        
+        // Most recent first
+        const sorted = [...sessions].sort((a, b) => (b.saved_at || 0) - (a.saved_at || 0));
+        
+        container.innerHTML = `
+            <div style="color: #00D4FF; font-weight: bold; margin-bottom: 8px; font-size: 13px;">
+                Saved sessions on this server:
+            </div>
+            <div id="recoverable-session-list"></div>
+        `;
+        const list = container.querySelector('#recoverable-session-list');
+        
+        sorted.forEach(sess => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #333; flex-wrap:wrap;';
+            
+            const label = `${sess.filename || 'unknown'} (${this.formatTime(sess.duration || 0)}, ${sess.segment_count} captions)`;
+            const labelSpan = document.createElement('span');
+            labelSpan.style.cssText = 'flex:1; color:#ddd; font-size:12px; word-break:break-all;';
+            labelSpan.textContent = label;
+            row.appendChild(labelSpan);
+            
+            const resumeBtn = document.createElement('button');
+            resumeBtn.textContent = 'Resume';
+            resumeBtn.style.cssText = 'padding:4px 12px; background:#00D4FF; color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;';
+            resumeBtn.disabled = !sess.video_available;
+            if (!sess.video_available) resumeBtn.title = 'Video file is missing on the server';
+            resumeBtn.addEventListener('click', () => this.resumeSession(sess.session_id));
+            row.appendChild(resumeBtn);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.style.cssText = 'padding:4px 12px; background:#d73a4a; color:#fff; border:none; border-radius:4px; cursor:pointer;';
+            deleteBtn.addEventListener('click', () => this.deleteRecoverableSession(sess.session_id));
+            row.appendChild(deleteBtn);
+            
+            list.appendChild(row);
+        });
+    }
+    
+    async resumeSession(sessionId) {
+        this.showLoading('Resuming session...');
+        try {
+            const recovered = await this.tryRecoverSession(sessionId);
+            if (!recovered) {
+                this.showError('Could not resume that session.');
+                return;
+            }
+            await this.restoreSession(sessionId);
+        } catch (e) {
+            console.error('Resume failed:', e);
+            this.showError('Failed to resume session: ' + (e.message || e));
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async deleteRecoverableSession(sessionId) {
+        if (!confirm('Delete this saved session and its files? This cannot be undone.')) return;
+        try {
+            const response = await fetch(`/api/video/session/${sessionId}/stop`, { method: 'POST' });
+            if (response.ok) {
+                this.showSuccess('Session deleted');
+                this.hideRecoverableSessions();
+                this.checkRecoverableSessions();
+            } else {
+                this.showError('Failed to delete session');
+            }
+        } catch (e) {
+            console.error('Delete session failed:', e);
+            this.showError('Failed to delete session');
         }
     }
     
@@ -950,6 +1087,7 @@ class VideoTranslatorApp {
             if (response.ok) {
                 this.sessionId = data.session_id;
                 this.videoMetadata = data.metadata;
+                this.hideRecoverableSessions();
                 
                 // Update URL with session ID (without page reload)
                 const newUrl = `${window.location.pathname}?session=${this.sessionId}`;
@@ -1607,7 +1745,7 @@ class VideoTranslatorApp {
         }
     }
 
-    async transcribeSegment(segment, index, itemElement) {
+    async transcribeSegment(segment, segmentRef, itemElement) {
         if (!this.sessionId) {
             this.showError('No active session.');
             return;
@@ -1615,7 +1753,7 @@ class VideoTranslatorApp {
 
         const transcribeBtn = itemElement.querySelector('[data-action="transcribe"]');
 
-        // Disable ALL transcribe buttons to prevent spawning multiple subprocesses
+        // Disable ALL transcribe buttons to prevent queueing multiple jobs
         const allTranscribeBtns = Array.from(document.querySelectorAll('.transcribe-btn'));
         allTranscribeBtns.forEach(btn => {
             // store previous state so we can restore
@@ -1632,6 +1770,7 @@ class VideoTranslatorApp {
                 body: JSON.stringify({
                     start_time: segment.start,
                     end_time: segment.end,
+                    segment_id: segmentRef,
                     model_source: this.modelSource.value,
                     model_size: this.modelSize.value,
                     device: this.device.value,
@@ -1648,11 +1787,17 @@ class VideoTranslatorApp {
 
             const result = await response.json();
             if (result.success) {
-                const textDiv = itemElement.querySelector('.caption-text');
-                if (textDiv) textDiv.textContent = result.transcribed_text;
-                this.showSuccess('Transcription complete!');
-                // Update the segment object locally
-                segment.text = result.transcribed_text;
+                if (result.updated === false) {
+                    // Backend could not locate the target segment; do not fake
+                    // a local update that would vanish on reload
+                    this.showError('Transcription finished but no matching segment was found to store it. Reload the caption list and try again.');
+                } else {
+                    const textDiv = itemElement.querySelector('.caption-text');
+                    if (textDiv) textDiv.textContent = result.transcribed_text;
+                    this.showSuccess('Transcription complete!');
+                    // Update the segment object locally
+                    segment.text = result.transcribed_text;
+                }
             } else {
                 throw new Error(result.error || 'Transcription returned an error.');
             }
@@ -2235,7 +2380,10 @@ class VideoTranslatorApp {
         // Make item focusable programmatically (not in tab order)
         item.tabIndex = -1;
         item.setAttribute('role', 'listitem');
-        item.dataset.segmentId = index;
+        // Prefer the server-assigned stable id; fall back to the render index
+        // for older sessions that predate stable ids
+        const segRef = (segment.id !== undefined && segment.id !== null) ? segment.id : index;
+        item.dataset.segmentId = segRef;
         item.dataset.startTime = segment.start;
         item.dataset.endTime = segment.end;
         
@@ -2269,10 +2417,10 @@ class VideoTranslatorApp {
         const deleteBtn = item.querySelector('[data-action="delete"]');
         
         playBtn.addEventListener('click', () => this.playFromSegment(segment));
-        editBtn.addEventListener('click', () => this.editCaption(segment, index, item));
-        if (transcribeBtn) transcribeBtn.addEventListener('click', () => this.transcribeSegment(segment, index, item));
+        editBtn.addEventListener('click', () => this.editCaption(segment, segRef, item));
+        if (transcribeBtn) transcribeBtn.addEventListener('click', () => this.transcribeSegment(segment, segRef, item));
         redoBtn.addEventListener('click', () => this.addToBatch(segment.start, segment.end));
-        deleteBtn.addEventListener('click', () => this.deleteCaption(segment, index));
+        deleteBtn.addEventListener('click', () => this.deleteCaption(segment, segRef));
         
         return item;
     }
@@ -2358,7 +2506,7 @@ class VideoTranslatorApp {
         }
     }
     
-    editCaption(segment, index, itemElement) {
+    editCaption(segment, segmentRef, itemElement) {
         const textDiv = itemElement.querySelector('.caption-text');
         const translationDiv = itemElement.querySelector('.caption-translation');
         const timeSpan = itemElement.querySelector('.caption-time');
@@ -2395,8 +2543,8 @@ class VideoTranslatorApp {
                 }
             }
             
-            // Update segment with all changes
-            this.updateSegment(index, newText, newTranslation, newStart, newEnd);
+            // Update segment with all changes (segmentRef is the stable id)
+            this.updateSegment(segmentRef, newText, newTranslation, newStart, newEnd);
             
             // Update data attributes
             itemElement.dataset.startTime = newStart;
@@ -2434,11 +2582,11 @@ class VideoTranslatorApp {
         }
     }
     
-    async updateSegment(index, text, translation, startTime, endTime) {
+    async updateSegment(segmentRef, text, translation, startTime, endTime) {
         if (!this.sessionId) return;
         
         try {
-            const payload = { text, translation };
+            const payload = { text, translation, segment_id: segmentRef };
             
             // Include timing if provided
             if (startTime !== undefined && endTime !== undefined) {
@@ -2446,7 +2594,7 @@ class VideoTranslatorApp {
                 payload.end_time = endTime;
             }
             
-            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${index}`, {
+            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${segmentRef}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -2465,11 +2613,11 @@ class VideoTranslatorApp {
         }
     }
     
-    async deleteCaption(segment, index) {
+    async deleteCaption(segment, segmentRef) {
         if (!confirm('Delete this caption segment?')) return;
         
         try {
-            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${index}`, {
+            const response = await fetch(`/api/video/session/${this.sessionId}/segment/${segmentRef}`, {
                 method: 'DELETE'
             });
             
