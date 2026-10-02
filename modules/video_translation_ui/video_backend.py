@@ -12,6 +12,7 @@ import logging
 import json
 import threading
 import time
+import shutil
 from pathlib import Path
 from typing import Optional, Dict, List
 from flask import Blueprint, request, jsonify, send_file, session
@@ -21,14 +22,23 @@ import re
 
 # Import video translation modules
 from modules.video_translation_ui.video_processor import VideoProcessor
-from modules.video_translation_ui.chunk_manager import ChunkManager
+from modules.video_translation_ui.chunk_manager import ChunkManager, ChunkStatus
 from modules.video_translation_ui.buffer_manager import BufferManager
-from modules.video_translation_ui.video_transcription import VideoTranscriptionManager
+from modules.video_translation_ui.video_transcription import (
+    VideoTranscriptionManager,
+    shutdown_persistent_workers
+)
 
 logger = logging.getLogger(__name__)
 
 # Create Blueprint for video routes
 video_bp = Blueprint('video', __name__, url_prefix='/api/video')
+
+# Session project file: written atomically into the session directory on every
+# mutation so sessions survive server restarts and crashes (recovery support)
+PROJECT_FILENAME = 'project.json'
+# Minimum interval between autosaves triggered from the streaming path (seconds)
+AUTOSAVE_MIN_INTERVAL = 5.0
 
 # Global state management
 video_sessions = {}
@@ -61,6 +71,13 @@ def set_debug_mode(debug: bool):
         logger.debug("Video backend debug mode enabled")
     else:
         logger.setLevel(logging.INFO)
+        # Keep child loggers consistent (INFO) so worker lifecycle messages
+        # (persistent worker spawn, fallback warnings) are visible without debug mode
+        for name in ['modules.video_translation_ui.video_processor',
+                     'modules.video_translation_ui.chunk_manager',
+                     'modules.video_translation_ui.buffer_manager',
+                     'modules.video_translation_ui.video_transcription']:
+            logging.getLogger(name).setLevel(logging.INFO)
 
 def set_keep_temp(keep_temp: bool):
     """Set keep_temp flag for video backend."""
@@ -207,6 +224,12 @@ class VideoSession:
         # Thread safety
         self.state_lock = threading.Lock()
         
+        # Stable segment ID counter (each caption segment gets a unique id at creation)
+        self._next_segment_id = 0
+        self._segment_id_lock = threading.Lock()
+        # Last autosave timestamp for throttling streaming-path autosaves
+        self._last_autosave = 0.0
+        
         # Processing thread
         self.processing_thread = None
         self.stop_processing = threading.Event()
@@ -260,7 +283,8 @@ class VideoSession:
             'demucs_jobs': 0,  # Single-threaded by default
             'enable_temperature': False,  # Use multiple temperature fallbacks by default
             'temperature': None,  # None = use fallback, float = fixed temperature
-            'compression_ratio_threshold': 2.4  # Default from Whisper
+            'compression_ratio_threshold': 2.4,  # Default from Whisper
+            'worker_timeout': None  # None = auto-scale with audio duration, int = fixed seconds
         }
         
         # Merge defaults with current config
@@ -274,7 +298,186 @@ class VideoSession:
         
         # Initialize with new configuration
         return self.initialize()
-    
+
+    # ------------------------------------------------------------------
+    # Stable segment IDs
+    # ------------------------------------------------------------------
+
+    def _ensure_segment_id(self, seg: Dict) -> None:
+        """Assign a unique stable id to a segment if it does not have one."""
+        if seg is not None and 'id' not in seg:
+            with self._segment_id_lock:
+                if 'id' not in seg:
+                    seg['id'] = self._next_segment_id
+                    self._next_segment_id += 1
+
+    def _ensure_all_segment_ids(self) -> None:
+        """Lazily assign ids to any segments missing them (call under state_lock)."""
+        for chunk in (self.chunk_manager.chunks if self.chunk_manager else []):
+            if getattr(chunk, 'timestamps', None):
+                for seg in chunk.timestamps:
+                    self._ensure_segment_id(seg)
+
+    def _find_segment_by_id(self, segment_id: int):
+        """Find a segment by its stable id. Call under state_lock.
+
+        Returns (chunk, segment) or (None, None).
+        """
+        if self.chunk_manager is None:
+            return None, None
+        for chunk in self.chunk_manager.chunks:
+            if not getattr(chunk, 'timestamps', None):
+                continue
+            for seg in chunk.timestamps:
+                if seg.get('id') == segment_id:
+                    return chunk, seg
+        return None, None
+
+    def _find_segment_by_index(self, index: int):
+        """Find a segment by its positional index (legacy addressing). Call under state_lock.
+
+        Returns (chunk, segment) or (None, None).
+        """
+        if self.chunk_manager is None:
+            return None, None
+        current_index = 0
+        for chunk in self.chunk_manager.chunks:
+            if not getattr(chunk, 'timestamps', None):
+                continue
+            for seg in chunk.timestamps:
+                if current_index == index:
+                    return chunk, seg
+                current_index += 1
+        return None, None
+
+    def _resolve_segment(self, segment_ref: int):
+        """Resolve a segment by stable id first, then by legacy positional index.
+
+        Call under state_lock. Returns (chunk, segment, matched_by) or (None, None, None).
+        """
+        if segment_ref is None:
+            return None, None, None
+        try:
+            segment_ref = int(segment_ref)
+        except (TypeError, ValueError):
+            return None, None, None
+
+        chunk, seg = self._find_segment_by_id(segment_ref)
+        if seg is not None:
+            return chunk, seg, 'id'
+
+        # Legacy fallback: the value was a render-time list index
+        chunk, seg = self._find_segment_by_index(segment_ref)
+        if seg is not None:
+            return chunk, seg, 'index'
+        return None, None, None
+
+    # ------------------------------------------------------------------
+    # Session persistence (autosave / recovery)
+    # ------------------------------------------------------------------
+
+    def _snapshot_segments(self) -> List[Dict]:
+        """Build a serializable snapshot of all caption segments. Call under state_lock."""
+        segments = []
+        if self.chunk_manager:
+            for chunk in self.chunk_manager.chunks:
+                if getattr(chunk, 'timestamps', None):
+                    for seg in chunk.timestamps:
+                        snap = {
+                            'id': seg.get('id'),
+                            'start': seg.get('start', 0),
+                            'end': seg.get('end', 0),
+                            'text': seg.get('text', ''),
+                            'translation': seg.get('translation', '')
+                        }
+                        if seg.get('words'):
+                            snap['words'] = seg.get('words')
+                        segments.append(snap)
+        segments.sort(key=lambda x: x.get('start', 0))
+        return segments
+
+    def _autosave_project(self, force: bool = True) -> bool:
+        """Write the session project file (config + segments + metadata) to disk.
+
+        Atomic: writes to a temp file then os.replace() into place. Safe to call
+        from any thread; snapshots under state_lock and writes outside it.
+        """
+        try:
+            if not force:
+                now = time.time()
+                if now - self._last_autosave < AUTOSAVE_MIN_INTERVAL:
+                    return False
+                self._last_autosave = now
+
+            with self.state_lock:
+                self._ensure_all_segment_ids()
+                segments_snapshot = self._snapshot_segments()
+
+            session_dir = UPLOAD_FOLDER / self.session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
+
+            video_path = Path(self.video_path) if self.video_path else None
+            project = {
+                'version': 1,
+                'session_id': self.session_id,
+                'video_filename': video_path.name if video_path else None,
+                'video_external_path': str(video_path) if (video_path and video_path.parent != session_dir) else None,
+                'mp4_filename': Path(self.mp4_path).name if self.mp4_path else None,
+                'original_audio_filename': Path(self.original_audio_path).name if self.original_audio_path else None,
+                'vocals_audio_filename': Path(self.vocals_audio_path).name if self.vocals_audio_path else None,
+                'waveform_filename': Path(self.waveform_image_path).name if self.waveform_image_path else None,
+                'metadata': self.metadata or {},
+                'config': self.config or {},
+                'saved_at': time.time(),
+                'segments': segments_snapshot
+            }
+
+            tmp_path = session_dir / (PROJECT_FILENAME + '.tmp')
+            final_path = session_dir / PROJECT_FILENAME
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                json.dump(project, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, final_path)
+
+            logger.debug(f"Autosaved project for session {self.session_id} "
+                         f"({len(segments_snapshot)} segments)")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to autosave project for session {self.session_id}: {e}")
+            return False
+
+    def _restore_segments_from_project(self, segments: List[Dict]) -> None:
+        """Load segments from a project file into the chunk manager. Call under state_lock."""
+        if not self.chunk_manager or not self.chunk_manager.chunks:
+            return
+        chunk = self.chunk_manager.chunks[0]
+        chunk.timestamps = []
+        max_id = -1
+        for seg in (segments or []):
+            entry = {
+                'start': float(seg.get('start', 0)),
+                'end': float(seg.get('end', 0)),
+                'text': seg.get('text', ''),
+                'translation': seg.get('translation', '')
+            }
+            if seg.get('words'):
+                entry['words'] = seg.get('words')
+            if seg.get('id') is not None:
+                entry['id'] = int(seg.get('id'))
+                max_id = max(max_id, entry['id'])
+            else:
+                self._ensure_segment_id(entry)
+                max_id = max(max_id, entry['id'])
+            chunk.timestamps.append(entry)
+
+        if chunk.timestamps:
+            chunk.status = ChunkStatus.COMPLETED
+            chunk.transcription = ' '.join(t.get('text', '') for t in chunk.timestamps if t.get('text'))
+            chunk.translation = ' '.join(t.get('translation', '') for t in chunk.timestamps if t.get('translation'))
+            chunk.completed_at = time.time()
+            self.chunk_manager.completed_chunks[chunk.chunk_id] = chunk
+
+        self._next_segment_id = max_id + 1
+
     def initialize(self):
         """Initialize all components and extract video metadata."""
         try:
@@ -390,7 +593,8 @@ class VideoSession:
                 model_dir=self.config.get('model_dir', './models'),
                 temperature=temp_value,
                 compression_ratio_threshold=compression_ratio,
-                debug_mode=_debug_mode
+                debug_mode=_debug_mode,
+                worker_timeout=self.config.get('worker_timeout')
             )
             
             # Initialize buffer manager
@@ -404,7 +608,10 @@ class VideoSession:
             
             self.is_initialized = True
             logger.info(f"Session {self.session_id} initialized successfully")
-            
+
+            # Persist config + metadata so this session is recoverable after restart
+            self._autosave_project()
+
             return True
             
         except Exception as e:
@@ -420,7 +627,14 @@ class VideoSession:
         if self.is_processing:
             logger.warning("Processing already started")
             return False
-        
+
+        # Bulk processing runs in a one-shot worker subprocess; stop any idle
+        # persistent workers first so their held VRAM is available
+        try:
+            shutdown_persistent_workers()
+        except Exception as e:
+            logger.debug(f"Could not shut down persistent workers before bulk run: {e}")
+
         # Attach socketio reference if available
         if '_socketio_instance' in globals():
             self.socketio = globals()['_socketio_instance']
@@ -516,6 +730,8 @@ class VideoSession:
                     # Process chunk with incremental timestamp updates
                     def on_segment_complete(timestamp_dict, segment_num, total_segments):
                         """Callback to add timestamps incrementally so captions show in real-time"""
+                        # Assign a stable id so editor addressing survives list changes
+                        self._ensure_segment_id(timestamp_dict)
                         chunk.timestamps.append(timestamp_dict)
                         
                         # Update processed_until to include this segment + any silence before it
@@ -539,6 +755,9 @@ class VideoSession:
                               f"Buffer: {seconds_buffered:.1f}s ahead")
                         import sys
                         sys.stdout.flush()  # Force console output to appear immediately
+                        
+                        # Throttled autosave so streamed segments survive a crash
+                        self._autosave_project(force=False)
                         
                         # Emit WebSocket update with total segments count (we know this from silence detector)
                         if hasattr(self, '_emit_buffer_update'):
@@ -663,6 +882,10 @@ class VideoSession:
             except Exception as e:
                 logger.error(f"Could not emit processing_complete event: {e}")
         
+        # Final autosave: all segments complete, make sure the project file is current
+        if self.chunk_manager:
+            self._autosave_project(force=True)
+
         logger.debug(f"Chunk processing thread ended for session {self.session_id}")
 
     def _safe_emit(self, event: str, data: Dict, namespace: str = '/', room: Optional[str] = None):
@@ -913,12 +1136,14 @@ class VideoSession:
                 model_dir=self.config.get('model_dir', './models'),
                 temperature=config.get('temperature'),
                 compression_ratio_threshold=config.get('compression_ratio_threshold', self.config.get('compression_ratio_threshold', 2.4)),
-                debug_mode=self.config.get('debug_mode', False)
+                debug_mode=self.config.get('debug_mode', False),
+                worker_timeout=self.config.get('worker_timeout')
             )
             
-            # Process the segment
-            logger.info(f"  Transcribing segment...")
-            result = temp_manager.process_chunk(
+            # Process the segment via the persistent preloaded worker (fast path).
+            # No model reload per redo; falls back to a one-shot subprocess on failure.
+            logger.info(f"  Transcribing segment (persistent worker)...")
+            result = temp_manager.process_segment_persistent(
                 audio_path=segment_audio_path,
                 chunk_id=-1,  # Temporary ID for redo
                 start_time=start_time,
@@ -934,7 +1159,7 @@ class VideoSession:
             removed_count = self._remove_segments_in_range(start_time, end_time)
             logger.info(f"  Removed {removed_count} old segments")
             
-            # Add new segments
+            # Add new segments (with fresh stable ids)
             logger.info(f"  Adding {len(result.get('timestamps', []))} new segments...")
             added_count = self._add_segments_from_result(result)
             logger.info(f"  Added {added_count} new segments")
@@ -945,6 +1170,9 @@ class VideoSession:
                     os.remove(segment_audio_path)
             except Exception as e:
                 logger.warning(f"Could not remove temporary audio file: {e}")
+            
+            # Persist the updated segment list
+            self._autosave_project(force=True)
             
             # Emit WebSocket update to notify frontend
             try:
@@ -1020,6 +1248,9 @@ class VideoSession:
         for segment in result['timestamps']:
             start = segment['start']
             end = segment['end']
+            
+            # Stable id so editor addressing survives list changes
+            self._ensure_segment_id(segment)
             
             # Find the chunk that contains this segment
             for chunk in self.chunk_manager.chunks:
@@ -1150,8 +1381,15 @@ class VideoSession:
         millis = int((seconds % 1) * 1000)
         return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"
     
-    def cleanup(self):
-        """Cleanup temporary files and resources."""
+    def cleanup(self, preserve_project: bool = False):
+        """Cleanup temporary files and resources.
+
+        Args:
+            preserve_project: When True, keep the session directory (including
+                project.json) so the session can be recovered after a server
+                restart. Used by the shutdown path. Explicit session deletion
+                (stop endpoint) passes False.
+        """
         try:
             # Unload transcription model to free VRAM/RAM
             # NOTE: With subprocess isolation, models are automatically cleaned up after each transcription
@@ -1164,6 +1402,10 @@ class VideoSession:
                 except Exception as e:
                     logger.error(f"Error during transcription model cleanup: {e}")
             
+            if preserve_project:
+                logger.info(f"Preserving session directory for recovery: {self.session_id}")
+                return
+            
             if self.video_processor:
                 self.video_processor.cleanup()
             
@@ -1174,7 +1416,6 @@ class VideoSession:
             else:
                 temp_dir = UPLOAD_FOLDER / self.session_id
                 if temp_dir.exists():
-                    import shutil
                     shutil.rmtree(temp_dir)
                     logger.info(f"Cleaned up temp directory for session {self.session_id}")
         except Exception as e:
@@ -1254,6 +1495,11 @@ def upload_video():
         # Extract metadata from the original video
         metadata = video_processor.extract_metadata()
         
+        # Store metadata on the session and persist an initial project file so the
+        # session is recoverable after a server restart even before processing
+        video_session.metadata = metadata
+        video_session._autosave_project()
+        
         logger.info(f"📋 Session created: {session_id} (awaiting configuration)")
         
         return jsonify({
@@ -1265,6 +1511,88 @@ def upload_video():
         
     except Exception as e:
         logger.error(f"Error uploading video: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def _create_session_from_video(video_path: str, display_filename: Optional[str] = None) -> Dict:
+    """Shared helper: create a session for an existing video file on disk.
+
+    Does NOT copy the file; the session references the original path directly.
+    Converts to MP4 for browser playback (stream copy when possible) and
+    returns the same payload shape as the /upload route.
+    """
+    session_id = str(uuid.uuid4())
+    session_dir = UPLOAD_FOLDER / session_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    video_session = VideoSession(session_id, str(video_path), {})
+    video_session.metadata = {}
+
+    with session_lock:
+        video_sessions[session_id] = video_session
+
+    logger.info(f"Creating session from local path: {video_path} -> Session: {session_id}")
+
+    # Convert to MP4 for browser compatibility (returns the original path when
+    # the input is already MP4; re-encodes only when the browser cannot play it)
+    video_processor = VideoProcessor(str(video_path), temp_dir=str(session_dir), device='auto')
+    mp4_path = video_processor.convert_to_mp4()
+    video_session.mp4_path = mp4_path
+
+    metadata = video_processor.extract_metadata()
+    metadata['filename'] = display_filename or Path(video_path).name
+    video_session.metadata = metadata
+
+    video_session._autosave_project()
+
+    return {
+        'session_id': session_id,
+        'filename': display_filename or Path(video_path).name,
+        'metadata': metadata,
+        'status': 'uploaded'
+    }
+
+
+@video_bp.route('/create_from_path', methods=['POST'])
+def create_session_from_path():
+    """Create a session from a video file already on the server's disk.
+
+    Used by the CLI (--video_input preload) so the file is not copied through
+    the HTTP stack. Restricted to loopback callers: a LAN-exposed server must
+    not let remote clients open arbitrary host files.
+    """
+    remote_addr = request.remote_addr or ''
+    if remote_addr not in ('127.0.0.1', '::1', 'localhost'):
+        logger.warning(f"Rejected create_from_path request from non-loopback client: {remote_addr}")
+        return jsonify({'error': 'Local access only'}), 403
+
+    data = request.get_json(silent=True) or {}
+    raw_path = data.get('path') or data.get('video_path')
+    if not raw_path or not isinstance(raw_path, str):
+        return jsonify({'error': 'Missing "path" in request body'}), 400
+
+    video_path = Path(raw_path)
+    if not video_path.is_absolute():
+        return jsonify({'error': 'Path must be absolute'}), 400
+    if not video_path.exists():
+        return jsonify({'error': f'File not found: {raw_path}'}), 404
+    if not video_path.is_file():
+        return jsonify({'error': 'Path is not a file'}), 400
+
+    file_ext = video_path.suffix.lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        return jsonify({'error': f'Unsupported file format: {file_ext}'}), 400
+
+    # Null bytes cannot appear in a valid path
+    if '\x00' in raw_path:
+        return jsonify({'error': 'Invalid path'}), 400
+
+    try:
+        payload = _create_session_from_video(str(video_path), display_filename=video_path.name)
+        logger.info(f"Session {payload['session_id']} created from local path (no file copy)")
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.error(f"Error creating session from path: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -1345,11 +1673,26 @@ def resume_session(session_id):
 
 @video_bp.route('/session/<session_id>/stop', methods=['POST'])
 def stop_session(session_id):
-    """Stop processing and cleanup session."""
+    """Stop processing and delete the session (removes its temp files and project)."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.pop(session_id, None)
     
     if not video_session:
+        # Not an active session; also delete any recoverable session left on disk
+        session_dir = UPLOAD_FOLDER / session_id
+        if session_dir.exists() and is_path_within_directory(session_dir, UPLOAD_FOLDER):
+            try:
+                shutil.rmtree(session_dir)
+                logger.info(f"Deleted recoverable session from disk: {session_id}")
+                return jsonify({'status': 'stopped'}), 200
+            except Exception as e:
+                logger.error(f"Error deleting recoverable session {session_id}: {e}")
+                return jsonify({'error': str(e)}), 500
         return jsonify({'error': 'Session not found'}), 404
     
     video_session.stop()
@@ -1379,6 +1722,11 @@ def get_session_status(session_id):
 @video_bp.route('/session/<session_id>/captions', methods=['GET'])
 def get_captions(session_id):
     """Get captions at a specific timestamp."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     timestamp = float(request.args.get('timestamp', 0))
     
     with session_lock:
@@ -1394,6 +1742,11 @@ def get_captions(session_id):
 @video_bp.route('/session/<session_id>/seek', methods=['POST'])
 def seek_video(session_id):
     """Handle seek operation."""
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     data = request.get_json()
     timestamp = float(data.get('timestamp', 0))
     
@@ -1478,11 +1831,16 @@ def transcribe_segment(session_id):
         data = request.get_json()
         start_time = data.get('start_time')
         end_time = data.get('end_time')
+        segment_ref = data.get('segment_id')
 
         if start_time is None or end_time is None:
             return jsonify({'error': 'start_time and end_time are required'}), 400
 
-        # Use a temporary transcription manager for this one-off task
+        if not video_session.video_processor:
+            return jsonify({'error': 'Session not initialized'}), 400
+
+        # Use a temporary transcription manager for this one-off task (config only,
+        # the model itself lives in the shared persistent worker)
         transcription_manager = VideoTranscriptionManager(
             model_source=data.get('model_source', video_session.config.get('model_source')),
             model_size=data.get('model_size', video_session.config.get('model_size')),
@@ -1496,7 +1854,8 @@ def transcribe_segment(session_id):
             min_silence_duration=0.5,
             model_dir=video_session.config.get('model_dir', './models'),
             temperature=data.get('temperature'),
-            compression_ratio_threshold=data.get('compression_ratio_threshold')
+            compression_ratio_threshold=data.get('compression_ratio_threshold'),
+            worker_timeout=video_session.config.get('worker_timeout')
         )
 
         # Extract the specific audio segment
@@ -1507,11 +1866,13 @@ def transcribe_segment(session_id):
             source_audio=source_audio
         )
 
-        # Perform transcription (not translation)
-        result = transcription_manager.transcribe_chunk(
+        # Perform transcription (not translation) via the persistent preloaded
+        # worker; falls back to a one-shot subprocess if the worker fails
+        result = transcription_manager.transcribe_chunk_persistent(
             audio_path=segment_audio_path,
             chunk_id=-1,  # Temporary ID
-            language=data.get('source_language')
+            language=data.get('source_language'),
+            duration=(end_time - start_time)
         )
         
         # Clean up the temporary segment file
@@ -1519,20 +1880,33 @@ def transcribe_segment(session_id):
             os.remove(segment_audio_path)
 
         if result['success']:
-            # Find the corresponding segment and update it
+            # Store the text on the target segment: by stable id when provided,
+            # falling back to the legacy start/end timing match
+            updated = False
             with video_session.state_lock:
-                found = False
-                for chunk in video_session.chunk_manager.chunks:
-                    for seg in chunk.timestamps:
-                        if abs(seg['start'] - start_time) < 0.1 and abs(seg['end'] - end_time) < 0.1:
-                            seg['text'] = result['transcription']
-                            found = True
+                target_seg = None
+                if segment_ref is not None:
+                    _, target_seg, _ = video_session._resolve_segment(segment_ref)
+
+                if target_seg is None:
+                    for chunk in video_session.chunk_manager.chunks:
+                        for seg in chunk.timestamps:
+                            if abs(seg['start'] - start_time) < 0.1 and abs(seg['end'] - end_time) < 0.1:
+                                target_seg = seg
+                                break
+                        if target_seg is not None:
                             break
-                    if found:
-                        break
-            
+
+                if target_seg is not None:
+                    target_seg['text'] = result['transcription']
+                    updated = True
+
+            if updated:
+                video_session._autosave_project()
+
             return jsonify({
                 'success': True,
+                'updated': updated,
                 'transcribed_text': result['transcription']
             })
         else:
@@ -1638,12 +2012,14 @@ def get_all_segments(session_id):
             }), 200
         
         with video_session.state_lock:
+            video_session._ensure_all_segment_ids()
             segments = []
             # Collect all segments from all chunks
             for chunk in video_session.chunk_manager.chunks:
                 if chunk.timestamps:
                     for seg in chunk.timestamps:
                         segments.append({
+                            'id': seg.get('id'),
                             'start': seg.get('start', 0),
                             'end': seg.get('end', 0),
                             'text': seg.get('text', ''),
@@ -1698,17 +2074,19 @@ def add_segment(session_id):
 
             # Try to find a chunk that contains the segment start
             inserted = False
+            seg = None
             for chunk in video_session.chunk_manager.chunks:
                 if chunk.start_time <= start_time < chunk.end_time:
                     if not getattr(chunk, 'timestamps', None):
                         chunk.timestamps = []
-                    # Create empty editable segment
+                    # Create empty editable segment with a stable id
                     seg = {
                         'start': start_time,
                         'end': end_time,
                         'text': '',
                         'translation': ''
                     }
+                    video_session._ensure_segment_id(seg)
                     chunk.timestamps.append(seg)
                     # Keep timestamps sorted
                     chunk.timestamps.sort(key=lambda x: x.get('start', 0))
@@ -1720,15 +2098,18 @@ def add_segment(session_id):
                 last_chunk = video_session.chunk_manager.chunks[-1]
                 if not getattr(last_chunk, 'timestamps', None):
                     last_chunk.timestamps = []
-                last_chunk.timestamps.append({
+                seg = {
                     'start': start_time,
                     'end': end_time,
                     'text': '',
                     'translation': ''
-                })
+                }
+                video_session._ensure_segment_id(seg)
+                last_chunk.timestamps.append(seg)
 
+        video_session._autosave_project()
         logger.info(f"Added new editable segment {start_time:.2f}-{end_time:.2f} to session {session_id}")
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True, 'segment_id': seg.get('id') if seg else None}), 200
 
     except Exception as e:
         logger.error(f"Error adding segment: {e}", exc_info=True)
@@ -1821,6 +2202,7 @@ def import_srt(session_id):
         with video_session.state_lock:
             if not video_session.chunk_manager:
                 return jsonify({'error': 'No chunk manager available'}), 400
+            video_session._ensure_all_segment_ids()
 
             # For faster lookup, create a list of (chunk, seg) references
             for sseg in srt_segments:
@@ -1862,6 +2244,7 @@ def import_srt(session_id):
                                 'text': sseg['text'] if import_type == 'original' else '',
                                 'translation': sseg['text'] if import_type != 'original' else ''
                             }
+                            video_session._ensure_segment_id(new_seg)
                             chunk.timestamps.append(new_seg)
                             placed = True
                             created += 1
@@ -1872,18 +2255,22 @@ def import_srt(session_id):
                         last_chunk = video_session.chunk_manager.chunks[-1]
                         if not getattr(last_chunk, 'timestamps', None):
                             last_chunk.timestamps = []
-                        last_chunk.timestamps.append({
+                        new_seg = {
                             'start': sseg['start'],
                             'end': sseg['end'],
                             'text': sseg['text'] if import_type == 'original' else '',
                             'translation': sseg['text'] if import_type != 'original' else ''
-                        })
+                        }
+                        video_session._ensure_segment_id(new_seg)
+                        last_chunk.timestamps.append(new_seg)
                         created += 1
 
             # Sort timestamps in each chunk to ensure order
             for chunk in video_session.chunk_manager.chunks:
                 if getattr(chunk, 'timestamps', None):
                     chunk.timestamps.sort(key=lambda x: x.get('start', 0))
+
+        video_session._autosave_project()
 
         # Emit update to frontend so it reloads captions
         try:
@@ -1953,35 +2340,14 @@ def update_segment(session_id, segment_id):
                 return jsonify({'error': 'Invalid time format'}), 400
         
         with video_session.state_lock:
-            # Collect all segments to find the target by index
-            current_index = 0
-            found = False
-            target_chunk = None
-            target_seg = None
-            
-            for chunk in video_session.chunk_manager.chunks:
-                if not chunk.timestamps:
-                    continue
-                    
-                for seg in chunk.timestamps:
-                    if current_index == segment_id:
-                        target_chunk = chunk
-                        target_seg = seg
-                        found = True
-                        break
-                    current_index += 1
-                
-                if found:
-                    break
-            
-            if not found:
+            # Ensure legacy segments have stable ids, then resolve by stable id
+            # first (falling back to positional index for older clients)
+            video_session._ensure_all_segment_ids()
+            target_chunk, target_seg, matched_by = video_session._resolve_segment(segment_id)
+
+            if target_seg is None or target_chunk is None:
                 return jsonify({'error': 'Invalid segment ID'}), 404
 
-            # Safety: ensure we actually found the target segment and chunk
-            if target_seg is None or target_chunk is None:
-                logger.error(f"Segment lookup failed despite found flag: segment_id={segment_id}, found={found}")
-                return jsonify({'error': 'Segment lookup error'}), 500
-            
             # If only one timing value provided, use current value for the other
             if new_start is None and new_end is not None:
                 new_start = target_seg.get('start', 0.0)
@@ -2009,8 +2375,10 @@ def update_segment(session_id, segment_id):
             if new_start is not None or new_end is not None:
                 target_chunk.timestamps.sort(key=lambda s: s.get('start', 0))
             
-            logger.info(f"Updated segment {segment_id} in session {session_id}")
+            logger.info(f"Updated segment {segment_id} (resolved by {matched_by}) in session {session_id}")
         
+        video_session._autosave_project()
+
         return jsonify({
             'success': True,
             'message': 'Segment updated successfully'
@@ -2040,31 +2408,20 @@ def delete_segment(session_id, segment_id):
             return jsonify({'error': 'No chunks available'}), 404
         
         with video_session.state_lock:
-            # Collect all segments to find the target by index
-            current_index = 0
-            found = False
-            removed_segment = None
-            
-            for chunk in video_session.chunk_manager.chunks:
-                if not chunk.timestamps:
-                    continue
-                
-                for i, seg in enumerate(chunk.timestamps):
-                    if current_index == segment_id:
-                        # Remove this segment
-                        removed_segment = chunk.timestamps.pop(i)
-                        found = True
-                        logger.info(f"Deleted segment {segment_id} from session {session_id}: "
-                                  f"{removed_segment.get('start')}-{removed_segment.get('end')}")
-                        break
-                    current_index += 1
-                
-                if found:
-                    break
-            
-            if not found:
+            # Resolve by stable id first, falling back to positional index
+            video_session._ensure_all_segment_ids()
+            target_chunk, target_seg, matched_by = video_session._resolve_segment(segment_id)
+
+            if target_seg is None or target_chunk is None:
                 return jsonify({'error': 'Invalid segment ID'}), 404
+
+            removed_segment = target_seg
+            target_chunk.timestamps.remove(target_seg)
+            logger.info(f"Deleted segment {segment_id} (resolved by {matched_by}) from session {session_id}: "
+                      f"{removed_segment.get('start')}-{removed_segment.get('end')}")
         
+        video_session._autosave_project()
+
         return jsonify({
             'success': True,
             'message': 'Segment deleted successfully'
@@ -2099,41 +2456,32 @@ def batch_delete_segments(session_id):
         if not video_session.chunk_manager:
             return jsonify({'error': 'No chunks available'}), 404
         
-        # Sort segment IDs in descending order to delete from end to start
-        # This prevents index shifting issues during deletion
-        segment_ids_sorted = sorted(segment_ids, reverse=True)
-        
+        # Segment references are stable ids (with legacy positional index
+        # fallback per id), so deletion order no longer matters
         with video_session.state_lock:
+            video_session._ensure_all_segment_ids()
             deleted_count = 0
+            missing_ids = []
             
-            for target_id in segment_ids_sorted:
-                current_index = 0
-                found = False
-                
-                for chunk in video_session.chunk_manager.chunks:
-                    if not chunk.timestamps:
-                        continue
-                    
-                    for i, seg in enumerate(chunk.timestamps):
-                        if current_index == target_id:
-                            # Remove this segment
-                            removed_segment = chunk.timestamps.pop(i)
-                            deleted_count += 1
-                            found = True
-                            logger.info(f"Deleted segment {target_id} from session {session_id}: "
-                                      f"{removed_segment.get('start')}-{removed_segment.get('end')}")
-                            break
-                        current_index += 1
-                    
-                    if found:
-                        break
+            for target_id in segment_ids:
+                chunk, seg, matched_by = video_session._resolve_segment(target_id)
+                if seg is not None and chunk is not None:
+                    chunk.timestamps.remove(seg)
+                    deleted_count += 1
+                    logger.info(f"Deleted segment {target_id} (resolved by {matched_by}) from session {session_id}: "
+                              f"{seg.get('start')}-{seg.get('end')}")
+                else:
+                    missing_ids.append(target_id)
             
             logger.info(f"Batch deleted {deleted_count} segments from session {session_id}")
         
+        video_session._autosave_project()
+
         return jsonify({
             'success': True,
             'message': f'Deleted {deleted_count} segment(s) successfully',
-            'deleted_count': deleted_count
+            'deleted_count': deleted_count,
+            'missing_ids': missing_ids
         }), 200
         
     except Exception as e:
@@ -2272,6 +2620,11 @@ def serve_waveform_image(session_id):
     Returns:
         PNG image file if available, 404 if not found
     """
+    # Validate session_id to prevent path injection
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
     with session_lock:
         video_session = video_sessions.get(session_id)
     
@@ -2347,6 +2700,191 @@ def get_available_languages():
         'success': True,
         'languages': languages_list
     })
+
+
+def _load_project_from_disk(session_id: str) -> Optional[Dict]:
+    """Read a session's project.json from disk. Returns None if not found."""
+    if not validate_session_id(session_id):
+        return None
+    project_path = UPLOAD_FOLDER / session_id / PROJECT_FILENAME
+    if not project_path.exists():
+        return None
+    try:
+        with open(project_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to read project file for session {session_id}: {e}")
+        return None
+
+
+def _recover_session_from_disk(session_id: str) -> 'VideoSession':
+    """Rebuild a VideoSession in memory from its project file on disk.
+
+    Reuses existing files in the session directory (video, MP4, audio,
+    waveform) without re-extracting anything. Raises ValueError with a
+    user-facing message when recovery is not possible.
+    """
+    project = _load_project_from_disk(session_id)
+    if project is None:
+        raise ValueError('No recoverable project found for this session')
+
+    session_dir = UPLOAD_FOLDER / session_id
+    config = project.get('config', {})
+    metadata = project.get('metadata', {})
+    duration = float(metadata.get('duration', 0) or 0)
+
+    # Locate the video: external path first, then the copy in the session dir
+    video_path = None
+    external = project.get('video_external_path')
+    if external and os.path.exists(external):
+        video_path = external
+    else:
+        internal = project.get('video_filename')
+        if internal:
+            candidate = session_dir / internal
+            if candidate.exists():
+                video_path = str(candidate)
+
+    if not video_path:
+        raise ValueError('Video file for this session is missing. Re-upload the video to continue.')
+
+    sess = VideoSession(session_id, str(video_path), dict(config))
+    sess.metadata = metadata
+
+    # Rebuild lightweight components without re-processing the media
+    device = config.get('device', 'auto')
+    sess.video_processor = VideoProcessor(str(video_path), temp_dir=str(session_dir), device=device)
+
+    # MP4 for browser playback
+    mp4_filename = project.get('mp4_filename')
+    if mp4_filename and (session_dir / mp4_filename).exists():
+        sess.mp4_path = str(session_dir / mp4_filename)
+    elif str(video_path).lower().endswith('.mp4'):
+        sess.mp4_path = str(video_path)
+
+    # Audio sources
+    original_audio = project.get('original_audio_filename')
+    if original_audio and (session_dir / original_audio).exists():
+        sess.original_audio_path = str(session_dir / original_audio)
+    vocals_audio = project.get('vocals_audio_filename')
+    if vocals_audio and (session_dir / vocals_audio).exists():
+        sess.vocals_audio_path = str(session_dir / vocals_audio)
+    sess.full_audio_path = sess.vocals_audio_path or sess.original_audio_path
+
+    waveform = project.get('waveform_filename')
+    if waveform and (session_dir / waveform).exists():
+        sess.waveform_image_path = str(session_dir / waveform)
+
+    # Chunk manager: single chunk (matches the processing design)
+    chunk_duration = duration if duration > 0 else 1.0
+    sess.chunk_manager = ChunkManager(video_duration=chunk_duration, chunk_duration=chunk_duration)
+
+    # Transcription manager for editor actions (config only, no model load)
+    temp_value = config.get('temperature') if config.get('enable_temperature', False) else None
+    sess.transcription_manager = VideoTranscriptionManager(
+        model_source=config.get('model_source', 'fasterwhisper'),
+        model_size=config.get('model_size', 'base'),
+        device=device,
+        compute_type=config.get('compute_type', 'float16'),
+        source_language=config.get('source_language'),
+        target_language=config.get('target_language', 'en'),
+        enable_translation=config.get('enable_translation', True),
+        enable_silence_detection=config.get('enable_silence_detection', True),
+        silence_threshold_db=config.get('silence_threshold_db', -35.0),
+        min_silence_duration=config.get('min_silence_duration', 0.5),
+        model_dir=config.get('model_dir', './models'),
+        temperature=temp_value,
+        compression_ratio_threshold=config.get('compression_ratio_threshold', 2.4),
+        debug_mode=_debug_mode,
+        worker_timeout=config.get('worker_timeout')
+    )
+
+    # Buffer manager (status reporting)
+    sess.buffer_manager = BufferManager(
+        chunk_manager=sess.chunk_manager,
+        buffer_seconds=chunk_duration,
+        max_concurrent=config.get('max_concurrent', 2),
+        on_chunk_processed=sess._on_chunk_processed,
+        debug=_debug_mode
+    )
+
+    # Restore segments into the chunk manager (restores stable ids too)
+    with sess.state_lock:
+        sess._restore_segments_from_project(project.get('segments', []))
+
+    sess.is_initialized = True
+
+    logger.info(f"Recovered session {session_id} from disk: "
+                f"{len(project.get('segments', []))} segments restored")
+    return sess
+
+
+@video_bp.route('/recoverable_sessions', methods=['GET'])
+def list_recoverable_sessions():
+    """List sessions that can be recovered from disk after a server restart."""
+    recoverable = []
+    try:
+        if UPLOAD_FOLDER.exists():
+            for child in UPLOAD_FOLDER.iterdir():
+                if not child.is_dir():
+                    continue
+                if not (child / PROJECT_FILENAME).exists():
+                    continue
+                session_id = child.name
+                if not validate_session_id(session_id):
+                    continue
+                project = _load_project_from_disk(session_id)
+                if not project:
+                    continue
+
+                # Only offer resume when the video is still reachable
+                external = project.get('video_external_path')
+                internal = project.get('video_filename')
+                video_available = bool(
+                    (external and os.path.exists(external)) or
+                    (internal and (child / internal).exists())
+                )
+
+                metadata = project.get('metadata', {})
+                recoverable.append({
+                    'session_id': session_id,
+                    'filename': project.get('video_filename') or metadata.get('filename') or 'unknown',
+                    'duration': metadata.get('duration', 0),
+                    'segment_count': len(project.get('segments', [])),
+                    'saved_at': project.get('saved_at', 0),
+                    'video_available': video_available
+                })
+    except Exception as e:
+        logger.error(f"Error listing recoverable sessions: {e}")
+
+    return jsonify({'success': True, 'sessions': recoverable}), 200
+
+
+@video_bp.route('/session/<session_id>/recover', methods=['POST'])
+def recover_session(session_id):
+    """Rebuild a session in memory from its autosaved project file."""
+    if not validate_session_id(session_id):
+        logger.warning(f"Invalid session_id format: {session_id}")
+        return jsonify({'error': 'Invalid session ID format'}), 400
+
+    with session_lock:
+        existing = video_sessions.get(session_id)
+        if existing is not None:
+            # Already active (server never restarted for this session); nothing to do
+            return jsonify({'success': True, 'session_id': session_id, 'status': 'already_active'}), 200
+
+    try:
+        sess = _recover_session_from_disk(session_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 409
+    except Exception as e:
+        logger.error(f"Error recovering session {session_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+    with session_lock:
+        video_sessions[session_id] = sess
+
+    return jsonify({'success': True, 'session_id': session_id, 'status': 'recovered'}), 200
 
 
 # WebSocket Events (to be used with Flask-SocketIO)
@@ -2467,22 +3005,42 @@ def cleanup_all_sessions():
         for session_id, video_session in list(video_sessions.items()):
             try:
                 video_session.stop()
-                video_session.cleanup()
+                # Preserve the session directory so it can be recovered after restart
+                video_session.cleanup(preserve_project=True)
             except Exception as e:
                 logger.error(f"Error cleaning up session {session_id}: {e}")
         
         video_sessions.clear()
+
+    # Stop any lingering persistent model workers
+    try:
+        shutdown_persistent_workers()
+    except Exception as e:
+        logger.debug(f"Error shutting down persistent workers: {e}")
     
-    # Clean up entire video_uploads folder if no keep_temp flag is globally set
-    # Check if any session had keep_temp enabled
+    # Clean up video_uploads folder if no keep_temp flag is globally set.
+    # Sessions with a project file are preserved for recovery after restart;
+    # everything else (abandoned uploads without a project) is removed.
     global _keep_temp_global
     if not _keep_temp_global and UPLOAD_FOLDER.exists():
+        removed = 0
+        preserved = 0
         try:
-            import shutil
-            shutil.rmtree(UPLOAD_FOLDER)
-            logger.info(f"Cleaned up video uploads folder: {UPLOAD_FOLDER}")
-            # Recreate the folder for future use
-            UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+            for child in UPLOAD_FOLDER.iterdir():
+                if not child.is_dir():
+                    continue
+                if (child / PROJECT_FILENAME).exists():
+                    preserved += 1
+                    continue
+                try:
+                    shutil.rmtree(child)
+                    removed += 1
+                except Exception as e:
+                    logger.error(f"Error cleaning up session dir {child}: {e}")
+            if preserved:
+                logger.info(f"Preserved {preserved} session(s) with project files for recovery")
+            if removed:
+                logger.info(f"Removed {removed} session folder(s) without project files")
         except Exception as e:
             logger.error(f"Error cleaning up video uploads folder: {e}")
     

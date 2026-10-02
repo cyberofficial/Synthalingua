@@ -35,6 +35,299 @@ from modules.video_translation_ui.silence_detector import SilenceDetector
 
 logger = logging.getLogger(__name__)
 
+# Auto timeout floor for one-shot worker subprocesses (seconds)
+WORKER_TIMEOUT_FLOOR_SECONDS = 900
+# Auto timeout multiplier: allowed runtime = audio duration * this factor (seconds per second of audio)
+WORKER_TIMEOUT_DURATION_MULTIPLIER = 30
+
+
+def _compute_worker_timeout(timeout: Optional[int], audio_duration: Optional[float]) -> int:
+    """
+    Compute the effective worker timeout.
+
+    If an explicit timeout is provided it wins. Otherwise the timeout scales
+    with the audio duration so long videos do not hit a fixed cap and fail:
+    timeout = max(900s, audio_duration * 30). That covers very slow CPU
+    transcription (up to 30x slower than realtime) while still bounding true hangs.
+    """
+    if timeout is not None:
+        return int(timeout)
+    if audio_duration and audio_duration > 0:
+        return max(WORKER_TIMEOUT_FLOOR_SECONDS, int(audio_duration * WORKER_TIMEOUT_DURATION_MULTIPLIER))
+    return WORKER_TIMEOUT_FLOOR_SECONDS
+
+
+class _PersistentWorker:
+    """
+    Long-lived transcription worker subprocess that loads the model ONCE and
+    then accepts jobs as JSON lines on stdin, returning results as JSON lines
+    on stdout (RESULT_EVENT) with optional SEGMENT_EVENT streaming during a job.
+
+    Used by the video editor fast path (redo section, transcribe segment, batch
+    redo) so the model is not reloaded from scratch for every editor action.
+    """
+
+    _RESULT_PREFIX = "RESULT_EVENT:"
+    _SEGMENT_PREFIX = "SEGMENT_EVENT:"
+
+    def __init__(self, model_source: str, model_size: str, device: str,
+                 compute_type: str, model_dir: str, debug: bool = False):
+        self.model_source = model_source
+        self.model_size = model_size
+        self.device = device
+        self.compute_type = compute_type
+        self.model_dir = model_dir
+        self.debug = debug
+
+        self._process = None
+        self._result_queue = None
+        self._job_lock = threading.Lock()
+        self._active_job_id = None
+        self._active_segment_callback = None
+        self._stdout_thread = None
+        self._stderr_lines = []
+
+        self._spawn()
+
+    def _build_command(self) -> List[str]:
+        is_likely_frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+        base_args = [
+            '--persistent',
+            '--model_source', self.model_source,
+            '--model_size', self.model_size,
+            '--device', self.device,
+            '--compute_type', self.compute_type,
+            '--model_dir', self.model_dir
+        ]
+        if self.debug:
+            base_args.append('--debug')
+
+        if is_likely_frozen:
+            return [sys.executable, '--run-video-worker'] + base_args
+
+        worker_script_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'video_transcription_worker.py'
+        )
+        return [sys.executable, worker_script_path] + base_args
+
+    def _spawn(self):
+        import queue as _queue
+        command = self._build_command()
+        creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform.startswith('win') else 0
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+
+        logger.info(f"Starting persistent video worker subprocess: "
+                    f"model={self.model_source}/{self.model_size}, device={self.device}")
+
+        self._process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            env=env,
+            creationflags=creation_flags
+        )
+        self._result_queue = _queue.Queue()
+
+        self._stdout_thread = threading.Thread(target=self._read_stdout, daemon=True)
+        self._stdout_thread.start()
+        threading.Thread(target=self._read_stderr, daemon=True).start()
+
+    def _read_stderr(self):
+        try:
+            for line in self._process.stderr:
+                line = line.rstrip('\n')
+                if line.strip():
+                    self._stderr_lines.append(line)
+                    if self.debug:
+                        logger.debug(f"[PersistentWorker stderr] {line}")
+        except Exception:
+            pass
+
+    def _read_stdout(self):
+        try:
+            for line in self._process.stdout:
+                line = line.rstrip('\n')
+                if not line:
+                    continue
+
+                if line.startswith(self._RESULT_PREFIX):
+                    try:
+                        result = json.loads(line[len(self._RESULT_PREFIX):])
+                        self._result_queue.put(result)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse worker result line: {e}")
+
+                elif line.startswith(self._SEGMENT_PREFIX):
+                    try:
+                        event = json.loads(line[len(self._SEGMENT_PREFIX):])
+                        # Only dispatch to the callback of the currently running job
+                        if (self._active_job_id is not None
+                                and event.get('job_id') == self._active_job_id
+                                and self._active_segment_callback):
+                            self._active_segment_callback(
+                                {
+                                    'start': event.get('start', 0.0),
+                                    'end': event.get('end', 0.0),
+                                    'text': '',
+                                    'translation': event.get('text', '')
+                                },
+                                event.get('index', 0) + 1,
+                                event.get('total', 0)
+                            )
+                    except Exception as e:
+                        logger.warning(f"Failed to parse/handle segment event: {e}")
+
+                else:
+                    if self.debug and line.strip():
+                        logger.debug(f"[PersistentWorker] {line}")
+        except Exception as e:
+            logger.debug(f"Persistent worker stdout reader ended: {e}")
+
+    @property
+    def alive(self) -> bool:
+        return self._process is not None and self._process.poll() is None
+
+    def run_job(self, job: Dict, on_segment: Optional[Callable] = None,
+                timeout: Optional[int] = None) -> Dict:
+        """
+        Send one job to the worker and wait for its result.
+
+        Args:
+            job: Job dict (audio_path, task, language, silence params, ...). A
+                 unique job_id is added automatically.
+            on_segment: Optional callback(timestamp_dict, index, total) invoked
+                        for each streamed segment while the job runs.
+            timeout: Max seconds to wait for the result.
+
+        Returns:
+            The worker's result dict.
+
+        Raises:
+            RuntimeError: If the worker dies, the job times out, or reports an error.
+        """
+        import queue as _queue
+
+        if not self.alive:
+            raise RuntimeError("Persistent worker is not alive")
+
+        job_id = f"job_{int(time.time() * 1000)}_{id(job)}"
+        payload = dict(job)
+        payload['job_id'] = job_id
+
+        effective_timeout = _compute_worker_timeout(timeout, payload.get('audio_duration'))
+
+        with self._job_lock:
+            self._active_job_id = job_id
+            self._active_segment_callback = on_segment
+            try:
+                self._process.stdin.write(json.dumps(payload) + '\n')
+                self._process.stdin.flush()
+            except Exception as e:
+                raise RuntimeError(f"Failed to send job to persistent worker: {e}")
+
+            result = None
+            deadline = time.time() + effective_timeout
+            try:
+                while result is None:
+                    remaining = deadline - time.time()
+                    if remaining <= 0:
+                        raise RuntimeError(
+                            f"Persistent worker job timed out after {effective_timeout} seconds")
+                    try:
+                        candidate = self._result_queue.get(timeout=min(remaining, 5.0))
+                    except _queue.Empty:
+                        if not self.alive:
+                            # Worker died; drain any final result that landed before death
+                            try:
+                                result = self._result_queue.get_nowait()
+                            except _queue.Empty:
+                                raise RuntimeError(
+                                    "Persistent worker died while processing job"
+                                    + (f" | Last stderr: {self._stderr_lines[-1]}"
+                                       if self._stderr_lines else ""))
+                            continue
+                        continue
+                    if candidate.get('job_id') == job_id:
+                        result = candidate
+                    # else: stale result from a previous timed-out job; discard
+            finally:
+                self._active_job_id = None
+                self._active_segment_callback = None
+
+        if result.get('status') == 'error':
+            raise RuntimeError(f"Persistent worker reported error: {result.get('message', 'Unknown error')}")
+
+        return result
+
+    def stop(self):
+        """Terminate the worker subprocess."""
+        if self._process is None:
+            return
+        try:
+            if self.alive:
+                try:
+                    self._process.stdin.write(json.dumps({'cmd': 'shutdown'}) + '\n')
+                    self._process.stdin.flush()
+                except Exception:
+                    pass
+                try:
+                    self._process.wait(timeout=3.0)
+                except Exception:
+                    self._process.kill()
+        except Exception:
+            pass
+
+
+# Registry of live persistent workers, keyed by full model configuration.
+# One worker (one loaded model) is shared by all editor actions using the same config.
+_persistent_workers: Dict[Tuple, _PersistentWorker] = {}
+_persistent_workers_lock = threading.Lock()
+
+
+def get_persistent_worker(model_source: str, model_size: str, device: str,
+                          compute_type: str, model_dir: str,
+                          debug: bool = False) -> _PersistentWorker:
+    """Get (or spawn) the shared persistent worker for the given model configuration."""
+    key = (str(model_source).lower(), str(model_size), str(device), str(compute_type),
+           str(model_dir), bool(debug))
+    with _persistent_workers_lock:
+        worker = _persistent_workers.get(key)
+        if worker is not None and not worker.alive:
+            logger.warning("Persistent worker for this config died; respawning")
+            worker.stop()
+            worker = None
+        if worker is None:
+            worker = _PersistentWorker(
+                model_source=str(model_source).lower(),
+                model_size=model_size,
+                device=device,
+                compute_type=compute_type,
+                model_dir=model_dir,
+                debug=debug
+            )
+            _persistent_workers[key] = worker
+        return worker
+
+
+def shutdown_persistent_workers():
+    """Stop all persistent workers (called before bulk processing and on app shutdown)."""
+    with _persistent_workers_lock:
+        worker_count = len(_persistent_workers)
+        for worker in _persistent_workers.values():
+            try:
+                worker.stop()
+            except Exception as e:
+                logger.debug(f"Error stopping persistent worker: {e}")
+        _persistent_workers.clear()
+    if worker_count:
+        logger.info(f"Persistent video workers shut down ({worker_count})")
+
 
 def _run_transcription_in_subprocess(
     audio_path: str,
@@ -46,14 +339,15 @@ def _run_transcription_in_subprocess(
     language: Optional[str] = None,
     task: str = "transcribe",
     debug: bool = False,
-    timeout: int = 900,
+    timeout: Optional[int] = None,
     enable_silence_detection: bool = False,
     silence_threshold_db: float = -50.0,
     min_silence_duration: float = 0.1,
     chunk_start_time: float = 0.0,
     on_segment_callback: Optional[Callable] = None,
     temperature: Optional[float] = None,
-    compression_ratio_threshold: float = 2.4
+    compression_ratio_threshold: float = 2.4,
+    audio_duration: Optional[float] = None
 ) -> Dict:
     """
     Run transcription in a separate subprocess to ensure complete VRAM cleanup.
@@ -75,7 +369,9 @@ def _run_transcription_in_subprocess(
         language: Optional language code (None for auto-detect)
         task: Task type (transcribe or translate)
         debug: Enable debug output
-        timeout: Timeout in seconds (default: 300 = 5 minutes)
+        timeout: Timeout in seconds. None (default) = auto-scale with audio duration:
+                 max(900s, audio_duration * 30). Pass an int to force a fixed timeout.
+        audio_duration: Duration of the audio in seconds (used for the auto timeout)
         enable_silence_detection: Enable silence detection for segment-level processing
         silence_threshold_db: Silence threshold in dB
         min_silence_duration: Minimum silence duration in seconds
@@ -91,7 +387,10 @@ def _run_transcription_in_subprocess(
     # Create temporary JSON file for output
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
         output_json_path = f.name
-    
+
+    # Resolve the effective timeout (explicit value wins, otherwise auto-scale with duration)
+    effective_timeout = _compute_worker_timeout(timeout, audio_duration)
+
     try:
         # Detect if we're running in a frozen PyInstaller executable
         is_likely_frozen = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
@@ -232,7 +531,7 @@ def _run_transcription_in_subprocess(
                 logger.error(f"Error reading stdout: {e}")
             
             # Wait for process to complete
-            process.wait(timeout=timeout)
+            process.wait(timeout=effective_timeout)
             
             # Collect stderr
             stderr_thread.join(timeout=1)
@@ -254,7 +553,7 @@ def _run_transcription_in_subprocess(
         else:
             # Standard communication for transcribe task or no callback
             try:
-                stdout, stderr = process.communicate(timeout=timeout)
+                stdout, stderr = process.communicate(timeout=effective_timeout)
                 
                 # Log worker output if debug enabled
                 if debug:
@@ -269,7 +568,7 @@ def _run_transcription_in_subprocess(
             except subprocess.TimeoutExpired:
                 process.kill()
                 stdout, stderr = process.communicate()
-                raise RuntimeError(f"Worker process timed out after {timeout} seconds")
+                raise RuntimeError(f"Worker process timed out after {effective_timeout} seconds")
         
         # Check exit code and read result from JSON file
         # IMPORTANT: Always try to read JSON file first - worker writes errors there
@@ -362,7 +661,8 @@ class VideoTranscriptionManager:
                  model_dir: str = "./models",
                  temperature: Optional[float] = None,
                  compression_ratio_threshold: float = 2.4,
-                 debug_mode: bool = False):
+                 debug_mode: bool = False,
+                 worker_timeout: Optional[int] = None):
         """
         Initialize Video Transcription Manager.
         
@@ -392,6 +692,7 @@ class VideoTranscriptionManager:
         self.temperature = temperature  # None = use fallback, float = fixed temp
         self.compression_ratio_threshold = compression_ratio_threshold
         self.debug_mode = debug_mode  # Enable debug logging in worker subprocess
+        self.worker_timeout = worker_timeout  # None = auto-scale with audio duration
         
         logger.info(f"VideoTranscriptionManager initialized: model={model_source}/{model_size}, "
                    f"device={self.device}, source_lang={self.source_language}, target_lang={target_language}, "
@@ -467,7 +768,8 @@ class VideoTranscriptionManager:
     def transcribe_chunk(self,
                         audio_path: str,
                         chunk_id: int,
-                        language: Optional[str] = None) -> Dict:
+                        language: Optional[str] = None,
+                        duration: Optional[float] = None) -> Dict:
         """
         Transcribe a single audio chunk using subprocess isolation.
         
@@ -475,6 +777,7 @@ class VideoTranscriptionManager:
             audio_path: Path to audio file
             chunk_id: Chunk identifier
             language: Optional language code (will auto-detect if None)
+            duration: Optional audio duration in seconds (used for the auto worker timeout)
             
         Returns:
             dict: Transcription result with:
@@ -531,7 +834,9 @@ class VideoTranscriptionManager:
                 model_dir=self.model_dir,
                 language=self.source_language,
                 task="transcribe",
-                debug=self.debug_mode
+                debug=self.debug_mode,
+                timeout=self.worker_timeout,
+                audio_duration=duration
             )
             
             result['transcription'] = transcription_result.get('text', '').strip()
@@ -553,7 +858,8 @@ class VideoTranscriptionManager:
         
         return result
     
-    def translate_text(self, text: str, source_lang: str, audio_path: Optional[str] = None) -> str:
+    def translate_text(self, text: str, source_lang: str, audio_path: Optional[str] = None,
+                        duration: Optional[float] = None) -> str:
         """
         Translate transcribed text to target language using subprocess isolation.
         
@@ -564,6 +870,7 @@ class VideoTranscriptionManager:
             text: Text to translate (used if audio_path not provided)
             source_lang: Source language code
             audio_path: Optional path to audio file for Whisper translation
+            duration: Optional audio duration in seconds (used for the auto worker timeout)
             
         Returns:
             str: Translated text
@@ -593,7 +900,9 @@ class VideoTranscriptionManager:
                         model_dir=self.model_dir,
                         language=source_lang,
                         task="translate",  # Translate to English
-                        debug=self.debug_mode
+                        debug=self.debug_mode,
+                        timeout=self.worker_timeout,
+                        audio_duration=duration
                     )
                     
                     translated = translation_result.get('text', '').strip()
@@ -709,7 +1018,7 @@ class VideoTranscriptionManager:
         }
         
         # Transcribe entire chunk
-        transcription_result = self.transcribe_chunk(audio_path, chunk_id)
+        transcription_result = self.transcribe_chunk(audio_path, chunk_id, duration=(end_time - start_time))
         
         if not transcription_result['success']:
             result['error'] = transcription_result['error']
@@ -723,7 +1032,8 @@ class VideoTranscriptionManager:
             translation = self.translate_text(
                 result['transcription'],
                 result['language'],
-                audio_path=audio_path  # Pass audio for Whisper translate task
+                audio_path=audio_path,  # Pass audio for Whisper translate task
+                duration=(end_time - start_time)
             )
             result['translation'] = translation
         
@@ -793,13 +1103,15 @@ class VideoTranscriptionManager:
                 language=self.source_language,
                 task="translate",  # Translate directly to English
                 debug=self.debug_mode,
+                timeout=self.worker_timeout,
                 enable_silence_detection=True,
                 silence_threshold_db=self.silence_detector.silence_threshold_db if self.silence_detector else -50.0,
                 min_silence_duration=self.silence_detector.min_silence_duration if self.silence_detector else 0.1,
                 chunk_start_time=start_time,
                 on_segment_callback=on_segment_complete,  # Real-time callback for each segment
                 temperature=self.temperature,
-                compression_ratio_threshold=self.compression_ratio_threshold
+                compression_ratio_threshold=self.compression_ratio_threshold,
+                audio_duration=(end_time - start_time) if end_time and start_time else None
             )
             
             if not translation_result or translation_result.get('status') == 'error':
@@ -839,6 +1151,156 @@ class VideoTranscriptionManager:
         
         return result
     
+    def transcribe_chunk_persistent(self,
+                                    audio_path: str,
+                                    chunk_id: int,
+                                    language: Optional[str] = None,
+                                    duration: Optional[float] = None) -> Dict:
+        """
+        Transcribe a single audio chunk using the persistent preloaded worker.
+
+        Editor fast path: the model is already loaded in the shared worker, so
+        no per-call model load happens. The worker also auto-detects and returns
+        the language, skipping the separate detection pass that the one-shot path
+        performs. Falls back to the one-shot subprocess path on any failure.
+        """
+        try:
+            worker = get_persistent_worker(
+                self.model_source, self.model_size, self.device,
+                self.compute_type, self.model_dir, self.debug_mode
+            )
+            # Normalize 'auto'/'' to None: the worker expects None for auto-detection
+            use_language = language or self.source_language
+            if use_language in ('auto', ''):
+                use_language = None
+            job = {
+                'audio_path': audio_path,
+                'task': 'transcribe',
+                'language': use_language,
+                'enable_silence_detection': False,
+                'temperature': self.temperature,
+                'compression_ratio_threshold': self.compression_ratio_threshold,
+                'audio_duration': duration
+            }
+            raw = worker.run_job(job, timeout=self.worker_timeout)
+
+            return {
+                'chunk_id': chunk_id,
+                'transcription': (raw.get('text') or '').strip(),
+                'language': raw.get('language', 'unknown'),
+                'language_confidence': 0.0,
+                'processing_time': raw.get('processing_time', 0.0),
+                'success': True,
+                'error': None,
+                'persistent_worker': True
+            }
+        except Exception as e:
+            logger.warning(f"Persistent transcribe failed ({e}); falling back to one-shot subprocess")
+            return self.transcribe_chunk(audio_path, chunk_id, language=language, duration=duration)
+
+    def process_segment_persistent(self,
+                                  audio_path: str,
+                                  chunk_id: int,
+                                  start_time: float,
+                                  end_time: float,
+                                  on_segment_complete: Optional[Callable] = None) -> Dict:
+        """
+        Editor fast path with the same contract as process_chunk, but running on
+        the persistent preloaded model worker so no model reload occurs per call.
+
+        Used by redo section, transcribe segment, and batch redo. Falls back to
+        process_chunk (one-shot subprocess) on any failure.
+        """
+        result = {
+            'chunk_id': chunk_id,
+            'start_time': start_time,
+            'end_time': end_time,
+            'transcription': '',
+            'translation': '',
+            'language': 'unknown',
+            'success': False,
+            'error': None,
+            'timestamps': []
+        }
+
+        try:
+            worker = get_persistent_worker(
+                self.model_source, self.model_size, self.device,
+                self.compute_type, self.model_dir, self.debug_mode
+            )
+            duration = max(0.0, (end_time or 0.0) - (start_time or 0.0))
+
+            if self.enable_silence_detection and self.silence_detector:
+                # Single warm pass: region-by-region translate, mirroring
+                # _process_chunk_with_silence_detection
+                job = {
+                    'audio_path': audio_path,
+                    'task': 'translate',
+                    'language': self.source_language,
+                    'enable_silence_detection': True,
+                    'silence_threshold_db': self.silence_detector.silence_threshold_db,
+                    'min_silence_duration': self.silence_detector.min_silence_duration,
+                    'chunk_start_time': start_time,
+                    'temperature': self.temperature,
+                    'compression_ratio_threshold': self.compression_ratio_threshold,
+                    'audio_duration': duration
+                }
+                raw = worker.run_job(job, on_segment=on_segment_complete, timeout=self.worker_timeout)
+
+                timestamps = raw.get('timestamps', []) or []
+
+                # Normalize: worker returns translation in 'text' field
+                for ts in timestamps:
+                    if not ts.get('translation'):
+                        ts['translation'] = ts.get('text', '')
+                        ts['text'] = ''
+
+                result['translation'] = ' '.join([ts.get('translation', '') for ts in timestamps])
+                result['language'] = raw.get('language', self.source_language or 'unknown')
+                result['timestamps'] = timestamps
+                result['success'] = True
+            else:
+                # Two warm passes: transcribe then translate, mirroring
+                # _process_chunk_without_silence_detection
+                t_res = self.transcribe_chunk_persistent(audio_path, chunk_id, duration=duration)
+                if not t_res['success']:
+                    result['error'] = t_res['error']
+                    return result
+
+                result['transcription'] = t_res['transcription']
+                result['language'] = t_res['language']
+
+                if self.enable_translation and result['transcription']:
+                    job = {
+                        'audio_path': audio_path,
+                        'task': 'translate',
+                        'language': result['language'],
+                        'enable_silence_detection': False,
+                        'temperature': self.temperature,
+                        'compression_ratio_threshold': self.compression_ratio_threshold,
+                        'audio_duration': duration
+                    }
+                    raw = worker.run_job(job, timeout=self.worker_timeout)
+                    result['translation'] = (raw.get('text') or '').strip()
+
+                if result['transcription']:
+                    result['timestamps'] = [{
+                        'start': start_time,
+                        'end': end_time,
+                        'text': result['transcription'],
+                        'translation': result['translation']
+                    }]
+
+                result['success'] = True
+
+        except Exception as e:
+            logger.warning(f"Persistent segment processing failed ({e}); "
+                           f"falling back to one-shot subprocess")
+            return self.process_chunk(audio_path, chunk_id, start_time, end_time,
+                                       on_segment_complete=on_segment_complete)
+
+        return result
+
     def get_statistics(self) -> Dict:
         """
         Get processing statistics.

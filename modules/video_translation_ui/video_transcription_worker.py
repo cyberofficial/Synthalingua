@@ -65,7 +65,7 @@ except UnicodeError:
 logger = logging.getLogger(__name__)
 
 # Worker script version for verification
-WORKER_SCRIPT_VERSION = "1.2.6.3"  # Increment when making changes to verify correct version is running
+WORKER_SCRIPT_VERSION = "1.2.6.4"  # Increment when making changes to verify correct version is running
 print(f"[VideoWorker] INFO: Video transcription worker started (v{WORKER_SCRIPT_VERSION}) with UTF-8 encoding support")
 
 # Log UTF-8 setup success
@@ -74,6 +74,284 @@ try:
 except UnicodeError:
     # If even this fails, continue silently
     pass
+
+
+def load_model_instance(model_source, model_size, device, model_dir, compute_type, debug=False):
+    """
+    Load and return a model instance for the given configuration.
+
+    Used by persistent worker mode so the model is loaded ONCE and reused
+    across many jobs instead of reloading for every task.
+
+    Returns:
+        Model instance (FasterWhisperModel, OpenVINOWhisperModel, or BaseWhisperModel)
+    """
+    if model_source == "fasterwhisper":
+        from modules.FasterWhisper import FasterWhisperModel
+
+        logger.info(f"Loading FasterWhisper model: {model_size}")
+        logger.info(f"Using device: {device}, compute_type: {compute_type}")
+
+        model = FasterWhisperModel(
+            model=model_size,
+            device=device,
+            download_root=model_dir,
+            compute_type=compute_type
+        )
+    elif model_source == "openvino":
+        from modules.OpenVINOWhisper import OpenVINOWhisperModel
+
+        logger.info(f"Loading OpenVINO model: {model_size}")
+        logger.info(f"Using device: {device}, compute_type: {compute_type}")
+
+        model = OpenVINOWhisperModel(
+            model=model_size,
+            device=device,
+            download_root=model_dir,
+            compute_type=compute_type
+        )
+    else:  # Default to standard Whisper
+        from modules.BaseWhisper import BaseWhisperModel
+
+        logger.info(f"Loading BaseWhisper model: {model_size}")
+        logger.info(f"Using device: {device}")
+
+        model = BaseWhisperModel(
+            model=model_size,
+            device=device,
+            download_root=model_dir
+        )
+
+    return model
+
+
+def detect_language_with_instance(model, audio_path, fallback="unknown"):
+    """Detect language using a loaded model instance. Never raises."""
+    try:
+        language_probs = model.detect_language(audio_path)
+        if language_probs:
+            detected = max(language_probs.items(), key=lambda x: x[1])[0]
+            logger.info(f"Detected language: {detected}")
+            return detected
+    except Exception as e:
+        logger.warning(f"Language detection failed: {e}")
+    return fallback
+
+
+def _emit_result(data):
+    """Write a RESULT_EVENT line to stdout for the parent process to consume (persistent mode)."""
+    print(f"RESULT_EVENT:{json.dumps(data, ensure_ascii=False)}", flush=True)
+
+
+def _process_persistent_job(model, job):
+    """
+    Process a single job dict using a preloaded model instance (persistent mode).
+
+    Emits SEGMENT_EVENT lines during processing (for incremental UI updates on
+    translate tasks) and one RESULT_EVENT line when the job finishes.
+
+    Job-level errors are emitted as RESULT_EVENT with status=error so the
+    worker survives and can accept the next job.
+    """
+    import time as _time
+    import tempfile
+
+    job_id = job.get('job_id')
+    start = _time.time()
+
+    try:
+        audio_path = job.get('audio_path')
+        if not audio_path or not os.path.exists(audio_path):
+            _emit_result({'job_id': job_id, 'status': 'error',
+                          'message': f"Audio file not found: {audio_path}"})
+            return
+
+        task = job.get('task', 'transcribe')
+        language = job.get('language') or None
+        temperature = job.get('temperature')
+        if temperature is not None:
+            try:
+                temperature = float(temperature)
+            except (TypeError, ValueError):
+                temperature = None
+        compression_ratio_threshold = float(job.get('compression_ratio_threshold', 2.4))
+        chunk_start_time = float(job.get('chunk_start_time', 0.0))
+
+        if job.get('enable_silence_detection'):
+            # Region-by-region processing, mirrors the one-shot silence detection path
+            from modules.video_translation_ui.silence_detector import SilenceDetector
+
+            silence_detector = SilenceDetector(
+                silence_threshold_db=float(job.get('silence_threshold_db', -50.0)),
+                min_silence_duration=float(job.get('min_silence_duration', 0.1)),
+                min_speech_duration=0.1
+            )
+
+            logger.info(f"[Job {job_id}] Detecting speech regions...")
+            regions = silence_detector.detect_regions(audio_path)
+            speech_regions = [r for r in regions if r['type'] == 'speech']
+            logger.info(f"[Job {job_id}] Found {len(speech_regions)} speech regions")
+
+            if not speech_regions:
+                _emit_result({'job_id': job_id, 'status': 'success', 'text': '',
+                              'language': language or 'unknown',
+                              'processing_time': _time.time() - start, 'timestamps': []})
+                return
+
+            all_segments = []
+
+            for i, region in enumerate(speech_regions):
+                region_start = region['start']
+                region_end = region['end']
+
+                with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_file:
+                    region_audio_path = tmp_file.name
+
+                try:
+                    success = silence_detector.extract_speech_region(
+                        audio_path,
+                        region_audio_path,
+                        region_start,
+                        region_end
+                    )
+
+                    if not success:
+                        logger.warning(f"[Job {job_id}] Failed to extract speech region {i}")
+                        continue
+
+                    absolute_start = chunk_start_time + region_start
+                    absolute_end = chunk_start_time + region_end
+
+                    temp_value = temperature if temperature is not None else 0.0
+                    result_text = model.transcribe(
+                        file_path=region_audio_path,
+                        language=language,
+                        task=task,
+                        condition_on_previous_text=True,
+                        temperature=temp_value if temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8),
+                        compression_ratio_threshold=compression_ratio_threshold,
+                        log_prob_threshold=None,
+                        no_speech_threshold=0.6
+                    )
+
+                    transcription_text = result_text.strip()
+                    if transcription_text:
+                        segment_data = {
+                            'start': absolute_start,
+                            'end': absolute_end,
+                            'text': transcription_text,
+                            'translation': ''
+                        }
+                        all_segments.append(segment_data)
+
+                        if task == "translate":
+                            segment_event = {
+                                'type': 'segment',
+                                'job_id': job_id,
+                                'index': i,
+                                'total': len(speech_regions),
+                                'start': absolute_start,
+                                'end': absolute_end,
+                                'text': transcription_text
+                            }
+                            print(f"SEGMENT_EVENT:{json.dumps(segment_event, ensure_ascii=False)}", flush=True)
+                finally:
+                    if os.path.exists(region_audio_path):
+                        try:
+                            os.remove(region_audio_path)
+                        except Exception:
+                            pass
+
+            full_text = ' '.join([seg['text'] for seg in all_segments])
+
+            detected_language = language
+            if not detected_language and all_segments:
+                detected_language = detect_language_with_instance(model, audio_path)
+
+            _emit_result({'job_id': job_id, 'status': 'success', 'text': full_text,
+                          'language': detected_language or 'unknown',
+                          'processing_time': _time.time() - start,
+                          'timestamps': all_segments})
+        else:
+            # Whole-audio single pass with the preloaded model
+            logger.info(f"[Job {job_id}] Processing whole audio with task={task}")
+            temp_value = temperature if temperature is not None else (0.0, 0.2, 0.4, 0.6, 0.8)
+
+            result_text = model.transcribe(
+                file_path=audio_path,
+                language=language,
+                task=task,
+                condition_on_previous_text=True,
+                temperature=temp_value,
+                compression_ratio_threshold=compression_ratio_threshold,
+                log_prob_threshold=None,
+                no_speech_threshold=0.6
+            )
+
+            detected_language = language
+            if not detected_language:
+                detected_language = detect_language_with_instance(model, audio_path)
+
+            _emit_result({'job_id': job_id, 'status': 'success', 'text': result_text.strip(),
+                          'language': detected_language or 'unknown',
+                          'processing_time': _time.time() - start})
+
+    except Exception as e:
+        import traceback
+        logger.error(f"[Job {job_id}] failed: {e}")
+        _emit_result({'job_id': job_id, 'status': 'error', 'message': str(e),
+                      'traceback': traceback.format_exc()})
+
+
+def run_persistent(args):
+    """
+    Persistent worker mode: load the model once, then process jobs read as
+    JSON lines from stdin until EOF or a shutdown command.
+
+    Each job line is a JSON dict; results are emitted as RESULT_EVENT lines on
+    stdout (plus SEGMENT_EVENT lines during processing for incremental updates).
+    """
+    logger.info("Starting persistent video transcription worker "
+                "(model loads once, jobs arrive on stdin)")
+
+    try:
+        model = load_model_instance(
+            args.model_source.lower(),
+            args.model_size,
+            args.device,
+            args.model_dir,
+            args.compute_type,
+            debug=args.debug
+        )
+    except Exception as e:
+        logger.error(f"Failed to load model in persistent worker: {e}")
+        os._exit(1)
+
+    print("WORKER_READY", flush=True)
+    logger.info("Persistent worker ready, waiting for jobs")
+
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                job = json.loads(line)
+            except Exception as e:
+                logger.warning(f"Ignoring malformed job line: {e}")
+                continue
+
+            if job.get('cmd') == 'shutdown':
+                logger.info("Shutdown command received, exiting persistent worker")
+                break
+
+            _process_persistent_job(model, job)
+    except Exception as e:
+        logger.error(f"Persistent worker loop failed: {e}")
+        os._exit(1)
+
+    os._exit(0)
 
 
 def transcribe_with_model(model_source, model_size, device, model_dir, compute_type, audio_path, language, task, temperature=None, debug=False, compression_ratio_threshold: float = 2.4):
@@ -293,8 +571,8 @@ def transcribe_with_model(model_source, model_size, device, model_dir, compute_t
 def main():
     """Main execution block for the worker process."""
     parser = argparse.ArgumentParser(description="Video Transcription Worker")
-    parser.add_argument("--audio_path", required=True, type=str, help="Path to the audio file to process.")
-    parser.add_argument("--output_json_path", required=True, type=str, help="Path to write the resulting JSON output.")
+    parser.add_argument("--audio_path", type=str, default=None, help="Path to the audio file to process (required unless --persistent).")
+    parser.add_argument("--output_json_path", type=str, default=None, help="Path to write the resulting JSON output (required unless --persistent).")
     parser.add_argument("--model_source", required=True, type=str, help="Model source (whisper, fasterwhisper, openvino).")
     parser.add_argument("--model_size", required=True, type=str, help="Whisper model size (e.g., 'base', 'large-v3').")
     parser.add_argument("--device", required=True, type=str, help="Device to run on ('cpu' or 'cuda').")
@@ -309,8 +587,18 @@ def main():
     parser.add_argument("--chunk_start_time", type=float, default=0.0, help="Chunk start time for timestamp calculation.")
     parser.add_argument("--temperature", type=float, default=None, help="Fixed temperature value (0.0-1.0). If not set, uses multiple fallback temperatures.")
     parser.add_argument("--compression_ratio_threshold", type=float, default=2.4, help="Compression ratio threshold for filtering low-quality transcriptions.")
+    parser.add_argument("--persistent", action='store_true', help="Persistent mode: load the model once, then process JSON job lines from stdin until EOF. Used by the video editor fast path so the model is not reloaded for every redo/transcribe action.")
     
     args = parser.parse_args()
+
+    # Persistent mode: model loads once and jobs arrive on stdin
+    if args.persistent:
+        run_persistent(args)
+        return  # run_persistent never returns (os._exit), kept for clarity
+
+    # One-shot mode: audio path and output path are required
+    if not args.audio_path or not args.output_json_path:
+        parser.error("--audio_path and --output_json_path are required in one-shot mode (or pass --persistent for job streaming mode)")
     
     # Set logging level based on debug flag
     if args.debug:
