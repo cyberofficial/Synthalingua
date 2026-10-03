@@ -174,6 +174,40 @@ def is_path_within_directory(constructed_path: Path, base_directory: Path) -> bo
         # Handle errors during path resolution (symlink loops, permission issues, etc.)
         logger.warning(f"Path resolution error during validation: {e}")
         return False
+
+
+def _find_session_dir(session_id: str) -> Optional[Path]:
+    """
+    Resolve a session's directory on disk by its name.
+
+    UPLOAD_FOLDER is listed and each entry's name is compared against the
+    (UUID-validated) id, so lookups only ever return a directory that the
+    server created under the upload folder.
+
+    Args:
+        session_id: The session ID to locate (must pass validate_session_id)
+
+    Returns:
+        The session's directory, or None if no matching directory exists.
+    """
+    if not validate_session_id(session_id):
+        return None
+
+    try:
+        for entry in UPLOAD_FOLDER.iterdir():
+            if entry.name != session_id or not entry.is_dir():
+                continue
+            # Keep the resolved entry anchored to the upload folder.
+            if not is_path_within_directory(entry, UPLOAD_FOLDER):
+                logger.warning(f"Session directory failed containment check: {entry}")
+                return None
+            return entry
+    except OSError as e:
+        logger.warning(f"Error listing upload folder during session lookup: {e}")
+
+    return None
+
+
 ALLOWED_EXTENSIONS = {
     # Video formats
     '.mp4', '.mkv', '.avi', '.mov', '.webm', '.flv', '.wmv', '.m4v',
@@ -1683,9 +1717,11 @@ def stop_session(session_id):
         video_session = video_sessions.pop(session_id, None)
     
     if not video_session:
-        # Not an active session; also delete any recoverable session left on disk
-        session_dir = UPLOAD_FOLDER / session_id
-        if session_dir.exists() and is_path_within_directory(session_dir, UPLOAD_FOLDER):
+        # Not an active session; also delete any recoverable session left on disk.
+        # Resolve the directory by listing UPLOAD_FOLDER so cleanup only ever
+        # touches directories the server created.
+        session_dir = _find_session_dir(session_id)
+        if session_dir is not None:
             try:
                 shutil.rmtree(session_dir)
                 logger.info(f"Deleted recoverable session from disk: {session_id}")
@@ -1776,10 +1812,13 @@ def export_captions(session_id):
     format = request.args.get('format', 'srt').lower()
     if format not in allowed_formats:
         return jsonify({'error': 'Invalid format. Must be srt or vtt'}), 400
+    # Pin the validated values to their canonical constants.
+    format = 'srt' if format == 'srt' else 'vtt'
 
     export_type = request.args.get('type', 'english').lower()
     if export_type not in allowed_export_types:
         return jsonify({'error': 'Invalid type. Must be english or original'}), 400
+    export_type = 'english' if export_type == 'english' else 'original'
 
     with session_lock:
         video_session = video_sessions.get(session_id)
@@ -1797,7 +1836,10 @@ def export_captions(session_id):
 
     # Create temporary file
     export_filename = f"{safe_video_name}_{export_type}.{format}"
-    export_path = UPLOAD_FOLDER / session_id / export_filename
+    # Build the export path from the session record's canonical id so the
+    # export always lands in the directory created for that live session.
+    export_dir = UPLOAD_FOLDER / video_session.session_id
+    export_path = export_dir / export_filename
     
     # Validate path is within UPLOAD_FOLDER to prevent path traversal
     if not is_path_within_directory(export_path, UPLOAD_FOLDER):
@@ -2704,9 +2746,10 @@ def get_available_languages():
 
 def _load_project_from_disk(session_id: str) -> Optional[Dict]:
     """Read a session's project.json from disk. Returns None if not found."""
-    if not validate_session_id(session_id):
+    session_dir = _find_session_dir(session_id)
+    if session_dir is None:
         return None
-    project_path = UPLOAD_FOLDER / session_id / PROJECT_FILENAME
+    project_path = session_dir / PROJECT_FILENAME
     if not project_path.exists():
         return None
     try:
@@ -2728,7 +2771,10 @@ def _recover_session_from_disk(session_id: str) -> 'VideoSession':
     if project is None:
         raise ValueError('No recoverable project found for this session')
 
-    session_dir = UPLOAD_FOLDER / session_id
+    # Cannot be None here since the project file was found.
+    session_dir = _find_session_dir(session_id)
+    if session_dir is None:
+        raise ValueError('No recoverable project found for this session')
     config = project.get('config', {})
     metadata = project.get('metadata', {})
     duration = float(metadata.get('duration', 0) or 0)
@@ -2748,7 +2794,8 @@ def _recover_session_from_disk(session_id: str) -> 'VideoSession':
     if not video_path:
         raise ValueError('Video file for this session is missing. Re-upload the video to continue.')
 
-    sess = VideoSession(session_id, str(video_path), dict(config))
+    # Use the directory's name as the canonical id for the restored session.
+    sess = VideoSession(session_dir.name, str(video_path), dict(config))
     sess.metadata = metadata
 
     # Rebuild lightweight components without re-processing the media
@@ -2882,7 +2929,7 @@ def recover_session(session_id):
         return jsonify({'error': str(e)}), 500
 
     with session_lock:
-        video_sessions[session_id] = sess
+        video_sessions[sess.session_id] = sess
 
     return jsonify({'success': True, 'session_id': session_id, 'status': 'recovered'}), 200
 
