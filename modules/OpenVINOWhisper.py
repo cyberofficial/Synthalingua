@@ -1,4 +1,5 @@
 import os
+import sys
 import pycountry
 from optimum.intel import OVModelForSpeechSeq2Seq, OVWeightQuantizationConfig
 from transformers import AutoProcessor
@@ -17,6 +18,13 @@ class OpenVINOWhisperModel:
         download_root = os.path.join(download_root, model)
 
         if not os.path.exists(download_root):
+            if getattr(sys, 'frozen', False) and os.environ.get('HF_HUB_OFFLINE') == '1':
+                # Offline frozen build: every model ships locally, and the
+                # export below would need a network download.
+                raise RuntimeError(
+                    f"OpenVINO model '{model}' is not included in this build. "
+                    f"Expected {download_root}. Use a model that ships with the app."
+                )
             audio_model = OVModelForSpeechSeq2Seq.from_pretrained(model, compile=False, export=True)
             audio_model.save_pretrained(download_root)
 

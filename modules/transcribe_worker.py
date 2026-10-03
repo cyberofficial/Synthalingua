@@ -203,9 +203,22 @@ def get_transcription_result(model_source, model_type, device, model_dir, comput
 
     else:  # Default to standard Whisper
         import whisper
+        # Standard whisper models live in <model_dir>/Whisper. Joining the
+        # folder here matters: without it whisper downloads into the models
+        # root and never finds the existing files on the next run.
+        whisper_root = os.path.join(model_dir, "Whisper")
+        if getattr(sys, 'frozen', False) and os.environ.get('HF_HUB_OFFLINE') == '1':
+            # Offline frozen build: every model ships locally, so a missing
+            # file is an error instead of a download.
+            artifact = "large-v3-turbo.pt" if model_type == "turbo" else f"{model_type}.pt"
+            if not os.path.isfile(os.path.join(whisper_root, artifact)):
+                raise RuntimeError(
+                    f"Whisper model '{model_type}' is not included in this build. "
+                    f"Expected {whisper_root}\\{artifact}. Use a model that ships with the app."
+                )
         logger.info(f"Loading standard Whisper model: {model_type}")
         logger.info(f"Using device: {device}")
-        model = whisper.load_model(model_type, device=device, download_root=model_dir)
+        model = whisper.load_model(model_type, device=device, download_root=whisper_root)
         logger.info(f"Starting transcription of: {audio_path}")
         # Standard whisper uses 'fp16', so we use the original options
         result = model.transcribe(audio_path, **decode_options)

@@ -164,18 +164,30 @@ def get_demucs_model_repo_args(model_name=None):
     executable, or in the project folder), point demucs at it so vocal
     isolation works offline.
 
-    Args are only returned when the requested model is actually present,
-    otherwise demucs would fail instead of falling back to the download.
+    Args are only returned when the requested model is actually present.
+    Source builds then fall back to demucs' remote download; offline frozen
+    builds raise instead, because they must never download models.
 
     Args:
         model_name: Demucs model name, for example 'htdemucs'
 
     Returns:
         list: ['--repo', <path>] or []
+
+    Raises:
+        RuntimeError: In an offline frozen build when the requested model is
+            not present locally. Demucs would otherwise fetch it from its
+            remote repository, which offline builds must never do.
     """
     repo_dir = _find_local_demucs_repo(model_name)
     if repo_dir:
         return ['--repo', str(repo_dir)]
+    if is_frozen_build() and os.environ.get('HF_HUB_OFFLINE') == '1':
+        raise RuntimeError(
+            f"Demucs model '{model_name or 'htdemucs'}' is not included in this build. "
+            "Offline builds do not download models. Ship the model files in the "
+            "models/demucs folder next to the executable."
+        )
     return []
 
 

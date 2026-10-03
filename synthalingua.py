@@ -4,6 +4,19 @@ import warnings
 # Suppress the pkg_resources deprecation warning from ctranslate2
 warnings.filterwarnings("ignore", message="pkg_resources is deprecated as an API.*", category=UserWarning)
 
+# Frozen (Steam / portable) builds ship every model locally, so runtime model
+# downloads are disabled: a missing model must be a clear error, never a
+# silent multi-gigabyte download or a stalled first run. --preload is
+# rejected outright in frozen builds (see the preload handling in main()), so
+# no frozen process ever needs network access for models.
+# These variables must be set before huggingface_hub / transformers are
+# imported anywhere in the process, which is why this lives at the very top.
+if getattr(sys, 'frozen', False):
+    import os
+    os.environ.setdefault('HF_HUB_OFFLINE', '1')
+    os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+    os.environ.setdefault('HF_DATASETS_OFFLINE', '1')
+
 # Check if this process is being launched as a worker for subtitle generation
 if '--run-worker' in sys.argv:
     try:
@@ -169,6 +182,15 @@ init()
 def main():
     args = parser_args.parse_arguments()
 
+    # Frozen builds resolve the default models folder next to the executable,
+    # so model discovery works no matter which folder the app was launched
+    # from (Steam launch options, shortcuts, install scripts, batch files).
+    # Source builds keep the relative default, which points at the project's
+    # models folder.
+    if getattr(sys, 'frozen', False) and args.model_dir == 'models':
+        args.model_dir = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), 'models')
+        print(f"Frozen build: using models folder at {args.model_dir}")
+
     # Early exit conditions
     if len(sys.argv) == 1:
         print("No arguments provided. Please run the script with the --help flag to see a list of available arguments.")
@@ -207,6 +229,14 @@ def main():
 
     # Handle model preloading
     if args.preload is not None:
+        # Frozen builds are complete offline packages: every model ships and
+        # nothing is ever downloaded. Preloading is a source-build tool.
+        if getattr(sys, 'frozen', False):
+            print(f"{Fore.RED}--preload is not available in packaged builds.{Style.RESET_ALL}")
+            print("Packaged builds ship every model and never download. "
+                  "Run preloading from a source build instead.")
+            sys.exit(1)
+
         from modules.model_preloader import preload_models, generate_all_models_spec
 
         # Set up device for preloading (same as normal operation)

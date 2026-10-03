@@ -328,16 +328,18 @@ def parse_arguments():
 
     # Model Preloading
     preload_grp = parser.add_argument_group("Model Preloading")
-    preload_grp.add_argument("--preload", nargs='?', const='', default=None, help="""Preload and cache Whisper models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...][,source:size...]' where source is 'whisper', 'faster', or 'openvino', size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3), and optional variants are '.en' (English-only) or '.int8' (quantized for OpenVINO).
+    preload_grp.add_argument("--preload", nargs='?', const='', default=None, help="""Preload and cache models before running the main application. Downloads models to local cache for faster startup on subsequent runs. Supports multiple model sources and configurations. Format: 'source:size[.variant][+size.variant,...][,source:size...]' where source is 'whisper', 'faster', 'openvino', or 'demucs'. For whisper/faster/openvino, size is model size (1gb/2gb/3gb/6gb/7gb/11gb-v2/11gb-v3) with optional variants '.en' (English-only) or '.int8' (quantized for OpenVINO). For demucs, use the model name directly (htdemucs, htdemucs_ft, htdemucs_6s, hdemucs_mmi, mdx, mdx_q, mdx_extra, mdx_extra_q, repro_mdx_a, repro_mdx_a_hybrid_only, repro_mdx_a_time_only) or 'all'; demucs models are downloaded into <model_dir>/demucs and checksum verified.
 
 Examples:
   • Preload all models:
-    --preload                        # Preload ALL available models from all sources
+    --preload                        # Preload ALL available models from all sources (includes demucs:all)
 
   • Single model:
     --preload whisper:1gb             # Preload Whisper tiny model
     --preload faster:3gb              # Preload FasterWhisper small model
     --preload openvino:1gb.int8       # Preload OpenVINO tiny with int8 quantization
+    --preload demucs:all              # Download every demucs model into <model_dir>/demucs
+    --preload demucs:htdemucs_ft      # Download one demucs model
 
   • English-only variants:
     --preload whisper:1gb.en          # Preload English-only tiny model
@@ -354,8 +356,9 @@ Examples:
 
   • Comprehensive preload:
     --preload whisper:1gb+2gb,faster:1gb+2gb.en+3gb,openvino:1gb.int8+2gb.int8
+    --preload whisper:1gb,faster:1gb,demucs:all          # Whisper families plus all demucs models
 
-Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location.""")
+Note: Preloading only downloads/caches models, it does not keep them in RAM. Use with --model_dir to specify custom download location. Source builds only: packaged (frozen) builds ship every model, never download, and reject --preload.""")
 
     # Filtering & blocklist
     filter_grp = parser.add_argument_group("Filtering & Blocklist")

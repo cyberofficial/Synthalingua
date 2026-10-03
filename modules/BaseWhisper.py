@@ -1,4 +1,5 @@
 import os
+import sys
 import whisper
 
 
@@ -8,6 +9,18 @@ class BaseWhisperModel:
         self._move_model_files_to_whisper_folder()
         
         download_root = os.path.join(download_root, "Whisper")
+
+        # Offline frozen build: every model ships locally, so a missing model
+        # is a clear error instead of a silent download.
+        if getattr(sys, 'frozen', False) and os.environ.get('HF_HUB_OFFLINE') == '1':
+            artifact = "large-v3-turbo.pt" if model == "turbo" else f"{model}.pt"
+            if not os.path.isfile(os.path.join(download_root, artifact)):
+                raise RuntimeError(
+                    f"Whisper model '{model}' is not included in this build. "
+                    f"Expected {os.path.join(download_root, artifact)}. "
+                    "Use a model that ships with the app."
+                )
+
         self.model = model
         self.device = device
         self.audio_model = whisper.load_model(model, device=device, download_root=download_root)

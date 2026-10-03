@@ -1,4 +1,5 @@
 import os
+import sys
 import pycountry
 import whisper
 from faster_whisper import WhisperModel
@@ -8,6 +9,20 @@ from faster_whisper.audio import decode_audio, pad_or_trim
 class FasterWhisperModel:
     def __init__(self, model: str, device, download_root: str, compute_type: str) -> None:
         download_root = os.path.join(download_root, "FasterWhisper")
+
+        # Offline frozen build: every model ships locally, so a missing model
+        # is a clear error instead of a cryptic offline failure or a download.
+        if getattr(sys, 'frozen', False) and os.environ.get('HF_HUB_OFFLINE') == '1':
+            artifact = "large-v3-turbo" if model in ("turbo", "large-v3-turbo") else model
+            if artifact == "large-v3-turbo":
+                repo_dir = os.path.join(download_root, "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo")
+            else:
+                repo_dir = os.path.join(download_root, f"models--Systran--faster-whisper-{artifact}")
+            if not os.path.isdir(repo_dir):
+                raise RuntimeError(
+                    f"FasterWhisper model '{model}' is not included in this build. "
+                    f"Expected {repo_dir}. Use a model that ships with the app."
+                )
 
         self.model = model
         self.device = device

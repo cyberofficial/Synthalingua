@@ -1,0 +1,46 @@
+Synthalingua - Third Party Licenses
+====================================
+
+This product includes the following third-party components.
+
+FFmpeg
+------
+The FFmpeg binaries in downloaded_assets/ffmpeg are static Windows builds
+from https://www.gyan.dev/ffmpeg/builds/, which are licensed under the GNU
+General Public License version 3 ("All builds are 64-bit, static and
+licensed as GPLv3").
+
+License text: https://www.gnu.org/licenses/gpl-3.0.html
+Source code:  https://ffmpeg.org/download.html
+              https://git.ffmpeg.org/ffmpeg.git
+Build configuration used for these binaries:
+              https://www.gyan.dev/ffmpeg/builds/
+
+Synthalingua runs ffmpeg.exe as a separate program and does not link against
+FFmpeg libraries.
+
+yt-dlp
+------
+The yt-dlp executable in downloaded_assets/yt-dlp_win is a PyInstaller build
+of yt-dlp from https://github.com/yt-dlp/yt-dlp. The yt-dlp project releases
+its own code into the public domain under the Unlicense; the official project
+statement notes that the PyInstaller-bundled Windows executable is a GPLv3+
+combined work because of its bundled dependencies.
+
+License text: https://unlicense.org (yt-dlp itself)
+              https://www.gnu.org/licenses/gpl-3.0.html (bundled executable)
+Source code:  https://github.com/yt-dlp/yt-dlp
+Third-party license overview of the bundled executable:
+              https://github.com/yt-dlp/yt-dlp/blob/master/THIRD_PARTY_LICENSES.txt
+
+7-Zip
+-----
+The 7zr.exe command line extractor kept in downloaded_assets is from
+https://www.7-zip.org and is licensed under the GNU LGPL. It is used at build
+and setup time to extract archives.
+
+License text: https://www.7-zip.org/license.txt
+Source code:   https://www.7-zip.org/download.html
+
+Requests for the corresponding source of any GPL-licensed component can be
+directed to the project repository at https://github.com/cyberofficial/Synthalingua.

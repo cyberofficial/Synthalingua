@@ -12,6 +12,12 @@ Vocal isolation (demucs) is built into Synthalingua itself and needs no separate
 environment, so this script no longer installs Python embedded or demucs. Existing installs can
 still be cleaned up with --uninstall.
 
+Packaged (frozen) builds ship FFmpeg and yt-dlp inside downloaded_assets, so setup never
+downloads there: it only verifies the bundled tools and writes the launcher script. Missing
+bundled tools are reported as an install error (on Steam, verify game files) instead of being
+downloaded. Preloading and downloading are source-build capabilities; the build keeps the
+staged tools current through fetch_bundled_tools.py.
+
 Usage:
     python set_up_env.py                          # Basic setup (FFmpeg, yt-dlp, 7zr)
     python set_up_env.py --reinstall              # Reinstall basic tools
@@ -37,7 +43,7 @@ from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.54"
+VERSION_NUMBER = "0.0.56"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
 APP_VERSION = "1.2.6"
@@ -170,6 +176,28 @@ class EnvironmentSetup:
         self.version = APP_VERSION
         self.datetime = datetime.now().isoformat()
 
+        # Required tools whose download or extraction failed. Setup stops
+        # instead of writing a config file with missing paths.
+        self.failed_tools: List[str] = []
+
+    def _download_with_retry(self, url: str, destination: str, tool_name: str, attempts: int = 2) -> None:
+        """
+        Download a required archive, retrying once before giving up.
+
+        Raises the last download error when every attempt fails so callers can
+        mark the tool as failed and stop the setup.
+        """
+        for attempt in range(1, attempts + 1):
+            try:
+                self.downloader.download_file(url, destination)
+                return
+            except Exception as e:
+                if attempt < attempts:
+                    print(f"\nDownload attempt {attempt} for {tool_name} failed: {e}")
+                    print("Retrying download...")
+                else:
+                    raise
+
     def find_ffmpeg_bin_path(self, root_path: Path) -> Optional[Path]:
         """Find the bin directory containing ffmpeg.exe."""
         print("Finding path for ffmpeg...")
@@ -232,12 +260,13 @@ class EnvironmentSetup:
             # Download 7zr.exe for Windows
             if self.config.SEVEN_ZIP_URL:
                 try:
-                    self.downloader.download_file(self.config.SEVEN_ZIP_URL, str(seven_zip_path))
+                    self._download_with_retry(self.config.SEVEN_ZIP_URL, str(seven_zip_path), '7zr')
                     self.seven_zip_source = 'downloaded'
                     return str(seven_zip_path)
                 except requests.exceptions.RequestException as e:
                     print(f"\n Error downloading 7zr.exe: {e}")
                     print("Please check your internet connection.")
+                    self.failed_tools.append('7zr')
                     return None
             else:
                 print(" No download URL configured for this platform.")
@@ -281,12 +310,13 @@ class EnvironmentSetup:
         # Download 7zr.exe for Windows
         if self.config.SEVEN_ZIP_URL:
             try:
-                self.downloader.download_file(self.config.SEVEN_ZIP_URL, str(seven_zip_path))
+                self._download_with_retry(self.config.SEVEN_ZIP_URL, str(seven_zip_path), '7zr')
                 self.seven_zip_source = 'downloaded'
                 return str(seven_zip_path)
             except requests.exceptions.RequestException as e:
                 print(f"\n Error downloading 7zr.exe: {e}")
                 print("Please check your internet connection or try providing your own 7zr.exe.")
+                self.failed_tools.append('7zr')
                 return None
         else:
             print(" No download URL configured for this platform.")
@@ -302,7 +332,7 @@ class EnvironmentSetup:
             # Download and extract
             try:
                 self.config.ASSETS_PATH.mkdir(exist_ok=True)
-                self.downloader.download_file(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE)
+                self._download_with_retry(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE, 'FFmpeg')
                 temp_extract_path = self.config.ASSETS_PATH / "_temp_ffmpeg"
                 temp_extract_path.mkdir(exist_ok=True)
 
@@ -343,6 +373,7 @@ class EnvironmentSetup:
             except (requests.exceptions.RequestException, FileNotFoundError) as e:
                 print(f"\n Error setting up FFmpeg: {e}")
                 print("Please check your internet connection or try providing your own FFmpeg.")
+                self.failed_tools.append('FFmpeg')
                 return None
             except subprocess.CalledProcessError as e:
                 print(f"\n Error extracting FFmpeg archive: {e}")
@@ -353,9 +384,11 @@ class EnvironmentSetup:
                 if e.stderr:
                     print(f"Stderr:\n{e.stderr.decode()}")
                 print("Please check the error messages and try again.")
+                self.failed_tools.append('FFmpeg')
                 return None
             except Exception as e:
                 print(f"\n An unexpected error occurred during FFmpeg setup: {e}")
+                self.failed_tools.append('FFmpeg')
                 return None
 
         # Auto-detect existing FFmpeg installation
@@ -416,12 +449,12 @@ class EnvironmentSetup:
                                 ffmpeg_archive_path.unlink()  # Remove old archive first
                             except OSError as e:
                                 print(f"Warning: Could not remove existing FFmpeg archive: {e}")
-                            self.downloader.download_file(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE)
+                            self._download_with_retry(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE, 'FFmpeg')
                             break
                         else:
                             print("Please answer 'use' or 'download'.")
                 else:
-                    self.downloader.download_file(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE)
+                    self._download_with_retry(self.config.FFMPEG_URL, self.config.FFMPEG_ARCHIVE, 'FFmpeg')
 
                 temp_extract_path = self.config.ASSETS_PATH / "_temp_ffmpeg"
                 temp_extract_path.mkdir(exist_ok=True)
@@ -463,6 +496,7 @@ class EnvironmentSetup:
             except (requests.exceptions.RequestException, FileNotFoundError) as e:
                 print(f"\n Error setting up FFmpeg: {e}")
                 print("Please check your internet connection or try providing your own FFmpeg.")
+                self.failed_tools.append('FFmpeg')
                 return None
             except subprocess.CalledProcessError as e:
                 print(f"\n Error extracting FFmpeg archive: {e}")
@@ -473,9 +507,11 @@ class EnvironmentSetup:
                 if e.stderr:
                     print(f"Stderr:\n{e.stderr.decode()}")
                 print("Please check the error messages and try again.")
+                self.failed_tools.append('FFmpeg')
                 return None
             except Exception as e:
                 print(f"\n An unexpected error occurred during FFmpeg setup: {e}")
+                self.failed_tools.append('FFmpeg')
                 return None
         else:
             print("FFmpeg folder already exists, skipping download and extraction.")
@@ -493,7 +529,7 @@ class EnvironmentSetup:
             # Download and extract
             try:
                 self.config.ASSETS_PATH.mkdir(exist_ok=True)
-                self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
+                self._download_with_retry(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE, 'yt-dlp')
                 self.config.YTDLP_PATH.mkdir(exist_ok=True)
 
                 if self.config.OS_TYPE == 'windows':
@@ -522,9 +558,11 @@ class EnvironmentSetup:
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
                 print(f"\n Error setting up yt-dlp: {e}")
                 print("Please check your internet connection or try providing your own yt-dlp.")
+                self.failed_tools.append('yt-dlp')
                 return None
             except Exception as e:
                 print(f"\n An unexpected error occurred during yt-dlp setup: {e}")
+                self.failed_tools.append('yt-dlp')
                 return None
 
         # Auto-detect existing yt-dlp installation
@@ -586,12 +624,12 @@ class EnvironmentSetup:
                                 ytdlp_archive_path.unlink()  # Remove old archive first
                             except OSError as e:
                                 print(f"Warning: Could not remove existing yt-dlp archive: {e}")
-                            self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
+                            self._download_with_retry(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE, 'yt-dlp')
                             break
                         else:
                             print("Please answer 'use' or 'download'.")
                 else:
-                    self.downloader.download_file(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE)
+                    self._download_with_retry(self.config.YTDLP_URL, self.config.YTDLP_ARCHIVE, 'yt-dlp')
 
                 self.config.YTDLP_PATH.mkdir(exist_ok=True)
                 
@@ -621,9 +659,11 @@ class EnvironmentSetup:
             except (requests.exceptions.RequestException, zipfile.BadZipFile) as e:
                 print(f"\n Error setting up yt-dlp: {e}")
                 print("Please check your internet connection or try providing your own yt-dlp.")
+                self.failed_tools.append('yt-dlp')
                 return None
             except Exception as e:
                 print(f"\n An unexpected error occurred during yt-dlp setup: {e}")
+                self.failed_tools.append('yt-dlp')
                 return None
         else:
             print("yt-dlp folder already exists, skipping download.")
@@ -705,8 +745,62 @@ Setup Notes:
         
         print(f"\n{self.config.CONFIG_FILE} created with path settings.")
 
-    def run(self, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, reuse_ffmpeg: bool = False, reuse_ytdlp: bool = False, reuse_7zr: bool = False, skip_all_prompts: bool = False) -> None:
-        """Run the environment setup process."""
+    def _report_failed_tools(self) -> None:
+        """Print the failure summary used when setup cannot continue."""
+        tools = ", ".join(dict.fromkeys(self.failed_tools))
+        print("\n" + "=" * 62)
+        print(f"Setup could not continue: required files could not be found ({tools}).")
+        print("The download may have failed because of a network problem.")
+        print("Please check your internet connection and run the setup again.")
+        print("=" * 62)
+
+    def _configure_bundled_tools_only(self) -> bool:
+        """
+        Frozen build path: configure the launcher from the bundled tools.
+
+        Packaged builds ship FFmpeg and yt-dlp inside downloaded_assets and
+        never download anything. When the bundled tools are missing the run
+        fails with restore instructions, because a partial config is worse
+        than none.
+        """
+        print("Packaged build: configuring bundled FFmpeg and yt-dlp (no downloads).")
+
+        ffmpeg_path = None
+        if self.config.FFMPEG_ROOT_PATH.is_dir():
+            ffmpeg_path = self.find_ffmpeg_bin_path(self.config.FFMPEG_ROOT_PATH)
+
+        exe_name = 'yt-dlp.exe' if self.config.OS_TYPE == 'windows' else 'yt-dlp'
+        ytdlp_path = None
+        if self.config.YTDLP_PATH.is_dir() and (self.config.YTDLP_PATH / exe_name).exists():
+            ytdlp_path = self.config.YTDLP_PATH
+
+        if not ffmpeg_path:
+            self.failed_tools.append('FFmpeg')
+        if not ytdlp_path:
+            self.failed_tools.append('yt-dlp')
+
+        if self.failed_tools:
+            print(f"\nBundled {', '.join(self.failed_tools)} not found in {self.config.ASSETS_PATH}.")
+            print("Packaged builds cannot download tools. On Steam, restore the install with")
+            print("Properties > Installed Files > Verify integrity of game files, then run setup again.")
+            self._report_failed_tools()
+            return False
+
+        self.ffmpeg_source = 'bundled'
+        self.ytdlp_source = 'bundled'
+        print(f"Found bundled FFmpeg at {ffmpeg_path}")
+        print(f"Found bundled yt-dlp at {ytdlp_path}")
+
+        self.create_config_file(ffmpeg_path, ytdlp_path)
+        self._create_bug_report_info()
+        return True
+
+    def run(self, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, reuse_ffmpeg: bool = False, reuse_ytdlp: bool = False, reuse_7zr: bool = False, skip_all_prompts: bool = False) -> bool:
+        """Run the environment setup process. Returns True when it completed."""
+        # Frozen builds ship their tools: configure the paths only, never download.
+        if getattr(sys, 'frozen', False):
+            return self._configure_bundled_tools_only()
+
         print("This script will download the following tools to 'downloaded_assets/' folder:")
         print("1. FFmpeg, 2. yt-dlp, 3. 7zr")
         print("\nAll installers and tools will be saved locally for reuse.")
@@ -714,15 +808,24 @@ Setup Notes:
         seven_zip_exec = self.setup_7zr(skip_prompts=skip_all_prompts or reuse_7zr)
         if not seven_zip_exec:
             print("Failed to set up 7zr.exe. Exiting...")
-            return
+            if '7zr' not in self.failed_tools:
+                self.failed_tools.append('7zr')
+            self._report_failed_tools()
+            return False
 
         ffmpeg_path = self.setup_ffmpeg(seven_zip_exec, force_download=force_ffmpeg_download, skip_prompts=skip_all_prompts or reuse_ffmpeg)
         ytdlp_path = self.setup_ytdlp(force_download=force_ytdlp_download, skip_prompts=skip_all_prompts or reuse_ytdlp)
+
+        # Do not write a config file that points at nothing: stop here instead
+        if self.failed_tools:
+            self._report_failed_tools()
+            return False
 
         self.create_config_file(ffmpeg_path, ytdlp_path)
 
         # Create bug report info file
         self._create_bug_report_info()
+        return True
 
 
 def main() -> None:
@@ -819,6 +922,15 @@ def main() -> None:
     reuse_ytdlp_folder = False
     reuse_7zr = False
     
+    # Frozen builds ship their tools, so --reinstall must never delete
+    # shipped content. (--steam sets it to True on fresh installs where no
+    # config exists yet, so neutralizing here also guards that path.)
+    if getattr(sys, 'frozen', False) and args.reinstall:
+        print("Note: --reinstall does not remove or redownload anything in packaged builds.")
+        print("Bundled tools are used exactly as they ship. On Steam, restore them with")
+        print("Properties > Installed Files > Verify integrity of game files.")
+        args.reinstall = False
+
     if args.reinstall:
         print("\n--reinstall specified: Removing all tool folders/files for a fresh setup...")
         # Add all existing assets to the removal list if --reinstall is used
@@ -886,7 +998,8 @@ def main() -> None:
     force_ytdlp = cfg.YTDLP_PATH in assets_to_remove
 
     setup = EnvironmentSetup(python_embedded_path)
-    setup.run(force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, reuse_ffmpeg=reuse_ffmpeg_folder, reuse_ytdlp=reuse_ytdlp_folder, reuse_7zr=reuse_7zr, skip_all_prompts=skip_all_prompts)
+    if not setup.run(force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, reuse_ffmpeg=reuse_ffmpeg_folder, reuse_ytdlp=reuse_ytdlp_folder, reuse_7zr=reuse_7zr, skip_all_prompts=skip_all_prompts):
+        sys.exit(1)
 
 if __name__ == "__main__":
     from multiprocessing import freeze_support
