@@ -1,28 +1,26 @@
-import argparse
 """Environment setup script for Synthalingua.
 
 This script handles the installation and configuration of required tools:
 - FFmpeg: A multimedia framework for processing audio and video files
 - yt-dlp: A video downloader for YouTube and other sites
 - 7zr/p7zip: A tool for extracting .7z files
-- Python Embedded: Portable Python 3.12.10 installation (optional with --using_vocal_isolation)
-- Demucs: Audio source separation library for vocal isolation (optional with --using_vocal_isolation)
 
 The script will create a batch file (Windows) or shell script (Linux/macOS) that sets up the
-necessary PATH environment variables for these tools to work with Synthalingua. For vocal
-isolation features, use the --using_vocal_isolation flag to download and install Python embedded,
-install pip, and install the demucs package.
+necessary PATH environment variables for these tools to work with Synthalingua.
+
+Vocal isolation (demucs) is built into Synthalingua itself and needs no separate Python
+environment, so this script no longer installs Python embedded or demucs. Existing installs can
+still be cleaned up with --uninstall.
 
 Usage:
     python set_up_env.py                          # Basic setup (FFmpeg, yt-dlp, 7zr)
-    python set_up_env.py --using_vocal_isolation  # Include vocal isolation setup
     python set_up_env.py --reinstall              # Reinstall basic tools
-    python set_up_env.py --reinstall --using_vocal_isolation  # Reinstall everything
-    python set_up_env.py --uninstall              # Uninstall Python embedded (Windows only)
-    python set_up_env.py --uninstall steam        # Uninstall Python embedded without prompts (Windows only)
-    python set_up_env.py --steam                  # Install everything fresh without prompts (Windows only)
+    python set_up_env.py --uninstall              # Remove a legacy Python embedded install (Windows only)
+    python set_up_env.py --uninstall steam        # Same, without prompts (Windows only)
+    python set_up_env.py --steam                  # Install basic tools without prompts (Windows only)
 """
 
+import argparse
 import os
 import platform
 import requests
@@ -39,7 +37,7 @@ from datetime import datetime
 
 
 # Version number for the setup script.
-VERSION_NUMBER = "0.0.53"
+VERSION_NUMBER = "0.0.54"
 PORTABLE_PYTHON_VERSION = "3.12.10"
 APP_NAME = "Synthalingua"
 APP_VERSION = "1.2.6"
@@ -59,7 +57,6 @@ class Config:
             self.FFMPEG_URL = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
             self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_win.zip'
             self.SEVEN_ZIP_URL = 'https://www.7-zip.org/a/7zr.exe'
-            self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-embed-amd64.zip'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_win'
             self.FFMPEG_ARCHIVE = str(self.ASSETS_PATH / 'ffmpeg.7z')
             self.YTDLP_ARCHIVE = str(self.ASSETS_PATH / 'yt-dlp_win.zip')
@@ -70,7 +67,6 @@ class Config:
             self.FFMPEG_URL = 'https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz'
             self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_linux'
             self.SEVEN_ZIP_URL = None  # Use system package manager
-            self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_linux'
             self.FFMPEG_ARCHIVE = str(self.ASSETS_PATH / 'ffmpeg-release-amd64-static.tar.xz')
             self.YTDLP_ARCHIVE = str(self.ASSETS_PATH / 'yt-dlp_linux')
@@ -81,7 +77,6 @@ class Config:
             self.FFMPEG_URL = 'https://evermeet.cx/ffmpeg/getrelease/zip'
             self.YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/download/2025.09.26/yt-dlp_macos'
             self.SEVEN_ZIP_URL = None  # Use system package manager (brew)
-            self.PYTHON_EMBEDDED_URL = 'https://www.python.org/ftp/python/3.12.10/Python-3.12.10.tgz'
             self.YTDLP_PATH = self.ASSETS_PATH / 'yt-dlp_macos'
             self.FFMPEG_ARCHIVE = str(self.ASSETS_PATH / 'ffmpeg_macos.zip')
             self.YTDLP_ARCHIVE = str(self.ASSETS_PATH / 'yt-dlp_macos')
@@ -166,15 +161,11 @@ class EnvironmentSetup:
     def __init__(self, python_embedded_path: Optional[Path]):
         self.config = Config(python_embedded_path)
         self.downloader = DownloadManager()
-        self.use_system_python = False  # Default to embedded Python
         
         # Bug report tracking variables
-        self.diffq_install_method = None  # 'pip' or 'bundled'
         self.ffmpeg_source = None  # 'custom' or 'downloaded'
         self.ytdlp_source = None  # 'custom' or 'downloaded'
         self.seven_zip_source = None  # 'system' or 'downloaded'
-        self.python_type = None  # 'embedded' or 'system'
-        self.device_choice = None  # 'cpu', 'cuda', 'rocm'
         self.os_type = self.config.OS_TYPE
         self.version = APP_VERSION
         self.datetime = datetime.now().isoformat()
@@ -639,108 +630,14 @@ class EnvironmentSetup:
             self.ytdlp_source = 'downloaded'
             return self.config.YTDLP_PATH
 
-    def check_python_embedded_installed(self) -> bool:
-        """Check if Python embedded is installed and python executable is available."""
-        if not (self.config.PYTHON_EMBEDDED_PATH.exists() and self.config.PYTHON_EMBEDDED_PATH.is_dir()):
-            return False
-        
-        # Check if python executable exists
-        if self.config.OS_TYPE == 'windows':
-            python_exe = self.config.PYTHON_EMBEDDED_PATH / 'python.exe'
-        else:
-            python_exe = self.config.PYTHON_EMBEDDED_PATH / 'bin' / 'python3'
-        
-        return python_exe.exists()
-
-    def download_python_embedded(self, skip_prompts: bool = False) -> Optional[str]:
-        """Download Python embedded archive for the current platform."""
-        self.config.ASSETS_PATH.mkdir(exist_ok=True)
-        archive_path = Path(self.config.PYTHON_EMBEDDED_ARCHIVE)
-
-        # Check if archive exists and ask user
-        if archive_path.exists():
-            if skip_prompts:
-                print("Downloading fresh Python embedded archive...")
-                archive_path.unlink()
-            else:
-                while True:
-                    reuse = input(f"Found existing Python embedded archive. Use it or download fresh? (use/download): ").strip().lower()
-                    if reuse in ("use", "u"):
-                        print(f"Using existing Python embedded archive: {archive_path}")
-                        return str(archive_path)
-                    elif reuse in ("download", "d"):
-                        print("Downloading fresh Python embedded archive...")
-                        archive_path.unlink()
-                        break
-                    else:
-                        print("Please answer 'use' or 'download'.")
-
-        url = self.config.PYTHON_EMBEDDED_URL
-        print(f"Downloading Python embedded: {url.split('/')[-1]}")
-        try:
-            self.downloader.download_file(url, str(archive_path))
-            return str(archive_path)
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to download Python embedded: {e}")
-            return None
-
-    def install_python_embedded(self, archive_path: str) -> bool:
-        """Extract Python embedded archive."""
-        python_install_path = self.config.PYTHON_EMBEDDED_PATH
-
-        print("Extracting Python embedded...")
-        print(f"Installation path: {python_install_path}")
-        
-        # Ensure parent directories exist
-        try:
-            python_install_path.parent.mkdir(parents=True, exist_ok=True)
-        except OSError as e:
-            print(f"\n Error creating parent directory for Python embedded: {e}")
-            print(f"Please ensure you have write permissions to {python_install_path.parent}.")
-            return False
-
-        try:
-            # Create the target directory
-            python_install_path.mkdir(exist_ok=True)
-            
-            # Extract based on file type
-            if self.config.OS_TYPE == 'windows':
-                # Windows: Extract zip file
-                self.downloader.extract_zip(archive_path, str(python_install_path))
-            else:
-                # Linux/macOS: Extract tar.gz file
-                import tarfile
-                with tarfile.open(archive_path, 'r:gz') as tar:
-                    tar.extractall(str(python_install_path))
-            
-            print("Python embedded extraction completed.")
-            if python_install_path.exists():
-                print(f"Python embedded successfully installed at: {python_install_path}")
-                return True
-            else:
-                print(f"\n Warning: Extraction completed but {python_install_path} does not exist.")
-                return False
-        except Exception as e:
-            print(f"\n Error extracting Python embedded: {e}")
-            return False
-
     def _get_installed_packages(self) -> str:
-        """Get list of installed packages in the Python environment used for vocal isolation."""
-        if self.python_type == 'embedded':
-            python_exe = self._get_python_exe()
-            if python_exe:
-                try:
-                    result = subprocess.run([python_exe, '-m', 'pip', 'list', '--format=freeze'], capture_output=True, text=True, check=True)
-                    return result.stdout.strip()
-                except subprocess.CalledProcessError:
-                    return "Unable to retrieve package list"
-        elif self.python_type == 'system':
-            try:
-                result = subprocess.run(['pip', 'list', '--format=freeze'], capture_output=True, text=True, check=True)
-                return result.stdout.strip()
-            except subprocess.CalledProcessError:
-                return "Unable to retrieve package list"
-        return "No vocal isolation packages installed"
+        """Get the package list for the interpreter running this setup script."""
+        try:
+            result = subprocess.run([sys.executable, '-m', 'pip', 'list', '--format=freeze'],
+                                    capture_output=True, text=True, check=True)
+            return result.stdout.strip()
+        except Exception:
+            return "Unable to retrieve package list"
 
     def _create_bug_report_info(self) -> None:
         """Create a bug report info file with system and setup information."""
@@ -758,9 +655,6 @@ Setup Configuration:
 FFmpeg Source: {self.ffmpeg_source or 'Not configured'}
 yt-dlp Source: {self.ytdlp_source or 'Not configured'}
 7-Zip Source: {self.seven_zip_source or 'Not configured'}
-Python Type: {self.python_type or 'Not configured'}
-Device Choice: {self.device_choice or 'Not configured'}
-diffq Installation Method: {self.diffq_install_method or 'Not installed'}
 
 Installed Packages:
 ------------------
@@ -770,7 +664,6 @@ Setup Notes:
 -----------
 - This file was generated automatically during Synthalingua environment setup
 - Include this information when reporting bugs or issues
-- If diffq was installed from bundled wheels, mention this in bug reports
 """
 
         with open('bugreportinfo.txt', 'w', encoding='utf-8') as f:
@@ -778,627 +671,30 @@ Setup Notes:
         
         print("\nBug report information saved to 'bugreportinfo.txt'")
 
-    def _write_demucs_config(self, python_exe_path: str) -> None:
-        """Write the demucs executable path to config file for demucs_path_helper.py to use."""
-        config_path = Path.cwd() / 'demucs_python_path.txt'
-        
-        # Find the demucs executable in the same environment as the Python interpreter
-        try:
-            python_dir = Path(python_exe_path).parent
-            
-            # Check for demucs executable in Scripts (Windows) or bin (Linux/macOS)
-            if self.config.OS_TYPE == 'windows':
-                demucs_path = python_dir / 'demucs.exe'
-                if not demucs_path.exists():
-                    # Fallback: might be in same directory as python.exe for some setups
-                    demucs_path = python_dir / 'demucs'
-            else:
-                demucs_path = python_dir / 'demucs'
-                if not demucs_path.exists():
-                    # Try without .exe extension
-                    demucs_path = python_dir / 'demucs'
-            
-            if demucs_path.exists():
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    f.write(str(demucs_path))
-                print(f"Demucs config file created: {config_path}")
-                print(f"Demucs executable path: {demucs_path}")
-            else:
-                print(f"Warning: Could not find demucs executable at {demucs_path}")
-                print(f"Demucs may need to be run via: {python_exe_path} -m demucs")
-        except Exception as e:
-            print(f"Warning: Could not write demucs config file: {e}")
-
-    def _get_python_exe(self) -> Optional[str]:
-        """Find the Python executable for the embedded installation."""
-        if not self.check_python_embedded_installed():
-            return None
-        
-        if self.config.OS_TYPE == 'windows':
-            python_exe = self.config.PYTHON_EMBEDDED_PATH / 'python.exe'
-        else:
-            # Linux/macOS paths
-            python_exe = self.config.PYTHON_EMBEDDED_PATH / 'bin' / 'python3'
-            if not python_exe.exists():
-                python_exe = self.config.PYTHON_EMBEDDED_PATH / 'python'
-        
-        if python_exe.exists():
-            return str(python_exe)
-        print(f"Error: python executable not found in {self.config.PYTHON_EMBEDDED_PATH}")
-        return None
-
-    def install_pip_in_embedded(self) -> bool:
-        """Install pip in the embedded Python using get-pip.py."""
-        python_exe = self._get_python_exe()
-        if not python_exe:
-            print(" Error: Python executable not found. Cannot install pip.")
-            return False
-        
-        # Download get-pip.py
-        get_pip_path = self.config.ASSETS_PATH / 'get-pip.py'
-        try:
-            print("Downloading get-pip.py...")
-            self.downloader.download_file(self.config.GET_PIP_URL, str(get_pip_path))
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to download get-pip.py: {e}")
-            return False
-        
-        # For Windows embedded Python, we need to enable pip by modifying python312._pth
-        if self.config.OS_TYPE == 'windows':
-            pth_file = self.config.PYTHON_EMBEDDED_PATH / 'python312._pth'
-            if pth_file.exists():
-                try:
-                    content = pth_file.read_text()
-                    # Uncomment the import site line if commented
-                    if '#import site' in content:
-                        content = content.replace('#import site', 'import site')
-                        pth_file.write_text(content)
-                        print("Enabled site packages in python312._pth")
-                except Exception as e:
-                    print(f"Warning: Could not modify python312._pth: {e}")
-        
-        # Install pip
-        try:
-            print("Installing pip in embedded Python...")
-            result = subprocess.run([python_exe, str(get_pip_path)], check=True, capture_output=True, text=True)
-            print("Pip installation completed successfully.")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"\n Error installing pip. Exit code: {e.returncode}")
-            if e.stdout:
-                print(f"Stdout:\n{e.stdout}")
-            if e.stderr:
-                print(f"Stderr:\n{e.stderr}")
-            return False
-        except Exception as e:
-            print(f"\n An unexpected error occurred during pip installation: {e}")
-            return False
-
-    def check_pip_installed(self) -> bool:
-        """Check if pip is installed in the embedded Python."""
-        python_exe = self._get_python_exe()
-        if not python_exe:
-            return False
-        
-        try:
-            result = subprocess.run([python_exe, '-m', 'pip', '--version'], capture_output=True, check=True)
-            return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            return False
-
-    def install_demucs_in_embedded(self, skip_prompts: bool = False) -> bool:
-        """Install demucs package in embedded Python with appropriate PyTorch version."""
-        python_exe = self._get_python_exe()
-        if not python_exe:
-            print(" Error: Python executable not found. Cannot install packages.")
-            return False
-
-        self.python_type = 'embedded'
-
-        # Ask user about their preferred device for Synthalingua processing
-        print("\nSynthalingua supports CPU, GPU (CUDA), and AMD GPU (ROCm) processing.")
-        print("This affects both transcription and vocal isolation (demucs) performance.")
-
-        if skip_prompts:
-            # Auto-detect NVIDIA GPU on Windows
-            try:
-                result = subprocess.run(['nvidia-smi'], capture_output=True, check=False)
-                if result.returncode == 0:
-                    use_cuda = True
-                    use_rocm = False
-                    self.device_choice = 'cuda'
-                    print("NVIDIA GPU detected - This will install GPU-accelerated PyTorch for faster processing.")
-                else:
-                    use_cuda = False
-                    use_rocm = False
-                    self.device_choice = 'cpu'
-                    print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-            except FileNotFoundError:
-                use_cuda = False
-                use_rocm = False
-                self.device_choice = 'cpu'
-                print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-        else:
-            if self.config.OS_TYPE == 'windows':
-                print("Available options: cpu, cuda")
-                while True:
-                    device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda): ").strip().lower()
-                    if device_choice in ("cuda", "gpu"):
-                        use_cuda = True
-                        use_rocm = False
-                        self.device_choice = 'cuda'
-                        print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
-                        break
-                    elif device_choice in ("cpu"):
-                        use_cuda = False
-                        use_rocm = False
-                        self.device_choice = 'cpu'
-                        print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                        break
-                    else:
-                        print("Please answer 'cpu' or 'cuda'.")
-            else:
-                # Linux/macOS - ROCm only supported on Linux
-                if self.config.OS_TYPE == 'linux':
-                    print("Available options: cpu, cuda, rocm")
-                    while True:
-                        device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda/rocm): ").strip().lower()
-                        if device_choice in ("cuda", "gpu"):
-                            use_cuda = True
-                            use_rocm = False
-                            self.device_choice = 'cuda'
-                            print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
-                            break
-                        elif device_choice in ("rocm", "amd"):
-                            use_cuda = False
-                            use_rocm = True
-                            self.device_choice = 'rocm'
-                            print("ROCm selected - This will install AMD GPU-accelerated PyTorch for faster processing.")
-                            break
-                        elif device_choice in ("cpu"):
-                            use_cuda = False
-                            use_rocm = False
-                            self.device_choice = 'cpu'
-                            print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                            break
-                        else:
-                            print("Please answer 'cpu', 'cuda', or 'rocm'.")
-                else:
-                    # macOS - no ROCm support
-                    print("Available options: cpu, cuda (may not work on Apple Silicon)")
-                    while True:
-                        device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda): ").strip().lower()
-                        if device_choice in ("cuda", "gpu"):
-                            use_cuda = True
-                            use_rocm = False
-                            self.device_choice = 'cuda'
-                            print("CUDA selected - This will install GPU-accelerated PyTorch (may not work on Apple Silicon).")
-                            break
-                        elif device_choice in ("cpu"):
-                            use_cuda = False
-                            use_rocm = False
-                            self.device_choice = 'cpu'
-                            print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                            break
-                        else:
-                            print("Please answer 'cpu' or 'cuda'.")
-
-        try:
-            if use_cuda:
-                print("Installing CUDA-enabled PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                # Install torch and torchaudio first
-                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu129'], check=True)
-                print("PyTorch and TorchAudio installation completed successfully.")
-                
-                # Try to install torchcodec separately (may fail)
-                print("Attempting to install TorchCodec...")
-                try:
-                    result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torchcodec'], check=True)
-                    print("TorchCodec installation completed successfully.")
-                except subprocess.CalledProcessError as e:
-                    print("TorchCodec installation failed, but PyTorch setup will continue.")
-                    print("This is usually not critical - vocal isolation may still work with soundfile backend.")
-                    if e.stderr:
-                        print(f"TorchCodec error: {e.stderr.decode()[:200]}...")
-                
-                print("\nCUDA PyTorch installation completed successfully.")
-            elif use_rocm:
-                print("Installing ROCm-enabled PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/rocm6.4'], check=True)
-                print("\nROCm PyTorch installation completed successfully.")
-            else:
-                print("Installing CPU-only PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'torch', 'torchaudio'], check=True)
-                print("\nCPU PyTorch installation completed successfully.")
-
-            print("\nInstalling Cython (required for diffq build)...")
-            sys.stdout.flush()
-            result = subprocess.run([python_exe, '-m', 'pip', 'install', 'Cython'], check=True)
-            print("\nCython installation completed successfully.")
-            
-            print("\nInstalling demucs...")
-            sys.stdout.flush()
-            result = subprocess.run([python_exe, '-m', 'pip', 'install', '-U', 'demucs'], check=True)
-            print("\nDemucs installation completed successfully.")
-            
-            print("\nAttempting to install diffq (optional optimization)...")
-            sys.stdout.flush()
-            try:
-                result = subprocess.run([python_exe, '-m', 'pip', 'install', 'diffq'], check=True, capture_output=True, text=True)
-                print("diffq installation completed successfully.")
-                self.diffq_install_method = 'pip'
-            except subprocess.CalledProcessError as e:
-                print("\n  Attempt 1 failed: diffq installation from PyPI failed.")
-                print("   Reason: Python embedded doesn't include development headers needed for C extensions.")
-                
-                # Try installing from bundled wheel (Windows only)
-                if self.config.OS_TYPE == 'windows':
-                    print("   Trying bundled version (may be outdated but should work)...")
-                    try:
-                        result = subprocess.run([python_exe, '-m', 'pip', 'install', '--no-index', '--find-links=_internal\\deps', 'diffq'], check=True, capture_output=True, text=True)
-                        print("   Bundled diffq installation completed successfully.")
-                        print("Bundled version installed, please remember to say you are on using the bundled diffq on any bug reports")
-                        self.diffq_install_method = 'bundled'
-                    except subprocess.CalledProcessError as bundled_e:
-                        print("\n  Attempt 2 failed: Bundled diffq installation also failed.")
-                        print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
-                        print("   If you need diffq, consider using system Python with the setup script instead.")
-                        self.diffq_install_method = None
-                else:
-                    print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
-                    print("   On Linux/macOS, diffq requires system Python with development headers.")
-                    self.diffq_install_method = None
-
-            print("\nInstalling additional audio backend support...")
-            sys.stdout.flush()
-            result = subprocess.run([python_exe, '-m', 'pip', 'install', 'soundfile', 'librosa'])
-            if result.returncode != 0:
-                print(f"\n  Warning: Could not install additional audio backends. Exit code: {result.returncode}")
-                if result.stderr:
-                    print(f"Stderr:\n{result.stderr}")
-                print("Demucs may have audio backend issues.")
-            else:
-                print("Additional audio backend support installed successfully.")
-
-            if use_cuda:
-                print("Verifying CUDA availability...")
-                result = subprocess.run([python_exe, '-c', 'import torch; print(f"CUDA available: {torch.cuda.is_available()}")'], check=True, capture_output=True, text=True)
-                print(result.stdout.strip())
-                if "CUDA available: False" in result.stdout:
-                    print("  Warning: CUDA not detected. You may need to:")
-                    print("   - Install NVIDIA drivers")
-                    print("   - Install CUDA toolkit")
-                    print("   - Use --device cpu when running Synthalingua")
-                else:
-                    print(" CUDA detected! Use --device cuda when running Synthalingua for best performance.")
-            else:
-                print(" PyTorch configured for CPU processing.")
-                print("   Use --device cpu when running Synthalingua (default behavior).")
-
-            # Write demucs config file to point to this Python installation
-            self._write_demucs_config(python_exe)
-
-            return True
-        except FileNotFoundError:
-            print(f"\n Error: Python executable not found at {python_exe}. Cannot install packages.")
-            print("Please ensure Python embedded is installed correctly.")
-            return False
-        except subprocess.CalledProcessError as e:
-            print(f"\n Error installing packages. Exit code: {e.returncode}")
-            print(f"Command: {' '.join(e.cmd)}")
-            if e.stdout:
-                print(f"Stdout:\n{e.stdout}")
-            if e.stderr:
-                print(f"Stderr:\n{e.stderr}")
-            print("Please check the error messages and your internet connection.")
-            return False
-        except Exception as e:
-            print(f"\n An unexpected error occurred during package installation: {e}")
-            return False
-
-    def install_demucs_system_python(self, skip_prompts: bool = False) -> bool:
-        """Install demucs package using system Python with appropriate PyTorch version."""
-        print("\nSetting up vocal isolation with system Python...")
-        
-        self.python_type = 'system'
-
-        # Ask user about their preferred device for Synthalingua processing
-        print("\nSynthalingua supports CPU, GPU (CUDA), and AMD GPU (ROCm) processing.")
-        print("This affects both transcription and vocal isolation (demucs) performance.")
-        
-        if self.config.OS_TYPE == 'windows':
-            print("Available options: cpu, cuda")
-            while True:
-                device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda): ").strip().lower()
-                if device_choice in ("cuda", "gpu"):
-                    use_cuda = True
-                    use_rocm = False
-                    self.device_choice = 'cuda'
-                    print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
-                    break
-                elif device_choice in ("cpu"):
-                    use_cuda = False
-                    use_rocm = False
-                    self.device_choice = 'cpu'
-                    print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                    break
-                else:
-                    print("Please answer 'cpu' or 'cuda'.")
-        elif self.config.OS_TYPE == 'linux':
-            print("Available options: cpu, cuda, rocm")
-            while True:
-                device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda/rocm): ").strip().lower()
-                if device_choice in ("cuda", "gpu"):
-                    use_cuda = True
-                    use_rocm = False
-                    self.device_choice = 'cuda'
-                    print("CUDA selected - This will install GPU-accelerated PyTorch for faster processing.")
-                    break
-                elif device_choice in ("rocm", "amd"):
-                    use_cuda = False
-                    use_rocm = True
-                    self.device_choice = 'rocm'
-                    print("ROCm selected - This will install AMD GPU-accelerated PyTorch for faster processing.")
-                    break
-                elif device_choice in ("cpu"):
-                    use_cuda = False
-                    use_rocm = False
-                    self.device_choice = 'cpu'
-                    print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                    break
-                else:
-                    print("Please answer 'cpu', 'cuda', or 'rocm'.")
-        else:
-            # macOS - no ROCm support
-            print("Available options: cpu, cuda (may not work on Apple Silicon)")
-            while True:
-                device_choice = input("Which device do you typically want to use with Synthalingua? (cpu/cuda): ").strip().lower()
-                if device_choice in ("cuda", "gpu"):
-                    use_cuda = True
-                    use_rocm = False
-                    self.device_choice = 'cuda'
-                    print("CUDA selected - This will install GPU-accelerated PyTorch (may not work on Apple Silicon).")
-                    break
-                elif device_choice in ("cpu"):
-                    use_cuda = False
-                    use_rocm = False
-                    self.device_choice = 'cpu'
-                    print("CPU selected - This will install CPU-only PyTorch (slower but more compatible). Friendly reminder that vocal isolation is very slow on CPU.")
-                    break
-                else:
-                    print("Please answer 'cpu' or 'cuda'.")
-
-        try:
-            # Install PyTorch first
-            if use_cuda:
-                print("Installing CUDA-enabled PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                # Install torch and torchaudio first
-                result = subprocess.run(['pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/cu129'], check=True)
-                print("PyTorch and TorchAudio installation completed successfully.")
-                
-                # Try to install torchcodec separately (may fail)
-                print("Attempting to install TorchCodec...")
-                try:
-                    result = subprocess.run(['pip', 'install', 'torchcodec'], check=True)
-                    print("TorchCodec installation completed successfully.")
-                except subprocess.CalledProcessError as e:
-                    print("TorchCodec installation failed, but PyTorch setup will continue.")
-                    print("This is usually not critical - vocal isolation may still work with soundfile backend.")
-                    if e.stderr:
-                        print(f"TorchCodec error: {e.stderr.decode()[:200]}...")
-                
-                print("\nCUDA PyTorch installation completed successfully.")
-            elif use_rocm:
-                print("Installing ROCm-enabled PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                result = subprocess.run(['pip', 'install', 'torch', 'torchaudio', '--index-url', 'https://download.pytorch.org/whl/rocm6.4'], check=True)
-                print("\nROCm PyTorch installation completed successfully.")
-            else:
-                print("Installing CPU-only PyTorch...")
-                print("This may take several minutes depending on your internet connection...")
-                print("")
-                sys.stdout.flush()
-                result = subprocess.run(['pip', 'install', 'torch', 'torchaudio'], check=True)
-                print("\nCPU PyTorch installation completed successfully.")
-
-            # Install Cython first (required for diffq build)
-            print("\nInstalling Cython (required for diffq build)...")
-            sys.stdout.flush()
-            result = subprocess.run(['pip', 'install', 'Cython'], check=True)
-            print("\nCython installation completed successfully.")
-            
-            # Install demucs first
-            print("\nInstalling demucs...")
-            sys.stdout.flush()
-            result = subprocess.run(['pip', 'install', '-U', 'demucs'], check=True)
-            print("\nDemucs installation completed successfully.")
-            
-            # Try to install diffq separately with error handling
-            print("\nAttempting to install diffq (optional optimization)...")
-            sys.stdout.flush()
-            try:
-                result = subprocess.run(['pip', 'install', 'diffq'], check=True, capture_output=True, text=True)
-                print("diffq installation completed successfully.")
-                self.diffq_install_method = 'pip'
-            except subprocess.CalledProcessError as e:
-                print("\n  Attempt 1 failed: diffq installation from PyPI failed.")
-                
-                # Try installing from bundled wheel (Windows only)
-                if self.config.OS_TYPE == 'windows':
-                    print("   Trying bundled version (may be outdated but should work)...")
-                    try:
-                        result = subprocess.run(['pip', 'install', '--no-index', '--find-links=_internal/deps', 'diffq'], check=True, capture_output=True, text=True)
-                        print("   Bundled diffq installation completed successfully.")
-                        print("Bundled version installed, please remember to say you are on using the bundled diffq on any bug reports")
-                        self.diffq_install_method = 'bundled'
-                    except subprocess.CalledProcessError as bundled_e:
-                        print("\n  Attempt 2 failed: Bundled diffq installation also failed.")
-                        print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
-                        self.diffq_install_method = None
-                else:
-                    print("   Vocal isolation requires diffq. Without it, vocal isolation features will not work.")
-                    print("   On Linux/macOS, diffq requires development headers and may need manual installation.")
-                    self.diffq_install_method = None
-
-            # Install additional audio libraries
-            print("\nInstalling additional audio support libraries...")
-            sys.stdout.flush()
-            result = subprocess.run(['pip', 'install', 'soundfile', 'librosa'], check=True)
-            print("\nAudio libraries installation completed successfully.")
-
-            # Write demucs config file to point to the Python where demucs was installed
-            try:
-                # Use sys.executable to get the actual Python being used (respects virtual environments)
-                import sys
-                python_path = sys.executable
-                self._write_demucs_config(python_path)
-            except Exception as e:
-                print(f"Warning: Could not determine Python path: {e}")
-
-            print(" Vocal isolation setup with system Python completed successfully!")
-            return True
-
-        except FileNotFoundError:
-            print("\n Error: pip not found. Please ensure pip is installed and available in your PATH.")
-            print("You may need to install it with: sudo apt-get install python3-pip (Ubuntu/Debian)")
-            return False
-        except subprocess.CalledProcessError as e:
-            print(f"\n Error installing packages. Exit code: {e.returncode}")
-            print(f"Command: {' '.join(e.cmd)}")
-            if e.stdout:
-                print(f"Stdout:\n{e.stdout}")
-            if e.stderr:
-                print(f"Stderr:\n{e.stderr}")
-            print("\n Suggestions:")
-            print("   1. Check your internet connection")
-            print("   2. Make sure you have sufficient disk space")
-            print("   3. Try upgrading pip: pip install --upgrade pip")
-            print("   4. Consider using a virtual environment if you have package conflicts")
-            return False
-        except Exception as e:
-            print(f"\n An unexpected error occurred during package installation: {e}")
-            return False
-
-    def setup_vocal_isolation(self, skip_prompts: bool = False) -> None:
-        """Set up vocal isolation feature with demucs using Python embedded."""
-        print("\nSetting up vocal isolation feature...")
-
-        # Step 1: Ensure Python embedded is installed
-        if not self.check_python_embedded_installed():
-            print("Python embedded not found. Downloading...")
-            archive_path = self.download_python_embedded(skip_prompts)
-            if not archive_path:
-                print("Failed to download Python embedded. Skipping.")
-                return
-            if not self.install_python_embedded(archive_path):
-                print("Failed to install Python embedded. Skipping vocal isolation setup.")
-                return
-        else:
-            print(f"Python embedded already installed at {self.config.PYTHON_EMBEDDED_PATH}.")
-
-        # Step 2: Ensure pip is installed
-        if not self.check_pip_installed():
-            print("Pip not found in embedded Python. Installing...")
-            if not self.install_pip_in_embedded():
-                print("Failed to install pip. Skipping vocal isolation setup.")
-                return
-        else:
-            print("Pip is already installed.")
-
-        # Step 3: Install demucs and dependencies
-        if self.install_demucs_in_embedded(skip_prompts):
-            print("\nVocal isolation setup completed successfully!")
-            print(f"Python embedded is located at: {self.config.PYTHON_EMBEDDED_PATH}")
-        else:
-            print("\nFailed to install demucs. Please check the error messages above.")
-
     def create_config_file(self, ffmpeg_path: Optional[Path], ytdlp_path: Optional[Path]) -> None:
         """Create the batch file (Windows) or shell script (Linux/macOS) for setting PATH environment variable."""
         path_parts = []
         if ffmpeg_path: path_parts.append(str(ffmpeg_path.resolve()))
         if ytdlp_path: path_parts.append(str(ytdlp_path.resolve()))
-        
-        # Check if vocal isolation is set up with Python embedded
-        has_python_embedded = self.config.PYTHON_EMBEDDED_PATH.exists() and not self.use_system_python
-        if has_python_embedded:
-            path_parts.append(str(self.config.PYTHON_EMBEDDED_PATH.resolve()))
-            if self.config.OS_TYPE == 'windows':
-                # Always add Scripts folder to PATH (pip creates it)
-                scripts_path = self.config.PYTHON_EMBEDDED_PATH / 'Scripts'
-                path_parts.append(str(scripts_path.resolve()))
-            else:
-                # Linux/macOS: Add bin directory for pip and installed scripts
-                bin_path = self.config.PYTHON_EMBEDDED_PATH / 'bin'
-                path_parts.append(str(bin_path.resolve()))
-        
+
         if self.config.OS_TYPE == 'windows':
             # Windows batch file
             path_string = ";".join(path_parts)
-            
-            if has_python_embedded:
-                config_content = (
-                    f'@echo off\n'
-                    f'set "PATH={path_string};%PATH%"\n'
-                    f'echo FFmpeg, yt-dlp, and Python embedded are available in this session.\n'
-                    f'echo Vocal isolation (demucs) is available.\n'
-                    f'echo To test: python -c "import demucs; print(\'demucs installed\')"\n'
-                )
-            elif self.use_system_python:
-                config_content = (
-                    f'@echo off\n'
-                    f'set "PATH={path_string};%PATH%"\n'
-                    f'echo FFmpeg and yt-dlp are available in this session.\n'
-                    f'echo Vocal isolation is set up with system Python - demucs should be available.\n'
-                    f'echo To test: python -c "import demucs; print(\'demucs installed successfully\')"\n'
-                )
-            else:
-                config_content = (
-                    f'@echo off\n'
-                    f'set "PATH={path_string};%PATH%"\n'
-                    f'echo FFmpeg and yt-dlp are available in this session.\n'
-                    f'echo Note: Vocal isolation not set up. Run with --using_vocal_isolation to enable.\n'
-                )
+
+            config_content = (
+                f'@echo off\n'
+                f'set "PATH={path_string};%PATH%"\n'
+                f'echo FFmpeg and yt-dlp are available in this session.\n'
+            )
         else:
             # Linux/macOS shell script
             path_string = ":".join(path_parts)
-            
-            if has_python_embedded:
-                config_content = (
-                    f'#!/bin/bash\n'
-                    f'export PATH="{path_string}:$PATH"\n'
-                    f'echo "FFmpeg, yt-dlp, and Python embedded are available in this session."\n'
-                    f'echo "Vocal isolation (demucs) is available."\n'
-                    f'echo "To test: python -c \\"import demucs; print(\'demucs installed\')\\""\n'
-                )
-            elif self.use_system_python:
-                config_content = (
-                    f'#!/bin/bash\n'
-                    f'export PATH="{path_string}:$PATH"\n'
-                    f'echo "FFmpeg and yt-dlp are available in this session."\n'
-                    f'echo "Vocal isolation is set up with system Python - demucs should be available."\n'
-                    f'echo "To test: python -c \\"import demucs; print(\'demucs installed successfully\')\\""\n'
-                )
-            else:
-                config_content = (
-                    f'#!/bin/bash\n'
-                    f'export PATH="{path_string}:$PATH"\n'
-                    f'echo "FFmpeg and yt-dlp are available in this session."\n'
-                    f'echo "Note: Vocal isolation not set up. Run with --using_vocal_isolation to enable."\n'
-                )
+
+            config_content = (
+                f'#!/bin/bash\n'
+                f'export PATH="{path_string}:$PATH"\n'
+                f'echo "FFmpeg and yt-dlp are available in this session."\n'
+            )
         
         with open(self.config.CONFIG_FILE, 'w', encoding='utf-8') as file:
             file.write(config_content)
@@ -1409,18 +705,10 @@ Setup Notes:
         
         print(f"\n{self.config.CONFIG_FILE} created with path settings.")
 
-    def run(self, using_vocal_isolation: bool = False, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, use_system_python: bool = False, reuse_ffmpeg: bool = False, reuse_ytdlp: bool = False, reuse_7zr: bool = False, skip_all_prompts: bool = False) -> None:
+    def run(self, force_ffmpeg_download: bool = False, force_ytdlp_download: bool = False, reuse_ffmpeg: bool = False, reuse_ytdlp: bool = False, reuse_7zr: bool = False, skip_all_prompts: bool = False) -> None:
         """Run the environment setup process."""
-        # Store the system python preference
-        self.use_system_python = use_system_python
-
         print("This script will download the following tools to 'downloaded_assets/' folder:")
         print("1. FFmpeg, 2. yt-dlp, 3. 7zr")
-        if using_vocal_isolation:
-            if use_system_python:
-                print("4. PyTorch and Demucs (system Python)")
-            else:
-                print("4. Python Embedded (3.12.10), 5. Demucs")
         print("\nAll installers and tools will be saved locally for reuse.")
 
         seven_zip_exec = self.setup_7zr(skip_prompts=skip_all_prompts or reuse_7zr)
@@ -1430,14 +718,6 @@ Setup Notes:
 
         ffmpeg_path = self.setup_ffmpeg(seven_zip_exec, force_download=force_ffmpeg_download, skip_prompts=skip_all_prompts or reuse_ffmpeg)
         ytdlp_path = self.setup_ytdlp(force_download=force_ytdlp_download, skip_prompts=skip_all_prompts or reuse_ytdlp)
-
-        if using_vocal_isolation:
-            if use_system_python:
-                if not self.install_demucs_system_python(skip_prompts=skip_all_prompts):
-                    print("Failed to install demucs with system Python. Please check the error messages above.")
-                    return
-            else:
-                self.setup_vocal_isolation(skip_prompts=skip_all_prompts)
 
         self.create_config_file(ffmpeg_path, ytdlp_path)
 
@@ -1450,9 +730,9 @@ def main() -> None:
     print(f"Synthalingua Environment Setup Version {VERSION_NUMBER}")
     parser = argparse.ArgumentParser(description="Synthalingua Environment Setup")
     parser.add_argument('--reinstall', action='store_true', help='Wipe all tool folders/files and redownload fresh')
-    parser.add_argument('--using_vocal_isolation', action='store_true', help='Install Python embedded with demucs for vocal isolation features')
-    parser.add_argument('--uninstall', nargs='?', const='', help='Uninstall Python embedded. Add "steam" to skip prompts.')
-    parser.add_argument('--steam', action='store_true', help='Skip all prompts and install everything to current folder.')
+    parser.add_argument('--using_vocal_isolation', action='store_true', help='Deprecated, vocal isolation is built into Synthalingua and needs no separate environment')
+    parser.add_argument('--uninstall', nargs='?', const='', help='Remove a legacy Python embedded install. Add "steam" to skip prompts.')
+    parser.add_argument('--steam', action='store_true', help='Skip all prompts and install the basic tools to the current folder.')
     args = parser.parse_args()
 
     # Handle uninstall first
@@ -1490,7 +770,6 @@ def main() -> None:
     else:
         config_exists = os.path.exists("ffmpeg_path.sh")
 
-    is_fresh_install = not config_exists
 
     # Handle steam
     skip_all_prompts = False
@@ -1498,15 +777,11 @@ def main() -> None:
         if platform.system().lower() != 'windows':
             print("--steam is only supported on Windows.")
             return
-        print("Steam mode: Installing everything fresh without prompts...")
-        args.using_vocal_isolation = True
+        print("Steam mode: Installing basic tools without prompts...")
         # Only reinstall if config file doesn't exist (fresh install)
         args.reinstall = not config_exists
-        python_embedded_path = Path.cwd() / 'python_embedded'
-        use_system_python = False
         skip_all_prompts = True
         # For steam, always treat as not fresh to skip prompts
-        is_fresh_install = False
 
         # Early exit if config already exists in steam mode
         if config_exists:
@@ -1514,164 +789,21 @@ def main() -> None:
             print("To reinstall, delete 'ffmpeg_path.bat' and run setup again.")
             return
 
-    # If fresh install and no arguments provided, enable vocal isolation by default
-    if is_fresh_install and not args.reinstall and not args.using_vocal_isolation and not skip_all_prompts:
-        print("\n🆕 Fresh installation detected!")
-        print("For the best experience, we recommend setting up vocal isolation features.")
-        while True:
-            setup_vocal = input("Would you like to set up vocal isolation (demucs) along with the basic tools? (yes/no): ").strip().lower()
-            if setup_vocal in ("yes", "y"):
-                args.using_vocal_isolation = True
-                print(" Vocal isolation will be included in the setup.")
-                print("  Note: Vocal isolation setup will require approximately 2-3GB of disk space")
-                print("   (Python Embedded + PyTorch + Demucs + audio libraries)")
-                break
-            elif setup_vocal in ("no", "n"):
-                print(" Setting up basic tools only. You can add vocal isolation later with --using_vocal_isolation")
-                break
-            else:
-                print("Please answer 'yes' or 'no'.")
+    # Vocal isolation is built into Synthalingua now, so the flag that used to
+    # install Python embedded and demucs is accepted but does nothing.
+    if args.using_vocal_isolation:
+        print("\n--using_vocal_isolation is no longer needed.")
+        print("Vocal isolation ships inside Synthalingua and needs no separate Python environment.")
+        print("Continuing with the basic tools setup (FFmpeg, yt-dlp, 7zr).")
 
-    # Early exit if config already exists and no reinstall or extra setup requested
-    if config_exists and not args.reinstall and not args.using_vocal_isolation and not skip_all_prompts:
-        print("\nConfig file already exists. Use --reinstall to set up again, or --using_vocal_isolation to add vocal isolation.")
+    # Early exit if config already exists and no reinstall requested
+    if config_exists and not args.reinstall and not skip_all_prompts:
+        print("\nConfig file already exists. Use --reinstall to set up again.")
         return
 
-    # Initialize variables
-    python_embedded_path: Optional[Path] = None
-    use_system_python = False
-
-    # Prompt for vocal isolation setup if requested
-    if args.using_vocal_isolation and not skip_all_prompts:
-        # Platform-specific vocal isolation setup
-        if platform.system().lower() == 'windows':
-            # Windows: Use Python embedded
-            default_path = str(Path.cwd() / 'python_embedded')
-            print(f"\nPython embedded is required for vocal isolation on Windows.")
-            print(f"The recommended installation path is: {default_path}")
-            while True:
-                agree = input("Do you agree to install Python embedded to this path? (yes/no): ").strip().lower()
-                if agree in ('yes', 'y'):
-                    python_embedded_path = Path(default_path)
-                    break
-                elif agree in ('no', 'n'):
-                    print("\n  It is strongly recommended to use the default installation path.")
-                    print("   Changing the location is not recommended unless absolutely necessary.")
-                    print("   If you must choose a custom location, make sure the path contains NO SPACES.")
-                    print("   Paths with spaces can cause installation and runtime errors.")
-                    print("    Note: A 'python_embedded' folder will be created inside your chosen directory.")
-                    while True:
-                        custom_path = input("Please enter a custom base directory for Python embedded installation (NO SPACES): ").strip()
-                        if ' ' in custom_path:
-                            print(" Path cannot contain spaces. Please try again with a path that has NO SPACES.")
-                            continue
-                        if not custom_path:
-                            print("Path cannot be empty. Please try again.")
-                            continue
-                        # Always append 'python_embedded' to the user's chosen directory
-                        python_embedded_path = Path(custom_path) / 'python_embedded'
-                        print(f"Python embedded will be installed to: {python_embedded_path}")
-                        break
-                    break
-                else:
-                    print("Please answer 'yes' or 'no'.")
-        else:
-            # Linux/macOS: Give users choice between Python embedded and system Python
-            print("\n🐍 Python Environment Choice for Vocal Isolation")
-            print("Linux/macOS users have two options for setting up vocal isolation (demucs):")
-            print()
-            print("1. 🐍 Use your existing system Python environment")
-            print("   - Installs packages directly to your current Python environment")
-            print("   - Requires: Python 3.8+ with pip")
-            print("   - Lighter setup, uses your existing Python configuration")
-            print()
-            print("2.  Install Python embedded (isolated environment)")
-            print("   - Creates a dedicated Python installation for Synthalingua")
-            print("   - More isolated, won't conflict with your system packages")
-            print("   - Requires ~2-3GB disk space")
-            print()
-            
-            while True:
-                choice = input("Which option do you prefer? (system/embedded): ").strip().lower()
-                if choice in ("system", "sys", "1"):
-                    use_system_python = True
-                    print(" Using system Python environment.")
-                    print(" Packages will be installed to your current Python environment.")
-                    print(" Make sure you have Python 3.8+ and pip available.")
-                    print()
-                    # Verify Python version
-                    try:
-                        import sys
-                        python_version = sys.version_info
-                        current_version = f"{python_version.major}.{python_version.minor}.{python_version.micro}"
-                        
-                        if python_version.major == 3 and python_version.minor >= 8:
-                            print(f" Python {current_version} detected - compatible!")
-                            
-                            # Provide specific recommendations based on platform
-                            if platform.system().lower() == 'windows':
-                                if current_version == "3.12.10":
-                                    print("   Perfect! This is the recommended Python version for Windows.")
-                                elif python_version.minor == 12:
-                                    print(f"   Note: Python 3.12.10 is recommended for Windows stability.")
-                                    print(f"   Your version {current_version} might work but could be less stable.")
-                                else:
-                                    print(f"   Recommendation: Consider upgrading to Python 3.12.10 for best Windows compatibility.")
-                            else:  # Linux/macOS
-                                if python_version.minor == 12:
-                                    if current_version == "3.12.10":
-                                        print("   Perfect! This is the most stable Python 3.12.x version.")
-                                    else:
-                                        print(f"   Note: Python 3.12.10 is recommended for stability.")
-                                        print(f"   Your version {current_version} should work but might be less stable.")
-                                else:
-                                    print(f"   Recommendation: Python 3.12.x is recommended for best compatibility.")
-                        else:
-                            print(f"  Python {current_version} detected.")
-                            print("   Demucs requires Python 3.8+. Please upgrade if you encounter issues.")
-                            if platform.system().lower() == 'windows':
-                                print("   Recommended: Python 3.12.10 for Windows")
-                            else:
-                                print("   Recommended: Python 3.12.x for Linux/macOS")
-                    except Exception as e:
-                        print(f"  Could not verify Python version: {e}")
-                    break
-                elif choice in ("embedded", "emb", "2"):
-                    use_system_python = False
-                    default_path = os.path.expanduser('~/bin/Synthalingua/python_embedded')
-                    print(" Using Python embedded for isolated environment.")
-                    print(f" Default installation path: {default_path}")
-                    
-                    while True:
-                        agree = input("Install Python embedded to the default path? (yes/no): ").strip().lower()
-                        if agree in ('yes', 'y'):
-                            python_embedded_path = Path(default_path)
-                            break
-                        elif agree in ('no', 'n'):
-                            print("\n  Custom paths are not recommended unless necessary.")
-                            print("   Make sure the path contains NO SPACES.")
-                            print("    Note: A 'python_embedded' folder will be created inside your chosen directory.")
-                            while True:
-                                custom_path = input("Please enter a custom base directory for Python embedded installation (NO SPACES): ").strip()
-                                if ' ' in custom_path:
-                                    print(" Path cannot contain spaces. Please try again with a path that has NO SPACES.")
-                                    continue
-                                if not custom_path:
-                                    print("Path cannot be empty. Please try again.")
-                                    continue
-                                # Always append 'python_embedded' to the user's chosen directory
-                                python_embedded_path = Path(custom_path) / 'python_embedded'
-                                print(f"Python embedded will be installed to: {python_embedded_path}")
-                                break
-                            break
-                        else:
-                            print("Please answer 'yes' or 'no'.")
-                    break
-                else:
-                    print("Please answer 'system' or 'embedded'.")
-
-    # Determine config path based on whether python_embedded path was set
-    cfg = Config(python_embedded_path if python_embedded_path else Path.cwd() / 'python_embedded_placeholder')
+    # Legacy Python embedded path, kept so older installs can be cleaned up on --reinstall
+    python_embedded_path = Path.cwd() / 'python_embedded'
+    cfg = Config(python_embedded_path)
 
     assets_to_check = [
         ('FFmpeg folder', cfg.FFMPEG_ROOT_PATH),
@@ -1693,9 +825,10 @@ def main() -> None:
         for name, path in assets_to_check:
             if path.exists():
                 assets_to_remove.append(path)
-        # Also add the python_embedded installation path if vocal isolation is requested and it exists
-        if args.using_vocal_isolation and python_embedded_path and python_embedded_path.exists():
-             assets_to_remove.append(python_embedded_path)
+        # Remove legacy Python embedded installs, they are no longer used
+        if python_embedded_path.exists():
+            assets_to_remove.append(python_embedded_path)
+            print(f"Found a legacy Python embedded install, it will be removed: {python_embedded_path}")
         # Automatic detection of existing assets (no interactive prompts)
         print("\nChecking for existing assets...")
         for name, path in assets_to_check:
@@ -1709,19 +842,6 @@ def main() -> None:
                     reuse_7zr = True
                 # Archives are left untouched; they will be downloaded if needed later
             # If the asset does not exist, do nothing – download will occur later
-        # Special handling for Python embedded installation directory reuse
-        if args.using_vocal_isolation and python_embedded_path and python_embedded_path.exists():
-             while True:
-                wipe_choice = input(f"Python embedded is already installed at {python_embedded_path}. Do you want to (w)ipe and reinstall, or (k)eep and reuse it? (wipe/keep): ").strip().lower()
-                if wipe_choice in ("wipe", "w"):
-                    assets_to_remove.append(python_embedded_path)
-                    print("Vocal isolation flag detected - will reinstall Python embedded.")
-                    break
-                elif wipe_choice in ("keep", "k"):
-                    print("Keeping existing Python embedded installation. Will reuse and update packages as needed.")
-                    break
-                else:
-                    print("Please answer 'wipe' or 'keep'.")
 
     if assets_to_remove:
         print("\nRemoving selected tool folders/files...")
@@ -1765,8 +885,8 @@ def main() -> None:
     force_ffmpeg = cfg.FFMPEG_ROOT_PATH in assets_to_remove
     force_ytdlp = cfg.YTDLP_PATH in assets_to_remove
 
-    setup = EnvironmentSetup(python_embedded_path if python_embedded_path else Path.cwd() / 'python_embedded_placeholder') # Pass placeholder if no path selected
-    setup.run(using_vocal_isolation=args.using_vocal_isolation, force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, use_system_python=use_system_python, reuse_ffmpeg=reuse_ffmpeg_folder, reuse_ytdlp=reuse_ytdlp_folder, reuse_7zr=reuse_7zr, skip_all_prompts=skip_all_prompts)
+    setup = EnvironmentSetup(python_embedded_path)
+    setup.run(force_ffmpeg_download=force_ffmpeg, force_ytdlp_download=force_ytdlp, reuse_ffmpeg=reuse_ffmpeg_folder, reuse_ytdlp=reuse_ytdlp_folder, reuse_7zr=reuse_7zr, skip_all_prompts=skip_all_prompts)
 
 if __name__ == "__main__":
     from multiprocessing import freeze_support

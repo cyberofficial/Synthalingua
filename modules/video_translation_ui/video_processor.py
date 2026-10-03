@@ -18,7 +18,7 @@ import tempfile
 import time
 
 # Import Demucs helper
-from modules.demucs_path_helper import get_demucs_python_path
+from modules.demucs_path_helper import get_demucs_command_prefix, get_demucs_model_repo_args
 
 logger = logging.getLogger(__name__)
 
@@ -524,21 +524,22 @@ class VideoProcessor:
             RuntimeError: If vocal isolation fails
         """
         try:
-            # Get Demucs Python path
-            demucs_python_path = get_demucs_python_path()
+            # Frozen builds re-enter this executable with --run-demucs-worker,
+            # source builds use a Python interpreter with demucs installed
+            demucs_prefix = get_demucs_command_prefix()
             
             # Create temp directory for Demucs output
             demucs_temp_dir = self.temp_dir / "demucs_output"
             demucs_temp_dir.mkdir(parents=True, exist_ok=True)
             
             # Build Demucs command
-            demucs_cmd = [
-                demucs_python_path,
-                '-m', 'demucs',
+            demucs_cmd = demucs_prefix + [
                 '-n', demucs_model,
                 '-o', str(demucs_temp_dir),
                 '--two-stems', 'vocals'
             ]
+            # Point demucs at shipped models when present so this works offline
+            demucs_cmd += get_demucs_model_repo_args(demucs_model)
             
             # Add jobs parameter if specified
             if demucs_jobs > 0:
@@ -552,7 +553,7 @@ class VideoProcessor:
             demucs_env['TORCHAUDIO_USE_BACKEND_DISPATCHER'] = '1'
             demucs_env['TORIO_USE_FFMPEG'] = '0'
             
-            logger.info(f"Running Demucs: {' '.join(demucs_cmd[2:])}")
+            logger.info(f"Running Demucs: {' '.join(demucs_cmd[len(demucs_prefix):])}")
             
             # Run Demucs with progress monitoring
             process = subprocess.Popen(

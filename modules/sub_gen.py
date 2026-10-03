@@ -59,7 +59,7 @@ import os
 import sys  # ADDED: For finding python executable
 import json # ADDED: For IPC with worker
 import concurrent.futures  # ADDED: For parallel processing of speech regions
-from modules.demucs_path_helper import get_demucs_python_path
+from modules.demucs_path_helper import get_demucs_command_prefix, get_demucs_model_repo_args
 
 import whisper
 import subprocess
@@ -906,14 +906,14 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             # temp file was deleted before the recursive call could use it.
                             tmpdir = temp_manager.mkdtemp(prefix='demucs_rerun_')
                             
-                            demucs_python_path = get_demucs_python_path()
-                            demucs_cmd = [
-                                demucs_python_path,
-                                '-m', 'demucs',
+                            demucs_prefix = get_demucs_command_prefix()
+                            demucs_cmd = demucs_prefix + [
                                 '-n', selected_model,
                                 '-o', tmpdir,
                                 '--two-stems', 'vocals'
                             ]
+                            # Point demucs at shipped models when present
+                            demucs_cmd += get_demucs_model_repo_args(selected_model)
                             
                             # Add jobs parameter if specified
                             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:
@@ -3014,7 +3014,8 @@ def process_single_file(
     # Vocal isolation step if requested
     processed_audio_path = str(input_path_obj)
     if getattr(args, 'isolate_vocals', False):
-        demucs_python_path = get_demucs_python_path()
+        # The demucs command prefix is resolved below, when the command is built
+        # (frozen builds re-enter this executable, source builds use Python)
         
         
         # Determine which Demucs model to use
@@ -3125,13 +3126,14 @@ def process_single_file(
             # Create a managed temp directory for demucs output. It will be cleaned on script exit.
             tmpdir = temp_manager.mkdtemp(prefix='demucs_')
 
-            demucs_cmd = [
-                demucs_python_path,
-                '-m', 'demucs',
+            demucs_prefix = get_demucs_command_prefix()
+            demucs_cmd = demucs_prefix + [
                 '-n', selected_model,
                 '-o', tmpdir,
                 '--two-stems', 'vocals'
             ]
+            # Point demucs at shipped models when present so this works offline
+            demucs_cmd += get_demucs_model_repo_args(selected_model)
             
             # Add jobs parameter if specified
             if hasattr(args, 'demucs_jobs') and args.demucs_jobs > 0:

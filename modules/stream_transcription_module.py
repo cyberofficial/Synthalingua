@@ -20,7 +20,7 @@ import time
 import requests
 import hashlib
 import os
-from modules.demucs_path_helper import get_demucs_python_path
+from modules.demucs_path_helper import get_demucs_command_prefix, get_demucs_model_repo_args
 import m3u8
 import http.client
 import http.cookiejar
@@ -582,14 +582,14 @@ def start_stream_transcription(
                 if args.debug:
                     print_info_message(" Isolating vocals from HLS chunk using Demucs... This may take additional time.")
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    demucs_python_path = get_demucs_python_path()
-                    demucs_cmd = [
-                        demucs_python_path,
-                        '-m', 'demucs',
+                    demucs_prefix = get_demucs_command_prefix()
+                    demucs_cmd = demucs_prefix + [
                         '-n', getattr(args, 'demucs_model', 'htdemucs'),
                         '-o', tmpdir,
                         '--two-stems', 'vocals',
                     ]
+                    # Point demucs at shipped models when present
+                    demucs_cmd += get_demucs_model_repo_args(getattr(args, 'demucs_model', 'htdemucs'))
                     if getattr(args, 'device', None) == 'cuda':
                         demucs_cmd += ['-d', 'cuda']
                     # Add jobs parameter if specified

@@ -48,6 +48,47 @@ if '--run-video-worker' in sys.argv:
         # Ensure the video worker process exits cleanly
         sys.exit(0)
 
+# Check if this process is being launched as a worker for demucs vocal isolation
+if '--run-demucs-worker' in sys.argv:
+    # Demucs runs inside the frozen executable, so no separate Python
+    # environment with demucs installed has to be shipped or created.
+    # Unlike the workers above, demucs exit codes matter (they signal
+    # unsupported input files and separation failures), so they are preserved
+    # instead of always exiting 0.
+    exit_code = 0
+    try:
+        # demucs 4.0.1 calls torch.load without a weights_only argument when
+        # loading models from a local repo. PyTorch 2.6 changed that default to
+        # True, which makes shipped model checkpoints fail to load. The same
+        # relaxation is applied for source builds through
+        # modules/demucs_worker.py, so local model repos behave the same in
+        # both modes.
+        from modules.demucs_worker import relax_torch_load
+
+        relax_torch_load()
+
+        from demucs.separate import main as demucs_main
+
+        # Strip the dispatch flag so demucs sees only its own arguments.
+        # Original: [exe_path, '--run-demucs-worker', '--arg1', 'val1', ...]
+        # New for demucs: [exe_path, '--arg1', 'val1', ...]
+        sys.argv = [sys.argv[0]] + [arg for arg in sys.argv[1:] if arg != '--run-demucs-worker']
+        demucs_main()
+    except SystemExit as e:
+        if isinstance(e.code, int):
+            exit_code = e.code
+        elif e.code is None:
+            exit_code = 0
+        else:
+            print(f"Demucs worker exited: {e.code}", file=sys.stderr)
+            exit_code = 1
+    except Exception as e:
+        import traceback
+        print(f"Demucs worker process failed: {e}", file=sys.stderr)
+        traceback.print_exc()
+        exit_code = 1
+    sys.exit(exit_code)
+
 # If not a worker, proceed with normal imports and execution
 import os
 import torch

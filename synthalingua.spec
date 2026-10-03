@@ -20,7 +20,11 @@ packages_with_data = [
     'whisper', 'librosa', 'openvino', 'optimum', 'faster_whisper', 'torch',
     'torchio', 'torchcodec', 'numpy', 'scipy', 'pandas', 'sklearn', 'pycountry',
     'certifi', 'tiktoken', 'onnx', 'onnxruntime', 'ctranslate2',
-    'soundfile', 'pydub', 'av', 'huggingface_hub', 'transformers', 'datasets'
+    'soundfile', 'pydub', 'av', 'huggingface_hub', 'transformers', 'datasets',
+    # Vocal isolation (demucs) runs inside this executable via
+    # --run-demucs-worker, so it must ship with its own data files.
+    # demucs bundles cdn/remote model definitions that collect_data_files picks up.
+    'demucs', 'dora', 'einops', 'julius', 'openunmix', 'diffq', 'torchaudio', 'yaml'
 ]
 for pkg in packages_with_data:
     try:
@@ -54,6 +58,17 @@ hiddenimports += collect_submodules('flask_socketio')
 hiddenimports += collect_submodules('socketio')
 hiddenimports += collect_submodules('engineio')
 hiddenimports += collect_submodules('nncf')
+
+# Demucs vocal isolation, executed inside this frozen executable through the
+# --run-demucs-worker dispatch in synthalingua.py. These packages are imported
+# dynamically or optionally by demucs, so they need explicit collection.
+hiddenimports += collect_submodules('demucs')
+hiddenimports += collect_submodules('dora')
+hiddenimports += collect_submodules('einops')
+hiddenimports += collect_submodules('openunmix')
+hiddenimports += collect_submodules('diffq')
+hiddenimports += collect_submodules('torchaudio')
+hiddenimports += ['julius', 'lameenc']
 
 # --- The Main Analysis Block ---
 a = Analysis(

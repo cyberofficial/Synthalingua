@@ -124,6 +124,127 @@ def get_demucs_python_path():
         else:
             print(f"{Fore.RED} Invalid path. Please try again. Must be a valid Python 3.12.x executable.{Style.RESET_ALL}")
 
+def is_frozen_build() -> bool:
+    """
+    Return True when running from a PyInstaller build (frozen executable).
+
+    Frozen builds ship demucs inside the executable, so no separate Python
+    environment is needed and no interpreter path has to be resolved.
+    """
+    return bool(getattr(sys, 'frozen', False))
+
+
+def get_demucs_command_prefix():
+    """
+    Return the leading elements of the Demucs command line.
+
+    Frozen builds re-enter the same executable with --run-demucs-worker, which
+    means vocal isolation needs no external Python environment at all. Source
+    builds keep calling a Python interpreter that has demucs installed.
+
+    Returns:
+        list: Command prefix, either [<python>, '<runner script>'] for source
+              builds or [<executable>, '--run-demucs-worker'] when frozen
+    """
+    if is_frozen_build():
+        return [sys.executable, '--run-demucs-worker']
+    # Source builds go through the small runner script so shipped local model
+    # repos behave the same as in the frozen build (see modules/demucs_worker.py)
+    runner_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'demucs_worker.py')
+    return [get_demucs_python_path(), runner_script]
+
+
+def get_demucs_model_repo_args(model_name=None):
+    """
+    Return ['--repo', <path>] when the requested model ships with the app.
+
+    Demucs resolves pretrained models from its remote repository by default,
+    which needs a network connection the first time a model is used. When a
+    local repo folder ships with the build (models/demucs next to the
+    executable, or in the project folder), point demucs at it so vocal
+    isolation works offline.
+
+    Args are only returned when the requested model is actually present,
+    otherwise demucs would fail instead of falling back to the download.
+
+    Args:
+        model_name: Demucs model name, for example 'htdemucs'
+
+    Returns:
+        list: ['--repo', <path>] or []
+    """
+    repo_dir = _find_local_demucs_repo(model_name)
+    if repo_dir:
+        return ['--repo', str(repo_dir)]
+    return []
+
+
+def _find_local_demucs_repo(model_name=None):
+    """Locate a usable local demucs model repo folder, or return None."""
+    candidates = []
+
+    if is_frozen_build():
+        # In a frozen onedir build the models folder sits next to the executable
+        candidates.append(Path(sys.executable).resolve().parent / 'models' / 'demucs')
+        meipass = getattr(sys, '_MEIPASS', None)
+        if meipass:
+            candidates.append(Path(meipass) / 'models' / 'demucs')
+
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates.append(Path(project_root) / 'models' / 'demucs')
+    candidates.append(Path.cwd() / 'models' / 'demucs')
+
+    for candidate in candidates:
+        try:
+            if candidate.is_dir() and _local_repo_has_model(candidate, model_name):
+                return candidate
+        except OSError:
+            continue
+
+    return None
+
+
+def _local_repo_has_model(repo_dir, model_name=None):
+    """
+    Check that a local demucs repo folder actually contains the requested model.
+
+    Demucs model files are either named after the model itself or use the
+    '<signature>-<checksum>.th' form. Bag models (htdemucs_ft, mdx and similar)
+    are described by a yaml file that lists the signatures they are built from,
+    and every listed signature file has to be present as well.
+    """
+    try:
+        repo_dir = Path(repo_dir)
+        if not model_name:
+            return any(repo_dir.glob('*.th')) or any(repo_dir.glob('*.yaml'))
+
+        # Single model file named after the model, optionally with a checksum
+        if any(repo_dir.glob(f'{model_name}*.th')):
+            return True
+
+        bag_file = repo_dir / f'{model_name}.yaml'
+        if bag_file.is_file():
+            signatures = _read_bag_signatures(bag_file)
+            if signatures:
+                return all(any(repo_dir.glob(f'{sig}*.th')) for sig in signatures)
+            # Bag could not be parsed, trust the yaml presence
+            return True
+
+        return False
+    except OSError:
+        return False
+
+
+def _read_bag_signatures(bag_file):
+    """Read the model signatures listed in a demucs bag yaml file."""
+    try:
+        import yaml
+        bag = yaml.safe_load(bag_file.read_text(encoding='utf-8')) or {}
+        return bag.get('models') or []
+    except Exception:
+        return []
+
+
 def _is_valid_python_executable(path, is_windows):
     """Check if the path is a valid Python executable based on OS."""
     if is_windows:
