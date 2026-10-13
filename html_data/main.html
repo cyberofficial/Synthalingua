@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthalingua</title>
+<link rel="stylesheet" type="text/css" href="/static/main.css">
+</head>
+<body>
+<div id="app">
+
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-name">Synthalingua</span>
+            <span class="brand-sub">Control panel</span>
+        </div>
+        <nav class="links">
+            <a href="/">Dashboard</a>
+            <a href="/video_player.html" id="video-translate-link">Video translate</a>
+            <a href="/player.html">Stream player</a>
+        </nav>
+        <div class="shell-only hidden" id="shell-tools">
+            <button type="button" id="btn-caption-window">Caption window</button>
+            <button type="button" id="btn-caption-close">Close captions</button>
+            <label class="check inline"><input type="checkbox" id="chk-caption-pin"> Pin captions</label>
+            <button type="button" id="btn-quit" class="danger">Quit</button>
+        </div>
+    </header>
+
+    <div id="declined-notice" class="hidden card warn">
+        <h2>Disclaimer declined</h2>
+        <p>Start is disabled until the disclaimer is accepted. Review it again to continue.</p>
+        <button type="button" id="btn-review-disclaimer">Review disclaimer</button>
+    </div>
+
+    <main id="app-main">
+
+        <section class="card run-card">
+            <div class="run-row">
+                <button type="button" id="btn-start" class="primary">Start</button>
+                <button type="button" id="btn-stop" disabled>Stop</button>
+                <span id="run-pill" class="pill idle">idle</span>
+                <span id="run-elapsed" class="muted"></span>
+                <span class="spacer"></span>
+                <button type="button" id="btn-preview">Show command</button>
+                <button type="button" id="btn-save">Save settings</button>
+                <button type="button" id="btn-reload">Reload</button>
+            </div>
+            <div id="run-message" class="status-line"></div>
+            <pre id="command-preview" class="command hidden"></pre>
+        </section>
+
+        <section class="card">
+            <div class="tabs" role="tablist">
+                <button type="button" class="tab active" data-mode="captions" role="tab" aria-selected="true">Captions</button>
+                <button type="button" class="tab" data-mode="hls" role="tab" aria-selected="false">HLS stream</button>
+                <button type="button" class="tab" data-mode="mic" role="tab" aria-selected="false">Microphone</button>
+            </div>
+
+            <!-- Captions -->
+            <div class="tab-panel" data-panel="captions">
+                <div class="drop-zone" id="drop-captions">
+                    <strong>Drop an audio or video file here</strong>
+                    <span class="muted">or use Browse. The desktop shell passes the real path; a plain browser fills the name only.</span>
+                </div>
+                <div class="grid">
+                    <label class="field wide">
+                        <span class="field-label">Input file</span>
+                        <span class="input-row">
+                            <input type="text" id="file_input" data-key="file_input" data-type="str-null" placeholder="video.mp4">
+                            <button type="button" class="browse" data-pick="audio_video" data-target="file_input">Browse</button>
+                        </span>
+                    </label>
+                    <label class="field wide">
+                        <span class="field-label">Output folder</span>
+                        <span class="input-row">
+                            <input type="text" id="file_output" data-key="file_output" data-type="str-null" placeholder="Folder for the SRT">
+                            <button type="button" class="browse" data-pick="output_dir" data-target="file_output">Browse</button>
+                        </span>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Output name</span>
+                        <input type="text" id="file_output_name" data-key="file_output_name" data-type="str-null" placeholder="Derived from the input name">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Timeout (seconds, 0 = off)</span>
+                        <input type="number" id="timeout" data-key="timeout" data-type="int-null" min="0" step="1" value="0">
+                    </label>
+                    <label class="check"><input type="checkbox" id="captions-compare"> Compare model sizes</label>
+                    <label class="check"><input type="checkbox" id="print_srt_to_console" data-key="print_srt_to_console" data-type="bool"> Print SRT to console</label>
+                    <label class="check"><input type="checkbox" id="silent_detect" data-key="silent_detect" data-type="bool"> Silent detect</label>
+                    <label class="check"><input type="checkbox" id="intelligent_mode" data-key="intelligent_mode" data-type="bool"> Intelligent mode</label>
+                    <label class="check"><input type="checkbox" id="word_timestamps" data-key="word_timestamps" data-type="bool"> Word timestamps</label>
+                    <label class="field">
+                        <span class="field-label">Silent threshold (dB)</span>
+                        <input type="number" id="silent_threshold" data-key="silent_threshold" data-type="float-null" step="1" value="-35">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Silent duration (seconds)</span>
+                        <input type="number" id="silent_duration" data-key="silent_duration" data-type="float-null" step="0.1" min="0" value="0.5">
+                    </label>
+                </div>
+
+                <details class="advanced">
+                    <summary>Advanced captions</summary>
+                    <div class="grid">
+                        <fieldset class="field wide">
+                            <legend>Subtitle processing</legend>
+                            <label class="check"><input type="radio" name="subtype" value="" checked> None</label>
+                            <label class="check"><input type="radio" name="subtype" value="burn"> Burn into video</label>
+                            <label class="check"><input type="radio" name="subtype" value="embed"> Embed track</label>
+                        </fieldset>
+                        <label class="field">
+                            <span class="field-label">Substyle font (optional)</span>
+                            <input type="text" id="substyle-font" placeholder="FiraSans-Bold.otf">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Substyle size</span>
+                            <input type="number" id="substyle-size" min="8" max="120" step="1" value="24">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Substyle color</span>
+                            <input type="text" id="substyle-color" value="yellow">
+                        </label>
+                        <fieldset class="field wide">
+                            <legend>Batch processing</legend>
+                            <label class="check"><input type="radio" name="batch-mode" value="none" checked> Off</label>
+                            <label class="check"><input type="radio" name="batch-mode" value="auto"> Adaptive batch</label>
+                            <label class="check"><input type="radio" name="batch-mode" value="manual"> Manual batch count</label>
+                        </fieldset>
+                        <label class="field">
+                            <span class="field-label">Batch job size</span>
+                            <input type="number" id="batchjobsize" data-key="batchjobsize" data-type="int-null" min="1" step="1" value="4">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">CPU batches</span>
+                            <input type="number" id="cpu_batches" data-key="cpu_batches" data-type="int-null" min="0" step="1" placeholder="auto">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Max CPU time (seconds)</span>
+                            <input type="number" id="max_cpu_time" data-key="max_cpu_time" data-type="int-null" min="1" step="1" value="300">
+                        </label>
+                        <label class="field">
+                            <span class="field-label">Manual batch count</span>
+                            <input type="number" id="batchmode" data-key="batchmode" data-type="int-null" min="1" step="1" value="1">
+                        </label>
+                    </div>
+                </details>
+
+                <div class="grid language-grid">
+                    <label class="field">
+                        <span class="field-label">Source language</span>
+                        <input type="text" id="language" data-key="language" data-type="str-null" list="language-options" placeholder="Auto detect">
+                    </label>
+                    <label class="check"><input type="checkbox" id="translate" data-key="translate" data-type="bool"> Translate to English</label>
+                    <label class="check"><input type="checkbox" id="transcribe" data-key="transcribe" data-type="bool"> Secondary translation</label>
+                    <label class="field">
+                        <span class="field-label">Target language</span>
+                        <input type="text" id="target_language" data-key="target_language" data-type="str-null" list="language-options" placeholder="English">
+                    </label>
+                </div>
+            </div>
+
+            <!-- HLS stream -->
+            <div class="tab-panel hidden" data-panel="hls">
+                <div class="grid">
+                    <label class="field wide">
+                        <span class="field-label">Stream URL</span>
+                        <input type="text" id="stream" data-key="stream" data-type="str-null" placeholder="stream URL">
+                    </label>
+                    <label class="field wide">
+                        <span class="field-label">Cookies file</span>
+                        <span class="input-row">
+                            <input type="text" id="cookies" data-key="cookies" data-type="str-null" placeholder="cookies.txt">
+                            <button type="button" class="browse" data-pick="cookies" data-target="cookies">Browse</button>
+                        </span>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Remote HLS password id</span>
+                        <input type="text" id="remote_hls_password_id" data-key="remote_hls_password_id" data-type="str-null">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Remote HLS password</span>
+                        <input type="password" id="remote_hls_password" data-key="remote_hls_password" data-type="str-null">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Stream chunks</span>
+                        <input type="number" id="stream_chunks" data-key="stream_chunks" data-type="int-null" min="1" max="60" step="1" value="5">
+                    </label>
+                    <label class="check"><input type="checkbox" id="auto_hls" data-key="auto_hls" data-type="bool"> Auto HLS</label>
+                    <label class="check"><input type="checkbox" id="hls-selectsource"> Select source interactively</label>
+                    <label class="check"><input type="checkbox" id="stream_original_text" data-key="stream_original_text" data-type="bool"> Show original stream text</label>
+                </div>
+
+                <details class="advanced">
+                    <summary>Advanced HLS</summary>
+                    <div class="grid">
+                        <div class="field wide" data-modes="hls mic">
+                            <span class="field-label">Web server</span>
+                            <div class="grid">
+                                <label class="field">
+                                    <span class="field-label">Port</span>
+                                    <input type="number" id="portnumber" data-key="portnumber" data-type="int-null" min="1" max="65535" step="1" placeholder="off">
+                                </label>
+                                <label class="field">
+                                    <span class="field-label">HTTPS port</span>
+                                    <input type="number" id="https" data-key="https" data-type="int-null" min="1" max="65535" step="1" placeholder="off">
+                                </label>
+                                <label class="field">
+                                    <span class="field-label">Server IP</span>
+                                    <input type="text" id="serverip" data-key="serverip" data-type="str" value="127.0.0.1">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="grid language-grid">
+                    <label class="field">
+                        <span class="field-label">Stream language</span>
+                        <input type="text" id="stream_language" data-key="stream_language" data-type="str-null" list="language-options" placeholder="Auto detect">
+                    </label>
+                    <label class="check"><input type="checkbox" id="stream_translate" data-key="stream_translate" data-type="bool"> Translate to English</label>
+                    <label class="field">
+                        <span class="field-label">Stream transcribe target</span>
+                        <input type="text" id="stream_transcribe" data-key="stream_transcribe" data-type="str-null" list="language-options" placeholder="English">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Microphone -->
+            <div class="tab-panel hidden" data-panel="mic">
+                <div class="grid">
+                    <label class="check"><input type="checkbox" id="mic-enabled" checked> Microphone enabled</label>
+                    <label class="field wide">
+                        <span class="field-label">Input device</span>
+                        <span class="input-row">
+                            <select id="set_microphone" data-key="set_microphone" data-type="int-null">
+                                <option value="">System default</option>
+                            </select>
+                            <button type="button" id="btn-refresh-mics">Refresh</button>
+                        </span>
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Energy threshold</span>
+                        <input type="number" id="energy_threshold" data-key="energy_threshold" data-type="int-null" min="1" step="1" value="100">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Calibration time (seconds)</span>
+                        <input type="number" id="mic_calibration_time" data-key="mic_calibration_time" data-type="int-null" min="0" step="1" placeholder="app default">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Record timeout (seconds)</span>
+                        <input type="number" id="record_timeout" data-key="record_timeout" data-type="int-null" min="0" step="1" value="1">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Phrase timeout (seconds)</span>
+                        <input type="number" id="phrase_timeout" data-key="phrase_timeout" data-type="int-null" min="0" step="1" value="1">
+                    </label>
+                    <label class="field">
+                        <span class="field-label">Mic chunk size</span>
+                        <input type="number" id="mic_chunk_size" data-key="mic_chunk_size" data-type="int-null" min="1" step="1" value="1">
+                    </label>
+                </div>
+
+                <details class="advanced">
+                    <summary>Advanced microphone</summary>
+                    <div class="grid">
+                        <div class="field wide" data-modes="hls mic">
+                            <span class="field-label">Web server</span>
+                            <div class="grid">
+                                <label class="field">
+                                    <span class="field-label">Port</span>
+                                    <input type="number" id="portnumber-mic" data-key="portnumber" data-type="int-null" min="1" max="65535" step="1" placeholder="off">
+                                </label>
+                                <label class="field">
+                                    <span class="field-label">HTTPS port</span>
+                                    <input type="number" id="https-mic" data-key="https" data-type="int-null" min="1" max="65535" step="1" placeholder="off">
+                                </label>
+                                <label class="field">
+                                    <span class="field-label">Server IP</span>
+                                    <input type="text" id="serverip-mic" data-key="serverip" data-type="str" value="127.0.0.1">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <div class="grid language-grid">
+                    <label class="field">
+                        <span class="field-label">Source language</span>
+                        <input type="text" id="mic-language" data-key="language" data-type="str-null" list="language-options" placeholder="Auto detect">
+                    </label>
+                    <label class="check"><input type="checkbox" id="mic-translate" data-key="translate" data-type="bool"> Translate to English</label>
+                    <label class="check"><input type="checkbox" id="mic-transcribe" data-key="transcribe" data-type="bool"> Secondary translation</label>
+                    <label class="field">
+                        <span class="field-label">Target language</span>
+                        <input type="text" id="mic-target_language" data-key="target_language" data-type="str-null" list="language-options" placeholder="English">
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 class="card-title">Model</h2>
+            <div class="grid">
+                <label class="field">
+                    <span class="field-label">RAM size</span>
+                    <select id="ram" data-key="ram" data-type="str">
+                        <option value="1gb">1gb</option>
+                        <option value="2gb" selected>2gb</option>
+                        <option value="3gb">3gb</option>
+                        <option value="6gb">6gb</option>
+                        <option value="7gb">7gb</option>
+                        <option value="11gb-v2">11gb-v2</option>
+                        <option value="11gb-v3">11gb-v3</option>
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" id="ramforce" data-key="ramforce" data-type="bool"> Force RAM size</label>
+                <label class="field">
+                    <span class="field-label">Model source</span>
+                    <select id="model_source" data-key="model_source" data-type="str">
+                        <option value="whisper">whisper</option>
+                        <option value="fasterwhisper">fasterwhisper</option>
+                        <option value="openvino">openvino</option>
+                    </select>
+                </label>
+                <label class="field wide">
+                    <span class="field-label">Model folder</span>
+                    <span class="input-row">
+                        <input type="text" id="model_dir" data-key="model_dir" data-type="str" value="models">
+                        <button type="button" class="browse" data-pick="output_dir" data-target="model_dir">Browse</button>
+                        <button type="button" id="btn-refresh-models">Refresh models</button>
+                    </span>
+                </label>
+                <label class="field">
+                    <span class="field-label">Device</span>
+                    <select id="device" data-key="device" data-type="str">
+                        <option value="auto" selected>auto</option>
+                        <option value="cuda">cuda</option>
+                        <option value="cpu">cpu</option>
+                        <option value="intel-igpu">intel-igpu</option>
+                        <option value="intel-dgpu">intel-dgpu</option>
+                        <option value="intel-npu">intel-npu</option>
+                    </select>
+                </label>
+                <label class="check"><input type="checkbox" id="fp16" data-key="fp16" data-type="bool"> FP16 precision</label>
+                <div class="field wide">
+                    <span class="field-label">Models on disk</span>
+                    <div id="model-listing" class="model-listing muted">Loading...</div>
+                </div>
+            </div>
+        </section>
+
+        <details class="card advanced">
+            <summary>Advanced: vocal isolation, audio, filters, debug</summary>
+            <div class="grid">
+                <label class="check"><input type="checkbox" id="isolate_vocals" data-key="isolate_vocals" data-type="bool"> Isolate vocals (demucs)</label>
+                <label class="field">
+                    <span class="field-label">Demucs jobs</span>
+                    <input type="number" id="demucs_jobs" data-key="demucs_jobs" data-type="int-null" min="0" step="1" placeholder="auto">
+                </label>
+                <label class="field">
+                    <span class="field-label">Demucs model</span>
+                    <select id="demucs_model" data-key="demucs_model" data-type="str">
+                        <option value="DEFAULT">App default</option>
+                    </select>
+                </label>
+                <label class="field">
+                    <span class="field-label">Padded audio (seconds, 0 = off)</span>
+                    <input type="number" id="paddedaudio" data-key="paddedaudio" data-type="int-null" min="0" step="1" value="0">
+                </label>
+                <label class="field wide">
+                    <span class="field-label">Ignore list file</span>
+                    <span class="input-row">
+                        <input type="text" id="ignorelist" data-key="ignorelist" data-type="str-null" placeholder="blocklist.txt">
+                        <button type="button" class="browse" data-pick="ignorelist" data-target="ignorelist">Browse</button>
+                    </span>
+                </label>
+                <label class="field wide">
+                    <span class="field-label">Discord webhook</span>
+                    <input type="text" id="discord_webhook" data-key="discord_webhook" data-type="str-null" placeholder="Leave empty to disable">
+                </label>
+                <label class="check"><input type="checkbox" id="condition_on_previous_text" data-key="condition_on_previous_text" data-type="bool"> Condition on previous text</label>
+                <label class="check"><input type="checkbox" id="auto_blocklist" data-key="auto_blocklist" data-type="bool"> Auto blocklist</label>
+                <label class="check"><input type="checkbox" id="debug" data-key="debug" data-type="bool"> Debug logging</label>
+                <div class="field wide">
+                    <span class="field-label">Blocklist in use</span>
+                    <div id="blocklist-listing" class="muted">Not loaded.</div>
+                </div>
+            </div>
+        </details>
+
+        <section class="card">
+            <div class="run-row">
+                <h2 class="card-title">Run log</h2>
+                <span class="spacer"></span>
+                <button type="button" id="btn-copy-log">Copy log</button>
+                <button type="button" id="btn-clear-log">Clear view</button>
+            </div>
+            <pre id="run-log" class="log"></pre>
+        </section>
+
+    </main>
+
+    <div id="disclaimer-modal" class="modal hidden">
+        <div class="modal-card">
+            <h2>Before you start</h2>
+            <p>Synthalingua runs speech recognition and optional translation locally on this machine. It does not upload your audio or video anywhere on its own.</p>
+            <p>Transcription downloads nothing in packaged builds: the models ship with the app and are read from the local models folder. A stream URL or a Discord webhook sends data to that service only because you configured it.</p>
+            <p>Use this software only on media you have the right to process. The authors are not responsible for how it is used.</p>
+            <div class="modal-actions">
+                <button type="button" id="btn-disclaimer-accept" class="primary">I understand and accept</button>
+                <button type="button" id="btn-disclaimer-decline">Decline</button>
+            </div>
+        </div>
+    </div>
+
+    <datalist id="language-options"></datalist>
+</div>
+<script src="/static/socket.io.min.js"></script>
+<script src="/static/main.js"></script>
+</body>
+</html>

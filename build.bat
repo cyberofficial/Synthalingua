@@ -1,8 +1,6 @@
 call data_whisper\Scripts\activate.bat
 
 set VERSION=1.2.6.steam.10
-:: set steam var to true
-set STEAM=true
 
 Echo building version %VERSION% 
 
@@ -24,14 +22,9 @@ Echo moving dep files...
 xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\deps\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\_internal\deps" /E /H /Y /I
 
 
-:: Copy appropriate GUI files based on STEAM variable
-if "%STEAM%"=="true" (
-    echo Moving GUI steam files to portable patch folder...
-    xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev-steam\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
-) else (
-    echo Moving GUI dev files to portable patch folder...
-    xcopy "E:\Synthalingua\Synthalingua_Main\dist-portable\gui_dev\*" "E:\Synthalingua\Synthalingua_Main\dist-portable\patches\%VERSION%\" /E /H /Y /I
-)
+:: The .NET wrapper GUI is no longer shipped. The app window is now the Python
+:: desktop UI (--desktop, modules/desktop_ui.py), so there are no gui_dev or
+:: gui_dev-steam files to copy into the patch folder.
 
 Echo building remote microphone tool...
 pyinstaller remote_microphone.py --onefile --distpath dist --icon="E:\Synthalingua\Synthalingua_Wrapper\assets\Synthalingua-chan-logo.ico" --noconfirm

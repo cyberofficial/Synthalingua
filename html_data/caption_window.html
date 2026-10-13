@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caption window</title>
+<style>
+    :root {
+        --caption-font: "Segoe UI", sans-serif;
+        --caption-size: 28px;
+        --caption-color: #ffffff;
+        --caption-bg: transparent;
+        --caption-window-bg: #00b140;
+        --plant-opacity: 0.7;
+        --align-h: center;
+        --align-v: flex-end;
+        --caption-direction: ltr;
+        --caption-text-align: center;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    body {
+        display: flex;
+        flex-direction: column;
+        background: var(--caption-window-bg);
+        color: #f2f2f2;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        font-size: 12px;
+    }
+
+    .titlebar {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        background: rgba(0, 0, 0, 0.45);
+        user-select: none;
+    }
+
+    .titlebar .title {
+        margin-right: auto;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    .titlebar .status {
+        opacity: 0.75;
+        margin-right: 6px;
+        white-space: nowrap;
+    }
+
+    button {
+        font: inherit;
+        color: #fff;
+        background: #2f6fd0;
+        border: 0;
+        border-radius: 3px;
+        padding: 2px 8px;
+        cursor: pointer;
+    }
+
+    button:hover { background: #3b82ef; }
+
+    button.ghost { background: #444; }
+    button.ghost:hover { background: #5a5a5a; }
+    button.grid { min-width: 26px; padding: 2px 4px; background: #444; }
+    button.grid:hover { background: #5a5a5a; }
+    button.grid.active { background: #00b140; color: #04220d; font-weight: 600; }
+
+    .panel {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        padding: 6px 8px;
+        background: rgba(0, 0, 0, 0.62);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        max-height: 45vh;
+        overflow: auto;
+    }
+
+    .panel section {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 120px;
+    }
+
+    .panel h3 {
+        margin: 0;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.65;
+    }
+
+    .panel label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+    }
+
+    .panel input[type="number"] { width: 58px; }
+    .panel input[type="text"] { width: 130px; }
+    .panel input[type="color"] {
+        width: 30px;
+        height: 18px;
+        padding: 0;
+        border: 1px solid #777;
+        background: none;
+        cursor: pointer;
+    }
+
+    .align-grid {
+        display: grid;
+        grid-template-columns: repeat(3, auto);
+        gap: 2px;
+    }
+
+    .hint { opacity: 0.6; }
+
+    .stage {
+        flex: 1 1 auto;
+        display: flex;
+        justify-content: var(--align-h);
+        align-items: var(--align-v);
+        overflow: auto;
+        padding: 6px 10px;
+    }
+
+    .captions {
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        max-width: 100%;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: var(--caption-font);
+        font-size: var(--caption-size);
+        color: var(--caption-color);
+        background: var(--caption-bg);
+        direction: var(--caption-direction);
+        text-align: var(--caption-text-align);
+        line-height: 1.25;
+    }
+
+    .hidden { display: none !important; }
+
+    body.planted { opacity: var(--plant-opacity); cursor: move; }
+    body.planted .panel { display: none; }
+    body.planted .titlebar {
+        background: transparent;
+        opacity: 0.3;
+        cursor: move;
+    }
+    body.planted .titlebar:hover { background: rgba(0, 0, 0, 0.45); opacity: 1; }
+    body.planted .titlebar .title,
+    body.planted .titlebar .status,
+    body.planted #btn-panel { display: none; }
+</style>
+</head>
+<body>
+    <div class="titlebar pywebview-drag-region" id="titlebar">
+        <span class="title">Caption window</span>
+        <span class="status" id="status"></span>
+        <button type="button" id="btn-panel" title="Show or hide the controls (H)">Controls</button>
+        <button type="button" id="btn-plant" class="hidden" title="Borderless, always on top, drag anywhere">Plant</button>
+        <button type="button" id="btn-restore" class="hidden" title="Leave plant mode (double click the captions)">Restore</button>
+        <button type="button" id="btn-close" class="ghost" title="Close the caption window">Close</button>
+    </div>
+
+    <div class="panel" id="panel">
+        <section>
+            <h3>Streams</h3>
+            <label><input type="checkbox" id="show-original"> Original</label>
+            <label><input type="checkbox" id="show-translated"> Translated</label>
+            <label><input type="checkbox" id="show-transcribed"> Transcribed</label>
+            <span class="hint" id="poll-hint">polling 250 ms</span>
+        </section>
+
+        <section>
+            <h3>Blocklist</h3>
+            <label><input type="checkbox" id="bl-enabled"> Filter text</label>
+            <label><input type="radio" name="blmode" id="bl-star" value="star"> Stars</label>
+            <label><input type="radio" name="blmode" id="bl-blank" value="blank"> Blank</label>
+            <span class="hint" id="bl-status">loading</span>
+        </section>
+
+        <section>
+            <h3>Text</h3>
+            <label>Face <input type="text" id="font-face" list="font-list" spellcheck="false"></label>
+            <datalist id="font-list">
+                <option value="Segoe UI"></option>
+                <option value="Arial"></option>
+                <option value="Calibri"></option>
+                <option value="Tahoma"></option>
+                <option value="Verdana"></option>
+                <option value="Georgia"></option>
+                <option value="Times New Roman"></option>
+                <option value="Consolas"></option>
+                <option value="Courier New"></option>
+            </datalist>
+            <label>Size <input type="number" id="font-size" min="8" max="200" step="1"></label>
+            <label>Colour <input type="color" id="text-color"></label>
+            <label>Text background <input type="color" id="text-bg">
+                <input type="checkbox" id="text-bg-transparent"> transparent</label>
+            <label>RTL <input type="checkbox" id="rtl"></label>
+        </section>
+
+        <section>
+            <h3>Alignment</h3>
+            <div class="align-grid" id="align-grid">
+                <button type="button" class="grid" data-v="top" data-h="left" title="Top left">&#8598;</button>
+                <button type="button" class="grid" data-v="top" data-h="center" title="Top center">&#8593;</button>
+                <button type="button" class="grid" data-v="top" data-h="right" title="Top right">&#8599;</button>
+                <button type="button" class="grid" data-v="middle" data-h="left" title="Middle left">&#8592;</button>
+                <button type="button" class="grid" data-v="middle" data-h="center" title="Middle center">&#43;</button>
+                <button type="button" class="grid" data-v="middle" data-h="right" title="Middle right">&#8594;</button>
+                <button type="button" class="grid" data-v="bottom" data-h="left" title="Bottom left">&#8601;</button>
+                <button type="button" class="grid" data-v="bottom" data-h="center" title="Bottom center">&#8595;</button>
+                <button type="button" class="grid" data-v="bottom" data-h="right" title="Bottom right">&#8600;</button>
+            </div>
+        </section>
+
+        <section>
+            <h3>Window</h3>
+            <label>Background <input type="color" id="window-bg">
+                <button type="button" class="ghost" id="btn-bg-reset" title="Reset to the default green">Reset</button></label>
+            <label>Plant opacity <input type="number" id="plant-opacity" min="0.1" max="1" step="0.05"></label>
+            <label><button type="button" class="ghost" id="btn-defaults">Reset to defaults</button></label>
+            <span class="hint" id="shell-status"></span>
+        </section>
+    </div>
+
+    <div class="stage" id="stage">
+        <div class="captions" id="captions">dummy text</div>
+    </div>
+
+<script>
+// The shell binds a window-level drop handler per window and calls this with
+// the absolute paths of the dropped files. The caption window has no use for a
+// dropped file, so the paths are accepted and ignored; no file handling is
+// added here.
+window.__synthalinguaDrop = function (paths) {
+    var list = [];
+    if (Array.isArray(paths)) { list = paths; }
+    else if (typeof paths === "string") { list = [paths]; }
+    list = list.filter(function (item) { return typeof item === "string" && item.length > 0; });
+    return list.length;
+};
+
+(function () {
+    "use strict";
+
+    var POLL_MS = 250;
+    var BLOCKLIST_REFRESH_MS = 5000;
+    var SAVE_DEBOUNCE_MS = 400;
+    var GEOMETRY_DEBOUNCE_MS = 600;
+
+    var STREAMS = [
+        { key: "original", showKey: "ui_caption_show_original", url: "/update-header" },
+        { key: "translated", showKey: "ui_caption_show_translated", url: "/update-translated-header" },
+        { key: "transcribed", showKey: "ui_caption_show_transcribed", url: "/update-transcribed-header" }
+    ];
+
+    var DEFAULT_WINDOW_BG = "#00b140";
+    var DEFAULT_GEOMETRY = { x: 0, y: 0, width: 800, height: 220 };
+
+    var DEFAULTS = {
+        ui_caption_show_original: true,
+        ui_caption_show_translated: true,
+        ui_caption_show_transcribed: true,
+        ui_caption_blocklist_enabled: false,
+        ui_caption_blocklist_mode: "star",
+        ui_caption_font_face: "Segoe UI",
+        ui_caption_font_size: 28,
+        ui_caption_text_color: "#ffffff",
+        ui_caption_text_bg: "#000000",
+        ui_caption_text_bg_transparent: true,
+        ui_caption_align_h: "center",
+        ui_caption_align_v: "bottom",
+        ui_caption_rtl: false,
+        ui_caption_window_bg: DEFAULT_WINDOW_BG,
+        ui_caption_plant_opacity: 0.7,
+        ui_caption_panel_visible: true,
+        ui_caption_pinned: false,
+        ui_caption_geometry: DEFAULT_GEOMETRY
+    };
+
+    var KEYS = Object.keys(DEFAULTS);
+
+    var state = {};
+    KEYS.forEach(function (key) { state[key] = DEFAULTS[key]; });
+
+    var buffers = { original: "dummy text", translated: "", transcribed: "" };
+    var blocklist = [];
+    var settingsReady = false;
+    var settingsAvailable = null;
+    var planted = false;
+    var shellReady = false;
+    var shellApi = null;
+    var pollTimer = null;
+    var pollInFlight = false;
+    var saveTimer = null;
+    var geometryTimer = null;
+    var statusTimer = null;
+
+    function el(id) { return document.getElementById(id); }
+
+    function setStatus(message) {
+        var node = el("status");
+        node.textContent = message || "";
+        if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
+        if (message) {
+            statusTimer = setTimeout(function () { node.textContent = ""; }, 2500);
+        }
+    }
+
+    function isFiniteNumber(value) { return typeof value === "number" && isFinite(value); }
+
+    function clampNumber(value, min, max, fallback) {
+        var n = Number(value);
+        if (!isFinite(n)) { return fallback; }
+        if (n < min) { return min; }
+        if (n > max) { return max; }
+        return n;
+    }
+
+    function coerceSetting(key, value) {
+        switch (key) {
+        case "ui_caption_show_original":
+        case "ui_caption_show_translated":
+        case "ui_caption_show_transcribed":
+        case "ui_caption_blocklist_enabled":
+        case "ui_caption_text_bg_transparent":
+        case "ui_caption_rtl":
+        case "ui_caption_panel_visible":
+        case "ui_caption_pinned":
+            return typeof value === "boolean" ? value : DEFAULTS[key];
+        case "ui_caption_blocklist_mode":
+            return (value === "star" || value === "blank") ? value : DEFAULTS[key];
+        case "ui_caption_align_h":
+            return (value === "left" || value === "center" || value === "right") ? value : DEFAULTS[key];
+        case "ui_caption_align_v":
+            return (value === "top" || value === "middle" || value === "bottom") ? value : DEFAULTS[key];
+        case "ui_caption_font_size":
+            return Math.round(clampNumber(value, 8, 200, DEFAULTS[key]));
+        case "ui_caption_plant_opacity":
+            return clampNumber(value, 0.1, 1, DEFAULTS[key]);
+        case "ui_caption_font_face":
+        case "ui_caption_text_color":
+        case "ui_caption_text_bg":
+        case "ui_caption_window_bg":
+            return (typeof value === "string" && value.length > 0) ? value : DEFAULTS[key];
+        case "ui_caption_geometry":
+            if (!value || typeof value !== "object") { return { x: 0, y: 0, width: 800, height: 220 }; }
+            return {
+                x: Math.round(clampNumber(value.x, -20000, 20000, 0)),
+                y: Math.round(clampNumber(value.y, -20000, 20000, 0)),
+                width: Math.round(clampNumber(value.width, 120, 20000, 800)),
+                height: Math.round(clampNumber(value.height, 60, 20000, 220))
+            };
+        default:
+            return value;
+        }
+    }
+
+    function applyStyle() {
+        var root = document.documentElement.style;
+        var face = state.ui_caption_font_face;
+        root.setProperty("--caption-font", /[",]/.test(face) ? face : '"' + face + '", sans-serif');
+        root.setProperty("--caption-size", state.ui_caption_font_size + "px");
+        root.setProperty("--caption-color", state.ui_caption_text_color);
+        root.setProperty("--caption-bg", state.ui_caption_text_bg_transparent ? "transparent" : state.ui_caption_text_bg);
+        root.setProperty("--caption-window-bg", state.ui_caption_window_bg);
+        root.setProperty("--plant-opacity", String(state.ui_caption_plant_opacity));
+        root.setProperty("--caption-direction", state.ui_caption_rtl ? "rtl" : "ltr");
+
+        var justify = { left: "flex-start", center: "center", right: "flex-end" };
+        var align = { top: "flex-start", middle: "center", bottom: "flex-end" };
+        var textAlign = { left: "left", center: "center", right: "right" };
+        root.setProperty("--align-h", justify[state.ui_caption_align_h] || "center");
+        root.setProperty("--align-v", align[state.ui_caption_align_v] || "flex-end");
+        root.setProperty("--caption-text-align", textAlign[state.ui_caption_align_h] || "center");
+    }
+
+    function applyControls() {
+        el("show-original").checked = state.ui_caption_show_original;
+        el("show-translated").checked = state.ui_caption_show_translated;
+        el("show-transcribed").checked = state.ui_caption_show_transcribed;
+        el("bl-enabled").checked = state.ui_caption_blocklist_enabled;
+        el("bl-star").checked = state.ui_caption_blocklist_mode === "star";
+        el("bl-blank").checked = state.ui_caption_blocklist_mode === "blank";
+        el("font-face").value = state.ui_caption_font_face;
+        el("font-size").value = String(state.ui_caption_font_size);
+        el("text-color").value = state.ui_caption_text_color;
+        el("text-bg").value = state.ui_caption_text_bg;
+        el("text-bg").disabled = state.ui_caption_text_bg_transparent;
+        el("text-bg-transparent").checked = state.ui_caption_text_bg_transparent;
+        el("rtl").checked = state.ui_caption_rtl;
+        el("window-bg").value = state.ui_caption_window_bg;
+        el("plant-opacity").value = String(state.ui_caption_plant_opacity);
+        el("panel").classList.toggle("hidden", !state.ui_caption_panel_visible);
+
+        var buttons = el("align-grid").getElementsByTagName("button");
+        for (var i = 0; i < buttons.length; i++) {
+            var button = buttons[i];
+            var active = button.getAttribute("data-v") === state.ui_caption_align_v &&
+                button.getAttribute("data-h") === state.ui_caption_align_h;
+            button.classList.toggle("active", active);
+        }
+    }
+
+    function filterText(text) {
+        if (!state.ui_caption_blocklist_enabled || blocklist.length === 0) { return text; }
+        var words = String(text).split(" ");
+        var star = state.ui_caption_blocklist_mode === "star";
+        for (var i = 0; i < words.length; i++) {
+            for (var j = 0; j < blocklist.length; j++) {
+                var phrase = blocklist[j];
+                if (words[i].toLowerCase().indexOf(phrase.toLowerCase()) !== -1) {
+                    words[i] = star ? "*" : " ";
+                    break;
+                }
+            }
+        }
+        return words.join(" ");
+    }
+
+    function render() {
+        var lines = [];
+        STREAMS.forEach(function (stream) {
+            if (state[stream.showKey]) {
+                lines.push(filterText(buffers[stream.key] || ""));
+            }
+        });
+        el("captions").textContent = lines.join("\n");
+    }
+
+    function applyAll() {
+        applyStyle();
+        applyControls();
+        render();
+    }
+
+    function fetchText(url) {
+        return fetch(url, { cache: "no-store" }).then(function (response) {
+            if (!response.ok) { throw new Error("HTTP " + response.status); }
+            return response.text();
+        });
+    }
+
+    function pollOnce() {
+        if (pollInFlight) { return Promise.resolve(); }
+        pollInFlight = true;
+        var jobs = [];
+        STREAMS.forEach(function (stream) {
+            if (!state[stream.showKey]) { return; }
+            jobs.push(fetchText(stream.url).then(function (text) {
+                return { key: stream.key, text: text };
+            }).catch(function (error) {
+                return { key: stream.key, text: "Error: " + error.message };
+            }));
+        });
+        return Promise.all(jobs).then(function (results) {
+            results.forEach(function (result) { buffers[result.key] = result.text; });
+            render();
+            pollInFlight = false;
+        }).catch(function () {
+            pollInFlight = false;
+        });
+    }
+
+    function pollLoop() {
+        if (pollTimer) { clearTimeout(pollTimer); }
+        pollTimer = setTimeout(function () {
+            pollOnce().then(function () { pollLoop(); });
+        }, POLL_MS);
+    }
+
+    function loadBlocklist() {
+        fetch("/api/blocklist", { cache: "no-store" }).then(function (response) {
+            if (!response.ok) { throw new Error("HTTP " + response.status); }
+            return response.json();
+        }).then(function (payload) {
+            var words = (payload && Array.isArray(payload.words)) ? payload.words : [];
+            blocklist = words.map(function (word) {
+                return word === null || word === undefined ? "" : String(word).trim();
+            }).filter(function (word) { return word.length > 0; });
+            el("bl-status").textContent = blocklist.length + " phrases";
+            render();
+        }).catch(function () {
+            blocklist = [];
+            el("bl-status").textContent = "blocklist API unavailable";
+            render();
+        });
+    }
+
+    function hasKey(object, key) { return Object.prototype.hasOwnProperty.call(object, key); }
+
+    // The settings file already carries a coarse caption vocabulary from the
+    // run manager (ui_caption_streams, ui_caption_font, ui_caption_color,
+    // ui_caption_background, ui_caption_alignment). The page keeps its own
+    // granular keys as the source of truth and mirrors the coarse ones, so a
+    // value written by either side is understood and the two vocabularies do
+    // not diverge.
+    function readMirrors(stored) {
+        var streams = stored.ui_caption_streams;
+        if (streams && typeof streams === "object") {
+            if (!hasKey(stored, "ui_caption_show_original") && typeof streams.original === "boolean") {
+                state.ui_caption_show_original = streams.original;
+            }
+            if (!hasKey(stored, "ui_caption_show_translated") && typeof streams.translated === "boolean") {
+                state.ui_caption_show_translated = streams.translated;
+            }
+            if (!hasKey(stored, "ui_caption_show_transcribed") && typeof streams.transcribed === "boolean") {
+                state.ui_caption_show_transcribed = streams.transcribed;
+            }
+        }
+        if (!hasKey(stored, "ui_caption_font_face") && typeof stored.ui_caption_font === "string") {
+            state.ui_caption_font_face = coerceSetting("ui_caption_font_face", stored.ui_caption_font);
+        }
+        if (!hasKey(stored, "ui_caption_text_color") && typeof stored.ui_caption_color === "string") {
+            state.ui_caption_text_color = coerceSetting("ui_caption_text_color", stored.ui_caption_color);
+        }
+        if (!hasKey(stored, "ui_caption_text_bg") && typeof stored.ui_caption_background === "string") {
+            state.ui_caption_text_bg = coerceSetting("ui_caption_text_bg", stored.ui_caption_background);
+        }
+        if (!hasKey(stored, "ui_caption_align_h") && !hasKey(stored, "ui_caption_align_v") &&
+                typeof stored.ui_caption_alignment === "string") {
+            var parts = stored.ui_caption_alignment.split("-");
+            if (parts.length === 2) {
+                state.ui_caption_align_v = coerceSetting("ui_caption_align_v", parts[0]);
+                state.ui_caption_align_h = coerceSetting("ui_caption_align_h", parts[1]);
+            }
+        }
+    }
+
+    function buildPayload() {
+        var payload = {};
+        KEYS.forEach(function (key) { payload[key] = state[key]; });
+        payload.ui_caption_streams = {
+            original: state.ui_caption_show_original,
+            translated: state.ui_caption_show_translated,
+            transcribed: state.ui_caption_show_transcribed
+        };
+        payload.ui_caption_font = state.ui_caption_font_face;
+        payload.ui_caption_color = state.ui_caption_text_color;
+        payload.ui_caption_background = state.ui_caption_text_bg;
+        payload.ui_caption_alignment = state.ui_caption_align_v + "-" + state.ui_caption_align_h;
+        return payload;
+    }
+
+    function saveSettings() {
+        if (!settingsReady || settingsAvailable === false) { return; }
+        if (saveTimer) { clearTimeout(saveTimer); }
+        saveTimer = setTimeout(function () {
+            fetch("/api/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(buildPayload())
+            }).then(function (response) {
+                if (!response.ok) { throw new Error("HTTP " + response.status); }
+                return response.json();
+            }).then(function () {
+                settingsAvailable = true;
+                setStatus("saved");
+            }).catch(function () {
+                settingsAvailable = false;
+                setStatus("settings API unavailable, changes not persisted");
+            });
+        }, SAVE_DEBOUNCE_MS);
+    }
+
+    function loadSettings() {
+        return fetch("/api/settings", { cache: "no-store" }).then(function (response) {
+            if (!response.ok) { throw new Error("HTTP " + response.status); }
+            return response.json();
+        }).then(function (payload) {
+            var stored = payload && payload.settings;
+            if (!stored || typeof stored !== "object") { throw new Error("bad payload"); }
+            KEYS.forEach(function (key) {
+                if (hasKey(stored, key)) {
+                    state[key] = coerceSetting(key, stored[key]);
+                }
+            });
+            readMirrors(stored);
+            settingsAvailable = true;
+            el("shell-status").textContent = "settings loaded";
+        }).catch(function () {
+            settingsAvailable = false;
+            el("shell-status").textContent = "settings API unavailable, defaults in use";
+        });
+    }
+
+    function resetToDefaults() {
+        KEYS.forEach(function (key) { state[key] = DEFAULTS[key]; });
+        applyAll();
+        setStatus("defaults restored");
+        if (settingsAvailable === false) {
+            el("shell-status").textContent = "settings API unavailable, defaults in use";
+        }
+        saveSettings();
+    }
+
+    function currentGeometry() {
+        return {
+            x: Math.round(window.screenX || 0),
+            y: Math.round(window.screenY || 0),
+            width: Math.round(window.outerWidth || 0),
+            height: Math.round(window.outerHeight || 0)
+        };
+    }
+
+    function captureGeometry() {
+        if (!settingsReady) { return; }
+        var geometry = currentGeometry();
+        // A window that reports no size (headless browser, or a shell that has
+        // not shown the window yet) must never overwrite a real geometry value.
+        if (geometry.width <= 0 || geometry.height <= 0) { return; }
+        geometry = coerceSetting("ui_caption_geometry", geometry);
+        var previous = state.ui_caption_geometry || DEFAULT_GEOMETRY;
+        if (geometry.x === previous.x && geometry.y === previous.y &&
+                geometry.width === previous.width && geometry.height === previous.height) {
+            return;
+        }
+        state.ui_caption_geometry = geometry;
+        saveSettings();
+    }
+
+    function onGeometryChange() {
+        if (geometryTimer) { clearTimeout(geometryTimer); }
+        geometryTimer = setTimeout(captureGeometry, GEOMETRY_DEBOUNCE_MS);
+    }
+
+    function detectShellApi() {
+        if (window.pywebview && window.pywebview.api) { shellApi = window.pywebview.api; }
+        return !!shellApi;
+    }
+
+    function updateShellControls() {
+        var shell = shellReady || window.__synthalinguaShell === true;
+        el("btn-plant").classList.toggle("hidden", !shell || planted);
+        el("btn-restore").classList.toggle("hidden", !planted);
+        if (!shell) {
+            el("shell-status").textContent = "browser mode, solid background, no plant toggle";
+        }
+    }
+
+    function setPlanted(next) {
+        planted = !!next;
+        document.body.classList.toggle("planted", planted);
+        el("stage").classList.toggle("pywebview-drag-region", planted);
+        updateShellControls();
+        state.ui_caption_pinned = planted;
+        saveSettings();
+        if (shellApi && typeof shellApi.set_caption_pinned === "function") {
+            var promise = shellApi.set_caption_pinned(planted);
+            if (promise && typeof promise.catch === "function") { promise.catch(function () {}); }
+        }
+        setStatus(planted ? "planted" : "restored");
+    }
+
+    function closeWindow() {
+        if (shellApi && typeof shellApi.close_caption_window === "function") {
+            var promise = shellApi.close_caption_window();
+            if (promise && typeof promise.catch === "function") { promise.catch(function () {}); }
+            return;
+        }
+        window.close();
+    }
+
+    function togglePanel() {
+        if (planted) { return; }
+        state.ui_caption_panel_visible = !state.ui_caption_panel_visible;
+        applyControls();
+        saveSettings();
+    }
+
+    function bindEvents() {
+        el("show-original").addEventListener("change", function (event) {
+            state.ui_caption_show_original = event.target.checked; render(); saveSettings();
+        });
+        el("show-translated").addEventListener("change", function (event) {
+            state.ui_caption_show_translated = event.target.checked; render(); saveSettings();
+        });
+        el("show-transcribed").addEventListener("change", function (event) {
+            state.ui_caption_show_transcribed = event.target.checked; render(); saveSettings();
+        });
+        el("bl-enabled").addEventListener("change", function (event) {
+            state.ui_caption_blocklist_enabled = event.target.checked; render(); saveSettings();
+        });
+        el("bl-star").addEventListener("change", function () {
+            state.ui_caption_blocklist_mode = "star"; render(); saveSettings();
+        });
+        el("bl-blank").addEventListener("change", function () {
+            state.ui_caption_blocklist_mode = "blank"; render(); saveSettings();
+        });
+        el("font-face").addEventListener("change", function (event) {
+            var value = String(event.target.value || "").trim();
+            state.ui_caption_font_face = value.length > 0 ? value : DEFAULTS.ui_caption_font_face;
+            applyStyle(); saveSettings();
+        });
+        el("font-size").addEventListener("change", function (event) {
+            state.ui_caption_font_size = coerceSetting("ui_caption_font_size", event.target.value);
+            applyStyle(); applyControls(); saveSettings();
+        });
+        el("text-color").addEventListener("input", function (event) {
+            state.ui_caption_text_color = event.target.value; applyStyle(); saveSettings();
+        });
+        el("text-bg").addEventListener("input", function (event) {
+            state.ui_caption_text_bg = event.target.value; applyStyle(); saveSettings();
+        });
+        el("text-bg-transparent").addEventListener("change", function (event) {
+            state.ui_caption_text_bg_transparent = event.target.checked;
+            applyStyle(); applyControls(); saveSettings();
+        });
+        el("rtl").addEventListener("change", function (event) {
+            state.ui_caption_rtl = event.target.checked; applyStyle(); saveSettings();
+        });
+        el("window-bg").addEventListener("input", function (event) {
+            state.ui_caption_window_bg = event.target.value; applyStyle(); saveSettings();
+        });
+        el("btn-bg-reset").addEventListener("click", function () {
+            state.ui_caption_window_bg = DEFAULT_WINDOW_BG; applyStyle(); applyControls(); saveSettings();
+        });
+        el("plant-opacity").addEventListener("change", function (event) {
+            state.ui_caption_plant_opacity = coerceSetting("ui_caption_plant_opacity", event.target.value);
+            applyStyle(); applyControls(); saveSettings();
+        });
+        el("btn-defaults").addEventListener("click", resetToDefaults);
+        el("btn-panel").addEventListener("click", togglePanel);
+        el("btn-plant").addEventListener("click", function () { setPlanted(true); });
+        el("btn-restore").addEventListener("click", function () { setPlanted(false); });
+        el("btn-close").addEventListener("click", closeWindow);
+
+        var buttons = el("align-grid").getElementsByTagName("button");
+        for (var i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", function (event) {
+                var button = event.currentTarget;
+                state.ui_caption_align_v = button.getAttribute("data-v");
+                state.ui_caption_align_h = button.getAttribute("data-h");
+                applyStyle(); applyControls(); saveSettings();
+            });
+        }
+
+        el("stage").addEventListener("dblclick", function () {
+            if (planted) { setPlanted(false); }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && planted) { setPlanted(false); }
+            else if ((event.key === "h" || event.key === "H") && !planted) { togglePanel(); }
+        });
+
+        window.addEventListener("resize", onGeometryChange);
+        window.addEventListener("move", onGeometryChange);
+        window.addEventListener("beforeunload", captureGeometry);
+        window.addEventListener("pywebviewready", function () {
+            shellReady = detectShellApi();
+            updateShellControls();
+        });
+    }
+
+    function boot() {
+        loadSettings().then(function () {
+            applyAll();
+            settingsReady = true;
+            shellReady = detectShellApi();
+            updateShellControls();
+            bindEvents();
+            captureGeometry();
+            loadBlocklist();
+            setInterval(loadBlocklist, BLOCKLIST_REFRESH_MS);
+            pollLoop();
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot);
+    } else {
+        boot();
+    }
+})();
+</script>
+</body>
+</html>

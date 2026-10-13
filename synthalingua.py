@@ -193,8 +193,21 @@ def main():
 
     # Early exit conditions
     if len(sys.argv) == 1:
-        print("No arguments provided. Please run the script with the --help flag to see a list of available arguments.")
-        sys.exit(1)
+        if getattr(sys, 'frozen', False):
+            # A packaged build started with no arguments opens the desktop UI.
+            args.desktop = True
+        else:
+            print("No arguments provided. Please run the script with the --help flag to see a list of available arguments.")
+            sys.exit(1)
+
+    # Desktop shell: a native window over the same web interface. It starts its
+    # own server, so it returns before the transcription and browser UI paths run.
+    if getattr(args, 'desktop', False):
+        from modules.desktop_ui import main as desktop_main
+        desktop_port = int(args.portnumber) if args.portnumber else None
+        desktop_host = getattr(args, 'serverip', '127.0.0.1')
+        print(f"Starting the desktop UI (server host {desktop_host})...")
+        sys.exit(desktop_main(host=desktop_host, port=desktop_port))
 
     if args.about:
         from modules.version_checker import ScriptCreator, GitHubRepo

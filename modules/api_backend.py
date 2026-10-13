@@ -28,7 +28,7 @@ import threading
 import signal
 import atexit
 import socket
-from flask import Flask, send_from_directory, url_for, Blueprint, request, abort
+from flask import Flask, send_from_directory, url_for, Blueprint, request, abort, jsonify
 from threading import Thread, Event
 from functools import lru_cache
 import ssl
@@ -36,6 +36,11 @@ import tempfile
 from werkzeug.serving import make_server
 from colorama import Fore, Style
 from collections import defaultdict, deque
+
+# Run manager for CONTRACT v1 (settings, argv, start/stop, log ring buffer).
+# Importing it has no side effects; nothing starts until a route or the
+# desktop helper is called.
+from modules import run_manager
 
 # State management class
 class HeaderState:
@@ -148,6 +153,40 @@ def get_client_ip():
     
     return request.remote_addr
 
+# Callbacks the desktop shell registers so a forced shutdown also brings its GUI
+# loop and child processes down. The --launchui keep-alive loop reads
+# force_shutdown_flag directly, but the desktop path has no such loop, so setting
+# the flag on its own leaves that app running.
+_shutdown_callbacks = []
+_shutdown_callbacks_lock = threading.Lock()
+
+
+def register_shutdown_callback(callback):
+    """Run callback when the watchdog forces a shutdown. Safe to call twice."""
+    with _shutdown_callbacks_lock:
+        if callback not in _shutdown_callbacks:
+            _shutdown_callbacks.append(callback)
+
+
+def unregister_shutdown_callback(callback):
+    """Drop a callback added by register_shutdown_callback."""
+    with _shutdown_callbacks_lock:
+        try:
+            _shutdown_callbacks.remove(callback)
+        except ValueError:
+            pass
+
+
+def _notify_shutdown_callbacks():
+    with _shutdown_callbacks_lock:
+        callbacks = list(_shutdown_callbacks)
+    for callback in callbacks:
+        try:
+            callback()
+        except Exception as exc:  # noqa: BLE001 - shutdown continues regardless
+            print(f"Shutdown callback error: {exc}")
+
+
 def watchdog_monitor():
     """Monitor PID file existence and force shutdown if file is deleted."""
     global force_shutdown_flag, watchdog_thread
@@ -192,6 +231,10 @@ def force_shutdown_server():
     """Force shutdown the Flask server immediately."""
     global server_thread, force_shutdown_flag
     force_shutdown_flag = True
+
+    # The desktop shell has no keep-alive loop reading that flag, so hand the
+    # shutdown to whatever registered before doing the server teardown.
+    _notify_shutdown_callbacks()
     
     # Store reference to thread to avoid it being modified during shutdown
     thread_ref = server_thread
@@ -291,6 +334,18 @@ def serve_video_player():
     """Serves the video translation player page."""
     video_player_path = os.path.join(get_html_data_dir(), 'video_player.html')
     return read_cached_file(video_player_path)
+
+@api.route('/caption_window.html')
+def serve_caption_window():
+    """Serves the floating caption window page (task-4, second pywebview window)."""
+    caption_window_path = os.path.join(get_html_data_dir(), 'caption_window.html')
+    return read_cached_file(caption_window_path)
+
+@api.route('/main.html')
+def serve_main():
+    """Serves the Python UI control panel page (task-3, replaces the wrapper form)."""
+    main_html_path = os.path.join(get_html_data_dir(), 'main.html')
+    return read_cached_file(main_html_path)
 
 @api.route('/static/<path:filename>')
 def serve_static(filename):
@@ -502,6 +557,10 @@ class FlaskServerThread(Thread):
             # Store socketio instance in app safely (use setattr to avoid typing complaints)
             setattr(app, 'socketio', socketio)
             
+            # CONTRACT v1: the run manager streams run_log / run_state over the
+            # same SocketIO instance the video UI already uses.
+            run_manager.get_manager().set_socketio(socketio)
+            
             if self.debug or _debug_enabled:
                 print("Video translation UI module loaded successfully")
         except ImportError as e:
@@ -604,11 +663,16 @@ class FlaskServerThread(Thread):
                 socketio.run(self.app, host=self.host, port=self.port, 
                            ssl_context=ssl_context, allow_unsafe_werkzeug=True)
             else:
-                # Original Flask server without SocketIO
+                # Original Flask server without SocketIO.
+                # threaded=True is required here: the new UI pages poll
+                # /api/run/status, /api/run/log and the three /update-* endpoints
+                # concurrently (the caption window alone polls at 250 ms), so a
+                # single threaded server would serialize them and a slow request
+                # would starve every other page.
                 try:
                     print(f"Debug: Attempting to bind to port {self.port}")
                     self.server = make_server(self.host, self.port, self.app, 
-                                            ssl_context=ssl_context)
+                                            ssl_context=ssl_context, threaded=True)
                     print(f"Debug: Successfully bound to port {self.port}")
                 except Exception as e:
                     print(f"Debug: Exception type: {type(e).__name__}")
@@ -621,7 +685,7 @@ class FlaskServerThread(Thread):
                             self.port = available_port
                             print(f"{Fore.GREEN}Found available port: {self.port}{Style.RESET_ALL}")
                             self.server = make_server(self.host, self.port, self.app, 
-                                                    ssl_context=ssl_context)
+                                                    ssl_context=ssl_context, threaded=True)
                         else:
                             print(f"{Fore.RED}Could not find an available port. Please specify different ports or check firewall/antivirus settings.{Style.RESET_ALL}")
                             raise
@@ -759,6 +823,316 @@ def kill_server():
         print("No servers running")
         # Clean up PID file just in case
         remove_pid_file()
+
+# ---------------------------------------------------------------------------
+# CONTRACT v1 routes: settings, run control, model and device discovery
+# ---------------------------------------------------------------------------
+# Shapes are frozen by the contract in task-2. Every route answers JSON.
+# Nothing here changes the existing routes above or the page serving.
+
+def _json_ok(payload, status=200):
+    """Return a JSON response with an explicit status code."""
+    return jsonify(payload), status
+
+
+def _request_settings_patch():
+    """Read an optional partial settings object from a POST body."""
+    data = request.get_json(silent=True)
+    if data is None:
+        return {}
+    if isinstance(data, dict):
+        # Allow both {"settings": {...}} and a flat object.
+        nested = data.get("settings")
+        if isinstance(nested, dict):
+            merged = dict(data)
+            merged.pop("settings", None)
+            merged.update(nested)
+            return merged
+        return data
+    return {}
+
+
+@api.route('/api/settings', methods=['GET'])
+def api_get_settings():
+    """1 GET /api/settings -> {"ok":true,"settings":{...},"path":"..."}"""
+    settings = run_manager.load_settings()
+    return _json_ok({
+        "ok": True,
+        "settings": settings,
+        "path": run_manager.settings_path(),
+    })
+
+
+@api.route('/api/settings', methods=['POST'])
+def api_post_settings():
+    """2 POST /api/settings <- partial object; merge and persist."""
+    patch = _request_settings_patch()
+    settings = run_manager.load_settings()
+    settings = run_manager.merge_settings(settings, patch)
+    try:
+        run_manager.save_settings(settings)
+    except OSError as exc:
+        return _json_ok({"ok": False, "error": f"could not save settings: {exc}"}, 500)
+    return _json_ok({"ok": True, "settings": settings})
+
+
+@api.route('/api/run/start', methods=['POST'])
+def api_run_start():
+    """3 POST /api/run/start <- optional partial settings, merged before start."""
+    patch = _request_settings_patch()
+    settings = run_manager.load_settings()
+    if patch:
+        settings = run_manager.merge_settings(settings, patch)
+        try:
+            run_manager.save_settings(settings)
+        except OSError:
+            # A read-only settings folder must not block starting a run.
+            pass
+
+    error = run_manager.validate_settings(settings)
+    if error:
+        return _json_ok({"ok": False, "error": error}, 400)
+
+    manager = run_manager.get_manager()
+    if manager.is_active():
+        return _json_ok({"ok": False, "error": "a run is already active"}, 409)
+
+    snapshot, start_error = manager.start(settings)
+    if start_error:
+        return _json_ok({"ok": False, "error": start_error}, 409)
+    return _json_ok({
+        "ok": True,
+        "state": snapshot["state"],
+        "run_id": manager.run_id(),
+    })
+
+
+@api.route('/api/run/stop', methods=['POST'])
+def api_run_stop():
+    """4 POST /api/run/stop -> stopping while a run is active, else idle."""
+    manager = run_manager.get_manager()
+    if not manager.is_active():
+        snapshot = manager.snapshot(include_tail=False)
+        # Nothing to stop: report idle unless a finished run is still shown.
+        state = snapshot["state"]
+        if state not in ("idle", "stopped", "error"):
+            state = "idle"
+        return _json_ok({"ok": True, "state": state})
+    manager.stop()
+    return _json_ok({"ok": True, "state": "stopping"})
+
+
+@api.route('/api/run/status', methods=['GET'])
+def api_run_status():
+    """5 GET /api/run/status -> state, timing, exit code, log counters."""
+    manager = run_manager.get_manager()
+    payload = {"ok": True}
+    payload.update(manager.snapshot(include_tail=True))
+    return _json_ok(payload)
+
+
+@api.route('/api/run/log', methods=['GET'])
+def api_run_log():
+    """6 GET /api/run/log?since=N -> {"ok":true,"lines":[...],"next":N}"""
+    manager = run_manager.get_manager()
+    try:
+        since = int(request.args.get('since', 0))
+    except (TypeError, ValueError):
+        since = 0
+    if since < 0:
+        since = 0
+    chunk = manager.log_since(since)
+    return _json_ok({"ok": True, "lines": chunk["lines"], "next": chunk["next"]})
+
+
+@api.route('/api/models/available', methods=['GET'])
+def api_models_available():
+    """7 GET /api/models/available -> what is actually on disk. Read only."""
+    settings = run_manager.load_settings()
+    model_dir = settings.get('model_dir')
+    if not model_dir or model_dir == 'models':
+        # Same resolution synthalingua.py main() performs: a frozen build uses
+        # the models folder next to the executable.
+        model_dir = run_manager.models_dir(None)
+    listing = run_manager.list_available_models(model_dir)
+    payload = {"ok": True}
+    payload.update(listing)
+    return _json_ok(payload)
+
+
+@api.route('/api/microphones', methods=['GET'])
+def api_microphones():
+    """8 GET /api/microphones -> input devices with the default index."""
+    listing = run_manager.list_microphones()
+    return _json_ok({
+        "ok": True,
+        "devices": listing["devices"],
+        "default_index": listing["default_index"],
+    })
+
+
+@api.route('/api/blocklist', methods=['GET'])
+def api_blocklist():
+    """9 GET /api/blocklist -> the words in the configured ignore list."""
+    settings = run_manager.load_settings()
+    listing = run_manager.read_blocklist(settings.get('ignorelist'))
+    return _json_ok({
+        "ok": True,
+        "words": listing["words"],
+        "path": listing["path"],
+    })
+
+
+@api.route('/api/preview/namespace', methods=['POST'])
+def api_preview_namespace():
+    """10 POST /api/preview/namespace -> the exact argv a run would use."""
+    patch = _request_settings_patch()
+    preview = run_manager.preview(patch if patch else None)
+    return _json_ok({
+        "ok": True,
+        "argv": preview["argv"],
+        "namespace": preview["namespace"],
+        "mode": preview["mode"],
+        "command_line": preview["command_line"],
+        "settings": preview["settings"],
+    })
+
+
+@api.route('/api/languages', methods=['GET'])
+def api_languages():
+    """11 GET /api/languages -> the values the CLI itself accepts.
+
+    The app does not ship a code/display-name table: modules.languages returns
+    one flat list of both forms, so this route reports that list and, when the
+    two halves line up positionally, the derived code/name pairs.
+    """
+    listing = run_manager.list_languages()
+    return _json_ok({
+        "ok": True,
+        "languages": listing["languages"],
+        "values": listing["values"],
+    })
+
+
+# ---------------------------------------------------------------------------
+# Desktop server helper (pywebview shell entry point)
+# ---------------------------------------------------------------------------
+
+#: Set when start_desktop_server actually created the PID file for a server it
+#: started, so a reused server is never torn down by its caller.
+_desktop_server_lock = threading.Lock()
+_desktop_server_state = {"thread": None, "url": None, "port": None, "owned_pid": False}
+
+
+def _reserve_free_port(host):
+    """Ask the OS for a free loopback port and release it immediately.
+
+    Used when the caller passes port 0. The port is chosen by the OS instead of
+    find_available_port, which deliberately starts at 8000, and it is handed to
+    the server as a concrete number so the bound port is known before serving
+    starts. Nothing listens here, so there is a small race with another process
+    taking the port; the loopback port range makes that unlikely and the server
+    still raises clearly if it loses.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind((host, 0))
+        return int(probe.getsockname()[1])
+
+
+def _wait_for_listen(host, port, timeout=10.0):
+    """Wait until host:port accepts TCP connections."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
+
+
+def start_desktop_server(host="127.0.0.1", port=0, model_dir=None, debug=False,
+                         use_https=False, keep_temp=False, wait_timeout=15.0):
+    """Start (or reuse) this Flask app for the desktop shell.
+
+    Returns (url, port, thread). thread is None when an already-running server
+    was reused, in which case the caller must not stop it.
+
+    Port 0 picks a free port: the OS chooses it and the server binds that
+    concrete number, so the bound port is known without interrogating the
+    serving stack. loopback only unless the caller passes another host.
+    """
+    with _desktop_server_lock:
+        existing_thread = _desktop_server_state["thread"]
+        if existing_thread is not None and existing_thread.is_alive():
+            return (_desktop_server_state["url"],
+                    _desktop_server_state["port"],
+                    None)
+
+        if model_dir is None:
+            model_dir = run_manager.models_dir(None)
+
+        if port in (None, 0):
+            bound_port = _reserve_free_port(host)
+        else:
+            bound_port = int(port)
+
+        thread_ref = FlaskServerThread(
+            bound_port,
+            use_https=use_https,
+            host=host,
+            debug=debug,
+            model_dir=model_dir,
+            keep_temp=keep_temp,
+        )
+        thread_ref.daemon = True
+        thread_ref.start()
+
+        if not _wait_for_listen(host, bound_port, timeout=wait_timeout):
+            thread_ref.shutdown()
+            raise RuntimeError(
+                f"desktop server did not start listening on {host}:{bound_port}")
+
+        protocol = 'https' if use_https else 'http'
+        url = f"{protocol}://{host}:{bound_port}"
+        _desktop_server_state["thread"] = thread_ref
+        _desktop_server_state["url"] = url
+        _desktop_server_state["port"] = bound_port
+        _desktop_server_state["owned_pid"] = True
+        return (url, bound_port, thread_ref)
+
+
+def stop_desktop_server(timeout=5.0):
+    """Stop the server start_desktop_server started, if this process owns it.
+
+    Returns True when a server was stopped. A server that was reused is never
+    stopped here. The run manager is shut down first so a child run does not
+    outlive the UI.
+    """
+    with _desktop_server_lock:
+        thread_ref = _desktop_server_state["thread"]
+        owned = _desktop_server_state["owned_pid"]
+        if thread_ref is None or not owned:
+            return False
+        _desktop_server_state["thread"] = None
+        _desktop_server_state["owned_pid"] = False
+
+    try:
+        run_manager.get_manager().shutdown()
+    except Exception:
+        pass
+
+    try:
+        thread_ref.shutdown()
+    except Exception:
+        pass
+    try:
+        thread_ref.join(timeout=timeout)
+    except Exception:
+        pass
+    return True
+
 
 # Register cleanup function to remove PID file on exit
 atexit.register(remove_pid_file)
