@@ -957,7 +957,6 @@ def main() -> None:
 
     if assets_to_remove:
         print("\nRemoving selected tool folders/files...")
-        import shutil
         for path in assets_to_remove:
             if path.exists():
                 if path.is_dir():

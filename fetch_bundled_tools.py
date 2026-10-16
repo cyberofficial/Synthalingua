@@ -61,7 +61,7 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_to(url: str, dest: Path, expected_size: int = None) -> None:
+def download_to(url: str, dest: Path, expected_size: int | None = None) -> None:
     """
     Stream a download to dest through a .part file.
 

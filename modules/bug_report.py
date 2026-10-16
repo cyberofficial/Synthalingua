@@ -200,19 +200,6 @@ def generate_bug_report():
     # GPU Information
     report_lines.append("GPU INFORMATION")
     report_lines.append("-" * 40)
-    try:
-        import GPUtil
-        gpus = GPUtil.getGPUs()
-        if gpus:
-            for i, gpu in enumerate(gpus):
-                report_lines.append(f"GPU {i}: {gpu.name}")
-                report_lines.append(f"  Memory: {gpu.memoryTotal} MB")
-                report_lines.append(f"  Driver: {gpu.driver}")
-        else:
-            report_lines.append("No GPUs detected")
-    except Exception as e:
-        report_lines.append(f"GPU Info Error: {e}")
-    
     # CUDA Info
     try:
         import torch
