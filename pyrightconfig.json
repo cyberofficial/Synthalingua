@@ -1,0 +1,7 @@
+{
+  "exclude": [
+    "test_steam_setup_fix.py",
+    "dist-portable",
+    "data_whisper"
+  ]
+}
