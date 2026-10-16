@@ -158,7 +158,7 @@ def set_model_by_ram(ram, language):
             model_en = "tiny.en"
             model_multi = "tiny"
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (tiny.en) or multilingual model (tiny).")
-            if input("Use English-specific model? (y/n): ").lower() == "y":
+            if ("y" if os.environ.get("SYNTHALINGUA_DEMO") == "1" else input("Use English-specific model? (y/n): ")).lower() == "y":
                 model = model_en
             else:
                 model = model_multi
@@ -169,7 +169,7 @@ def set_model_by_ram(ram, language):
             model_en = "base.en"
             model_multi = "base"
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (base.en) or multilingual model (base).")
-            if input("Use English-specific model? (y/n): ").lower() == "y":
+            if ("y" if os.environ.get("SYNTHALINGUA_DEMO") == "1" else input("Use English-specific model? (y/n): ")).lower() == "y":
                 model = model_en
             else:
                 model = model_multi
@@ -180,7 +180,7 @@ def set_model_by_ram(ram, language):
             model_en = "small.en"
             model_multi = "small"
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (small.en) or multilingual model (small).")
-            if input("Use English-specific model? (y/n): ").lower() == "y":
+            if ("y" if os.environ.get("SYNTHALINGUA_DEMO") == "1" else input("Use English-specific model? (y/n): ")).lower() == "y":
                 model = model_en
             else:
                 model = model_multi
@@ -191,7 +191,7 @@ def set_model_by_ram(ram, language):
             model_en = "medium.en"
             model_multi = "medium"
             print(f"{Fore.YELLOW}Note{Style.RESET_ALL}: For English, you can choose between English-specific model (medium.en) or multilingual model (medium).")
-            if input("Use English-specific model? (y/n): ").lower() == "y":
+            if ("y" if os.environ.get("SYNTHALINGUA_DEMO") == "1" else input("Use English-specific model? (y/n): ")).lower() == "y":
                 model = model_en
             else:
                 model = model_multi
@@ -291,6 +291,7 @@ def parse_arguments():
     # File mode / caption generation
     file_grp = parser.add_argument_group("File Mode / Captioning")
     file_grp.add_argument("--makecaptions", nargs='?', const=True, default=False, help="Generate subtitle files (SRT format) from audio/video files instead of real-time transcription. Use '--makecaptions' for default processing, or '--makecaptions compare' to test all available model sizes (11gb-v3, 11gb-v2, 7gb, 6gb, 3gb, 2gb, 1gb) and compare accuracy vs speed tradeoffs. Output saved to specified folder with timing information.")
+    file_grp.add_argument("--demo", action='store_true', default=False, help="Run the bundled demo sample (DemoTTS.mp3) end to end: fully offline caption generation with no interactive prompts, writing DemoTTS.srt to the per-user Synthalingua tutorial folder. Intended for the guided first run and tutorial mode; implies --makecaptions.")
     file_grp.add_argument("--file_input", default=None, help="Path to audio or video file for batch transcription/translation. Supports most common formats: MP3, WAV, MP4, AVI, MKV, FLAC, OGG, M4A, etc. Can be absolute path (C:\\path\\to\\file.mp3) or relative path (audio/file.wav). Used with --makecaptions for subtitle generation or standalone for text transcription.")
     file_grp.add_argument("--file_output", default=None, help="Custom output file path for transcription results. Specify full path including filename and extension (e.g., 'transcripts/result.txt' or 'C:\\output\\transcript.srt'). If not specified, output filename is automatically generated based on input filename. Directory will be created if it doesn't exist.")
     file_grp.add_argument("--file_output_name", default=None, help="Custom base filename for output files without extension or path. Example: 'my_transcript' will create 'my_transcript.srt'. Used when you want to control filename but keep default output directory. Extension is automatically added based on output type (srt).")

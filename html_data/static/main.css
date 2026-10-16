@@ -274,6 +274,64 @@ button.danger:hover:not(:disabled) { border-color: var(--bad); color: var(--bad)
     word-break: break-word;
 }
 
+/* ---------------------------------------------------------------- tutorial */
+.tutorial-card { display: flex; flex-direction: column; gap: 10px; }
+.tutorial-title { margin: 0; font-size: 15px; }
+.tutorial-blurb { margin: 0; line-height: 1.5; }
+.tutorial-actions { flex-wrap: wrap; }
+.tutorial-log { height: 160px; margin: 0; }
+
+/* ---------------------------------------------------------------- tour */
+.tour-overlay { position: fixed; inset: 0; z-index: 60; }
+
+.tour-spotlight {
+    position: fixed;
+    z-index: 1;
+    border-radius: 10px;
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+}
+
+.tour-card {
+    position: fixed;
+    z-index: 2;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+    max-width: 420px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+}
+
+.tour-title { margin: 0 0 8px; font-size: 15px; }
+.tour-body { margin: 0 0 10px; line-height: 1.5; }
+
+.tour-run { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
+.tour-run-status { color: var(--muted); font-size: 13px; min-height: 16px; }
+.tour-run-status.ok { color: var(--ok); }
+.tour-run-status.bad { color: var(--bad); }
+
+.tour-run-log {
+    margin: 0;
+    padding: 8px;
+    max-height: 110px;
+    overflow: auto;
+    background: #0c1014;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: #c9f4ff;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.tour-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tour-dots { display: flex; gap: 5px; }
+.tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: inline-block; }
+.tour-dot.active { background: var(--accent); }
+.tour-actions { display: flex; gap: 8px; }
+
 /* ---------------------------------------------------------------- modal */
 .modal {
     position: fixed;

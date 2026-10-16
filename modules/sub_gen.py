@@ -69,6 +69,18 @@ from modules import parser_args
 # Initialize colorama for Windows support
 init()
 
+
+def _demo_prompts_suppressed():
+    """True while a --demo / tutorial run has interactive prompts disabled.
+
+    TUTORIAL CONTRACT v1 (task-15): synthalingua.py sets SYNTHALINGUA_DEMO
+    from raw argv before any import-time argument parsing, so every guarded
+    prompt below resolves to its documented default instead of reading
+    stdin. The environment is the carrier so no module needs to import
+    another just to see the flag.
+    """
+    return os.environ.get("SYNTHALINGUA_DEMO") == "1"
+
 # Parse command-line arguments first to check for debug flag
 args = parser_args.parse_arguments()
 # ------------------------------------------------------------
@@ -788,7 +800,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
             prompt_min_duration = _last_silence_duration if _last_silence_duration is not None else min_silence_duration
 
             try:
-                choice = input(f"\n{Fore.CYAN}Enter your choice (1-{max_choice}): {Style.RESET_ALL}").strip()
+                choice = ("1" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter your choice (1-{max_choice}): {Style.RESET_ALL}")).strip()
 
                 if choice == "1":
                     break  # Proceed with current detection
@@ -804,7 +816,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     print(f"   Threshold: {silence_threshold_db:.1f}dB")
                     print(f"   Min duration: {prompt_min_duration:.1f}s")
                     # Get new threshold
-                    new_threshold_input = input(f"\n{Fore.CYAN}Enter new threshold (current: {silence_threshold_db:.1f}dB) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    new_threshold_input = ("" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter new threshold (current: {silence_threshold_db:.1f}dB) or press Enter to keep: {Style.RESET_ALL}")).strip()
                     if new_threshold_input:
                         try:
                             new_threshold = float(new_threshold_input)
@@ -815,7 +827,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     else:
                         new_threshold = silence_threshold_db
                     # Get new duration
-                    new_duration_input = input(f"\n{Fore.CYAN}Enter new min duration (current: {prompt_min_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}").strip()
+                    new_duration_input = ("" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter new min duration (current: {prompt_min_duration:.1f}s) or press Enter to keep: {Style.RESET_ALL}")).strip()
                     if new_duration_input:
                         try:
                             new_duration = float(new_duration_input)
@@ -855,7 +867,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                     print(f"    {Fore.CYAN}Balanced{Style.RESET_ALL}: mdx_extra (good quality + speed)")
                     print(f"    {Fore.YELLOW}Legacy/Compatibility{Style.RESET_ALL}: hdemucs or demucs")
                     
-                    model_choice = input(f"\n{Fore.CYAN}Select Demucs model (1-10): {Style.RESET_ALL}").strip()
+                    model_choice = ("1" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Select Demucs model (1-10): {Style.RESET_ALL}")).strip()
                     
                     model_map = {
                         "1": "htdemucs",
@@ -1111,7 +1123,7 @@ def detect_silence_in_audio(audio_path: str, silence_threshold_db: float = -35.0
                             print(f"   {i:2d}. {type_color}{region_type.upper():<7}{Style.RESET_ALL} "
                                   f"{start_time:6.1f}s - {end_time:6.1f}s ({format_human_time(start_time)} - {format_human_time(end_time)})")
                         
-                        toggle_input = input(f"\n{Fore.CYAN}Enter region numbers to toggle (or 'back' to return): {Style.RESET_ALL}").strip()
+                        toggle_input = ("back" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter region numbers to toggle (or 'back' to return): {Style.RESET_ALL}")).strip()
                         
                         if toggle_input.lower() == 'back':
                             break  # Go back to main menu
@@ -1242,7 +1254,7 @@ def ask_about_turbo_model(task: str) -> Tuple[bool, bool]:
     
     while True:
         try:
-            choice = input(f"\n{Fore.CYAN}Enter your choice (1/2/3): {Style.RESET_ALL}").strip()
+            choice = ("2" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter your choice (1/2/3): {Style.RESET_ALL}")).strip()
             
             if choice == "1":
                 return True, False
@@ -1842,7 +1854,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                             
                             if is_timeout:
                                 print(f"{Fore.RED}\n Region {region_index} timed out: {exc}{Style.RESET_ALL}")
-                                choice = input(f"What do you want to do for region {region_index}?\n1. Retry with increased timeout\n2. Skip with placeholder text\n3. Skip (empty SRT spot)\nChoice (1/2/3): ").strip()
+                                choice = ("1" if _demo_prompts_suppressed() else input(f"What do you want to do for region {region_index}?\n1. Retry with increased timeout\n2. Skip with placeholder text\n3. Skip (empty SRT spot)\nChoice (1/2/3): ")).strip()
                                 
                                 if choice == "1":
                                     failed_regions.append((region_index, region))
@@ -1891,7 +1903,7 @@ def process_speech_regions(audio_path: str, regions: List[Dict[str, Any]], model
                         else:
                             # Final attempt: ask user what to do
                             print(f"{Fore.YELLOW}\n  Final attempt for {len(failed_regions)} failed regions{Style.RESET_ALL}")
-                            choice = input("What do you want to do for the final attempt?\n1. Remove timeout restrictions\n2. Replace with empty SRT spots\nChoice (1/2): ").strip()
+                            choice = ("1" if _demo_prompts_suppressed() else input("What do you want to do for the final attempt?\n1. Remove timeout restrictions\n2. Replace with empty SRT spots\nChoice (1/2): ")).strip()
                             
                             if choice == "1":
                                 # Remove timeout for final attempt
@@ -2617,7 +2629,7 @@ def run_sub_gen(
         
         while True:
             try:
-                choice = input(f"\n{Fore.CYAN}Select option (1-4): {Style.RESET_ALL}").strip()
+                choice = ("1" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Select option (1-4): {Style.RESET_ALL}")).strip()
                 
                 if choice == "1":
                     print(f"{Fore.GREEN} Processing entire file...{Style.RESET_ALL}")
@@ -2639,7 +2651,7 @@ def run_sub_gen(
                     print(f"   Example: 30:00,1:00:00,1:30:00,2:00:00")
                     print(f"   Current duration: {format_seconds_to_timestamp(duration)}")
                     
-                    split_input = input(f"\n{Fore.CYAN}Split points (comma-separated): {Style.RESET_ALL}").strip()
+                    split_input = ("" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Split points (comma-separated): {Style.RESET_ALL}")).strip()
                     
                     if split_input:
                         try:
@@ -2661,7 +2673,7 @@ def run_sub_gen(
                                     print(f"   {i+1}. {format_seconds_to_timestamp(point)}")
                                 
                                 # Ask for confirmation
-                                confirm = input(f"\n{Fore.CYAN}Are these split points correct? (y/n): {Style.RESET_ALL}").strip().lower()
+                                confirm = ("y" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Are these split points correct? (y/n): {Style.RESET_ALL}")).strip().lower()
                                 if confirm in ['y', 'yes']:
                                     use_segmentation = True
                                     split_points = custom_points
@@ -2689,7 +2701,7 @@ def run_sub_gen(
                     print(f"   4. {Fore.MAGENTA}30 minutes{Style.RESET_ALL} (for long files)")
                     print(f"   5. {Fore.BLUE}Custom minutes{Style.RESET_ALL} (enter your own)")
                     
-                    segment_choice = input(f"\n{Fore.CYAN}Select segment length (1-5): {Style.RESET_ALL}").strip()
+                    segment_choice = ("1" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Select segment length (1-5): {Style.RESET_ALL}")).strip()
                     
                     segment_length_map = {
                         "1": 300,   # 5 minutes
@@ -2720,7 +2732,7 @@ def run_sub_gen(
                             
                     elif segment_choice == "5":
                         try:
-                            custom_minutes = input(f"\n{Fore.CYAN}Enter segment length in minutes: {Style.RESET_ALL}").strip()
+                            custom_minutes = ("5" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Enter segment length in minutes: {Style.RESET_ALL}")).strip()
                             custom_length = int(float(custom_minutes) * 60)
                             
                             if custom_length > 0 and custom_length < duration:
@@ -3065,7 +3077,7 @@ def process_single_file(
             # Get user choice
             while True:
                 try:
-                    model_choice = input(f"\n{Fore.CYAN}Select Demucs model (1-10, or Enter for default htdemucs): {Style.RESET_ALL}").strip()
+                    model_choice = ("" if _demo_prompts_suppressed() else input(f"\n{Fore.CYAN}Select Demucs model (1-10, or Enter for default htdemucs): {Style.RESET_ALL}")).strip()
                     
                     if not model_choice:  # User pressed Enter for default
                         selected_model = "htdemucs"

@@ -70,8 +70,8 @@ MENU_ANSWER_LINES = 8
 #: prompt that should consume it.
 STDIN_FEED_INTERVAL = 0.2
 
-#: The three modes the UI exposes.
-MODES = ("captions", "hls", "mic")
+#: The modes the UI exposes. "tutorial" is the guided demo run (task-15).
+MODES = ("captions", "hls", "mic", "tutorial")
 
 #: Keys that are UI state only and never become argv.
 UI_KEY_PREFIX = "ui_"
@@ -516,6 +516,37 @@ def build_argv(settings):
         argv.append(str(model_source))
 
     return argv
+
+
+def build_tutorial_argv(settings):
+    """TUTORIAL CONTRACT v1 argv: the guided demo run of the bundled sample.
+
+    Frozen: the sample and the models folder sit next to the executable
+    (build.bat copies DemoTTS.mp3 beside it). Source: both sit in the
+    project root. Output always goes to the per-user tutorial folder under
+    APPDATA, never the install directory. The child re-enters
+    synthalingua.py, whose --demo dispatch runs the caption path with every
+    prompt suppressed.
+    """
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(os.path.abspath(sys.executable))
+    else:
+        module_dir = os.path.dirname(os.path.abspath(__file__))
+        base = os.path.dirname(module_dir)
+    sample = os.path.join(base, "DemoTTS.mp3")
+    appdata_base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    tutorial_dir = os.path.join(appdata_base, APP_DIR_NAME, "tutorial")
+    return [
+        "--makecaptions",
+        "--file_input", sample,
+        "--demo",
+        "--file_output", tutorial_dir,
+        "--file_output_name", "DemoTTS",
+        "--language", "English",
+        "--model_source", "fasterwhisper",
+        "--ram", "2gb",
+        "--model_dir", models_dir(),
+    ]
 
 
 def _append_web_server(argv, settings):
@@ -1443,7 +1474,7 @@ class RunManager:
             if self.is_active():
                 return None, "a run is already active"
 
-            argv = list(argv) if argv is not None else build_argv(settings)
+            argv = list(argv) if argv is not None else (build_tutorial_argv(settings) if resolve_mode(settings) == "tutorial" else build_argv(settings))
             mode = resolve_mode(settings)
             command = _launch_command(argv)
             cwd = _run_cwd(settings)

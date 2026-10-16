@@ -55,6 +55,7 @@
                 <button type="button" class="tab active" data-mode="captions" role="tab" aria-selected="true">Captions</button>
                 <button type="button" class="tab" data-mode="hls" role="tab" aria-selected="false">HLS stream</button>
                 <button type="button" class="tab" data-mode="mic" role="tab" aria-selected="false">Microphone</button>
+                <button type="button" class="tab" data-mode="tutorial" role="tab" aria-selected="false">Tutorial</button>
             </div>
 
             <!-- Captions -->
@@ -299,6 +300,20 @@
                     </label>
                 </div>
             </div>
+
+            <!-- Tutorial -->
+            <div class="tab-panel hidden" data-panel="tutorial">
+                <div class="tutorial-card">
+                    <h3 class="tutorial-title">Learn the basics in a minute</h3>
+                    <p class="muted tutorial-blurb">The walkthrough dims the screen and spotlights each part of the panel while it explains what it does, and it runs the bundled sample along the way, fully offline.</p>
+                    <div class="run-row tutorial-actions">
+                        <button type="button" id="btn-tour-restart" class="primary">Restart walkthrough</button>
+                        <button type="button" id="btn-tutorial-start">Translate sample</button>
+                    </div>
+                    <div id="tutorial-status" class="status-line"></div>
+                    <pre id="tutorial-log" class="log tutorial-log hidden"></pre>
+                </div>
+            </div>
         </section>
 
         <section class="card">
@@ -402,6 +417,28 @@
         </section>
 
     </main>
+
+    <div id="tour-overlay" class="tour-overlay hidden" aria-hidden="true">
+        <div id="tour-spotlight" class="tour-spotlight hidden"></div>
+        <div id="tour-card" class="tour-card" role="dialog" aria-modal="true" aria-labelledby="tour-title">
+            <h3 id="tour-title" class="tour-title"></h3>
+            <p id="tour-body" class="tour-body"></p>
+            <div id="tour-run-area" class="tour-run hidden">
+                <button type="button" id="tour-run-sample" class="primary">Run the sample now</button>
+                <div id="tour-run-status" class="tour-run-status"></div>
+                <pre id="tour-run-log" class="tour-run-log hidden"></pre>
+            </div>
+            <div class="tour-meta">
+                <span id="tour-counter" class="muted"></span>
+                <span id="tour-dots" class="tour-dots"></span>
+            </div>
+            <div class="tour-actions">
+                <button type="button" id="tour-back">Back</button>
+                <button type="button" id="tour-next" class="primary">Next</button>
+                <button type="button" id="tour-skip">Skip</button>
+            </div>
+        </div>
+    </div>
 
     <div id="disclaimer-modal" class="modal hidden">
         <div class="modal-card">

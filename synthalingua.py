@@ -17,6 +17,14 @@ if getattr(sys, 'frozen', False):
     os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
     os.environ.setdefault('HF_DATASETS_OFFLINE', '1')
 
+# Tutorial/demo mode (TUTORIAL CONTRACT v1, task-15): --demo suppresses every
+# interactive prompt in the caption path. It is detected from raw argv here
+# because sub_gen.py parses arguments at import time (sub_gen.py:73) and
+# parser_args.py can prompt during that parse, both before main() runs.
+import os
+if '--demo' in sys.argv:
+    os.environ.setdefault('SYNTHALINGUA_DEMO', '1')
+
 # Check if this process is being launched as a worker for subtitle generation
 if '--run-worker' in sys.argv:
     try:
@@ -190,6 +198,15 @@ def main():
     if getattr(sys, 'frozen', False) and args.model_dir == 'models':
         args.model_dir = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), 'models')
         print(f"Frozen build: using models folder at {args.model_dir}")
+
+    # Tutorial/demo mode (TUTORIAL CONTRACT v1, task-15): --demo implies the
+    # caption path, and a source run needs the project's models folder so the
+    # demo stays offline no matter which cwd it was started from.
+    if args.demo:
+        if not getattr(sys, 'frozen', False) and args.model_dir == 'models':
+            args.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
+        if not args.makecaptions:
+            args.makecaptions = True
 
     # Early exit conditions
     if len(sys.argv) == 1:
@@ -568,6 +585,45 @@ def main():
         # Include stream source if available
         stream_source = args.stream if args.stream else None
         send_startup_notification(webhook_url, model_info, translation_status, stream_source)    # Handle caption generation
+    # Tutorial / guided demo run (TUTORIAL CONTRACT v1, task-15): transcribe
+    # the bundled sample offline with every prompt suppressed and exit 0.
+    # The UI reaches this same path through run_manager's "tutorial" mode,
+    # which passes --demo plus explicit paths, so both entries share it.
+    if args.demo:
+        if getattr(sys, 'frozen', False):
+            demo_base_dir = os.path.dirname(os.path.abspath(sys.executable))
+        else:
+            demo_base_dir = os.path.dirname(os.path.abspath(__file__))
+        demo_sample = os.path.join(demo_base_dir, "DemoTTS.mp3")
+        if not os.path.isfile(demo_sample):
+            print(f"{Fore.RED}Demo sample not found: {demo_sample}{Style.RESET_ALL}")
+            sys.exit(1)
+        demo_output_dir = args.file_output or os.path.join(
+            os.environ.get("APPDATA") or os.path.expanduser("~"), "Synthalingua", "tutorial"
+        )
+        os.makedirs(demo_output_dir, exist_ok=True)
+        # Force the shipped model (TUTORIAL CONTRACT v1): the demo must run
+        # fully offline from the models that ship with the build, never from
+        # a relative path. run_sub_gen reads sub_gen's own argparse namespace
+        # (parsed at import time, sub_gen.py:73), so both namespaces are set
+        # here and must agree.
+        if getattr(sys, 'frozen', False):
+            args.model_dir = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), 'models')
+        else:
+            args.model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
+        args.model_source = 'fasterwhisper'
+        args.ram = '2gb'
+        args.language = 'English'
+        from modules import sub_gen as _demo_sub_gen
+        _demo_sub_gen.args.model_dir = args.model_dir
+        _demo_sub_gen.args.model_source = args.model_source
+        _demo_sub_gen.args.ram = args.ram
+        _demo_sub_gen.args.language = args.language
+        demo_output_name = args.file_output_name or "DemoTTS"
+        run_sub_gen(demo_sample, demo_output_name, demo_output_dir)
+        print(f"{Fore.GREEN}Demo captions saved to {os.path.join(demo_output_dir, demo_output_name + '.srt')}{Style.RESET_ALL}")
+        sys.exit(0)
+
     if args.makecaptions:
         if args.file_output_name is None:
             args.file_output_name = "filename"

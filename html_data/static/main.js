@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var MODES = ['captions', 'hls', 'mic'];
+    var MODES = ['captions', 'hls', 'mic', 'tutorial'];
     var state = {
         mode: 'captions',
         settings: {},
@@ -20,7 +20,8 @@
         statusTimer: null,
         logTimer: null,
         videoSession: null,
-        elapsedBase: null
+        elapsedBase: null,
+        tutorialWatch: false
     };
 
     function byId(id) { return document.getElementById(id); }
@@ -236,6 +237,12 @@
     }
 
     function saveSettings(quiet) {
+        // The tutorial tab shows no keyed fields, so a patch collected there
+        // would read as "clear everything". Never save from it.
+        if (state.mode === 'tutorial') {
+            if (!quiet) { note('Nothing to save on the Tutorial tab. Pick a tab first.', 'bad'); }
+            return;
+        }
         var patch = collectPatch();
         return api('/api/settings', { method: 'POST', body: patch }).then(function (data) {
             state.settings = data.settings || state.settings;
@@ -362,6 +369,7 @@
         if (status.log_lines && status.log_lines > state.logNext && state.logLines.length === 0) {
             backfillLog();
         }
+        handleTutorialState(status);
     }
 
     function refreshStatus() {
@@ -374,6 +382,7 @@
     }
 
     function startRun() {
+        if (state.mode === 'tutorial') { note('The tutorial runs from its own button. Pick a tab first.', 'bad'); return; }
         if (!state.accepted) { note('Accept the disclaimer before starting.', 'bad'); return; }
         var patch = collectPatch();
         note('Saving settings...');
@@ -400,6 +409,7 @@
     }
 
     function preview() {
+        if (state.mode === 'tutorial') { note('The tutorial runs from its own button. Pick a tab first.', 'bad'); return; }
         api('/api/preview/namespace', { method: 'POST', body: collectPatch() }).then(function (data) {
             var box = byId('command-preview');
             if (!box) { return; }
@@ -414,6 +424,7 @@
     // ---------------------------------------------------------------- log
     function appendLog(line) {
         var box = byId('run-log');
+        if (state.tutorialWatch) { tutorialLog(line); tourLog(line); }
         if (!box) { return; }
         state.logLines.push(line);
         if (state.logLines.length > 2000) { state.logLines.shift(); }
@@ -477,6 +488,347 @@
         var start = byId('btn-start');
         if (start) { start.disabled = !state.accepted; }
         if (!state.accepted) { showDisclaimer(); } else { hideDisclaimer(); }
+    }
+
+    // ---------------------------------------------------------------- tutorial
+    // Session guard: the first-run auto-start fires at most once per process.
+    var tutorialAutoOpened = false;
+    var TUTORIAL_SRT_PATH = '<APPDATA>\\Synthalingua\\tutorial\\DemoTTS.srt';
+
+    function tutorialSetStatus(text, kind) {
+        var line = byId('tutorial-status');
+        if (!line) { return; }
+        line.textContent = text || '';
+        line.className = 'status-line' + (kind ? ' ' + kind : '');
+    }
+
+    function tutorialLog(line) {
+        var box = byId('tutorial-log');
+        if (!box) { return; }
+        box.classList.remove('hidden');
+        box.textContent += (box.textContent ? '\n' : '') + line;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    // Status sink: the Tutorial tab status line, plus the tour card run
+    // area while the walkthrough is showing the sample step.
+    function tutorialReport(text, kind) {
+        tutorialSetStatus(text, kind);
+        var line = byId('tour-run-status');
+        if (line) {
+            line.textContent = text || '';
+            line.className = 'tour-run-status' + (kind ? ' ' + kind : '');
+        }
+    }
+
+    function tourLog(line) {
+        var box = byId('tour-run-log');
+        if (!box || !tour.active) { return; }
+        var text = box.textContent ? (box.textContent + '\n' + line) : line;
+        var lines = text.split('\n');
+        if (lines.length > 8) { lines = lines.slice(lines.length - 8); }
+        box.textContent = lines.join('\n');
+        box.classList.remove('hidden');
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function tutorialMarkDone() {
+        api('/api/settings', { method: 'POST', body: { ui_tutorial_done: true } }).then(function (data) {
+            state.settings = (data && data.settings) || state.settings;
+            state.settings.ui_tutorial_done = true;
+        }).catch(function () { /* a later finish or sample success retries the write */ });
+    }
+
+    // ---------------------------------------------------------------- tour
+    // The frozen walkthrough. Every step binds to elements that exist in
+    // main.html; a step that names two controls spotlights their union.
+    var tour = { steps: [], index: 0, direction: 1, active: false };
+
+    function tourSteps() {
+        var steps = [
+            {
+                card: true,
+                title: 'Welcome to Synthalingua',
+                body: 'This short walkthrough shows you the basics: captioning a file, picking a model, and watching the live result. It takes about a minute and you can leave at any time.',
+                nextLabel: 'Start the walkthrough',
+                skipLabel: 'Skip for now'
+            },
+            {
+                target: '.tabs',
+                title: 'The three ways to use Synthalingua',
+                body: 'Captions turns audio or video files into translated subtitle files. HLS stream translates live video streams. Microphone translates your own voice in real time.'
+            },
+            {
+                target: '#file_input',
+                tab: 'captions',
+                title: 'Pick something to translate',
+                body: 'Choose any audio or video file. Common formats like mp3, wav, mp4 and mkv all work, and you can paste a path instead of browsing.'
+            },
+            {
+                target: ['#target_language', '#model_source'],
+                tab: 'captions',
+                title: 'Choose the language and the model',
+                body: 'Set the language you want text translated into, and how much video memory the model may use. The default model ships with the app, so it works offline out of the box.'
+            },
+            {
+                target: '.run-card .run-row',
+                title: 'Run it',
+                body: 'Start runs the job with the settings on this tab. Progress and the live log appear below, and Stop cancels at any time. The finished subtitle file is written to the folder you choose.'
+            },
+            {
+                target: '#btn-tutorial-start',
+                tab: 'tutorial',
+                run: true,
+                title: 'Watch it work right now',
+                body: 'This runs the bundled sample clip end to end, fully offline, and writes DemoTTS.srt to %APPDATA%\\Synthalingua\\tutorial.'
+            },
+            {
+                target: '#shell-tools',
+                title: 'Live caption window',
+                body: 'The caption window is a small always-on-top window that shows live subtitles while you use any other app. The file picker here works the same way.'
+            },
+            {
+                card: true,
+                title: 'That is the basics',
+                body: 'Everything else lives in these tabs. The Tutorial tab keeps the sample and can restart this walkthrough any time.',
+                nextLabel: 'Finish',
+                hideSkip: true
+            }
+        ];
+        if (!window.__synthalinguaShell) {
+            // Outside the desktop shell the tool row stays hidden; drop the
+            // step up front. The zero-rect check in tourRect is the safety.
+            steps = steps.filter(function (step) { return step.target !== '#shell-tools'; });
+        }
+        return steps;
+    }
+
+    // Bounding box of one step's target: the union when a step names more
+    // than one control. Missing or invisible selectors contribute nothing.
+    function tourRect(selectors) {
+        var list = Array.isArray(selectors) ? selectors : [selectors];
+        var box = null;
+        list.forEach(function (selector) {
+            var el = document.querySelector(selector);
+            if (!el) { return; }
+            var rect = el.getBoundingClientRect();
+            if (rect.width < 1 || rect.height < 1) { return; }
+            if (!box) {
+                box = { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+            } else {
+                box.left = Math.min(box.left, rect.left);
+                box.top = Math.min(box.top, rect.top);
+                box.right = Math.max(box.right, rect.right);
+                box.bottom = Math.max(box.bottom, rect.bottom);
+            }
+        });
+        return box;
+    }
+
+    function tourPlaceSpotlight(rect) {
+        var box = byId('tour-spotlight');
+        if (!box) { return; }
+        if (!rect) { box.classList.add('hidden'); return; }
+        box.classList.remove('hidden');
+        var pad = 6;
+        box.style.left = Math.round(rect.left - pad) + 'px';
+        box.style.top = Math.round(rect.top - pad) + 'px';
+        box.style.width = Math.round(rect.right - rect.left + pad * 2) + 'px';
+        box.style.height = Math.round(rect.bottom - rect.top + pad * 2) + 'px';
+    }
+
+    // Card placement: prefer below the spotlight, flip above when there is
+    // no room, clamp inside the viewport, center when there is no spotlight.
+    function tourPlaceCard(rect) {
+        var card = byId('tour-card');
+        if (!card) { return; }
+        var pad = 8;
+        var gap = 12;
+        if (!rect) {
+            card.style.left = Math.round((window.innerWidth - card.offsetWidth) / 2) + 'px';
+            card.style.top = Math.round((window.innerHeight - card.offsetHeight) / 2) + 'px';
+            return;
+        }
+        var left = rect.left + (rect.right - rect.left) / 2 - card.offsetWidth / 2;
+        left = Math.max(pad, Math.min(left, window.innerWidth - card.offsetWidth - pad));
+        var top = rect.bottom + gap;
+        if (top + card.offsetHeight > window.innerHeight - pad) {
+            top = rect.top - card.offsetHeight - gap;
+        }
+        if (top < pad || top + card.offsetHeight > window.innerHeight - pad) {
+            top = Math.max(pad, window.innerHeight - card.offsetHeight - pad);
+        }
+        card.style.left = Math.round(left) + 'px';
+        card.style.top = Math.round(top) + 'px';
+    }
+
+    function tourGo(direction) {
+        if (!tour.active) { return; }
+        var target = tour.index + direction;
+        if (target < 0) { return; }
+        if (target > tour.steps.length - 1) { tourFinish(true); return; }
+        tour.direction = direction;
+        tour.index = target;
+        tourRender();
+    }
+
+    function tourRender() {
+        var steps = tour.steps;
+        var step = steps[tour.index];
+        if (!step) { tourFinish(true); return; }
+        if (step.tab && state.mode !== step.tab) { switchTab(step.tab, true); }
+        var rect = step.card ? null : tourRect(step.target);
+        if (!step.card && !rect) {
+            // Missing or invisible target: skip this step in the current
+            // direction, never crash, never loop.
+            if (tour.direction < 0 && tour.index === 0) { tourFinish(true); return; }
+            tourGo(tour.direction);
+            return;
+        }
+        byId('tour-title').textContent = step.title;
+        byId('tour-body').textContent = step.body;
+        byId('tour-counter').textContent = 'Step ' + (tour.index + 1) + ' of ' + steps.length;
+        var dots = byId('tour-dots');
+        dots.innerHTML = '';
+        steps.forEach(function (item, i) {
+            var dot = document.createElement('span');
+            dot.className = 'tour-dot' + (i === tour.index ? ' active' : '');
+            dots.appendChild(dot);
+        });
+        byId('tour-back').classList.toggle('hidden', tour.index === 0);
+        byId('tour-next').textContent = step.nextLabel || 'Next';
+        byId('tour-skip').textContent = step.skipLabel || 'Skip';
+        byId('tour-skip').classList.toggle('hidden', !!step.hideSkip);
+        var runArea = byId('tour-run-area');
+        if (runArea) { runArea.classList.toggle('hidden', !step.run); }
+        tourPlaceSpotlight(rect);
+        tourPlaceCard(rect);
+    }
+
+    function tourReposition() {
+        if (!tour.active) { return; }
+        var step = tour.steps[tour.index];
+        if (!step) { return; }
+        if (step.tab && state.mode !== step.tab) { switchTab(step.tab, true); }
+        var rect = step.card ? null : tourRect(step.target);
+        if (!step.card && !rect) { return; }
+        tourPlaceSpotlight(rect);
+        tourPlaceCard(rect);
+    }
+
+    function tourKeys(event) {
+        if (!tour.active) { return; }
+        if (event.key === 'Escape') { event.preventDefault(); tourFinish(true); return; }
+        if (event.key === 'Enter') {
+            // A focused button in the card (Run the sample now) keeps its
+            // normal Enter behaviour instead of advancing the tour too.
+            if (event.target && event.target.tagName === 'BUTTON' && event.target.closest && event.target.closest('#tour-card')) { return; }
+            event.preventDefault();
+            tourGo(1);
+        }
+    }
+
+    function startTour() {
+        tour.steps = tourSteps();
+        tour.index = 0;
+        tour.direction = 1;
+        tour.active = true;
+        var overlay = byId('tour-overlay');
+        if (overlay) { overlay.classList.remove('hidden'); overlay.setAttribute('aria-hidden', 'false'); }
+        document.addEventListener('keydown', tourKeys);
+        window.addEventListener('resize', tourReposition);
+        tourRender();
+    }
+
+    function tourFinish(writeSettings) {
+        if (!tour.active) { return; }
+        tour.active = false;
+        document.removeEventListener('keydown', tourKeys);
+        window.removeEventListener('resize', tourReposition);
+        var overlay = byId('tour-overlay');
+        if (overlay) { overlay.classList.add('hidden'); overlay.setAttribute('aria-hidden', 'true'); }
+        if (writeSettings) { tutorialMarkDone(); }
+    }
+
+    function wireTour() {
+        var back = byId('tour-back');
+        if (back) { back.addEventListener('click', function () { tourGo(-1); }); }
+        var next = byId('tour-next');
+        if (next) { next.addEventListener('click', function () { tourGo(1); }); }
+        var skip = byId('tour-skip');
+        if (skip) { skip.addEventListener('click', function () { tourFinish(true); }); }
+        var run = byId('tour-run-sample');
+        if (run) { run.addEventListener('click', startTutorialRun); }
+        var restart = byId('btn-tour-restart');
+        if (restart) { restart.addEventListener('click', startTour); }
+    }
+
+    // First run: when the shell is up and the walkthrough was never finished,
+    // start the tour overlay once. The disclaimer still wins: an unaccepted
+    // disclaimer keeps the modal on top, and accepting it later retries once.
+    function maybeAutoOpenTutorial() {
+        if (tutorialAutoOpened) { return; }
+        if (!shellReady()) { return; }
+        api('/api/settings').then(function (data) {
+            if (tutorialAutoOpened) { return; }
+            var settings = (data && data.settings) || {};
+            if (settings.ui_tutorial_done === true) { return; }
+            if (settings.ui_disclaimer_accepted !== true) { return; }
+            tutorialAutoOpened = true;
+            startTour();
+        }).catch(function () { /* settings unreachable; first run waits for the accept */ });
+    }
+
+    function startTutorialRun() {
+        if (state.tutorialWatch) { return; }
+        if (!state.accepted) { tutorialReport('Accept the disclaimer before starting.', 'bad'); return; }
+        var button = byId('btn-tutorial-start');
+        var log = byId('tutorial-log');
+        if (log) { log.textContent = ''; }
+        var cardLog = byId('tour-run-log');
+        if (cardLog) { cardLog.textContent = ''; }
+        tutorialReport('Starting the sample translation...');
+        api('/api/run/start', { method: 'POST', body: { mode: 'tutorial' } }).then(function (data) {
+            state.tutorialWatch = true;
+            if (button) { button.disabled = true; }
+            tutorialReport('Tutorial run started (' + ((data && data.run_id) || 'starting') + '). Progress shows below.');
+            refreshStatus();
+        }).catch(function (error) {
+            var message = (error.status === 409)
+                ? 'A run is already active. Stop it first.'
+                : 'Tutorial start failed: ' + error.message;
+            tutorialReport(message, 'bad');
+        });
+    }
+
+    // Terminal states for the tutorial run: stopped with exit code 0 is the
+    // only success; anything else keeps ui_tutorial_done untouched.
+    function handleTutorialState(status) {
+        if (!state.tutorialWatch) { return; }
+        var value = (status && status.state) || 'idle';
+        if (value === 'starting' || value === 'running') {
+            tutorialReport('Translating the sample (' + value + ')...');
+            return;
+        }
+        if (value === 'stopping') {
+            tutorialReport('Stopping the tutorial run...');
+            return;
+        }
+        state.tutorialWatch = false;
+        var button = byId('btn-tutorial-start');
+        if (button) { button.disabled = false; }
+        if (value === 'stopped' && status.exit_code === 0 && !status.error) {
+            tutorialReport('Tutorial complete. Captions saved to ' + TUTORIAL_SRT_PATH, 'ok');
+            tutorialMarkDone();
+        } else {
+            var reason = status.error;
+            if (!reason) {
+                reason = (typeof status.exit_code === 'number')
+                    ? ('exit code ' + status.exit_code)
+                    : 'the run ended without finishing';
+            }
+            tutorialReport('Tutorial run did not finish: ' + reason, 'bad');
+        }
     }
 
     // ---------------------------------------------------------------- shell
@@ -643,7 +995,12 @@
     // ---------------------------------------------------------------- wiring
     function wireTabs() {
         Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (tab) {
-            tab.addEventListener('click', function () { switchTab(tab.getAttribute('data-mode')); });
+            tab.addEventListener('click', function () {
+                var mode = tab.getAttribute('data-mode');
+                // Silent for the tutorial: switching to it must not save
+                // mode "tutorial" into the settings.
+                switchTab(mode, mode === 'tutorial');
+            });
         });
     }
 
@@ -729,6 +1086,7 @@
                     state.settings = data.settings || state.settings;
                     state.settings.ui_disclaimer_accepted = true;
                     applyDisclaimerGate();
+                    maybeAutoOpenTutorial();
                     note('Disclaimer accepted.', 'ok');
                 }).catch(function (error) {
                     note('Could not record acceptance: ' + error.message, 'bad');
@@ -744,6 +1102,7 @@
                 if (byId('btn-start')) { byId('btn-start').disabled = true; }
             });
         }
+        if (byId('btn-tutorial-start')) { byId('btn-tutorial-start').addEventListener('click', startTutorialRun); }
         if (byId('btn-review-disclaimer')) {
             byId('btn-review-disclaimer').addEventListener('click', function () {
                 var declined = byId('declined-notice');
@@ -781,6 +1140,7 @@
         refreshShellUi();
         wireTabs();
         wireControls();
+        wireTour();
         wireShellButtons();
         wireDropZones();
         loadSettings().then(function () {
@@ -795,6 +1155,7 @@
         startTimers();
         window.addEventListener('pywebviewready', function () {
             refreshShellUi();
+            maybeAutoOpenTutorial();
         });
     }
 
