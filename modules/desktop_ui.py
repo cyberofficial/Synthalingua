@@ -109,6 +109,8 @@ def _something_listening(host, port, timeout=0.3):
     """True when something already accepts connections on host:port."""
     import socket
 
+    if port in (None, 0):
+        return False
     try:
         with socket.create_connection((host, int(port)), timeout):
             return True
@@ -425,6 +427,7 @@ class DesktopShell:
             ),
             "cookies": (("Cookies (*.txt;*.json)", "All files (*.*)"), "open"),
             "ignorelist": (("Text (*.txt)", "All files (*.*)"), "open"),
+            "srt": (("Subtitles (*.srt)", "All files (*.*)"), "open"),
             "output_dir": (None, "folder"),
         }
         file_types, mode = kinds.get(kind, kinds["audio_video"])
@@ -535,10 +538,13 @@ class DesktopShell:
         candidate = self._port
         if candidate in (None, 0):
             candidate = find_available_port(PORT_HINT, self._host)
+            if candidate is None:
+                log.warning("no available port found in the preferred range, letting the OS pick one")
+                candidate = 0
             # find_available_port sets SO_REUSEADDR, which on Windows can report a
             # port another process is already serving. Never attach the shell to a
             # server this process does not own: fall back to an OS-assigned port.
-            if _something_listening(self._host, candidate):
+            elif _something_listening(self._host, candidate):
                 log.warning("port %s is already in use, letting the OS pick a port", candidate)
                 candidate = 0
         try:

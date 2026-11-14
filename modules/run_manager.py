@@ -76,22 +76,24 @@ MODES = ("captions", "hls", "mic", "tutorial")
 #: Keys that are UI state only and never become argv.
 UI_KEY_PREFIX = "ui_"
 
-#: CLI option names without leading dashes, exactly as CONTRACT v1 lists them.
+#: CLI option names without leading dashes that the desktop UI can forward.
 CLI_KEYS = (
     "makecaptions", "ram", "ramforce", "model_source", "model_dir", "fp16",
+    "compute_type", "cuda_device", "updatebranch", "no_log",
     "language", "stream_language", "translate", "stream_translate",
     "transcribe", "target_language", "stream_transcribe", "device", "stream",
-    "cookies", "remote_hls_password_id", "remote_hls_password", "auto_hls",
+    "cookies", "cookies_from_browser", "remote_hls_password_id", "remote_hls_password", "auto_hls",
     "selectsource", "stream_original_text", "stream_chunks", "paddedaudio",
     "microphone_enabled", "energy_threshold", "mic_calibration_time",
     "record_timeout", "phrase_timeout", "set_microphone", "mic_chunk_size",
     "file_input", "file_output", "file_output_name", "print_srt_to_console",
     "silent_detect", "silent_threshold", "silent_duration", "intelligent_mode",
     "timeout", "word_timestamps", "subtype", "substyle", "adaptive_batch",
-    "batchjobsize", "cpu_batches", "max_cpu_time", "batchmode",
+    "batchjobsize", "cpu_batches", "max_cpu_time", "stop_cpu_at", "batchmode",
     "isolate_vocals", "demucs_model", "ignorelist",
     "condition_on_previous_text", "discord_webhook", "auto_blocklist",
-    "debug", "portnumber", "https", "serverip",
+    "debug", "keep_temp", "retry", "save_transcript", "save_folder",
+    "portnumber", "https", "serverip",
 )
 
 #: Defaults mirror modules/parser_args.py so a preview is honest about what the
@@ -104,6 +106,10 @@ DEFAULTS = {
     "model_source": "whisper",
     "model_dir": "models",
     "fp16": False,
+    "compute_type": "default",
+    "cuda_device": 0,
+    "updatebranch": "master",
+    "no_log": False,
     "language": None,
     "stream_language": None,
     "translate": False,
@@ -114,6 +120,7 @@ DEFAULTS = {
     "device": "cuda",
     "stream": None,
     "cookies": None,
+    "cookies_from_browser": None,
     "remote_hls_password_id": None,
     "remote_hls_password": None,
     "auto_hls": False,
@@ -144,6 +151,7 @@ DEFAULTS = {
     "batchjobsize": 4,
     "cpu_batches": None,
     "max_cpu_time": 300,
+    "stop_cpu_at": 0.95,
     "batchmode": 1,
     "isolate_vocals": False,
     "demucs_model": "htdemucs",
@@ -153,6 +161,10 @@ DEFAULTS = {
     "discord_webhook": None,
     "auto_blocklist": False,
     "debug": False,
+    "keep_temp": False,
+    "retry": False,
+    "save_transcript": False,
+    "save_folder": "out",
     "portnumber": None,
     "https": None,
     "serverip": "127.0.0.1",
@@ -171,7 +183,8 @@ DEFAULTS = {
 
 #: Flag options that take no value.
 FLAG_KEYS = (
-    "ramforce", "fp16", "translate", "stream_translate", "transcribe",
+    "ramforce", "fp16", "no_log", "keep_temp", "retry", "save_transcript",
+    "translate", "stream_translate", "transcribe",
     "auto_hls", "stream_original_text", "print_srt_to_console", "silent_detect",
     "intelligent_mode", "word_timestamps", "adaptive_batch",
     "condition_on_previous_text", "auto_blocklist", "debug",
@@ -182,15 +195,20 @@ INT_KEYS = (
     "stream_chunks", "energy_threshold", "mic_calibration_time",
     "record_timeout", "phrase_timeout", "mic_chunk_size", "timeout",
     "batchjobsize", "cpu_batches", "max_cpu_time", "batchmode", "paddedaudio",
-    "portnumber", "https",
+    "portnumber", "https", "cuda_device",
 )
 
 #: Option keys that are floats.
-FLOAT_KEYS = ("silent_threshold", "silent_duration")
+FLOAT_KEYS = ("silent_threshold", "silent_duration", "stop_cpu_at")
 
 #: Option keys that must be one of a fixed set.
 CHOICE_KEYS = {
     "model_source": ("whisper", "fasterwhisper", "openvino"),
+    "compute_type": ("default", "int8", "int8_float32", "int8_float16",
+                     "int8_bfloat16", "int16", "float16", "bfloat16", "float32"),
+    "updatebranch": ("master", "dev-testing", "bleeding-under-work", "disable"),
+    "cookies_from_browser": ("brave", "chrome", "chromium", "edge", "firefox",
+                             "opera", "safari", "vivaldi", "whale"),
     "device": ("cuda", "cpu", "auto", "intel-igpu", "intel-dgpu", "intel-npu"),
     "subtype": ("burn", "embed"),
     "ram": ("1gb", "2gb", "3gb", "6gb", "7gb", "11gb-v2", "11gb-v3"),
@@ -468,6 +486,9 @@ def build_argv(settings):
     if device:
         argv.append("--device")
         argv.append(str(device))
+    cuda_device = settings.get("cuda_device")
+    if cuda_device not in (None, 0):
+        argv.extend(("--cuda_device", str(int(cuda_device))))
 
     # --- Additional ------------------------------------------------------
     ignorelist = settings.get("ignorelist")
@@ -508,14 +529,86 @@ def build_argv(settings):
         argv.append("--fp16")
     if settings.get("auto_blocklist"):
         argv.append("--auto_blocklist")
+    if settings.get("keep_temp"):
+        argv.append("--keep_temp")
+    if settings.get("retry"):
+        argv.append("--retry")
+    if settings.get("no_log"):
+        argv.append("--no_log")
+    if settings.get("save_transcript"):
+        argv.append("--save_transcript")
+        save_folder = settings.get("save_folder") or DEFAULTS["save_folder"]
+        if not os.path.isabs(str(save_folder)):
+            save_folder = os.path.join(_base_cwd(), str(save_folder))
+        argv.extend(("--save_folder", os.path.normpath(str(save_folder))))
+    updatebranch = settings.get("updatebranch")
+    if updatebranch and updatebranch != "master":
+        argv.extend(("--updatebranch", str(updatebranch)))
 
     # --- Model source ----------------------------------------------------
     model_source = settings.get("model_source")
     if model_source:
         argv.append("--model_source")
         argv.append(str(model_source))
+    compute_type = settings.get("compute_type")
+    if compute_type and compute_type != "default":
+        argv.extend(("--compute_type", str(compute_type)))
 
     return argv
+
+
+def build_utility_argv(action, settings=None, options=None):
+    """Build argv for a supported standalone CLI action."""
+    settings = settings or default_settings()
+    options = options if isinstance(options, dict) else {}
+    if action == "version":
+        return ["--version"]
+    if action == "about":
+        return ["--about"]
+    if action == "checkupdate":
+        argv = ["--checkupdate"]
+        updatebranch = settings.get("updatebranch")
+        if updatebranch not in CHOICE_KEYS["updatebranch"]:
+            raise ValueError(f"Unknown updatebranch: {updatebranch}")
+        if updatebranch != "master":
+            argv.extend(("--updatebranch", str(updatebranch)))
+        return argv
+    if action == "bugreport":
+        return ["--bugreport"]
+    if action == "detect_sound":
+        return ["--detect_sound"]
+    if action == "fixsrt":
+        path = str(options.get("srt_path") or "").strip()
+        if not path:
+            raise ValueError("Choose an SRT file first.")
+        if not os.path.isfile(path):
+            raise ValueError(f"SRT file not found: {path}")
+        return ["--fixsrt", path]
+    if action == "preload":
+        if getattr(sys, "frozen", False):
+            raise ValueError("Model preloading is available in source builds only.")
+        spec = str(options.get("preload_spec") or "").strip()
+        model_dir = settings.get("model_dir")
+        if not model_dir or model_dir == "models":
+            model_dir = models_dir(None)
+        elif not os.path.isabs(str(model_dir)):
+            model_dir = os.path.abspath(os.path.join(_base_cwd(), str(model_dir)))
+        device = settings.get("device") or DEFAULTS["device"]
+        compute_type = settings.get("compute_type") or DEFAULTS["compute_type"]
+        if device not in CHOICE_KEYS["device"]:
+            raise ValueError(f"Unknown device: {device}")
+        if compute_type not in CHOICE_KEYS["compute_type"]:
+            raise ValueError(f"Unknown compute_type: {compute_type}")
+        argv = ["--preload"]
+        if spec:
+            argv.append(spec)
+        argv.extend(("--model_dir", str(model_dir), "--device", str(device),
+                     "--compute_type", str(compute_type)))
+        cuda_device = settings.get("cuda_device")
+        if cuda_device not in (None, 0):
+            argv.extend(("--cuda_device", str(int(cuda_device))))
+        return argv
+    raise ValueError(f"Unsupported utility action: {action}")
 
 
 def build_tutorial_argv(settings):
@@ -536,7 +629,7 @@ def build_tutorial_argv(settings):
     sample = os.path.join(base, "DemoTTS.mp3")
     appdata_base = os.environ.get("APPDATA") or os.path.expanduser("~")
     tutorial_dir = os.path.join(appdata_base, APP_DIR_NAME, "tutorial")
-    return [
+    argv = [
         "--makecaptions",
         "--file_input", sample,
         "--demo",
@@ -547,6 +640,10 @@ def build_tutorial_argv(settings):
         "--ram", "2gb",
         "--model_dir", models_dir(),
     ]
+    updatebranch = settings.get("updatebranch")
+    if updatebranch and updatebranch != "master":
+        argv.extend(("--updatebranch", str(updatebranch)))
+    return argv
 
 
 def _append_web_server(argv, settings):
@@ -649,6 +746,9 @@ def _append_captions(argv, settings):
                     else "1")
         argv.append("--max_cpu_time")
         argv.append(str(settings.get("max_cpu_time") if settings.get("max_cpu_time") is not None else 300))
+        stop_cpu_at = settings.get("stop_cpu_at")
+        if stop_cpu_at is not None and float(stop_cpu_at) != 0.95:
+            argv.extend(("--stop_cpu_at", str(stop_cpu_at)))
     else:
         batchmode = settings.get("batchmode")
         argv.append("--batchmode")
@@ -661,6 +761,9 @@ def _append_hls(argv, settings):
     if cookies:
         argv.append("--cookies")
         argv.append(str(cookies))
+    cookies_from_browser = settings.get("cookies_from_browser")
+    if cookies_from_browser:
+        argv.extend(("--cookies-from-browser", str(cookies_from_browser)))
     if settings.get("remote_hls_password_id") or settings.get("remote_hls_password"):
         _flag_always(argv, "remote_hls_password_id", settings.get("remote_hls_password_id"))
         _flag_always(argv, "remote_hls_password", settings.get("remote_hls_password"))
@@ -802,7 +905,7 @@ def _namespace_defaults():
         "auto_hls": False,
         "selectsource": None,
         "cookies": None,
-        "cookies-from-browser": None,
+        "cookies_from_browser": None,
         "remote_hls_password_id": None,
         "remote_hls_password": None,
         "makecaptions": False,
@@ -829,6 +932,7 @@ def _namespace_defaults():
         "fixsrt": None,
         "save_transcript": False,
         "save_folder": "out",
+        "retry": False,
         "serverip": "127.0.0.1",
         "portnumber": None,
         "https": None,
@@ -918,12 +1022,24 @@ def validate_settings(settings):
         return "subtype needs makecaptions"
     if settings.get("substyle") and settings.get("subtype") != "burn":
         return "substyle needs subtype burn"
+    if (mode == "hls" and settings.get("cookies")
+            and settings.get("cookies_from_browser")):
+        return "choose one cookie source: a file or a browser"
+    browser_cookies = settings.get("cookies_from_browser")
+    if mode == "hls" and browser_cookies and browser_cookies not in CHOICE_KEYS["cookies_from_browser"]:
+        return f"unknown cookies_from_browser: {browser_cookies}"
     if settings.get("word_timestamps") and mode in ("hls", "mic"):
         return "word_timestamps is only supported in captions mode"
 
     model_source = settings.get("model_source")
     if model_source not in CHOICE_KEYS["model_source"]:
         return f"unknown model_source: {model_source}"
+    compute_type = settings.get("compute_type")
+    if compute_type not in CHOICE_KEYS["compute_type"]:
+        return f"unknown compute_type: {compute_type}"
+    updatebranch = settings.get("updatebranch")
+    if updatebranch not in CHOICE_KEYS["updatebranch"]:
+        return f"unknown updatebranch: {updatebranch}"
     device = settings.get("device")
     if device and device not in CHOICE_KEYS["device"]:
         return f"unknown device: {device}"
@@ -980,6 +1096,24 @@ def _validate_numeric_settings(settings):
             float(str(value).strip())
         except (TypeError, ValueError):
             return f"{key} must be a number, got {value!r}"
+
+    cuda_device = settings.get("cuda_device")
+    if cuda_device not in (None, ""):
+        try:
+            cuda_device_value = int(str(cuda_device).strip())
+        except (TypeError, ValueError):
+            return f"cuda_device must be a non-negative integer, got {cuda_device!r}"
+        if cuda_device_value < 0:
+            return f"cuda_device must be non-negative, got {cuda_device_value}"
+
+    stop_cpu_at = settings.get("stop_cpu_at")
+    if stop_cpu_at not in (None, ""):
+        try:
+            stop_cpu_at_value = float(str(stop_cpu_at).strip())
+        except (TypeError, ValueError):
+            return f"stop_cpu_at must be between 0 and 1, got {stop_cpu_at!r}"
+        if stop_cpu_at_value < 0 or stop_cpu_at_value > 1:
+            return f"stop_cpu_at must be between 0 and 1, got {stop_cpu_at_value}"
 
     # parser_args.py:64 valid_batchmode: int, at least 1, at most the CPU count.
     batchmode = settings.get("batchmode")
@@ -1468,14 +1602,14 @@ class RunManager:
 
     # -- start / stop -----------------------------------------------------
 
-    def start(self, settings, argv=None):
+    def start(self, settings, argv=None, run_mode=None):
         """Start a run. Returns (snapshot, error). Only one run at a time."""
         with self._lock:
             if self.is_active():
                 return None, "a run is already active"
 
             argv = list(argv) if argv is not None else (build_tutorial_argv(settings) if resolve_mode(settings) == "tutorial" else build_argv(settings))
-            mode = resolve_mode(settings)
+            mode = run_mode or resolve_mode(settings)
             command = _launch_command(argv)
             cwd = _run_cwd(settings)
 

@@ -142,6 +142,10 @@
                             <input type="number" id="max_cpu_time" data-key="max_cpu_time" data-type="int-null" min="1" step="1" value="300">
                         </label>
                         <label class="field">
+                            <span class="field-label">Stop CPU at progress (0 to 1)</span>
+                            <input type="number" id="stop_cpu_at" data-key="stop_cpu_at" data-type="float-null" min="0" max="1" step="0.01" value="0.95">
+                        </label>
+                        <label class="field">
                             <span class="field-label">Manual batch count</span>
                             <input type="number" id="batchmode" data-key="batchmode" data-type="int-null" min="1" step="1" value="1">
                         </label>
@@ -176,6 +180,22 @@
                             <button type="button" class="browse" data-pick="cookies" data-target="cookies">Browse</button>
                         </span>
                     </label>
+                    <label class="field">
+                        <span class="field-label">Cookies from browser</span>
+                        <select id="cookies_from_browser" data-key="cookies_from_browser" data-type="str-null">
+                            <option value="">None</option>
+                            <option value="brave">Brave</option>
+                            <option value="chrome">Chrome</option>
+                            <option value="chromium">Chromium</option>
+                            <option value="edge">Edge</option>
+                            <option value="firefox">Firefox</option>
+                            <option value="opera">Opera</option>
+                            <option value="safari">Safari</option>
+                            <option value="vivaldi">Vivaldi</option>
+                            <option value="whale">Whale</option>
+                        </select>
+                    </label>
+                    <span class="muted">Choose one cookie source: a file or a browser.</span>
                     <label class="field">
                         <span class="field-label">Remote HLS password id</span>
                         <input type="text" id="remote_hls_password_id" data-key="remote_hls_password_id" data-type="str-null">
@@ -340,6 +360,20 @@
                         <option value="openvino">openvino</option>
                     </select>
                 </label>
+                <label class="field">
+                    <span class="field-label">Compute type</span>
+                    <select id="compute_type" data-key="compute_type" data-type="str">
+                        <option value="default">default</option>
+                        <option value="int8">int8</option>
+                        <option value="int8_float32">int8_float32</option>
+                        <option value="int8_float16">int8_float16</option>
+                        <option value="int8_bfloat16">int8_bfloat16</option>
+                        <option value="int16">int16</option>
+                        <option value="float16">float16</option>
+                        <option value="bfloat16">bfloat16</option>
+                        <option value="float32">float32</option>
+                    </select>
+                </label>
                 <label class="field wide">
                     <span class="field-label">Model folder</span>
                     <span class="input-row">
@@ -360,6 +394,11 @@
                     </select>
                 </label>
                 <label class="check"><input type="checkbox" id="fp16" data-key="fp16" data-type="bool"> FP16 precision</label>
+                <label class="field">
+                    <span class="field-label">CUDA GPU index</span>
+                    <input type="number" id="cuda_device" data-key="cuda_device" data-type="int-null" min="0" step="1" value="0">
+                    <span class="muted">Applies with CUDA. Index 0 is the first GPU.</span>
+                </label>
                 <div class="field wide">
                     <span class="field-label">Models on disk</span>
                     <div id="model-listing" class="model-listing muted">Loading...</div>
@@ -399,12 +438,75 @@
                 <label class="check"><input type="checkbox" id="condition_on_previous_text" data-key="condition_on_previous_text" data-type="bool"> Condition on previous text</label>
                 <label class="check"><input type="checkbox" id="auto_blocklist" data-key="auto_blocklist" data-type="bool"> Auto blocklist</label>
                 <label class="check"><input type="checkbox" id="debug" data-key="debug" data-type="bool"> Debug logging</label>
+                <fieldset class="field wide">
+                    <legend>Transcript output</legend>
+                    <label class="check"><input type="checkbox" id="save_transcript" data-key="save_transcript" data-type="bool"> Save transcript text files</label>
+                    <label class="field">
+                        <span class="field-label">Transcript output folder</span>
+                        <span class="input-row">
+                            <input type="text" id="save_folder" data-key="save_folder" data-type="str" value="out">
+                            <button type="button" class="browse" data-pick="output_dir" data-target="save_folder">Browse</button>
+                        </span>
+                    </label>
+                </fieldset>
+                <fieldset class="field wide">
+                    <legend>Run behavior</legend>
+                    <label class="check"><input type="checkbox" id="keep_temp" data-key="keep_temp" data-type="bool"> Keep temporary files</label>
+                    <label class="check"><input type="checkbox" id="retry" data-key="retry" data-type="bool"> Retry empty transcription results</label>
+                    <label class="check"><input type="checkbox" id="no_log" data-key="no_log" data-type="bool"> Reduce run output</label>
+                </fieldset>
                 <div class="field wide">
                     <span class="field-label">Blocklist in use</span>
                     <div id="blocklist-listing" class="muted">Not loaded.</div>
                 </div>
             </div>
         </details>
+
+        <section class="card" id="utilities-card">
+            <h2 class="card-title">Utilities</h2>
+            <div class="grid">
+                <label class="field">
+                    <span class="field-label">Update checks before runs</span>
+                    <select id="updatebranch" data-key="updatebranch" data-type="str">
+                        <option value="master">master</option>
+                        <option value="dev-testing">dev-testing</option>
+                        <option value="bleeding-under-work">bleeding-under-work</option>
+                        <option value="disable">disable</option>
+                    </select>
+                </label>
+                <div class="field wide">
+                    <span class="field-label">App information and reports</span>
+                    <div class="run-row">
+                        <button type="button" data-utility="version">Version</button>
+                        <button type="button" data-utility="about">About</button>
+                        <button type="button" data-utility="checkupdate">Check for updates</button>
+                        <button type="button" data-utility="bugreport">Create bug report</button>
+                    </div>
+                </div>
+                <div class="field wide">
+                    <span class="field-label">Repair subtitle timing order</span>
+                    <span class="input-row">
+                        <input type="text" id="srt-path" placeholder="Choose an SRT file">
+                        <button type="button" class="browse" data-pick="srt" data-target="srt-path">Browse</button>
+                        <button type="button" data-utility="fixsrt">Repair SRT</button>
+                    </span>
+                </div>
+                <div class="field wide">
+                    <span class="field-label">Model preloading</span>
+                    <span class="input-row">
+                        <input type="text" id="preload-spec" placeholder="Optional model spec, blank means all models">
+                        <button type="button" data-utility="preload">Preload models</button>
+                    </span>
+                    <span class="muted">Format: source:size[.variant][+size.variant,...]. Leave blank to preload all models.</span>
+                    <span class="muted">Source builds only. Preloading can download several gigabytes. Stop is available while it runs.</span>
+                </div>
+                <div class="field wide">
+                    <span class="field-label">Microphone diagnostic</span>
+                    <button type="button" data-utility="detect_sound">Monitor microphone sound</button>
+                    <span class="muted">Use Stop to end the monitor.</span>
+                </div>
+            </div>
+        </section>
 
         <section class="card">
             <div class="run-row">

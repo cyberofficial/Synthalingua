@@ -278,7 +278,7 @@ def setup_device(args):
             return "cpu"
 
         cuda_device_count = torch.cuda.device_count()
-        if cuda_device_count > 1 and args.cuda_device == 0:
+        if cuda_device_count > 1 and args.cuda_device == 0 and sys.stdin.isatty():
             selected_device = select_cuda_device(cuda_device_count)
         else:
             selected_device = args.cuda_device

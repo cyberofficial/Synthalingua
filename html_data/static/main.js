@@ -364,6 +364,9 @@
         var running = (state.runState === 'starting' || state.runState === 'running' || state.runState === 'stopping');
         if (start) { start.disabled = running || !state.accepted; }
         if (stop) { stop.disabled = !running; }
+        Array.prototype.forEach.call(document.querySelectorAll('[data-utility]'), function (button) {
+            button.disabled = running;
+        });
         state.elapsedBase = status.started_at ? Date.parse(status.started_at) : null;
         if (status.error) { note(status.error, 'bad'); }
         if (status.log_lines && status.log_lines > state.logNext && state.logLines.length === 0) {
@@ -405,6 +408,36 @@
             refreshStatus();
         }).catch(function (error) {
             note('Stop failed: ' + error.message, 'bad');
+        });
+    }
+
+    function startUtility(action, button) {
+        var settings = {};
+        ['updatebranch', 'model_dir', 'device', 'compute_type'].forEach(function (id) {
+            var el = byId(id);
+            if (el) { settings[id] = el.value; }
+        });
+        var cudaDevice = byId('cuda_device');
+        if (cudaDevice) { settings.cuda_device = readValue(cudaDevice, 'int-null'); }
+
+        var options = {};
+        if (action === 'fixsrt') {
+            options.srt_path = byId('srt-path') ? byId('srt-path').value : '';
+        } else if (action === 'preload') {
+            options.preload_spec = byId('preload-spec') ? byId('preload-spec').value : '';
+        }
+        if (button) { button.disabled = true; }
+        note('Starting ' + action.replace(/_/g, ' ') + '...');
+        api('/api/utility/start', {
+            method: 'POST',
+            body: { action: action, settings: settings, options: options }
+        }).then(function (data) {
+            note('Started ' + action.replace(/_/g, ' ') + ' (' + (data.run_id || 'starting') + '). Output appears in the run log.', 'ok');
+            refreshStatus();
+        }).catch(function (error) {
+            if (button) { button.disabled = false; }
+            note('Could not start ' + action.replace(/_/g, ' ') + ': ' + error.message, 'bad');
+            refreshStatus();
         });
     }
 
@@ -862,6 +895,13 @@
         var input = document.createElement('input');
         input.type = 'file';
         input.style.display = 'none';
+        var accept = {
+            audio_video: '.mp4,.mkv,.mov,.avi,.webm,.mp3,.wav,.m4a,.flac,.ogg,.aac',
+            cookies: '.txt,.json',
+            ignorelist: '.txt',
+            srt: '.srt'
+        };
+        if (accept[kind]) { input.accept = accept[kind]; }
         document.body.appendChild(input);
         input.addEventListener('change', function () {
             var file = input.files && input.files[0];
@@ -1046,6 +1086,12 @@
             if (event.target && event.target.hasAttribute && event.target.hasAttribute('data-key')) { scheduleSave(); }
         });
         document.addEventListener('change', function (event) {
+            if (event.target && event.target.id === 'updatebranch') {
+                api('/api/settings', { method: 'POST', body: { updatebranch: event.target.value } }).catch(function (error) {
+                    note('Could not save update check setting: ' + error.message, 'bad');
+                });
+                return;
+            }
             if (event.target && event.target.closest && event.target.closest('[data-key]')) { scheduleSave(); }
             else if (event.target && (event.target.name === 'subtype' || event.target.name === 'batch-mode')) { scheduleSave(); }
             else if (event.target && event.target.id === 'captions-compare') { scheduleSave(); }
@@ -1054,6 +1100,11 @@
         Array.prototype.forEach.call(document.querySelectorAll('[data-pick]'), function (button) {
             button.addEventListener('click', function () {
                 pickFile(button.getAttribute('data-pick'), button.getAttribute('data-target'));
+            });
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('[data-utility]'), function (button) {
+            button.addEventListener('click', function () {
+                startUtility(button.getAttribute('data-utility'), button);
             });
         });
         if (byId('btn-start')) { byId('btn-start').addEventListener('click', startRun); }

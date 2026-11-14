@@ -907,6 +907,37 @@ def api_run_start():
     })
 
 
+@api.route('/api/utility/start', methods=['POST'])
+def api_utility_start():
+    """Start one allowlisted standalone CLI utility in the shared run slot."""
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _json_ok({"ok": False, "error": "request body must be an object"}, 400)
+
+    patch = payload.get("settings")
+    settings = run_manager.load_settings()
+    if isinstance(patch, dict):
+        settings = run_manager.merge_settings(settings, patch)
+    try:
+        argv = run_manager.build_utility_argv(
+            payload.get("action"), settings, payload.get("options")
+        )
+    except (TypeError, ValueError, OSError) as exc:
+        return _json_ok({"ok": False, "error": str(exc)}, 400)
+
+    manager = run_manager.get_manager()
+    if manager.is_active():
+        return _json_ok({"ok": False, "error": "a run is already active"}, 409)
+    snapshot, start_error = manager.start(settings, argv=argv, run_mode="utility")
+    if start_error:
+        return _json_ok({"ok": False, "error": start_error}, 409)
+    return _json_ok({
+        "ok": True,
+        "state": snapshot["state"],
+        "run_id": manager.run_id(),
+    })
+
+
 @api.route('/api/run/stop', methods=['POST'])
 def api_run_stop():
     """4 POST /api/run/stop -> stopping while a run is active, else idle."""
